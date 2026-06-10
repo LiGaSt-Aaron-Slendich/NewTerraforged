@@ -1,0 +1,28 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.terraforged.mod.mixin",
+  "refmap": "newterraforged.refmap.json",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "client.MixinCreateWorldScreen",
+    "client.MixinWorldGenSettingsComponent",
+    "client.WorldGenSettingsComponentAccess"
+  ],
+  "mixins": [
+    "common.MixinBoat",
+    "common.MixinMinecraftServer",
+    "common.MixinPrimaryLevelData",
+    "common.PrimaryLevelDataAccess",
+    "common.ServerChunkCacheAccess",
+    "common.ChunkMapAccess",
+    "common.MixinPackRepository",
+    "common.MixinRegistryAccess",
+    "common.MixinRegistryOps",
+    "common.MixinCropBlock",
+    "common.MixinVillageFeature"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

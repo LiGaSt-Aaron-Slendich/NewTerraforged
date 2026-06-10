@@ -1,0 +1,95 @@
+# NewTerraForged — surface biome climate assignments
+# Climates: desert, savanna, tropical_rainforest, taiga, tundra,
+# temperate_forest, temperate_rainforest, grassland, cold_steppe, steppe, alpine
+
+[settings]
+mod_biome_weight = 5.0
+auto_detect_mod_biomes = true
+
+[[desert]]
+id = "terralith:desert_canyon"
+weight = 1.0
+
+[[desert]]
+id = "terralith:desert_oasis"
+weight = 0.8
+
+[[desert]]
+id = "terralith:sandstone_valley"
+weight = 1.0
+
+[[savanna]]
+id = "terralith:savanna_badlands"
+weight = 1.0
+
+[[savanna]]
+id = "terralith:savanna_slopes"
+weight = 0.9
+
+[[tropical_rainforest]]
+id = "terralith:tropical_jungle"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "terralith:rocky_jungle"
+weight = 0.8
+
+[[taiga]]
+id = "terralith:alpine_grove"
+weight = 1.0
+
+[[taiga]]
+id = "terralith:cloud_forest"
+weight = 0.9
+
+[[tundra]]
+id = "terralith:ice_marsh"
+weight = 1.0
+
+[[tundra]]
+id = "terralith:snowy_badlands"
+weight = 0.8
+
+[[temperate_forest]]
+id = "terralith:temperate_highlands"
+weight = 1.0
+
+[[temperate_forest]]
+id = "terralith:lavender_forest"
+weight = 0.9
+
+[[temperate_rainforest]]
+id = "terralith:mirage_isles"
+weight = 0.7
+
+[[temperate_rainforest]]
+id = "terralith:shield"
+weight = 1.0
+
+[[grassland]]
+id = "terralith:steppe"
+weight = 1.0
+
+[[grassland]]
+id = "terralith:valley"
+weight = 1.0
+
+[[grassland]]
+id = "terralith:yellowstone"
+weight = 0.9
+
+[[cold_steppe]]
+id = "terralith:rocky_shrubland"
+weight = 1.0
+
+[[steppe]]
+id = "terralith:fractured_savanna"
+weight = 0.8
+
+[[alpine]]
+id = "terralith:emerald_peaks"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:scarlet_mountains"
+weight = 0.9

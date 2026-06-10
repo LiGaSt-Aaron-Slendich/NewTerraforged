@@ -1,0 +1,116 @@
+buildscript {
+    repositories {
+        maven { url = "https://repo.spongepowered.org/maven" }
+        maven { url = "https://maven.minecraftforge.net" }
+        mavenCentral()
+    }
+    dependencies {
+        classpath "net.minecraftforge.gradle:ForgeGradle:5.1.+"
+        classpath "org.spongepowered:mixingradle:0.7.32"
+    }
+}
+
+apply plugin: "net.minecraftforge.gradle"
+apply plugin: "org.spongepowered.mixin"
+apply plugin: "java"
+
+apply from: "common.gradle"
+
+repositories {
+    maven { url = "https://repo.spongepowered.org/maven" }
+    mavenCentral()
+
+    flatDir {
+        dirs "libs"
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+
+    // ТВОЯ локальна бібліотека (це ти “вже пофіксив” — повертаю як було логічно)
+    implementation files("libs/Terraforged.jar")
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += "Forge/main/java"
+        }
+        resources {
+            srcDirs += "Forge/main/resources"
+        }
+    }
+}
+
+minecraft {
+    mappings channel: "official", version: minecraft_version
+
+    runs {
+        client {
+            workingDirectory project.file("run")
+            property "forge.logging.markers", "REGISTRIES"
+            property "forge.logging.console.level", "debug"
+            arg "-mixin.config=newterraforged.mixins.json"
+
+            mods {
+                newterraforged {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file("run")
+            property "forge.logging.markers", "REGISTRIES"
+            property "forge.logging.console.level", "debug"
+            arg "-mixin.config=newterraforged.mixins.json"
+
+            mods {
+                newterraforged {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file("run")
+            property "forge.logging.markers", "REGISTRIES"
+            property "forge.logging.console.level", "debug"
+
+            args "--mod", "newterraforged", "--server", "--output", file("generated")
+            arg "-mixin.config=newterraforged.mixins.json"
+
+            mods {
+                newterraforged {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+jar {
+    finalizedBy "reobfJar"
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(project.zipTree("libs/Terraforged.jar")) {
+        exclude "META-INF/MANIFEST.MF"
+        exclude "META-INF/*.SF"
+        exclude "META-INF/*.DSA"
+        exclude "META-INF/*.RSA"
+        exclude "module-info.class"
+    }
+    // Mod classes must win over anything bundled from Terraforged.jar
+    from(sourceSets.main.output)
+    manifest {
+        attributes([
+                "MixinConfigs": "newterraforged.mixins.json"
+        ])
+    }
+}
+
+mixin {
+    add sourceSets.main, "newterraforged.refmap.json"
+}

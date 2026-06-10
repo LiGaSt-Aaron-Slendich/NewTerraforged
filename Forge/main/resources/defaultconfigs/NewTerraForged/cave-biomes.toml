@@ -1,0 +1,961 @@
+# NewTerraForged — underground cave biomes (Forge registry IDs)
+# config_version: bundled default revision (informational — user edits are kept unless the file is empty/corrupt).
+config_version = 2
+
+# CaveBiomeIds resolves terralith:X -> terralith:cave/X. Missing biomes are skipped with a warning.
+#
+# ── Format ───────────────────────────────────────────────────────────────────
+# Each [[primary]] / [[transition]] / [[special]] / [[coastal]] entry:
+#   id, temperature (0..1 cave climate), vegetation_density, weight, placement_type
+#   stat_role = "generator"  — radial stat source in mega/giga (optional)
+#
+# Stats block (-10..10) goes RIGHT AFTER the entry it belongs to:
+#   [primary.stats.conditions]   — minimum pool values required to spawn this biome
+#   [primary.stats.global]       — applied once when biome is placed
+#   [primary.stats.local]          — fades with region-hop distance from generator
+#   [primary.stats.global_frost]   — global override in Frost cave systems
+#   [primary.stats.global_wet]     — override in Wet systems
+#   [primary.stats.global_dry]     — override in Dry systems
+#   [primary.stats.global_normal]  — override in Normal systems
+#
+# Use [transition.stats.*] after [[transition]], [special.stats.*] after [[special]], etc.
+# Keys are case-insensitive (temperature = Temperature).
+#
+# Blocked: minecraft:lush_caves, minecraft:blooming_caves
+# Fallback only: minecraft:dripstone_caves, newterraforged:cave
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Terralith (+ NewTerraForged custom cave biomes)
+# ══════════════════════════════════════════════════════════════════════════════
+
+[[primary]]
+id = "newterraforged:cave_thermal_springs"
+temperature = 0.90
+vegetation_density = 0.15
+weight = 1.0
+placement_type = "full_region"
+stat_role = "generator"
+
+[primary.stats.conditions]
+temperature = 2
+moisture = 1
+
+[primary.stats.global]
+temperature = 0
+moisture = 0
+fertility = 0
+
+[primary.stats.local]
+temperature = 3
+moisture = 4
+fertility = 4
+falloff_per_hop = 0.9
+
+[primary.stats.global_frost]
+temperature = 0
+moisture = 0
+fertility = 0
+
+[primary.stats.global_wet]
+temperature = 0
+moisture = 0
+fertility = 0
+
+[primary.stats.global_dry]
+temperature = 0
+moisture = 0
+fertility = 0
+
+[primary.stats.global_normal]
+temperature = 0
+moisture = 0
+fertility = 0
+
+[[primary]]
+id = "terralith:cave/frostfire_caves"
+temperature = 0.05
+vegetation_density = 0.10
+weight = 1.0
+placement_type = "full_region"
+stat_role = "generator"
+
+[primary.stats.conditions]
+temperature = -2
+
+[primary.stats.global]
+temperature = -4
+moisture = -1
+fertility = -2
+
+[primary.stats.local]
+temperature = -3
+moisture = -1
+falloff_per_hop = 1.0
+
+[primary.stats.global_frost]
+temperature = -2
+moisture = 1
+
+[primary.stats.global_wet]
+temperature = -3
+moisture = -2
+
+[primary.stats.global_dry]
+temperature = -4
+moisture = -2
+
+[primary.stats.global_normal]
+temperature = -3
+moisture = -1
+
+[[primary]]
+id = "terralith:cave/fungal_caves"
+temperature = 0.55
+vegetation_density = 0.85
+weight = 1.0
+placement_type = "full_region"
+
+[primary.stats.conditions]
+moisture = 1
+fertility = 2
+
+[primary.stats.global]
+moisture = 3
+fertility = 2
+
+[primary.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.85
+
+[[primary]]
+id = "terralith:cave/mantle_caves"
+temperature = 0.88
+vegetation_density = 0.10
+weight = 0.9
+placement_type = "full_region"
+stat_role = "generator"
+
+[primary.stats.conditions]
+temperature = 4
+
+[primary.stats.global]
+temperature = 3
+moisture = -2
+fertility = -1
+
+[primary.stats.local]
+temperature = 2
+moisture = -1
+falloff_per_hop = 1.0
+
+[primary.stats.global_frost]
+moisture = 4
+temperature = 2
+
+[primary.stats.global_wet]
+moisture = -4
+temperature = 2
+
+[[transition]]
+id = "terralith:cave/ice_caves"
+temperature = 0.08
+vegetation_density = 0.08
+weight = 0.65
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = -2
+
+[transition.stats.global]
+moisture = 2
+temperature = -4
+fertility = -1
+
+[transition.stats.local]
+moisture = 1
+temperature = -2
+falloff_per_hop = 1.0
+
+[[primary]]
+id = "newterraforged:cave_underground_jungle"
+temperature = 0.72
+vegetation_density = 0.95
+weight = 1.0
+placement_type = "full_region"
+
+[primary.stats.conditions]
+moisture = 2
+fertility = 4
+
+[primary.stats.global]
+moisture = 2
+temperature = 1
+fertility = 3
+
+[primary.stats.local]
+moisture = 2
+fertility = 2
+falloff_per_hop = 0.9
+
+[[transition]]
+id = "newterraforged:cave_steaming_jungle"
+temperature = 0.81
+vegetation_density = 0.75
+weight = 1.0
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 1
+temperature = 2
+fertility = 2
+
+[transition.stats.global]
+moisture = 2
+temperature = 2
+fertility = 2
+
+[transition.stats.local]
+moisture = 1
+temperature = 1
+fertility = 1
+falloff_per_hop = 1.0
+
+[transition.stats.global_frost]
+moisture = 3
+temperature = 2
+
+[transition.stats.global_wet]
+moisture = -2
+temperature = 2
+fertility = 1
+
+[[transition]]
+id = "terralith:cave/thermal_caves"
+temperature = 0.78
+vegetation_density = 0.35
+weight = 0.85
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 1
+temperature = 2
+
+[transition.stats.global]
+moisture = 1
+temperature = 2
+fertility = 0
+
+[transition.stats.local]
+temperature = 1
+falloff_per_hop = 1.0
+
+[transition.stats.global_frost]
+moisture = 3
+temperature = 2
+
+[transition.stats.global_wet]
+moisture = -2
+temperature = 1
+
+[[transition]]
+id = "terralith:cave/underground_jungle"
+temperature = 0.70
+vegetation_density = 0.90
+weight = 0.7
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 2
+fertility = 3
+
+[transition.stats.global]
+moisture = 2
+temperature = 1
+fertility = 3
+
+[transition.stats.local]
+moisture = 2
+fertility = 2
+falloff_per_hop = 0.9
+
+[[transition]]
+id = "terralith:cave/infested_caves"
+temperature = 0.40
+vegetation_density = 0.15
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
+
+[[transition]]
+id = "terralith:cave/deep_caves"
+temperature = 0.15
+vegetation_density = 0.12
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+temperature = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+temperature = -1
+fertility = -1
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "terralith:cave/andesite_caves"
+temperature = 0.50
+vegetation_density = 0.08
+weight = 0.7
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
+
+[[transition]]
+id = "terralith:cave/diorite_caves"
+temperature = 0.48
+vegetation_density = 0.08
+weight = 0.7
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
+
+[[transition]]
+id = "terralith:cave/granite_caves"
+temperature = 0.52
+vegetation_density = 0.08
+weight = 0.7
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
+
+[[transition]]
+id = "terralith:cave/desert_caves"
+temperature = 0.82
+vegetation_density = 0.05
+weight = 0.75
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = -2
+temperature = 1
+
+[transition.stats.global]
+moisture = -3
+temperature = 2
+fertility = -2
+
+[transition.stats.local]
+moisture = -2
+temperature = 1
+fertility = -1
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "terralith:cave/tuff_caves"
+temperature = 0.46
+vegetation_density = 0.08
+weight = 0.7
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Biomes O' Plenty
+# ══════════════════════════════════════════════════════════════════════════════
+
+[[primary]]
+id = "biomesoplenty:glowing_grotto"
+temperature = 0.62
+vegetation_density = 0.80
+weight = 0.9
+placement_type = "full_region"
+
+[primary.stats.conditions]
+moisture = 1
+fertility = 2
+
+[primary.stats.global]
+moisture = 3
+fertility = 3
+
+[primary.stats.local]
+moisture = 2
+fertility = 2
+falloff_per_hop = 0.9
+
+[[coastal]]
+id = "biomesoplenty:glowing_grotto"
+temperature = 0.65
+vegetation_density = 0.88
+weight = 1.0
+placement_type = "full_region"
+
+[coastal.stats.conditions]
+moisture = 1
+fertility = 2
+
+[coastal.stats.global]
+moisture = 3
+fertility = 3
+
+[coastal.stats.local]
+moisture = 2
+fertility = 2
+falloff_per_hop = 0.9
+
+[[coastal]]
+id = "regions_unexplored:ancient_delta"
+temperature = 0.42
+vegetation_density = 0.55
+weight = 0.95
+placement_type = "full_region"
+
+[coastal.stats.conditions]
+moisture = 2
+
+[coastal.stats.global]
+moisture = 4
+temperature = -1
+fertility = 1
+
+[coastal.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.9
+
+[[coastal]]
+id = "byg:embur_bog"
+temperature = 0.65
+vegetation_density = 0.50
+weight = 0.85
+placement_type = "full_region"
+
+[coastal.stats.conditions]
+moisture = 2
+
+[coastal.stats.global]
+moisture = 4
+temperature = -1
+fertility = 1
+
+[coastal.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.9
+
+[[coastal]]
+id = "minecraft:dripstone_caves"
+temperature = 0.50
+vegetation_density = 0.40
+weight = 0.40
+placement_type = "full_region"
+
+[coastal.stats.conditions]
+moisture = 1
+
+[coastal.stats.global]
+moisture = 2
+fertility = 1
+
+[coastal.stats.local]
+moisture = 1
+fertility = 1
+falloff_per_hop = 0.9
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BYG
+# ══════════════════════════════════════════════════════════════════════════════
+
+[[primary]]
+id = "byg:brimstone_caverns"
+temperature = 0.93
+vegetation_density = 0.05
+weight = 0.9
+placement_type = "full_region"
+stat_role = "generator"
+
+[primary.stats.conditions]
+temperature = 3
+
+[primary.stats.global]
+temperature = 4
+moisture = -2
+fertility = -1
+
+[primary.stats.local]
+temperature = 2
+moisture = -1
+falloff_per_hop = 1.1
+
+[primary.stats.global_frost]
+moisture = 4
+temperature = 2
+
+[primary.stats.global_wet]
+moisture = -4
+temperature = 2
+
+[[transition]]
+id = "byg:crimson_gardens"
+temperature = 0.70
+vegetation_density = 0.75
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 1
+fertility = 2
+
+[transition.stats.global]
+moisture = 3
+fertility = 2
+
+[transition.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.85
+
+[[transition]]
+id = "byg:shattered_glacier"
+temperature = 0.03
+vegetation_density = 0.08
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = -2
+
+[transition.stats.global]
+moisture = 1
+temperature = -4
+fertility = -1
+
+[transition.stats.local]
+moisture = 1
+temperature = -2
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "byg:nightshade_redwoods"
+temperature = 0.35
+vegetation_density = 0.55
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = -1
+fertility = 2
+
+[transition.stats.global]
+moisture = 2
+temperature = -2
+fertility = 2
+
+[transition.stats.local]
+moisture = 1
+fertility = 1
+falloff_per_hop = 0.95
+
+[[transition]]
+id = "byg:quartz_desert"
+temperature = 0.78
+vegetation_density = 0.05
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = -2
+temperature = 1
+
+[transition.stats.global]
+moisture = -3
+temperature = 2
+fertility = -2
+
+[transition.stats.local]
+moisture = -2
+temperature = 1
+fertility = -1
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "byg:embur_bog"
+temperature = 0.65
+vegetation_density = 0.40
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 2
+
+[transition.stats.global]
+moisture = 4
+temperature = -1
+fertility = 1
+
+[transition.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.9
+
+[[special]]
+id = "byg:skyris_caves"
+temperature = 0.38
+vegetation_density = 0.55
+weight = 0.6
+placement_type = "ceiling_patch"
+ceiling_patch_min = 0.25
+ceiling_patch_max = 0.50
+
+[special.stats.conditions]
+fertility = -2
+
+[special.stats.global]
+temperature = -1
+fertility = -3
+
+[special.stats.local]
+fertility = -1
+falloff_per_hop = 1.2
+
+# mega/giga excluded in code — valid in normal/synapse caves
+[[special]]
+id = "byg:subzero_hypogeal"
+temperature = 0.02
+vegetation_density = 0.05
+weight = 0.6
+placement_type = "full_region"
+
+[special.stats.conditions]
+temperature = -3
+
+[special.stats.global]
+moisture = 2
+temperature = -5
+fertility = -2
+
+[special.stats.local]
+moisture = 1
+temperature = -3
+falloff_per_hop = 1.0
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Regions Unexplored
+# ══════════════════════════════════════════════════════════════════════════════
+
+[[transition]]
+id = "regions_unexplored:scorching_caves"
+temperature = 0.06
+vegetation_density = 0.10
+weight = 0.85
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = -2
+
+[transition.stats.global]
+moisture = 1
+temperature = -4
+fertility = -1
+
+[transition.stats.local]
+moisture = 1
+temperature = -2
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "regions_unexplored:bioshroom_caves"
+temperature = 0.53
+vegetation_density = 0.80
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 1
+fertility = 2
+
+[transition.stats.global]
+moisture = 3
+fertility = 2
+
+[transition.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.85
+
+[[special]]
+id = "regions_unexplored:redstone_caves"
+temperature = 0.62
+vegetation_density = 0.10
+weight = 0.55
+placement_type = "ceiling_patch"
+ceiling_patch_min = 0.30
+ceiling_patch_max = 0.55
+
+[special.stats.conditions]
+temperature = 0
+fertility = -2
+
+[special.stats.global]
+moisture = -1
+temperature = 2
+fertility = -3
+
+[special.stats.local]
+temperature = 1
+fertility = -1
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "regions_unexplored:ancient_delta"
+temperature = 0.42
+vegetation_density = 0.35
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 2
+
+[transition.stats.global]
+moisture = 4
+temperature = -1
+fertility = 1
+
+[transition.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.9
+
+[[transition]]
+id = "regions_unexplored:mycotoxic_undergrowth"
+temperature = 0.48
+vegetation_density = 0.70
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 1
+fertility = 2
+
+[transition.stats.global]
+moisture = 3
+fertility = 2
+
+[transition.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.85
+
+[[special]]
+id = "terralith:cave/crystal_caves"
+temperature = 0.42
+vegetation_density = 0.35
+weight = 0.85
+placement_type = "island_patch"
+island_max_radius = 2.8
+
+[special.stats.conditions]
+fertility = -2
+
+[special.stats.global]
+temperature = -1
+fertility = -3
+
+[special.stats.local]
+fertility = -1
+falloff_per_hop = 1.2
+
+[[special]]
+id = "regions_unexplored:prismachasm"
+temperature = 0.50
+vegetation_density = 0.40
+weight = 0.85
+placement_type = "island_patch"
+island_max_radius = 2.5
+
+[special.stats.conditions]
+fertility = -2
+
+[special.stats.global]
+temperature = -1
+fertility = -3
+
+[special.stats.local]
+fertility = -1
+falloff_per_hop = 1.2
+
+[[transition]]
+id = "regions_unexplored:ancient_delta"
+temperature = 0.42
+vegetation_density = 0.35
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 2
+
+[transition.stats.global]
+moisture = 4
+temperature = -1
+fertility = 1
+
+[transition.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.9
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WildNature
+# ══════════════════════════════════════════════════════════════════════════════
+
+[[primary]]
+id = "wildnature:glowshroom_caves"
+temperature = 0.58
+vegetation_density = 0.85
+weight = 0.9
+placement_type = "full_region"
+
+[primary.stats.conditions]
+moisture = 1
+fertility = 2
+
+[primary.stats.global]
+moisture = 3
+fertility = 2
+
+[primary.stats.local]
+moisture = 2
+fertility = 1
+falloff_per_hop = 0.85
+
+[[transition]]
+id = "wildnature:icicle_caves"
+temperature = 0.12
+vegetation_density = 0.12
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = -2
+
+[transition.stats.global]
+moisture = 1
+temperature = -4
+fertility = -1
+
+[transition.stats.local]
+moisture = 1
+temperature = -2
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "wildnature:mossy_caves"
+temperature = 0.54
+vegetation_density = 0.65
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.conditions]
+moisture = 1
+fertility = 2
+
+[transition.stats.global]
+moisture = 3
+fertility = 3
+
+[transition.stats.local]
+moisture = 2
+fertility = 2
+falloff_per_hop = 0.9
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Conquest
+# ══════════════════════════════════════════════════════════════════════════════
+
+[[transition]]
+id = "conquest:limestone_caves"
+temperature = 0.47
+vegetation_density = 0.35
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
+
+[[transition]]
+id = "conquest:chalk_caves"
+temperature = 0.44
+vegetation_density = 0.28
+weight = 0.8
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
+
+[[transition]]
+id = "conquest:karst_caves"
+temperature = 0.50
+vegetation_density = 0.40
+weight = 0.9
+placement_type = "full_region"
+
+[transition.stats.global]
+moisture = -1
+fertility = -2
+
+[transition.stats.local]
+moisture = -1
+fertility = -1
+falloff_per_hop = 1.1
