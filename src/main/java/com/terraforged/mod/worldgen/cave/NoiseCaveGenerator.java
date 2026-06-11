@@ -18,6 +18,7 @@ import com.terraforged.mod.worldgen.cave.CaveMegaAccentDecorator;
 import com.terraforged.mod.worldgen.cave.CaveModifiers;
 import com.terraforged.mod.worldgen.cave.CavePatchPlacer;
 import com.terraforged.mod.worldgen.cave.CaveSurfaceBiomeRestorer;
+import com.terraforged.mod.worldgen.cave.CaveSystemGrid;
 import com.terraforged.mod.worldgen.cave.CaveThermalSpringsDecorator;
 import com.terraforged.mod.worldgen.cave.CaveTunnelRiverDecorator;
 import com.terraforged.mod.worldgen.cave.CaveType;
@@ -129,6 +130,14 @@ public class NoiseCaveGenerator {
         carver.megaModifier = this.megaCaveNoise;
         carver.gigaModifier = this.gigaCaveNoise;
         carver.terrainData = generator.getChunkData(chunk.getPos());
+        int chunkX = chunk.getPos().getMinBlockX() + 8;
+        int chunkZ = chunk.getPos().getMinBlockZ() + 8;
+        CaveType systemType = CaveSystemGrid.dominantType(seed, chunkX, chunkZ);
+        CaveEntranceCarver.ensureMassifTunnelAxis(generator, generator.getCaveEntranceClaims(), seed, chunkX, chunkZ);
+        CaveEntranceClaims.TunnelAxis axis = generator.getCaveEntranceClaims().tunnelAxis(CaveSystemGrid.systemKey(chunkX, chunkZ, systemType));
+        if (axis != null) {
+            carver.restoreTunnel(axis);
+        }
         for (NoiseCave config : this.caves) {
             if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
             carver.beginCavePass(config);

@@ -29,6 +29,10 @@ public final class CaveEntranceClaims {
         this.tunnelAxes.put(systemKey, axis);
     }
 
+    public void registerTunnelIfAbsent(long systemKey, TunnelAxis axis) {
+        this.tunnelAxes.putIfAbsent(systemKey, axis);
+    }
+
     public TunnelAxis tunnelAxis(long systemKey) {
         return this.tunnelAxes.get(systemKey);
     }

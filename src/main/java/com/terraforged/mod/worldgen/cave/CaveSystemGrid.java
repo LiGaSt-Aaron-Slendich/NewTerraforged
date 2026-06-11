@@ -42,6 +42,18 @@ public final class CaveSystemGrid {
         return CaveSystemGrid.isAnchorNear(seed, x, z, type, -462356479);
     }
 
+    public static int[] resolveTunnelMouthAnchor(int seed, CaveType type, int refX, int refZ) {
+        int cx = CaveSystemGrid.snapCenter(refX, type);
+        int cz = CaveSystemGrid.snapCenter(refZ, type);
+        return CaveSystemGrid.resolveAnchor(seed, cx, cz, type, -462356479);
+    }
+
+    public static int[] resolveTunnelExit(int mouthX, int mouthZ, CaveType type) {
+        int cx = CaveSystemGrid.snapCenter(mouthX, type);
+        int cz = CaveSystemGrid.snapCenter(mouthZ, type);
+        return new int[]{cx * 2 - mouthX, cz * 2 - mouthZ};
+    }
+
     public static boolean isTunnelExitAnchorColumn(int seed, int x, int z, CaveType type, int mouthX, int mouthZ) {
         int cz;
         int exitZ;
@@ -53,15 +65,20 @@ public final class CaveSystemGrid {
     }
 
     private static boolean isAnchorNear(int seed, int x, int z, CaveType type, int salt) {
-        int az;
-        int dz;
-        int spread;
-        int cz;
-        int h;
         int cx = CaveSystemGrid.snapCenter(x, type);
-        int ax = cx + ((h = NoiseUtil.hash2D(seed ^ salt, cx, cz = CaveSystemGrid.snapCenter(z, type))) & 0xFF) * (spread = CaveSystemGrid.caveRadius(type) / 3) / 255 - spread / 2;
-        int dx = x - ax;
-        return dx * dx + (dz = z - (az = cz + (h >> 8 & 0xFF) * spread / 255 - spread / 2)) * dz <= 9;
+        int cz = CaveSystemGrid.snapCenter(z, type);
+        int[] anchor = CaveSystemGrid.resolveAnchor(seed, cx, cz, type, salt);
+        int dx = x - anchor[0];
+        int dz = z - anchor[1];
+        return dx * dx + dz * dz <= 9;
+    }
+
+    private static int[] resolveAnchor(int seed, int cx, int cz, CaveType type, int salt) {
+        int spread = CaveSystemGrid.caveRadius(type) / 3;
+        int h = NoiseUtil.hash2D(seed ^ salt, cx, cz);
+        int ax = cx + (h & 0xFF) * spread / 255 - spread / 2;
+        int az = cz + (h >> 8 & 0xFF) * spread / 255 - spread / 2;
+        return new int[]{ax, az};
     }
 
     private static long pack(int cx, int cz, CaveType type) {

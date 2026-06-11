@@ -11,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 public final class CaveBiomeIds {
-    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(Map.entry("regions_unexplored:ancient_delta_caves", "regions_unexplored:ancient_delta"), Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"), Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:mycotoxic_undergrowth"), Map.entry("byg:embur_bog_caves", "byg:embur_bog"), Map.entry("byg:crimson_gardens_caves", "byg:crimson_gardens"), Map.entry("byg:shattered_glacier_caves", "byg:shattered_glacier"), Map.entry("byg:nightshade_redwoods_caves", "byg:nightshade_redwoods"), Map.entry("byg:quartz_desert_caves", "byg:quartz_desert"), Map.entry("byg:skyris_caves", "byg:skyris_vale"), Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"), Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves"));
+    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(Map.entry("regions_unexplored:ancient_delta_caves", "regions_unexplored:ancient_delta"), Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"), Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:mycotoxic_undergrowth"), Map.entry("byg:embur_bog_caves", "byg:embur_bog"), Map.entry("byg:crimson_gardens_caves", "byg:crimson_gardens"), Map.entry("byg:shattered_glacier_caves", "byg:shattered_glacier"), Map.entry("byg:nightshade_redwoods_caves", "byg:nightshade_redwoods"), Map.entry("byg:quartz_desert_caves", "byg:quartz_desert"), Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"), Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves"));
 
     private CaveBiomeIds() {
     }
@@ -158,7 +158,16 @@ public final class CaveBiomeIds {
         if (CaveBiomeIds.isSurfaceOverworldBiome(path)) {
             return false;
         }
-        return path.contains("cave") || path.contains("cavern") || path.contains("grotto") || path.contains("hypogeal") || path.contains("prismachasm") || path.contains("undergarden") || path.contains("mycotoxic");
+        return path.contains("cave") || path.contains("cavern") || path.contains("grotto") || path.contains("hypogeal") || path.contains("prismachasm") || path.contains("undergarden") || path.contains("mycotoxic") || path.contains("scorching") || path.contains("bioshroom") || CaveBiomeIds.isRegionalShellBiome(path);
+    }
+
+    /** Mega/giga shell biomes whose registry id has no "cave" suffix (BYG/RU surface-style ids). */
+    public static boolean isRegionalShellBiome(ResourceLocation id) {
+        return id != null && CaveBiomeIds.isRegionalShellBiome(id.getPath().toLowerCase());
+    }
+
+    private static boolean isRegionalShellBiome(String path) {
+        return path.contains("embur") || path.contains("crimson_gardens") || path.contains("shattered_glacier") || path.contains("nightshade") || path.contains("quartz_desert") || path.contains("ancient_delta") || path.contains("glowing_grotto") || path.contains("brimstone");
     }
 
     public static boolean isModCaveBiome(Holder<Biome> biome) {
@@ -317,7 +326,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("thermal") || path.contains("mantle") || path.contains("brimstone") || path.contains("magma");
+        return path.contains("thermal") || path.contains("mantle") || path.contains("brimstone") || path.contains("magma") || path.contains("scorching");
     }
 
     public static boolean isThermalSpringsBiome(Holder<Biome> biome) {
@@ -390,6 +399,38 @@ public final class CaveBiomeIds {
             return false;
         }
         return id.getPath().toLowerCase().contains("redstone_caves");
+    }
+
+    public static boolean isPatchPaintedBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isPatchPaintedBiome(key.location())).orElse(false);
+    }
+
+    public static boolean isPatchPaintedBiome(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("redstone_caves") || path.contains("skyris") || path.contains("prismachasm") || path.contains("crystal_caves") || path.contains("crystal_cave");
+    }
+
+    public static boolean isScorchingCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isScorchingCaveBiome(key.location())).orElse(false);
+    }
+
+    public static boolean isScorchingCaveBiome(ResourceLocation id) {
+        return id != null && id.getPath().toLowerCase().contains("scorching");
+    }
+
+    public static boolean isHeatShellCaveBiome(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("scorching") || path.contains("brimstone") || path.contains("mantle") || path.contains("magma");
+    }
+
+    public static boolean isHeatShellCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isHeatShellCaveBiome(key.location())).orElse(false);
     }
 
     public static boolean isFungalJunglePair(ResourceLocation a, ResourceLocation b) {

@@ -159,10 +159,15 @@ public class NoiseCaveDecorator {
         if (candidates.length == 0) {
             return;
         }
-        if (anchor == CaveFeatureRules.Anchor.FLOOR && !FeaturePlacement.hasStableGround((BlockGetter)chunk, localX, airPos.getY(), localZ, 1)) {
-            return;
-        }
-        if (anchor == CaveFeatureRules.Anchor.CEILING && !FeaturePlacement.hasStableCeiling((BlockGetter)chunk, localX, airPos.getY(), localZ, 1)) {
+        if (anchor == CaveFeatureRules.Anchor.FLOOR) {
+            BlockPos snapped = NoiseCaveDecorator.snapFloorAnchor(chunk, localX, localZ, airPos.getY());
+            if (snapped == null) {
+                return;
+            }
+            airPos = snapped;
+            localX = airPos.getX() & 0xF;
+            localZ = airPos.getZ() & 0xF;
+        } else if (!FeaturePlacement.hasStableCeiling((BlockGetter)chunk, localX, airPos.getY(), localZ, 1)) {
             return;
         }
         WorldGenLevel placement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, biome, carver);
@@ -177,6 +182,24 @@ public class NoiseCaveDecorator {
             budget.record(entry.mass(), localX, localZ);
             if (ceiling && megaGiga && ++placedOnCeiling >= 3) break;
         }
+    }
+
+    private static BlockPos snapFloorAnchor(ChunkAccess chunk, int localX, int localZ, int startY) {
+        for (int dy = 0; dy >= -8; --dy) {
+            int y = startY + dy;
+            if (y <= chunk.getMinBuildHeight()) {
+                break;
+            }
+            if (!chunk.getBlockState(new BlockPos(localX, y, localZ)).isAir()) {
+                continue;
+            }
+            if (FeaturePlacement.hasStableGround((BlockGetter)chunk, localX, y, localZ, 1)) {
+                int chunkX = chunk.getPos().getMinBlockX();
+                int chunkZ = chunk.getPos().getMinBlockZ();
+                return new BlockPos(chunkX + localX, y, chunkZ + localZ);
+            }
+        }
+        return null;
     }
 
     private static boolean placeFeature(Holder<PlacedFeature> placedHolder, WorldGenLevel region, Generator generator, WorldgenRandom random, BlockPos pos) {

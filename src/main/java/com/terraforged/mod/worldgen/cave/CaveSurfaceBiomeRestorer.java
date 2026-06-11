@@ -41,7 +41,7 @@ public final class CaveSurfaceBiomeRestorer {
                 int yEnd = Math.min(maxY, surface + 16);
                 for (int y = yStart; y <= yEnd; ++y) {
                     Holder<Biome> existing = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
-                    if (existing != null && CaveBiomeIds.isUndergroundBiome(existing)) continue;
+                    if (existing != null && (CaveBiomeIds.isUndergroundBiome(existing) || CaveBiomeIds.isPatchPaintedBiome(existing))) continue;
                     CaveSurfaceBiomeRestorer.setBiomeQuart(chunk, lx, y, lz, surfaceBiome);
                 }
             }

@@ -33,7 +33,7 @@ public class NoiseChunkUtil {
 
     private static NoiseRouter getRouter(NoiseBasedChunkGenerator generator) {
         try {
-            return (NoiseRouter) (Object) NOISE_ROUTER.invokeExact(generator);
+            return (NoiseRouter) NOISE_ROUTER.invoke(generator);
         }
         catch (Throwable e) {
             throw new Error(e);
@@ -77,7 +77,7 @@ public class NoiseChunkUtil {
 
     private static Long2IntMap getCache(NoiseChunk noiseChunk) {
         try {
-            return (Long2IntMap) (Object) SURFACE_CACHE.invokeExact(noiseChunk);
+            return (Long2IntMap) SURFACE_CACHE.invoke(noiseChunk);
         }
         catch (Throwable e) {
             throw new Error(e);

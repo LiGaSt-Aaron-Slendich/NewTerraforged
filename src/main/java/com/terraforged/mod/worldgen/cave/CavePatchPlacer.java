@@ -2,14 +2,8 @@ package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
-import com.terraforged.mod.worldgen.cave.CarverChunk;
-import com.terraforged.mod.worldgen.cave.CaveBiomeEntry;
-import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
-import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
-import com.terraforged.mod.worldgen.cave.CaveColumnScan;
-import com.terraforged.mod.worldgen.cave.CavePlacementType;
-import com.terraforged.mod.worldgen.cave.CaveUndergroundGuard;
 import com.terraforged.noise.util.NoiseUtil;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -31,15 +25,9 @@ public final class CavePatchPlacer {
         if (!config.getType().isMegaOrGiga()) {
             return;
         }
-        List<CaveBiomeEntry> specials = registry.getSpecial();
-        if (specials.isEmpty()) {
-            return;
-        }
-        float totalWeight = 0.0f;
-        for (CaveBiomeEntry entry : specials) {
-            totalWeight += entry.weight();
-        }
-        if (totalWeight <= 0.0f) {
+        List<CaveBiomeEntry> islandSpecials = registry.getSpecial(CavePlacementType.ISLAND_PATCH);
+        List<CaveBiomeEntry> ceilingSpecials = registry.getSpecial(CavePlacementType.CEILING_PATCH);
+        if (islandSpecials.isEmpty() && ceilingSpecials.isEmpty()) {
             return;
         }
         int chunkX = chunk.getPos().getMinBlockX();
@@ -49,35 +37,89 @@ public final class CavePatchPlacer {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
-                Holder holder;
-                int ceilY;
                 int wx = chunkX + lx;
                 int wz = chunkZ + lz;
                 int floorY = CavePatchPlacer.findFloorAir(chunk, lx, lz, minY, maxY);
-                if (floorY < 0 || !CaveUndergroundGuard.mayPlaceAnchor(chunk, lx, floorY, lz, true) || (ceilY = CavePatchPlacer.findCeilingAir(chunk, lx, lz, floorY, maxY)) <= floorY + 2) continue;
+                if (floorY < 0 || !CaveUndergroundGuard.mayPlaceAnchor(chunk, lx, floorY, lz, true)) continue;
+                int ceilY = CavePatchPlacer.findCeilingAir(chunk, lx, lz, floorY, maxY);
+                if (ceilY <= floorY + 2) continue;
                 int caveHeight = ceilY - floorY;
-                PatchHit hit = CavePatchPlacer.findPatch(seed, wx, wz, specials, totalWeight);
-                if (hit == null || (holder = (Holder)registry.getHolder(hit.entry()).orElse(null)) == null) continue;
-                CaveBiomeEntry patch = hit.entry();
-                int radius = NoiseCave.calcIslandRadius(patch.islandMaxRadius());
-                if (hit.distance() > (float)radius) continue;
-                if (patch.placementType() == CavePlacementType.ISLAND_PATCH) {
-                    int islandTop = Math.min(ceilY, floorY + NoiseCave.calcIslandHeight(radius));
-                    CavePatchPlacer.paintColumn(chunk, carver, lx, lz, floorY, islandTop, (Holder<Biome>)holder, pos);
-                    continue;
-                }
-                if (patch.placementType() != CavePlacementType.CEILING_PATCH) continue;
-                float factor = NoiseUtil.clamp((NoiseUtil.valCoord2D(seed, wx, wz) + 1.0f) * 0.5f, 0.0f, 1.0f);
-                int band = NoiseCave.calcCeilingPatchHeight(caveHeight, patch.ceilingPatchMin(), patch.ceilingPatchMax(), factor);
-                int bandBottom = Math.max(floorY + 2, ceilY - band);
-                CavePatchPlacer.paintColumn(chunk, carver, lx, lz, bandBottom, ceilY, (Holder<Biome>)holder, pos);
+                CavePatchPlacer.applyIsland(seed, chunk, carver, registry, islandSpecials, lx, lz, wx, wz, floorY, ceilY, pos);
+                CavePatchPlacer.applyCeiling(seed, chunk, carver, registry, ceilingSpecials, lx, lz, wx, wz, floorY, ceilY, caveHeight, pos);
             }
         }
     }
 
+    public static CaveBiomeEntry previewCeilingPatch(int seed, int wx, int wz, int floorY, int ceilY, CaveBiomeRegistry registry) {
+        if (registry == null || ceilY <= floorY + 2) {
+            return null;
+        }
+        List<CaveBiomeEntry> ceilingSpecials = registry.getSpecial(CavePlacementType.CEILING_PATCH);
+        if (ceilingSpecials.isEmpty()) {
+            return null;
+        }
+        PatchHit hit = CavePatchPlacer.findPatch(seed, wx, wz, ceilingSpecials, CavePatchPlacer.totalWeight(ceilingSpecials));
+        if (hit == null) {
+            return null;
+        }
+        int radius = NoiseCave.calcIslandRadius(hit.entry().islandMaxRadius());
+        if (hit.distance() > (float)radius) {
+            return null;
+        }
+        return hit.entry();
+    }
+
+    private static void applyIsland(int seed, ChunkAccess chunk, CarverChunk carver, CaveBiomeRegistry registry, List<CaveBiomeEntry> islandSpecials, int lx, int lz, int wx, int wz, int floorY, int ceilY, BlockPos.MutableBlockPos pos) {
+        Holder<Biome> holder;
+        if (islandSpecials.isEmpty()) {
+            return;
+        }
+        PatchHit hit = CavePatchPlacer.findPatch(seed, wx, wz, islandSpecials, CavePatchPlacer.totalWeight(islandSpecials));
+        if (hit == null || (holder = registry.getHolder(hit.entry()).orElse(null)) == null) {
+            return;
+        }
+        int radius = NoiseCave.calcIslandRadius(hit.entry().islandMaxRadius());
+        if (hit.distance() > (float)radius) {
+            return;
+        }
+        int islandTop = Math.min(ceilY, floorY + NoiseCave.calcIslandHeight(radius));
+        CavePatchPlacer.paintColumn(chunk, carver, lx, lz, floorY, islandTop, holder, pos);
+    }
+
+    private static void applyCeiling(int seed, ChunkAccess chunk, CarverChunk carver, CaveBiomeRegistry registry, List<CaveBiomeEntry> ceilingSpecials, int lx, int lz, int wx, int wz, int floorY, int ceilY, int caveHeight, BlockPos.MutableBlockPos pos) {
+        Holder<Biome> holder;
+        if (ceilingSpecials.isEmpty()) {
+            return;
+        }
+        PatchHit hit = CavePatchPlacer.findPatch(seed ^ 0x6C62272E, wx, wz, ceilingSpecials, CavePatchPlacer.totalWeight(ceilingSpecials));
+        if (hit == null || (holder = registry.getHolder(hit.entry()).orElse(null)) == null) {
+            return;
+        }
+        CaveBiomeEntry patch = hit.entry();
+        int radius = NoiseCave.calcIslandRadius(patch.islandMaxRadius());
+        if (hit.distance() > (float)radius) {
+            return;
+        }
+        float factor = NoiseUtil.clamp((NoiseUtil.valCoord2D(seed, wx, wz) + 1.0f) * 0.5f, 0.0f, 1.0f);
+        int band = NoiseCave.calcCeilingPatchHeight(caveHeight, patch.ceilingPatchMin(), patch.ceilingPatchMax(), factor);
+        int bandBottom = Math.max(floorY + 2, ceilY - band);
+        CavePatchPlacer.paintColumn(chunk, carver, lx, lz, bandBottom, ceilY, holder, pos);
+    }
+
+    private static float totalWeight(List<CaveBiomeEntry> entries) {
+        float total = 0.0f;
+        for (CaveBiomeEntry entry : entries) {
+            total += entry.weight();
+        }
+        return total;
+    }
+
     private static PatchHit findPatch(int seed, int wx, int wz, List<CaveBiomeEntry> specials, float totalWeight) {
-        int cellX = Math.floorDiv(wx, 80);
-        int cellZ = Math.floorDiv(wz, 80);
+        if (specials.isEmpty() || totalWeight <= 0.0f) {
+            return null;
+        }
+        int cellX = Math.floorDiv(wx, GRID_BLOCKS);
+        int cellZ = Math.floorDiv(wz, GRID_BLOCKS);
         PatchHit best = null;
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dz = -1; dz <= 1; ++dz) {
@@ -93,8 +135,8 @@ public final class CavePatchPlacer {
                     threshold += 0.12f;
                 }
                 if (spawn > threshold) continue;
-                float jx = (float)(cx * 80) + 40.0f + CavePatchPlacer.jitter(seed, cx, cz, 0) * 80.0f * 0.35f;
-                float jz = (float)(cz * 80) + 40.0f + CavePatchPlacer.jitter(seed, cx, cz, 1) * 80.0f * 0.35f;
+                float jx = (float)(cx * GRID_BLOCKS) + 40.0f + CavePatchPlacer.jitter(seed, cx, cz, 0) * (float)GRID_BLOCKS * 0.35f;
+                float jz = (float)(cz * GRID_BLOCKS) + 40.0f + CavePatchPlacer.jitter(seed, cx, cz, 1) * (float)GRID_BLOCKS * 0.35f;
                 float dist = NoiseUtil.sqrt(((float)wx - jx) * ((float)wx - jx) + ((float)wz - jz) * ((float)wz - jz));
                 if (best != null && !(dist < best.distance())) continue;
                 best = new PatchHit(candidate, dist);
@@ -108,7 +150,7 @@ public final class CavePatchPlacer {
         int chunkMinZ = chunk.getPos().getMinBlockZ();
         for (int y = fromY; y <= toY; ++y) {
             pos.set(lx, y, lz);
-            if (!chunk.getBlockState((BlockPos)pos).isAir()) continue;
+            if (!chunk.getBlockState(pos).isAir()) continue;
             CavePatchPlacer.setBiomeQuart(chunk, lx, y, lz, biome);
             carver.setPatchBiome(lx, y, lz, biome, chunkMinX, chunkMinZ);
         }

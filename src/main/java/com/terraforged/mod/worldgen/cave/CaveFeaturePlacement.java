@@ -42,7 +42,19 @@ public final class CaveFeaturePlacement {
     public static boolean hasSolidFloorBelow(ChunkAccess chunk, BlockPos airAnchor) {
         int lx = airAnchor.getX() & 0xF;
         int lz = airAnchor.getZ() & 0xF;
-        return FeaturePlacement.hasStableGround((BlockGetter)chunk, lx, airAnchor.getY(), lz, 1);
+        for (int dy = 0; dy >= -8; --dy) {
+            int y = airAnchor.getY() + dy;
+            if (y <= chunk.getMinBuildHeight()) {
+                break;
+            }
+            if (!chunk.getBlockState(new BlockPos(lx, y, lz)).isAir()) {
+                continue;
+            }
+            if (FeaturePlacement.hasStableGround((BlockGetter)chunk, lx, y, lz, 1)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int massPriority(FeatureMass mass) {

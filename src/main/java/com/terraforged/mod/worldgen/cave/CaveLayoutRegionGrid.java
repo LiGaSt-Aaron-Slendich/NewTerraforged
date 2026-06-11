@@ -1,16 +1,23 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.cave.CaveBiomeEntry;
+import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import com.terraforged.mod.worldgen.cave.CaveMegaGigaLayout;
 import com.terraforged.mod.worldgen.cave.CaveStatVector;
 import com.terraforged.noise.util.NoiseUtil;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
+import java.util.Random;
+import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
+import net.minecraft.resources.ResourceLocation;
 
 public final class CaveLayoutRegionGrid {
     public static final int MEGA_CELL_SIZE = 48;
@@ -106,6 +113,47 @@ public final class CaveLayoutRegionGrid {
         }
         grid.propagateStats(generators, generatorStatSource);
         return grid;
+    }
+
+    public void balanceBiomeFootprint(int seed, float maxFraction, float maxHeatFraction, CellBiomeReplacer replacer) {
+        if (this.biomes.isEmpty() || replacer == null) {
+            return;
+        }
+        int total = this.biomes.size();
+        int maxPerBiome = Math.max(1, (int)Math.floor((float)total * maxFraction));
+        int maxHeat = Math.max(1, (int)Math.floor((float)total * maxHeatFraction));
+        HashMap<ResourceLocation, Integer> counts = new HashMap<ResourceLocation, Integer>();
+        ArrayList<Long> keys = new ArrayList<Long>(this.biomes.keySet());
+        Collections.shuffle(keys, new Random(seed ^ 0xB10CL));
+        for (Long key : keys) {
+            CaveBiomeEntry entry = this.biomes.get(key);
+            if (entry == null) continue;
+            ResourceLocation id = entry.biome();
+            int count = counts.merge(id, 1, Integer::sum);
+            int cap = CaveBiomeIds.isHeatShellCaveBiome(id) ? maxHeat : maxPerBiome;
+            if (count <= cap) continue;
+            counts.merge(id, -1, Integer::sum);
+            int ix = (int)(key >> 32);
+            int iz = (int)(long)key;
+            int cx = (int)this.centerX + ix * this.cellSize + this.cellSize / 2;
+            int cz = (int)this.centerZ + iz * this.cellSize + this.cellSize / 2;
+            HashSet<ResourceLocation> excluded = new HashSet<ResourceLocation>();
+            excluded.add(id);
+            for (Map.Entry<ResourceLocation, Integer> countEntry : counts.entrySet()) {
+                int entryCap = CaveBiomeIds.isHeatShellCaveBiome(countEntry.getKey()) ? maxHeat : maxPerBiome;
+                if (countEntry.getValue() < entryCap) continue;
+                excluded.add(countEntry.getKey());
+            }
+            CaveBiomeEntry replacement = replacer.replace(cx, cz, excluded);
+            if (replacement == null || replacement.biome().equals(id)) continue;
+            this.biomes.put(key, replacement);
+            counts.merge(replacement.biome(), 1, Integer::sum);
+        }
+    }
+
+    @FunctionalInterface
+    public interface CellBiomeReplacer {
+        CaveBiomeEntry replace(int x, int z, Set<ResourceLocation> excluded);
     }
 
     private void propagateStats(List<CaveMegaGigaLayout.GeneratorNode> generators, Function<CaveMegaGigaLayout.GeneratorNode, CaveStatVector> generatorStatSource) {

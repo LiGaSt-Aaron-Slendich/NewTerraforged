@@ -22,10 +22,10 @@ public final class CaveFeatureDensity {
         };
         if (biomeId != null && CaveBiomeIds.isCrystalCaveBiome(biomeId)) {
             return switch (mass) {
-                case SCATTER -> 0.75f;
-                case SMALL -> 0.7f;
-                case MEDIUM -> 0.65f;
-                case LARGE -> 0.6f;
+                case SCATTER -> 0.92f;
+                case SMALL -> 0.88f;
+                case MEDIUM -> 0.82f;
+                case LARGE -> 0.55f;
                 default -> base;
             };
         }

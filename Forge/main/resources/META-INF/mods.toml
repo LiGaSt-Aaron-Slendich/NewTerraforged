@@ -14,10 +14,10 @@ description="NewTerraforged — custom terrain generator with mega/giga cave bio
 
 [[mods]]
 modId="terraforged"
-displayName="TerraForged (compat alias)"
+displayName="terraforged (legacy mod id)"
 version="0.3.0"
 authors="dags,Won-Ton"
-description="Legacy mod id alias for NewTerraForged — satisfies Dynamic Trees - TerraForged and similar add-ons."
+description="Legacy Forge mod id only — not a separate mod. Required by some add-ons (e.g. Dynamic Trees compat). Real mod is newterraforged."
 
 [[dependencies.newterraforged]]
     modId="forge"

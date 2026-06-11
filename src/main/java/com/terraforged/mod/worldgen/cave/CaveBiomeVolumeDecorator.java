@@ -118,7 +118,7 @@ public final class CaveBiomeVolumeDecorator {
 
     private static int anchorGridFor(Holder<Biome> biome, boolean megaGigaChunk) {
         if (CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome)) {
-            return 6;
+            return megaGigaChunk ? 4 : 3;
         }
         if (CaveBiomeIds.isFungalCaveBiome(biome) && megaGigaChunk) {
             return 4;

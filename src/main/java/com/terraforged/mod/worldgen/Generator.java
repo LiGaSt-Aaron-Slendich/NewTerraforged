@@ -17,6 +17,8 @@ import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
+import com.terraforged.mod.worldgen.profiler.GenTimer;
+import com.terraforged.mod.worldgen.profiler.ProfilerStages;
 import com.terraforged.mod.worldgen.terrain.TerrainCache;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
@@ -28,6 +30,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -60,6 +63,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureMana
 public class Generator
 extends ChunkGenerator
 implements IGenerator {
+    public static final ProfilerStages PROFILER = new ProfilerStages();
     public static final Codec<Generator> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.LONG.optionalFieldOf("seed", 0L).forGetter(g -> g.seed), TerrainLevels.CODEC.optionalFieldOf("levels", TerrainLevels.DEFAULT.get()).forGetter(g -> g.levels), WorldGenCodec.CODEC.forGetter(Generator::getRegistries)).apply(instance, instance.stable(GeneratorPreset::build)));
     protected final long seed;
     protected final Source biomeSource;
@@ -69,6 +73,7 @@ implements IGenerator {
     protected final INoiseGenerator noiseGenerator;
     protected final TerrainCache terrainCache;
     protected final ThreadLocal<GeneratorResource> localResource = ThreadLocal.withInitial(GeneratorResource::new);
+    private final ThreadLocal<ChunkOceanHeightCache> chunkOceanHeightCache = ThreadLocal.withInitial(ChunkOceanHeightCache::new);
 
     public Generator(long seed, TerrainLevels levels, VanillaGen vanillaGen, Source biomeSource, BiomeGenerator biomeGenerator, INoiseGenerator noiseGenerator) {
         super(vanillaGen.getStructureSets(), Optional.empty(), (BiomeSource)biomeSource, (BiomeSource)biomeSource, seed);
@@ -109,6 +114,11 @@ implements IGenerator {
         return this.terrainCache.getNow(pos);
     }
 
+    @Nullable
+    public TerrainData getChunkDataIfReady(ChunkPos pos) {
+        return this.terrainCache.getIfReady(pos);
+    }
+
     public CompletableFuture<TerrainData> getChunkDataAsync(ChunkPos pos) {
         return this.terrainCache.getAsync(pos);
     }
@@ -125,10 +135,25 @@ implements IGenerator {
         return this.levels.seaLevel;
     }
 
+    public void beginChunkHeightCache(ChunkAccess chunk) {
+        this.chunkOceanHeightCache.get().begin(chunk, 2);
+    }
+
+    public void endChunkHeightCache() {
+        this.chunkOceanHeightCache.get().clear();
+    }
+
     public int getOceanFloorHeight(int x, int z) {
+        ChunkOceanHeightCache cache = this.chunkOceanHeightCache.get();
+        Integer cached = cache.get(x, z);
+        if (cached != null) {
+            return cached;
+        }
         NoiseSample sample = this.terrainCache.getSample(x, z);
         float scaledHeight = this.levels.getScaledHeight(sample.heightNoise);
-        return this.levels.getHeight(scaledHeight) + 1;
+        int height = this.levels.getHeight(scaledHeight) + 1;
+        cache.put(x, z, height);
+        return height;
     }
 
     public int getGenDepth() {
@@ -149,41 +174,62 @@ implements IGenerator {
 
     public void createStructures(RegistryAccess access, StructureFeatureManager structures, ChunkAccess chunk, StructureManager templates, long seed) {
         this.terrainCache.hint(chunk.getPos());
+        GenTimer timer = PROFILER.starts.start();
         super.createStructures(access, structures, chunk, templates, seed);
+        timer.punchOut();
     }
 
     public void createReferences(WorldGenLevel level, StructureFeatureManager structureFeatures, ChunkAccess chunk) {
         this.terrainCache.hint(chunk.getPos());
+        GenTimer timer = PROFILER.refs.start();
         super.createReferences(level, structureFeatures, chunk);
+        timer.punchOut();
     }
 
     public CompletableFuture<ChunkAccess> createBiomes(Registry<Biome> registry, Executor executor, Blender blender, StructureFeatureManager structures, ChunkAccess chunk) {
         this.terrainCache.hint(chunk.getPos());
         return CompletableFuture.supplyAsync(() -> {
+            GenTimer timer = PROFILER.biomes.start();
             ChunkUtil.fillNoiseBiomes(chunk, this.biomeSource, this.climateSampler(), this.localResource.get());
+            timer.punchOut();
             return chunk;
         }, ThreadPool.EXECUTOR);
     }
 
     public CompletableFuture<ChunkAccess> fillFromNoise(Executor executor, Blender blender, StructureFeatureManager structureManager, ChunkAccess chunkAccess) {
         return this.terrainCache.combineAsync(executor, chunkAccess, (chunk, terrainData) -> {
+            GenTimer timer = PROFILER.noise.start();
             ChunkUtil.fillChunk(this.getSeaLevel(), chunk, terrainData, ChunkUtil.FILLER, this.localResource.get());
             ChunkUtil.primeHeightmaps(this.getSeaLevel(), chunk, terrainData, ChunkUtil.FILLER);
             ChunkUtil.buildStructureTerrain(chunk, terrainData, structureManager);
+            timer.punchOut();
             return chunk;
         });
     }
 
     public void buildSurface(WorldGenRegion region, StructureFeatureManager structures, ChunkAccess chunk) {
+        this.beginChunkHeightCache(chunk);
+        GenTimer timer = PROFILER.surface.start();
         this.biomeGenerator.surface(chunk, region, this);
+        timer.punchOut();
+        this.endChunkHeightCache();
     }
 
     public void applyCarvers(WorldGenRegion region, long seed, BiomeManager biomes, StructureFeatureManager structures, ChunkAccess chunk, GenerationStep.Carving stage) {
+        this.beginChunkHeightCache(chunk);
+        GenTimer timer = PROFILER.carve.start();
         this.biomeGenerator.carve(seed, chunk, region, biomes, stage, this);
+        timer.punchOut();
+        this.endChunkHeightCache();
     }
 
     public void applyBiomeDecoration(WorldGenLevel region, ChunkAccess chunk, StructureFeatureManager structures) {
+        this.beginChunkHeightCache(chunk);
+        GenTimer timer = PROFILER.decoration.start();
         this.biomeGenerator.decorate(chunk, region, structures, this);
+        timer.punchOut();
+        this.endChunkHeightCache();
+        PROFILER.incrementChunks();
         this.terrainCache.drop(chunk.getPos());
     }
 
@@ -240,11 +286,65 @@ implements IGenerator {
         lines.add("Height Noise: " + sample.heightNoise);
         lines.add("Ocean Proximity: " + (1.0f - sample.continentNoise));
         lines.add("River Proximity: " + (1.0f - sample.riverNoise));
+        PROFILER.addDebugInfo(5000L, lines);
         CaveDebugInfo.append(this, pos, lines);
     }
 
     public static boolean isTerraForged(ChunkGenerator generator) {
         return generator instanceof Generator;
+    }
+
+    private static final class ChunkOceanHeightCache {
+        private static final int UNSET = Integer.MIN_VALUE;
+        private int minX = Integer.MIN_VALUE;
+        private int minZ = Integer.MIN_VALUE;
+        private int sizeX;
+        private int sizeZ;
+        private int[] heights = new int[0];
+
+        private ChunkOceanHeightCache() {
+        }
+
+        void begin(ChunkAccess chunk, int padding) {
+            this.minX = chunk.getPos().getMinBlockX() - padding;
+            this.minZ = chunk.getPos().getMinBlockZ() - padding;
+            this.sizeX = 16 + padding * 2;
+            this.sizeZ = 16 + padding * 2;
+            int needed = this.sizeX * this.sizeZ;
+            if (this.heights.length < needed) {
+                this.heights = new int[needed];
+            }
+            Arrays.fill(this.heights, 0, needed, UNSET);
+        }
+
+        void clear() {
+            this.minX = Integer.MIN_VALUE;
+        }
+
+        Integer get(int x, int z) {
+            if (this.minX == Integer.MIN_VALUE) {
+                return null;
+            }
+            int lx = x - this.minX;
+            int lz = z - this.minZ;
+            if (lx < 0 || lz < 0 || lx >= this.sizeX || lz >= this.sizeZ) {
+                return null;
+            }
+            int value = this.heights[lz * this.sizeX + lx];
+            return value == UNSET ? null : value;
+        }
+
+        void put(int x, int z, int height) {
+            if (this.minX == Integer.MIN_VALUE) {
+                return;
+            }
+            int lx = x - this.minX;
+            int lz = z - this.minZ;
+            if (lx < 0 || lz < 0 || lx >= this.sizeX || lz >= this.sizeZ) {
+                return;
+            }
+            this.heights[lz * this.sizeX + lx] = height;
+        }
     }
 
     public Climate.Sampler climateSampler() {

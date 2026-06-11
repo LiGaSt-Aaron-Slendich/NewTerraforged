@@ -65,6 +65,15 @@ public class CaveBiomeRegistry {
         return this.special;
     }
 
+    public List<CaveBiomeEntry> getSpecial(CavePlacementType placementType) {
+        ArrayList<CaveBiomeEntry> out = new ArrayList<CaveBiomeEntry>();
+        for (CaveBiomeEntry entry : this.special) {
+            if (entry.placementType() != placementType) continue;
+            out.add(entry);
+        }
+        return out;
+    }
+
     public List<CaveBiomeEntry> getCoastal() {
         return this.coastal;
     }

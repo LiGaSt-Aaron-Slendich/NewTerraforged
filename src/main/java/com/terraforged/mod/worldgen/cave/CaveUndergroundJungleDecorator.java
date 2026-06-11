@@ -59,10 +59,11 @@ public final class CaveUndergroundJungleDecorator {
                 if (floorY < 0 || !CaveUndergroundJungleDecorator.isTarget(biome = carver.resolveBiome(chunk, lx, floorY, lz)) || !CaveUndergroundJungleDecorator.mayPlace(chunk, carver, lx, floorY, lz, generator, wx, wz, biome) || CaveBiomeIds.isSteamingJungleBiome(biome) && CaveBiomeIds.isSteamingThermalCell(region.getSeed(), wx, wz)) continue;
                 long seed = random.setDecorationSeed(region.getSeed(), wx, wz);
                 BlockPos floorPos = CaveFeaturePlacement.resolveWorldPos(new BlockPos(wx, floorY, wz), CaveFeatureRules.Anchor.FLOOR, false);
-                if (random.nextFloat() < 0.65f) {
+                boolean underground = CaveBiomeIds.isUndergroundJungleBiome(biome);
+                if (random.nextFloat() < (underground ? 0.88f : 0.65f)) {
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, FLOOR, region, generator, random, floorPos, seed, 0);
                 }
-                if (random.nextFloat() < 0.42f) {
+                if (random.nextFloat() < (underground ? 0.62f : 0.42f)) {
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, TREES, region, generator, random, floorPos, seed, 10);
                 }
                 if ((ceilY = CaveUndergroundJungleDecorator.findCeiling(chunk, lx, lz, floorY + 5, maxY)) > floorY + 6 && random.nextFloat() < 0.55f && CaveUndergroundJungleDecorator.mayPlace(chunk, carver, lx, vineY = ceilY - random.nextInt(2), lz, generator, wx, wz, biome)) {
@@ -77,7 +78,7 @@ public final class CaveUndergroundJungleDecorator {
     }
 
     private static boolean isTarget(Holder<Biome> biome) {
-        return CaveBiomeIds.isSteamingJungleBiome(biome);
+        return CaveBiomeIds.isUndergroundJungleBiome(biome) || CaveBiomeIds.isSteamingJungleBiome(biome);
     }
 
     private static boolean mayPlace(ChunkAccess chunk, CarverChunk carver, int lx, int y, int lz, Generator generator, int wx, int wz, Holder<Biome> biome) {

@@ -28,6 +28,8 @@ public class Source
 extends BiomeSource {
     public static final Codec<Source> CODEC = new SourceCodec();
     public static final Climate.Sampler NOOP_CLIMATE_SAMPLER = Climate.empty();
+    private static List<Holder<Biome>> possibleBiomesCache;
+    private static int possibleBiomesCacheSize = -1;
     protected final long seed;
     protected final RegistryAccess registries;
     protected final BiomeSampler biomeSampler;
@@ -48,7 +50,7 @@ extends BiomeSource {
         super(Source.possibleBiomes(access));
         this.seed = seed;
         this.registries = access;
-        this.biomeMapManager = new BiomeMapManager(access);
+        this.biomeMapManager = BiomeMapManager.getOrCreate(access);
         this.biomeSampler = new BiomeSampler(noise, this.biomeMapManager);
         this.caveBiomeSampler = new CaveBiomeSampler(seed, 800, this.biomeMapManager);
     }
@@ -57,13 +59,20 @@ extends BiomeSource {
         super(Source.possibleBiomes(access));
         this.seed = seed;
         this.registries = access;
-        this.biomeMapManager = new BiomeMapManager(access);
+        this.biomeMapManager = BiomeMapManager.getOrCreate(access);
         this.biomeSampler = new BiomeSampler(noise, this.biomeMapManager);
         this.caveBiomeSampler = new CaveBiomeSampler(seed, 800, this.biomeMapManager, caveBiomeRegistry, systemConfig);
     }
 
     private static List<Holder<Biome>> possibleBiomes(RegistryAccess access) {
-        return new BiomeMapManager(access).getPossibleBiomeSourceBiomes();
+        Registry biomes = access.registryOrThrow(Registry.BIOME_REGISTRY);
+        int biomeCount = biomes.size();
+        if (possibleBiomesCache != null && possibleBiomesCacheSize == biomeCount) {
+            return possibleBiomesCache;
+        }
+        possibleBiomesCache = BiomeMapManager.getOrCreate(access).getPossibleBiomeSourceBiomes();
+        possibleBiomesCacheSize = biomeCount;
+        return possibleBiomesCache;
     }
 
     public BiomeSource withSeed(long seed) {

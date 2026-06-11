@@ -50,11 +50,18 @@ public class BiomeGenerator {
     }
 
     public void decorate(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator) {
-        CompletableFuture<TerrainData> terrain = generator.getChunkDataAsync(chunk.getPos());
+        TerrainData terrain = generator.getChunkDataIfReady(chunk.getPos());
+        CompletableFuture<TerrainData> terrainFuture;
+        if (terrain != null) {
+            terrainFuture = CompletableFuture.completedFuture(terrain);
+        } else {
+            terrainFuture = generator.getChunkDataAsync(chunk.getPos());
+            terrain = terrainFuture.join();
+        }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
-        this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, 1), structures, terrain, generator);
+        this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, 1), structures, terrainFuture, generator);
         this.noiseCaveGenerator.decorate(chunk, scoped, generator);
-        Surface.smoothWater(chunk, region, terrain.join());
-        Surface.applyPost(chunk, terrain.join(), generator);
+        Surface.smoothWater(chunk, region, terrain);
+        Surface.applyPost(chunk, terrain, generator);
     }
 }

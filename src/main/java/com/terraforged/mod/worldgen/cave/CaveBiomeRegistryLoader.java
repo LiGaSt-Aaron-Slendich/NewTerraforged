@@ -16,13 +16,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 public class CaveBiomeRegistryLoader {
+    private static CaveBiomeRegistry cached;
+    private static int cachedBiomeCount = -1;
+
     public static CaveBiomeRegistry build(Registry<Biome> biomeRegistry, TFCaveBiomeConfig config) {
+        int biomeCount = biomeRegistry.size();
+        if (cached != null && cachedBiomeCount == biomeCount) {
+            return cached;
+        }
         ArrayList<CaveBiomeEntry> entries = new ArrayList<CaveBiomeEntry>();
         CaveBiomeRegistryLoader.addAll(config.primary, CaveBiomeCategory.PRIMARY, biomeRegistry, entries);
         CaveBiomeRegistryLoader.addAll(config.transition, CaveBiomeCategory.TRANSITION, biomeRegistry, entries);
         CaveBiomeRegistryLoader.addAll(config.special, CaveBiomeCategory.SPECIAL, biomeRegistry, entries);
         CaveBiomeRegistryLoader.addAll(config.coastal, CaveBiomeCategory.COASTAL, biomeRegistry, entries);
-        return new CaveBiomeRegistry(entries, biomeRegistry);
+        cached = new CaveBiomeRegistry(entries, biomeRegistry);
+        cachedBiomeCount = biomeCount;
+        return cached;
     }
 
     private static void addAll(List<TFCaveBiomeConfig.Entry> list, CaveBiomeCategory category, Registry<Biome> biomeRegistry, List<CaveBiomeEntry> out) {

@@ -9,9 +9,12 @@ import com.terraforged.mod.worldgen.GeneratorPreset;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.cave.CaveBiomeClimateAffinity;
+import com.terraforged.mod.worldgen.cave.CaveBiomeCategory;
 import com.terraforged.mod.worldgen.cave.CaveBiomeEntry;
+import com.terraforged.mod.worldgen.cave.CavePlacementType;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
+import com.terraforged.mod.worldgen.cave.CaveCartography;
 import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
 import com.terraforged.mod.worldgen.cave.CaveFeatureDiagnostics;
 import com.terraforged.mod.worldgen.cave.CaveLayoutRegionGrid;
@@ -44,7 +47,7 @@ public final class CaveDebugCommand {
     }
 
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
-        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"newtf").requires(source -> source.hasPermission(0))).then(Commands.literal((String)"debug").then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"cave").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.FULL))).then(Commands.literal((String)"start").executes(ctx -> CaveDebugCommand.executeStart((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"stop").executes(ctx -> CaveDebugCommand.executeStop((CommandContext<CommandSourceStack>)ctx)))).then(((LiteralArgumentBuilder)Commands.literal((String)"stats").then(Commands.literal((String)"local").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.LOCAL)))).then(Commands.literal((String)"global").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.GLOBAL))))));
+        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"newtf").requires(source -> source.hasPermission(0))).then(Commands.literal((String)"debug").then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"cave").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.FULL))).then(Commands.literal((String)"start").executes(ctx -> CaveDebugCommand.executeStart((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"stop").executes(ctx -> CaveDebugCommand.executeStop((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"map").executes(ctx -> CaveDebugCommand.executeMap((CommandContext<CommandSourceStack>)ctx)))).then(((LiteralArgumentBuilder)Commands.literal((String)"stats").then(Commands.literal((String)"local").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.LOCAL)))).then(Commands.literal((String)"global").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.GLOBAL))))));
     }
 
     private static int execute(CommandContext<CommandSourceStack> context, Mode mode) throws CommandSyntaxException {
@@ -68,6 +71,28 @@ public final class CaveDebugCommand {
 
     private static int executeStop(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         return CaveDebugSession.stop(((CommandSourceStack)context.getSource()).getPlayerOrException());
+    }
+
+    private static int executeMap(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerLevel level = player.getLevel();
+        Generator generator = GeneratorPreset.getGenerator(level);
+        if (generator == null) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        BlockPos pos = player.blockPosition();
+        String caveSystem = CaveDebugInfo.resolveCaveSystem(generator, pos.getX(), pos.getY(), pos.getZ());
+        if (!"Mega".equals(caveSystem) && !"Giga".equals(caveSystem)) {
+            player.sendMessage((Component)new TextComponent("Cartography requires Mega or Giga cave at your position.").withStyle(ChatFormatting.YELLOW), player.getUUID());
+            return 0;
+        }
+        CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
+        CaveCartography.Result result = CaveCartography.render(level, generator, pos.getX(), pos.getZ(), type);
+        for (String line : result.chatLines()) {
+            player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+        }
+        return 1;
     }
 
     static List<String> collectLines(Generator generator, ServerLevel level, BlockPos pos, Mode mode) {
@@ -176,7 +201,7 @@ public final class CaveDebugCommand {
             CaveMegaGigaLayout layout = source.getCaveBiomeSampler().getMegaGigaLayout(seed, cx, cz, radius, type, surfaceBiome, y, surfaceY);
             if (layout != null && (entry = layout.getBiomeAt(x, z)) != null) {
                 lines.add("Painted biome: " + entry.biome());
-                lines.add("Category: " + entry.category());
+                lines.add("Category: " + CaveDebugCommand.formatLayoutCategory(entry));
             }
             return;
         }
@@ -259,6 +284,13 @@ public final class CaveDebugCommand {
 
     private static String formatStatLine(String label, float value) {
         return String.format(Locale.ROOT, "%s: %+.2f", label, Float.valueOf(value));
+    }
+
+    private static String formatLayoutCategory(CaveBiomeEntry entry) {
+        if (entry.placementType() == CavePlacementType.FULL_REGION && (entry.category() == CaveBiomeCategory.TRANSITION || entry.category() == CaveBiomeCategory.COASTAL)) {
+            return "PRIMARY (regional shell)";
+        }
+        return entry.category().name();
     }
 
     private static void appendStatEffects(List<String> lines) {

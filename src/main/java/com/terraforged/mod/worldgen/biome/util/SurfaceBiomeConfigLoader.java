@@ -16,10 +16,17 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 public final class SurfaceBiomeConfigLoader {
+    private static ConfigOverlay cached;
+    private static int cachedBiomeCount = -1;
+
     private SurfaceBiomeConfigLoader() {
     }
 
     public static ConfigOverlay load(Registry<Biome> biomes) {
+        int biomeCount = biomes.size();
+        if (cached != null && cachedBiomeCount == biomeCount) {
+            return cached;
+        }
         if (TFSurfaceBiomeConfig.INSTANCE == null) {
             return ConfigOverlay.EMPTY;
         }
@@ -46,7 +53,9 @@ public final class SurfaceBiomeConfigLoader {
         if (added > 0) {
             TerraForged.LOG.info("[SurfaceBiomeConfig] Loaded {} explicit surface biome assignments", added);
         }
-        return new ConfigOverlay(explicit, configured, config.modBiomeWeight, config.autoDetectModBiomes);
+        cached = new ConfigOverlay(explicit, configured, config.modBiomeWeight, config.autoDetectModBiomes);
+        cachedBiomeCount = biomeCount;
+        return cached;
     }
 
     public record ConfigOverlay(Map<BiomeType, Object2FloatMap<Holder<Biome>>> explicit, Set<Holder<Biome>> configured, float autoModWeight, boolean autoDetectModBiomes) {

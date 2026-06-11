@@ -687,7 +687,7 @@ falloff_per_hop = 1.0
 id = "regions_unexplored:scorching_caves"
 temperature = 0.06
 vegetation_density = 0.10
-weight = 0.85
+weight = 0.48
 placement_type = "full_region"
 
 [transition.stats.conditions]

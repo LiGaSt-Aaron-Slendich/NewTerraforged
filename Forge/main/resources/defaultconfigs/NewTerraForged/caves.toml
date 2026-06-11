@@ -3,13 +3,13 @@
 # Restart the game after editing.
 
 [mega]
-region_count_min = 4
-region_count_max = 7
+region_count_min = 7
+region_count_max = 10
 transition_per_region = 3
 scale = 1.0
 
 [giga]
-region_count_min = 6
+region_count_min = 7
 region_count_max = 10
 transition_per_region = 6
 scale = 2.0

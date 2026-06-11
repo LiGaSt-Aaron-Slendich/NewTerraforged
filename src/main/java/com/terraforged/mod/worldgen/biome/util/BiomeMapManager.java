@@ -30,6 +30,9 @@ import net.minecraft.world.level.biome.Biome;
 public class BiomeMapManager {
     private static final BiomeType[] TYPES = BiomeType.values();
     private static final BiomeTypeHolder[] HOLDERS = (BiomeTypeHolder[])Stream.of(TYPES).map(BiomeTypeHolder::new).toArray(BiomeTypeHolder[]::new);
+    private static BiomeMapManager cached;
+    private static int cachedBiomeCount = -1;
+    private static int cachedClimateCount = -1;
     private final Registry<Biome> biomes;
     private final Registry<ClimateType> climateTypes;
     private final List<Holder<Biome>> overworldBiomes;
@@ -40,6 +43,20 @@ public class BiomeMapManager {
         this.climateTypes = access.ownedRegistryOrThrow(TerraForged.CLIMATES.get());
         this.overworldBiomes = BiomeMapManager.getOverworldBiomes(this.biomes, this.climateTypes);
         this.biomeMap = this.buildBiomeMap();
+    }
+
+    public static BiomeMapManager getOrCreate(RegistryAccess access) {
+        Registry<Biome> biomes = access.ownedRegistryOrThrow(Registry.BIOME_REGISTRY);
+        Registry<ClimateType> climates = access.ownedRegistryOrThrow(TerraForged.CLIMATES.get());
+        int biomeCount = biomes.size();
+        int climateCount = climates.size();
+        if (cached != null && cachedBiomeCount == biomeCount && cachedClimateCount == climateCount) {
+            return cached;
+        }
+        cached = new BiomeMapManager(access);
+        cachedBiomeCount = biomeCount;
+        cachedClimateCount = climateCount;
+        return cached;
     }
 
     public Holder<Biome> get(ResourceKey<Biome> key) {

@@ -7,8 +7,9 @@ import com.terraforged.mod.worldgen.biome.decorator.FeaturePlacement;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import com.terraforged.mod.worldgen.cave.CaveColumnScan;
-import com.terraforged.mod.worldgen.cave.CaveFeatureFilters;
+import com.terraforged.mod.worldgen.cave.CaveColumnScan;
 import com.terraforged.mod.worldgen.cave.CaveFeaturePlacement;
+import com.terraforged.mod.worldgen.cave.CaveFeatureRules;
 import com.terraforged.mod.worldgen.cave.CaveFeatureRules;
 import com.terraforged.mod.worldgen.cave.CaveUndergroundGuard;
 import com.terraforged.mod.worldgen.cave.MegaCaveStructureFilter;
@@ -74,13 +75,22 @@ public final class CaveBiomeFeatureRunner {
         if (includeTrees) {
             CaveBiomeFeatureRunner.decorateTrees(floorAnchor, chunk, placement, generator, biome, settings, random);
         }
+        if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
+            CaveBiomeFeatureRunner.decorateVolcanicVents(floorAnchor, chunk, carver, region, placement, generator, biome, settings, random);
+        }
         int lx = floorAnchor.getX() & 0xF;
         int lz = floorAnchor.getZ() & 0xF;
         int minY = chunk.getMinBuildHeight();
         int maxY = chunk.getHighestSectionPosition() + 15;
         int ceilY = CaveColumnScan.findCeilingAboveFloor(chunk, lx, lz, floorAnchor.getY() + 4, maxY);
         if (ceilY > floorAnchor.getY() + 5 && CaveBiomeFeatureRunner.mayPlace(chunk, carver, ceilAnchor = new BlockPos(floorAnchor.getX(), ceilY, floorAnchor.getZ()), generator, biome)) {
-            CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, placement, generator, biome, settings, random);
+            Holder<Biome> ceilBiome = carver.resolveBiome(chunk, lx, ceilY, lz);
+            if (!CaveBiomeIds.isModCaveBiome(ceilBiome)) {
+                ceilBiome = biome;
+            }
+            WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
+            BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
+            CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random);
         }
     }
 
@@ -131,6 +141,45 @@ public final class CaveBiomeFeatureRunner {
             return DynamicTreesCompat.isLoaded() ? 3 : 4;
         }
         return Integer.MAX_VALUE;
+    }
+
+    private static void decorateVolcanicVents(BlockPos floorAnchor, ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, WorldGenLevel placement, Generator generator, Holder<Biome> biome, BiomeGenerationSettings settings, WorldgenRandom random) {
+        if (!CaveFeaturePlacement.hasSolidFloorBelow(chunk, floorAnchor) || random.nextFloat() > 0.78f) {
+            return;
+        }
+        int lx = floorAnchor.getX() & 0xF;
+        int lz = floorAnchor.getZ() & 0xF;
+        int floorY = floorAnchor.getY();
+        for (int dy = 0; dy >= -6; --dy) {
+            int y = floorY + dy;
+            if (y <= chunk.getMinBuildHeight() || !FeaturePlacement.hasStableGround((BlockGetter)chunk, lx, y, lz, 2)) continue;
+            floorY = y;
+            break;
+        }
+        if (!FeaturePlacement.hasStableGround((BlockGetter)chunk, lx, floorY, lz, 2)) {
+            return;
+        }
+        List stages = settings.features();
+        long baseSeed = random.setDecorationSeed(region.getSeed(), floorAnchor.getX(), floorAnchor.getZ());
+        BlockPos placePos = CaveFeaturePlacement.resolveWorldPos(new BlockPos(floorAnchor.getX(), floorY, floorAnchor.getZ()), CaveFeatureRules.Anchor.FLOOR, false);
+        for (int stageIndex = 0; stageIndex < stages.size(); ++stageIndex) {
+            HolderSet stage;
+            if (!CaveFeatureFilters.isModCaveDecorationStage(stageIndex) || (stage = (HolderSet)stages.get(stageIndex)) == null || stage.size() == 0) continue;
+            for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
+                Holder placed = stage.get(featureIndex);
+                ResourceLocation id = FeatureMassClassifier.featurePath((Holder<PlacedFeature>)placed);
+                if (id == null || !CaveBiomeFeatureRunner.isVolcanicVentFeature(id.getPath()) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome)) continue;
+                random.setFeatureSeed(baseSeed, featureIndex + 500, stageIndex);
+                if (FeaturePlacement.place((Holder<PlacedFeature>)placed, placement, (ChunkGenerator)generator, (Random)random, placePos, true)) {
+                    return;
+                }
+            }
+        }
+    }
+
+    private static boolean isVolcanicVentFeature(String path) {
+        String lower = path.toLowerCase();
+        return lower.contains("ash_vent") || lower.contains("/vents") || lower.contains("geyser");
     }
 
     private static void decorateTrees(BlockPos anchor, ChunkAccess chunk, WorldGenLevel region, Generator generator, Holder<Biome> biome, BiomeGenerationSettings settings, WorldgenRandom random) {

@@ -18,7 +18,7 @@ extends Stage {
     public void set(T value) {
         if (this.run()) {
             this.value = value;
-            TerraForged.LOG.info("Set TerraForged API: {}", value.getClass().getSimpleName());
+            TerraForged.LOG.info("Set NewTerraForged API: {}", value.getClass().getSimpleName());
         }
     }
 

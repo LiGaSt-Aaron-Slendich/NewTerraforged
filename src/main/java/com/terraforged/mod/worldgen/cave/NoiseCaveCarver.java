@@ -38,6 +38,11 @@ public class NoiseCaveCarver {
         int minY = generator.getMinY();
         int startX = chunk.getPos().getMinBlockX();
         int startZ = chunk.getPos().getMinBlockZ();
+        boolean megaGigaConfig = config.getType().isMegaOrGiga();
+        if (megaGigaConfig && carve) {
+            CaveEntranceCarver.ensureMassifTunnelAxis(generator, generator.getCaveEntranceClaims(), seed, startX + 8, startZ + 8);
+            CaveEntranceCarver.tryCarveTunnelAnchors(seed, chunk, carver, generator, config, generator.getCaveEntranceClaims());
+        }
         for (int i = 0; i < 256; ++i) {
             int midY;
             Holder<Biome> biome;
@@ -65,7 +70,7 @@ public class NoiseCaveCarver {
                     carver.restoreTunnel(axis);
                 }
             }
-            if (megaGiga && carve && cavern >= CaveEntranceCarver.minCavernForEntrance() && CaveEntranceCarver.isEntranceCandidate(generator, carver, generator.getCaveEntranceClaims(), seed, x, z, cavern, breachMask, true)) {
+            if (megaGiga && carve && CaveEntranceCarver.isEntranceCandidate(generator, carver, generator.getCaveEntranceClaims(), seed, x, z, cavern, breachMask, true)) {
                 CaveEntranceCarver.carveSlopeEntrance(chunk, carver, generator, generator.getCaveEntranceClaims(), config, seed, x, z, dx, dz, cavern, breachMask);
             } else if (megaGiga && carve && CaveEntranceCarver.isTunnelExitCandidate(generator, carver, generator.getCaveEntranceClaims(), seed, x, z, cavern, breachMask, true)) {
                 CaveEntranceCarver.carveTunnelExit(chunk, carver, generator, generator.getCaveEntranceClaims(), config, seed, x, z, dx, dz, cavern, breachMask);

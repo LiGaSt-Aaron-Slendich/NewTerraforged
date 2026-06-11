@@ -15,6 +15,7 @@ import com.terraforged.noise.util.NoiseUtil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -22,7 +23,10 @@ import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
 
 public final class CaveMegaGigaLayout {
-    private static final int MIN_UNIQUE_REGIONS = 5;
+    private static final int MIN_UNIQUE_REGIONS = 7;
+    private static final float MAX_BIOME_SECTOR_FRACTION = 0.20f;
+    private static final float MAX_BIOME_CELL_FRACTION = 0.18f;
+    private static final float MAX_HEAT_SHELL_CELL_FRACTION = 0.08f;
     private final float centerX;
     private final float centerZ;
     private final float blurRadius;
@@ -63,6 +67,14 @@ public final class CaveMegaGigaLayout {
         return this.regionGrid;
     }
 
+    public float centerX() {
+        return this.centerX;
+    }
+
+    public float centerZ() {
+        return this.centerZ;
+    }
+
     public CaveBiomeEntry getBiomeAt(int x, int z) {
         return this.resolveRegionalBiome(x, z);
     }
@@ -77,7 +89,6 @@ public final class CaveMegaGigaLayout {
     }
 
     private CaveBiomeEntry resolveRegionalBiome(int x, int z) {
-        CaveBiomeEntry sectorBiome;
         CaveBiomeEntry warm;
         if (this.sectors.isEmpty() && this.shellPool.isEmpty()) {
             return null;
@@ -102,15 +113,12 @@ public final class CaveMegaGigaLayout {
         Sector best = null;
         float bestScore = Float.MAX_VALUE;
         for (Sector sector : this.sectors) {
-            if (!CaveMegaGigaLayout.inSectorStrict(dist, angle, sector)) continue;
-            float centerDist = (sector.innerRadius() + sector.outerRadius()) * 0.5f;
-            float centerAngle = (sector.angleStart() + sector.angleEnd()) * 0.5f;
-            float score = Math.abs(dist - centerDist) + Math.abs(CaveMegaGigaLayout.shortestAngleDelta(angle, centerAngle)) * 8.0f;
+            float score = CaveMegaGigaLayout.sectorMatchScore(dist, angle, sector);
             if (!(score < bestScore)) continue;
             bestScore = score;
             best = sector;
         }
-        CaveBiomeEntry caveBiomeEntry = sectorBiome = best == null ? this.sectors.get(this.sectors.size() - 1).biome() : best.biome();
+        CaveBiomeEntry sectorBiome = best == null ? this.pickBiomeForPosition(x, z, localStats, false) : best.biome();
         if (!thermalOasis && localStats.temperature() <= -1.0f && sectorBiome != null && CaveBiomeClimateAffinity.isWarmOasisBiome(sectorBiome.biome().getPath())) {
             CaveBiomeEntry cold = this.pickBiomeForPosition(x, z, localStats, false);
             return cold != null ? cold : sectorBiome;
@@ -190,17 +198,27 @@ public final class CaveMegaGigaLayout {
         });
     }
 
-    private CaveBiomeEntry pickBiomeForPosition(int x, int z, CaveStatVector stats, boolean thermalOasis) {
+    private void balanceRegionGrid(int seed) {
+        if (this.regionGrid == null) {
+            return;
+        }
+        this.regionGrid.balanceBiomeFootprint(seed, MAX_BIOME_CELL_FRACTION, MAX_HEAT_SHELL_CELL_FRACTION, (x, z, excluded) -> this.pickBiomeForPositionExcluding(x, z, this.globalPool, false, excluded));
+    }
+
+    private CaveBiomeEntry pickBiomeForPositionExcluding(int x, int z, CaveStatVector stats, boolean thermalOasis, Set<ResourceLocation> excluded) {
         CaveBiomeEntry best = null;
         float bestWeight = -1.0f;
         for (CaveBiomeEntry entry : this.shellPool) {
             float detail;
             float noise;
             float score;
-            if (entry.statGenerator() || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || !CaveBiomeClimateAffinity.matches(entry.biome(), this.climateType, stats.temperature(), thermalOasis) || !entry.stats().matches(stats)) continue;
+            if (entry.statGenerator() || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || excluded != null && excluded.contains(entry.biome()) || !CaveBiomeClimateAffinity.matches(entry.biome(), this.climateType, stats.temperature(), thermalOasis) || !entry.stats().matches(stats)) continue;
             float w = entry.weight();
             if (CaveBiomeIds.isSparseCaveBiome(entry.biome())) {
                 w *= 0.22f;
+            }
+            if (CaveBiomeIds.isHeatShellCaveBiome(entry.biome())) {
+                w *= 0.35f;
             }
             if (thermalOasis && CaveBiomeClimateAffinity.isWarmOasisBiome(entry.biome().getPath())) {
                 w *= 1.4f + stats.temperature() * 0.12f;
@@ -212,7 +230,11 @@ public final class CaveMegaGigaLayout {
         if (best != null) {
             return best;
         }
-        return this.shellPool.stream().filter(e -> !e.statGenerator()).filter(e -> CaveBiomeClimateAffinity.matches(e.biome(), this.climateType, stats.temperature(), thermalOasis)).max(Comparator.comparingDouble(CaveBiomeEntry::weight)).orElse(null);
+        return this.shellPool.stream().filter(e -> !e.statGenerator()).filter(e -> excluded == null || !excluded.contains(e.biome())).filter(e -> CaveBiomeClimateAffinity.matches(e.biome(), this.climateType, stats.temperature(), thermalOasis)).max(Comparator.comparingDouble(CaveBiomeEntry::weight)).orElse(null);
+    }
+
+    private CaveBiomeEntry pickBiomeForPosition(int x, int z, CaveStatVector stats, boolean thermalOasis) {
+        return this.pickBiomeForPositionExcluding(x, z, stats, thermalOasis, null);
     }
 
     private boolean isThermalOasis(int x, int z, CaveStatVector local) {
@@ -265,10 +287,11 @@ public final class CaveMegaGigaLayout {
             shellMin = shellMax;
         }
         int regionCount = shellMin + Math.abs(NoiseUtil.hash2D(isMega ? seed : seed ^ 0x9E3779B9, (int)centerX, (int)centerZ)) % Math.max(1, shellMax - shellMin + 1);
-        regionCount = Math.max(5, regionCount);
+        regionCount = Math.max(MIN_UNIQUE_REGIONS, regionCount);
         List<Sector> sectors = CaveMegaGigaLayout.buildUniqueRegions(seed, radius, shellPool, poolStats, climate, generators, regionCount, blur);
         CaveMegaGigaLayout layout = new CaveMegaGigaLayout(centerX, centerZ, blur, poolStats.clamped(), climate, generators, sectors, shellPool, seed, null);
         layout.regionGrid = CaveLayoutRegionGrid.build(centerX, centerZ, radius, isMega, poolStats.clamped(), layout::resolveRegionalBiome, generators, layout::generatorStatSource);
+        layout.balanceRegionGrid(seed);
         layout.refreshWarmOasisBiomes();
         return layout;
     }
@@ -334,7 +357,7 @@ public final class CaveMegaGigaLayout {
         }
         float fullCircle = (float)Math.PI * 2;
         float angleOffset = CaveMegaGigaLayout.normalizeAngle(NoiseUtil.valCoord2D(seed, 3, 9) * (float)Math.PI);
-        int target = Math.max(5, regionCount);
+        int target = Math.max(MIN_UNIQUE_REGIONS, regionCount);
         for (int r = 0; r < target; ++r) {
             float inner = coreRadius + (maxRadius - coreRadius) * ((float)r / (float)target);
             float outer = coreRadius + (maxRadius - coreRadius) * (((float)r + 1.0f) / (float)target);
@@ -354,7 +377,32 @@ public final class CaveMegaGigaLayout {
         }
         CaveMegaGigaLayout.dedupeMegaPrimaryRegions(sectors, seed, pool, globalPool, climate, generators, usedBiomes);
         CaveMegaGigaLayout.ensureMinimumUniqueRegions(sectors, seed, radius, pool, globalPool, climate, generators, blur, usedBiomes);
+        CaveMegaGigaLayout.enforceRegionBiomeCap(sectors, seed, pool, globalPool, climate, generators, usedBiomes);
         return List.copyOf(sectors);
+    }
+
+    private static void enforceRegionBiomeCap(List<Sector> sectors, int seed, List<CaveBiomeEntry> pool, CaveStatVector globalPool, CaveClimateType climate, List<GeneratorNode> generators, Set<ResourceLocation> usedBiomes) {
+        if (sectors.isEmpty()) {
+            return;
+        }
+        int maxPerBiome = Math.max(1, (int)Math.floor((float)sectors.size() * MAX_BIOME_SECTOR_FRACTION));
+        HashMap<ResourceLocation, Integer> counts = new HashMap<ResourceLocation, Integer>();
+        for (int i = 0; i < sectors.size(); ++i) {
+            Sector sector = sectors.get(i);
+            ResourceLocation id = sector.biome().biome();
+            int count = counts.merge(id, 1, Integer::sum);
+            if (count <= maxPerBiome) continue;
+            counts.merge(id, -1, Integer::sum);
+            CaveStatVector shellStats = CaveMegaGigaLayout.statsForShell(globalPool, generators, sector.hopFromCore());
+            CaveBiomeEntry replacement = CaveMegaGigaLayout.pickBiome(seed, i + 400, 0, pool, shellStats, climate, usedBiomes, true);
+            if (replacement == null) {
+                replacement = CaveMegaGigaLayout.pickBiomeUniqueRelaxed(seed, i + 400, pool, climate, usedBiomes);
+            }
+            if (replacement == null || replacement.biome().equals(id)) continue;
+            usedBiomes.add(replacement.biome());
+            sectors.set(i, new Sector(sector.angleStart(), sector.angleEnd(), sector.innerRadius(), sector.outerRadius(), sector.hopFromCore(), replacement));
+            counts.merge(replacement.biome(), 1, Integer::sum);
+        }
     }
 
     private static void dedupeMegaPrimaryRegions(List<Sector> sectors, int seed, List<CaveBiomeEntry> pool, CaveStatVector globalPool, CaveClimateType climate, List<GeneratorNode> generators, Set<ResourceLocation> usedBiomes) {
@@ -380,21 +428,21 @@ public final class CaveMegaGigaLayout {
         for (Sector sector : sectors) {
             distinct.add(sector.biome().biome());
         }
-        if (distinct.size() >= 5) {
+        if (distinct.size() >= MIN_UNIQUE_REGIONS) {
             return;
         }
         float maxRadius = (float)radius * 0.92f;
         float coreRadius = Math.max(24.0f, maxRadius * 0.12f);
         float fullCircle = (float)Math.PI * 2;
         int attempt = 0;
-        while (distinct.size() < 5 && attempt < pool.size() * 2) {
+        while (distinct.size() < MIN_UNIQUE_REGIONS && attempt < pool.size() * 2) {
             ++attempt;
             int slot = sectors.size();
             float inner = coreRadius + (maxRadius - coreRadius) * 0.55f;
             float outer = maxRadius;
             inner = CaveMegaGigaLayout.blurRadius(inner, seed, slot + 40);
             outer = CaveMegaGigaLayout.blurRadius(outer, seed, slot + 50);
-            float span = fullCircle / 5.0f;
+            float span = fullCircle / (float)MIN_UNIQUE_REGIONS;
             float start = CaveMegaGigaLayout.normalizeAngle(span * (float)slot + CaveMegaGigaLayout.noise01(seed, slot) * 0.15f);
             float end = CaveMegaGigaLayout.normalizeAngle(start + span * 0.9f);
             CaveStatVector shellStats = CaveMegaGigaLayout.statsForShell(globalPool, generators, slot + 1);
@@ -486,6 +534,9 @@ public final class CaveMegaGigaLayout {
             if (CaveBiomeIds.isSparseCaveBiome(entry.biome())) {
                 w *= 0.22f;
             }
+            if (CaveBiomeIds.isHeatShellCaveBiome(entry.biome())) {
+                w *= 0.35f;
+            }
             if (!strictUnique && usedBiomes.contains(entry.biome())) {
                 w *= 0.35f;
             }
@@ -511,6 +562,18 @@ public final class CaveMegaGigaLayout {
 
     private static float noise01(int seed, int salt) {
         return (NoiseUtil.valCoord2D(seed, salt, salt ^ 0x5A) + 1.0f) * 0.5f;
+    }
+
+    private static float sectorMatchScore(float dist, float angle, Sector sector) {
+        float radial = 0.0f;
+        if (dist < sector.innerRadius()) {
+            radial = sector.innerRadius() - dist;
+        } else if (dist > sector.outerRadius()) {
+            radial = dist - sector.outerRadius();
+        }
+        float centerAngle = (sector.angleStart() + sector.angleEnd()) * 0.5f;
+        float angular = CaveMegaGigaLayout.shortestAngleDelta(angle, centerAngle);
+        return radial + angular * (sector.outerRadius() + 24.0f);
     }
 
     private static boolean inSectorStrict(float dist, float angle, Sector sector) {

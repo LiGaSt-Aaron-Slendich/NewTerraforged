@@ -163,8 +163,12 @@ public final class CaveFeatureDiagnostics {
         } else {
             lines.add("Tunnel axis: none (river/exit not registered for this system)");
         }
-        if (tagTunnel && !mouthClaimed) {
-            lines.add("Note: tag only checks relief \u0432\u0402\u201d actual entrance needs carved mouth in this mega/giga cell");
+        if (tagTunnel && axis == null) {
+            lines.add("Note: massif qualifies but axis not registered yet (chunk gen in progress or near sea at mouth anchor)");
+        } else if (tagTunnel && !mouthClaimed) {
+            lines.add("Note: axis registered; mouth carve runs at anchor column during chunk generation");
+        } else if (tagTunnel && mouthClaimed && !exitClaimed) {
+            lines.add("Note: mouth carved; exit carve pending at opposite anchor");
         }
     }
 }

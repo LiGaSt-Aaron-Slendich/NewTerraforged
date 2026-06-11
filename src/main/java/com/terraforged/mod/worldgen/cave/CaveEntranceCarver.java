@@ -6,7 +6,9 @@ import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.cave.CaveBreaches;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
+import com.terraforged.mod.worldgen.cave.CaveNoise;
 import com.terraforged.mod.worldgen.cave.CaveOceanFilter;
+import com.terraforged.mod.worldgen.cave.CaveSiteTags;
 import com.terraforged.mod.worldgen.cave.CaveSystemGrid;
 import com.terraforged.mod.worldgen.cave.CaveTunnelRiverDecorator;
 import com.terraforged.mod.worldgen.cave.CaveType;
@@ -42,15 +44,43 @@ public final class CaveEntranceCarver {
         return 10;
     }
 
+    public static void ensureMassifTunnelAxis(Generator generator, CaveEntranceClaims claims, int seed, int refX, int refZ) {
+        if (claims == null) {
+            return;
+        }
+        CaveType systemType = CaveSystemGrid.dominantType(seed, refX, refZ);
+        long key = CaveSystemGrid.systemKey(refX, refZ, systemType);
+        if (claims.tunnelAxis(key) != null) {
+            return;
+        }
+        if (!CaveTunnelRiverDecorator.qualifiesMountainMassif(generator, seed, refX, refZ)) {
+            return;
+        }
+        int[] mouth = CaveSystemGrid.resolveTunnelMouthAnchor(seed, systemType, refX, refZ);
+        if (CaveOceanFilter.isNearSea(generator, mouth[0], mouth[1])) {
+            return;
+        }
+        int[] exit = CaveSystemGrid.resolveTunnelExit(mouth[0], mouth[1], systemType);
+        claims.registerTunnelIfAbsent(key, new CaveEntranceClaims.TunnelAxis(mouth[0], mouth[1], exit[0], exit[1]));
+    }
+
     public static boolean isEntranceCandidate(Generator generator, CarverChunk carver, CaveEntranceClaims claims, int seed, int x, int z, int cavern, float breachMask, boolean megaGiga) {
-        if (!megaGiga || cavern < 10 || breachMask < 0.88f) {
+        if (!megaGiga) {
             return false;
         }
         CaveType systemType = CaveSystemGrid.dominantType(seed, x, z);
+        long key = CaveSystemGrid.systemKey(x, z, systemType);
+        CaveEntranceClaims.TunnelAxis axis = claims != null ? claims.tunnelAxis(key) : null;
+        if (axis != null && CaveEntranceCarver.isNearColumn(x, z, axis.mouthX(), axis.mouthZ(), 4)) {
+            return CaveEntranceCarver.isTunnelMouthCandidate(generator, claims, seed, x, z, cavern, breachMask, key);
+        }
+        if (cavern < 10 || breachMask < 0.88f) {
+            return false;
+        }
         if (!CaveSystemGrid.isEntranceAnchorColumn(seed, x, z, systemType)) {
             return false;
         }
-        if (claims != null && claims.isClaimed(CaveSystemGrid.systemKey(x, z, systemType))) {
+        if (claims != null && claims.isClaimed(key)) {
             return false;
         }
         int sea = generator.getSeaLevel();
@@ -68,33 +98,97 @@ public final class CaveEntranceCarver {
         return CaveEntranceCarver.isLocalBreachPeak(seed, x, z, breachMask);
     }
 
+    private static boolean isTunnelMouthCandidate(Generator generator, CaveEntranceClaims claims, int seed, int x, int z, int cavern, float breachMask, long key) {
+        if (cavern < 5 || breachMask < 0.4f) {
+            return false;
+        }
+        if (claims != null && claims.isClaimed(key)) {
+            return false;
+        }
+        int sea = generator.getSeaLevel();
+        if (generator.getOceanFloorHeight(x, z) <= sea + 4) {
+            return false;
+        }
+        if (CaveOceanFilter.isBlockedForMegaGiga(generator, CaveType.MEGA, x, z) && !CaveOceanFilter.isCoastalCliffColumn(generator, x, z)) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isNearColumn(int x, int z, int ax, int az, int radius) {
+        int dx = x - ax;
+        int dz = z - az;
+        return dx * dx + dz * dz <= radius * radius;
+    }
+
     public static boolean isTunnelExitCandidate(Generator generator, CarverChunk carver, CaveEntranceClaims claims, int seed, int x, int z, int cavern, float breachMask, boolean megaGiga) {
-        if (!megaGiga || cavern < 10) {
+        if (!megaGiga || cavern < 5) {
             return false;
         }
         CaveType systemType = CaveSystemGrid.dominantType(seed, x, z);
         long key = CaveSystemGrid.systemKey(x, z, systemType);
-        if (!claims.isClaimed(key) || claims.hasExit(key)) {
+        if (claims.hasExit(key)) {
             return false;
         }
         CaveEntranceClaims.TunnelAxis axis = claims.tunnelAxis(key);
         if (axis == null) {
             return false;
         }
-        if (!CaveSystemGrid.isTunnelExitAnchorColumn(seed, x, z, systemType, axis.mouthX(), axis.mouthZ())) {
+        boolean atExit = CaveEntranceCarver.isNearColumn(x, z, axis.exitX(), axis.exitZ(), 5) || CaveSystemGrid.isTunnelExitAnchorColumn(seed, x, z, systemType, axis.mouthX(), axis.mouthZ());
+        if (!atExit) {
             return false;
         }
         if (!CaveTunnelRiverDecorator.qualifiesMountainMassif(generator, seed, axis.mouthX(), axis.mouthZ())) {
             return false;
         }
         int sea = generator.getSeaLevel();
-        if (generator.getOceanFloorHeight(x, z) <= sea + 6) {
+        if (generator.getOceanFloorHeight(x, z) <= sea + 4) {
             return false;
         }
-        if (breachMask < 0.748f) {
+        if (breachMask < 0.3f) {
             return false;
         }
-        return CaveEntranceCarver.isLocalBreachPeak(seed, x, z, breachMask);
+        return true;
+    }
+
+    public static void tryCarveTunnelAnchors(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, NoiseCave config, CaveEntranceClaims claims) {
+        if (claims == null) {
+            return;
+        }
+        int refX = chunk.getPos().getMinBlockX() + 8;
+        int refZ = chunk.getPos().getMinBlockZ() + 8;
+        CaveType systemType = CaveSystemGrid.dominantType(seed, refX, refZ);
+        long key = CaveSystemGrid.systemKey(refX, refZ, systemType);
+        CaveEntranceClaims.TunnelAxis axis = claims.tunnelAxis(key);
+        if (axis == null) {
+            return;
+        }
+        CaveEntranceCarver.tryCarveTunnelAnchor(seed, chunk, carver, generator, config, claims, key, axis.mouthX(), axis.mouthZ(), false);
+        CaveEntranceCarver.tryCarveTunnelAnchor(seed, chunk, carver, generator, config, claims, key, axis.exitX(), axis.exitZ(), true);
+    }
+
+    private static void tryCarveTunnelAnchor(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, NoiseCave config, CaveEntranceClaims claims, long key, int wx, int wz, boolean exit) {
+        int chunkMinX = chunk.getPos().getMinBlockX();
+        int chunkMinZ = chunk.getPos().getMinBlockZ();
+        int dx = wx - chunkMinX;
+        int dz = wz - chunkMinZ;
+        if (dx < 0 || dx > 15 || dz < 0 || dz > 15) {
+            return;
+        }
+        if (exit && claims.hasExit(key) || !exit && claims.isClaimed(key)) {
+            return;
+        }
+        float value = CaveNoise.sampleMerged(carver.modifier, seed, wx, wz);
+        int cavern = Math.max(12, config.getCavernSize(seed, wx, wz, value));
+        float breachMask = Math.max(0.45f, carver.getCarvingMask(seed, wx, wz, true));
+        if (exit) {
+            if (!CaveEntranceCarver.isTunnelExitCandidate(generator, carver, claims, seed, wx, wz, cavern, breachMask, true)) {
+                return;
+            }
+            CaveEntranceCarver.carveTunnelExit(chunk, carver, generator, claims, config, seed, wx, wz, dx, dz, cavern, breachMask);
+        } else if (CaveEntranceCarver.isEntranceCandidate(generator, carver, claims, seed, wx, wz, cavern, breachMask, true)) {
+            CaveEntranceCarver.carveSlopeEntrance(chunk, carver, generator, claims, config, seed, wx, wz, dx, dz, cavern, breachMask);
+        }
     }
 
     public static boolean carveTunnelExit(ChunkAccess chunk, CarverChunk carver, Generator generator, CaveEntranceClaims claims, NoiseCave config, int seed, int x, int z, int dx, int dz, int cavern, float breachMask) {
@@ -126,7 +220,10 @@ public final class CaveEntranceCarver {
         int chamberBottom = Math.max(minY, centerY - Math.max(8, cavern));
         int anchorMouthY = surface - 1;
         int rockCover = anchorMouthY - centerY;
-        if (rockCover < 18 && anchorMouthY - chamberBottom < 8) {
+        CaveType systemType = CaveSystemGrid.dominantType(seed, x, z);
+        long systemKey = CaveSystemGrid.systemKey(x, z, systemType);
+        boolean tunnelMouth = !exitMouth && (CaveSiteTags.qualifiesTunnelMegaGiga(generator, seed, x, z) || claims != null && claims.tunnelAxis(systemKey) != null);
+        if (!tunnelMouth && rockCover < 18 && anchorMouthY - chamberBottom < 8) {
             return false;
         }
         float[] uphill = CaveEntranceCarver.sampleUphillDirection(generator, x, z);
@@ -145,13 +242,17 @@ public final class CaveEntranceCarver {
         }
         Holder<Biome> surfaceBiome = generator.getBiomeSource().getNoiseBiome(x >> 2, surface >> 2, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
         Holder coastalBiome = generator.getBiomeSource().getCoastalEntranceBiome(config.getSeed(), x, z, generator, surfaceBiome, midY, surface).orElse(null);
-        if (anchorMouthY - chamberBottom < 6) {
+        if (anchorMouthY - chamberBottom < (tunnelMouth ? 3 : 6)) {
             return false;
         }
-        CaveType systemType = CaveSystemGrid.dominantType(seed, x, z);
-        long systemKey = CaveSystemGrid.systemKey(x, z, systemType);
-        if (claims != null && (exitMouth ? !claims.isClaimed(systemKey) || !claims.tryClaimExit(systemKey) : !claims.tryClaim(systemKey))) {
-            return false;
+        if (claims != null) {
+            if (exitMouth) {
+                if (claims.tunnelAxis(systemKey) == null || claims.hasExit(systemKey) || !claims.tryClaimExit(systemKey)) {
+                    return false;
+                }
+            } else if (!claims.tryClaim(systemKey)) {
+                return false;
+            }
         }
         int baseRadius = Math.max(5, Math.min(14, cavern / 2 + 4 + Math.round(breachMask * 3.0f)));
         float jitter = (NoiseUtil.valCoord2D(seed ^ 0xCAFE, x, z) + 1.0f) * 0.5f;
@@ -171,13 +272,19 @@ public final class CaveEntranceCarver {
         int chamberY = Math.max(minY + 4, Math.min(centerY, mouthY - 18));
         float horizRun = CaveEntranceCarver.horizontalDistance(mouthWx, mouthWz, chamberWx, chamberWz);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        boolean carved = horizRun >= 10.0f ? CaveEntranceCarver.carveHillsideRamp(chunk, carver, generator, seed, chamberWx, chamberY, chamberWz, mouthWx, mouthY, mouthWz, mouthSurface, baseRadius, breachMask, jitter, ux, uz, chamberBiome, (Holder<Biome>)coastalBiome, sea, chunkMinX, chunkMinZ, pos) : CaveEntranceCarver.carveCeilingSkylight(chunk, carver, generator, x, z, chamberY, mouthY, mouthSurface, baseRadius, breachMask, jitter, ux, uz, chamberBiome, (Holder<Biome>)coastalBiome, sea, chunkMinX, chunkMinZ, pos);
+        boolean carved = horizRun >= 10.0f ? CaveEntranceCarver.carveHillsideRamp(chunk, carver, generator, seed, chamberWx, chamberY, chamberWz, mouthWx, mouthY, mouthWz, mouthSurface, baseRadius, breachMask, jitter, ux, uz, chamberBiome, (Holder<Biome>)coastalBiome, sea, chunkMinX, chunkMinZ, pos) : (tunnelMouth ? CaveEntranceCarver.carveCeilingSkylight(chunk, carver, generator, x, z, chamberY, mouthY, mouthSurface, baseRadius, breachMask, jitter, ux, uz, chamberBiome, (Holder<Biome>)coastalBiome, sea, chunkMinX, chunkMinZ, pos, 3) : CaveEntranceCarver.carveCeilingSkylight(chunk, carver, generator, x, z, chamberY, mouthY, mouthSurface, baseRadius, breachMask, jitter, ux, uz, chamberBiome, (Holder<Biome>)coastalBiome, sea, chunkMinX, chunkMinZ, pos, 5));
+        if (carved && horizRun >= 10.0f) {
+            CaveEntranceCarver.carveSynapseConnector(chunk, carver, generator, seed, chamberWx, chamberY, chamberWz, mouthWx, mouthY, mouthWz, baseRadius, breachMask, jitter, chamberBiome, sea, chunkMinX, chunkMinZ, pos);
+        }
         if (carved) {
             carver.expandEntranceZone(2);
             if (!exitMouth && coastalBiome == null) {
                 carver.noteTunnelRiver(mouthWx, mouthWz, chamberWx, chamberWz, systemType);
                 if (claims != null) {
-                    claims.registerTunnel(systemKey, new CaveEntranceClaims.TunnelAxis(mouthWx, mouthWz, carver.tunnelExitX(), carver.tunnelExitZ()));
+                    CaveEntranceClaims.TunnelAxis existing = claims.tunnelAxis(systemKey);
+                    if (existing == null) {
+                        claims.registerTunnel(systemKey, new CaveEntranceClaims.TunnelAxis(mouthWx, mouthWz, carver.tunnelExitX(), carver.tunnelExitZ()));
+                    }
                 }
             }
             if (coastalBiome != null) {
@@ -186,6 +293,11 @@ public final class CaveEntranceCarver {
                 int mouthLz = mouthWz - chunkMinZ;
                 if (mouthLx >= 0 && mouthLx <= 15 && mouthLz >= 0 && mouthLz <= 15) {
                     CaveEntranceCarver.buildSeawallBasin(chunk, seed, sea, mouthSurface, mouthY, mouthLx, mouthLz, ux, uz, baseRadius, breachMask);
+                }
+            } else if (exitMouth && claims != null) {
+                CaveEntranceClaims.TunnelAxis axis = claims.tunnelAxis(systemKey);
+                if (axis != null) {
+                    carver.restoreTunnel(axis);
                 }
             }
         }
@@ -211,9 +323,31 @@ public final class CaveEntranceCarver {
         return carved;
     }
 
-    private static boolean carveCeilingSkylight(ChunkAccess chunk, CarverChunk carver, Generator generator, int anchorWx, int anchorWz, int chamberY, int mouthY, int mouthSurface, int baseRadius, float breachMask, float jitter, float ux, float uz, Holder<Biome> chamberBiome, Holder<Biome> coastalBiome, int sea, int chunkMinX, int chunkMinZ, BlockPos.MutableBlockPos pos) {
+    private static boolean carveSynapseConnector(ChunkAccess chunk, CarverChunk carver, Generator generator, int seed, int chamberWx, int chamberY, int chamberWz, int mouthWx, int mouthY, int mouthWz, int baseRadius, float breachMask, float jitter, Holder<Biome> chamberBiome, int sea, int chunkMinX, int chunkMinZ, BlockPos.MutableBlockPos pos) {
+        int steps = Math.max(mouthY - chamberY, Math.round(CaveEntranceCarver.horizontalDistance(mouthWx, mouthWz, chamberWx, chamberWz)));
+        steps = Math.min(steps, 96);
+        boolean carved = false;
+        for (int i = 0; i <= steps; ++i) {
+            float t = (float)i / (float)steps;
+            if (t < 0.05f || t > 0.95f) continue;
+            float ease = CaveEntranceCarver.smoothstep(t);
+            float cx = (float)chamberWx + (float)(mouthWx - chamberWx) * ease;
+            float cz = (float)chamberWz + (float)(mouthWz - chamberWz) * ease;
+            int cy = chamberY + Math.round((float)(mouthY - chamberY) * ease);
+            int wx = Math.round(cx);
+            int wz = Math.round(cz);
+            float wobble = (NoiseUtil.valCoord2D(seed ^ 0x5FA7E1, wx, wz) + 1.0f) * 0.5f;
+            float hRadius = (float)baseRadius * (1.15f + wobble * 0.45f + breachMask * 0.12f + jitter * 0.08f);
+            float vRadius = Math.max(2.5f, hRadius * 0.55f);
+            int localSurface = CaveEntranceCarver.resolveSurfaceWorld(chunk, generator, carver, wx, wz);
+            carved |= CaveEntranceCarver.carveRampBlob(chunk, carver, cx, cy, cz, hRadius, vRadius, chamberBiome, localSurface, sea, pos, chunkMinX, chunkMinZ, false, false);
+        }
+        return carved;
+    }
+
+    private static boolean carveCeilingSkylight(ChunkAccess chunk, CarverChunk carver, Generator generator, int anchorWx, int anchorWz, int chamberY, int mouthY, int mouthSurface, int baseRadius, float breachMask, float jitter, float ux, float uz, Holder<Biome> chamberBiome, Holder<Biome> coastalBiome, int sea, int chunkMinX, int chunkMinZ, BlockPos.MutableBlockPos pos, int minSpan) {
         int span = Math.min(14, mouthY - chamberY);
-        if (span < 5) {
+        if (span < minSpan) {
             return false;
         }
         float lateral = (float)baseRadius * 0.55f + jitter * 2.0f;

@@ -101,7 +101,7 @@ public final class CaveFeatureFilters {
         if (bPath.contains("mantle") && CaveFeatureFilters.isForeignVentFeature(fPath)) {
             return true;
         }
-        if (bPath.contains("brimstone") && CaveFeatureFilters.isForeignVentFeature(fPath)) {
+        if (bPath.contains("brimstone") && CaveFeatureFilters.isForeignVentFeature(fPath) && !fPath.contains("ash_vent")) {
             return true;
         }
         if (!bPath.contains("thermal") && !CaveBiomeIds.isModThermalPresetBiome(biome)) {
@@ -135,7 +135,13 @@ public final class CaveFeatureFilters {
         if (fPath.contains("thermal") && !bPath.contains("thermal")) {
             return true;
         }
-        return fPath.contains("frostfire") && !bPath.contains("frostfire");
+        if (fPath.contains("frostfire") && !bPath.contains("frostfire")) {
+            return true;
+        }
+        if ((fPath.contains("ash_vent") || fPath.contains("volcanic") || fPath.contains("scorching")) && !bPath.contains("scorching") && !bPath.contains("volcanic") && !bPath.contains("ash") && !bPath.contains("brimstone")) {
+            return true;
+        }
+        return false;
     }
 
     private static boolean isSharedCaveInfra(String fPath) {
@@ -233,15 +239,24 @@ public final class CaveFeatureFilters {
         if (biomePath.contains("steaming")) {
             return "steaming";
         }
+        if (biomePath.contains("scorching")) {
+            return "scorching";
+        }
+        if (biomePath.contains("volcanic") || biomePath.contains("ash")) {
+            return "volcanic";
+        }
+        if (biomePath.contains("bioshroom")) {
+            return "bioshroom";
+        }
         return null;
     }
 
     private static boolean isVolcanicBiomePath(String biomePath) {
-        return biomePath.contains("thermal") || biomePath.contains("mantle") || biomePath.contains("brimstone") || biomePath.contains("magma");
+        return biomePath.contains("thermal") || biomePath.contains("mantle") || biomePath.contains("brimstone") || biomePath.contains("magma") || biomePath.contains("scorching") || biomePath.contains("volcanic");
     }
 
     private static boolean isVolcanicAccentFeature(String fPath) {
-        return fPath.contains("ash_vent") || fPath.contains("geyser") || fPath.contains("/vents") || fPath.contains("magma") || fPath.contains("basalt_strip") || fPath.contains("lava_drip");
+        return fPath.contains("ash_vent") || fPath.contains("ash") || fPath.contains("geyser") || fPath.contains("/vents") || fPath.contains("magma") || fPath.contains("basalt") || fPath.contains("lava_drip") || fPath.contains("scorching") || fPath.contains("volcanic");
     }
 
     private static boolean allowsCrossModVolcanicAccent(String bPath, String fPath, Holder<Biome> biome) {
@@ -266,7 +281,7 @@ public final class CaveFeatureFilters {
     }
 
     private static boolean isModCaveBiomePath(String biomePath) {
-        return biomePath.contains("cave") || biomePath.contains("cavern") || biomePath.contains("grotto") || biomePath.contains("hypogeal") || biomePath.contains("prismachasm") || biomePath.contains("undergarden") || biomePath.contains("mycotoxic");
+        return biomePath.contains("cave") || biomePath.contains("cavern") || biomePath.contains("grotto") || biomePath.contains("hypogeal") || biomePath.contains("prismachasm") || biomePath.contains("undergarden") || biomePath.contains("mycotoxic") || biomePath.contains("scorching") || biomePath.contains("bioshroom") || biomePath.contains("embur") || biomePath.contains("crimson_gardens") || biomePath.contains("shattered_glacier") || biomePath.contains("nightshade") || biomePath.contains("quartz_desert") || biomePath.contains("ancient_delta") || biomePath.contains("brimstone");
     }
 
     public static boolean isModCaveFeatureAllowed(Holder<PlacedFeature> placed, Holder<Biome> biome) {
@@ -380,11 +395,15 @@ public final class CaveFeatureFilters {
             return true;
         }
         String path = id.getPath().toLowerCase();
+        if (path.contains("geode") || path.contains("mega_geode") || path.contains("crystal_geode")) {
+            return true;
+        }
         if (CaveFeatureFilters.isBlockedLushFeature(path)) {
             return true;
         }
         for (String blocked : BLOCKED_PATH) {
             if (!path.contains(blocked)) continue;
+            if (biome != null && CaveBiomeIds.isCrystalCaveBiome(biome) && path.contains("cave/crystal") && blocked.equals("amethyst") && !path.contains("geode")) continue;
             return true;
         }
         return false;
@@ -398,7 +417,7 @@ public final class CaveFeatureFilters {
         if (path.contains("prismarite") || path.contains("prismoss") || path.contains("hyssop")) {
             return biome.unwrapKey().map(key -> key.location().getPath().toLowerCase().contains("prismachasm")).orElse(false) == false;
         }
-        return path.contains("large_dripstone") || path.contains("pointed_dripstone") || path.contains("dripstone_cluster") || path.contains("cave/crystal/") || path.contains("cave/ice/");
+        return path.contains("large_dripstone") || path.contains("pointed_dripstone") || path.contains("dripstone_cluster") || path.contains("cave/crystal/small_crystal") || path.contains("cave/crystal/large_crystal") || path.contains("cave/crystal/crystal_growth") || path.contains("cave/crystal/amethyst/crystal_up") || path.contains("cave/crystal/amethyst/crystal_down") || path.contains("cave/ice/icicle");
     }
 
     private static boolean isVolumeStage(int stageIndex) {

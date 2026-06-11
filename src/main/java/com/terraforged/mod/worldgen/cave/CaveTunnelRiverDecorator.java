@@ -69,7 +69,10 @@ public final class CaveTunnelRiverDecorator {
         float perpZ = fx;
         int steps = Math.min(512, Math.round(len / 2.0f) + 1);
         CaveTunnelRiverDecorator.seedSurfacePool(region, generator, mouthX, mouthZ, minY);
-        int riverY = -1;
+        int riverY = CaveTunnelRiverDecorator.resolveRiverLevel(region, generator, mouthX, mouthZ, minY, maxY);
+        if (riverY < 0) {
+            return;
+        }
         int step = 0;
         while (step <= steps) {
             boolean inChunk;
@@ -77,6 +80,16 @@ public final class CaveTunnelRiverDecorator {
             int x = mouthX + Math.round(fx * 2.0f * (float)step);
             int floorY = CaveTunnelRiverDecorator.findWalkableFloor(region, x, z = mouthZ + Math.round(fz * 2.0f * (float)step), minY, maxY);
             if (floorY < 0) {
+                floorY = CaveTunnelRiverDecorator.findLowestAir(region, x, z, minY, maxY);
+            }
+            boolean bl = inChunk = x >= chunkMinX && x <= chunkMaxX && z >= chunkMinZ && z <= chunkMaxZ;
+            if (floorY < 0) {
+                if (riverY >= 0 && inChunk) {
+                    CaveTunnelRiverDecorator.carveChannelToCavity(region, x, z, riverY, perpX, perpZ, minY, maxY);
+                    if (CaveTunnelRiverDecorator.hasSolidBed(region, x, riverY - 1, z)) {
+                        CaveTunnelRiverDecorator.carveForcedTunnel(region, carver, x, z, riverY, perpX, perpZ, seed, step, minY, maxY);
+                    }
+                }
                 ++step;
                 continue;
             }
@@ -84,7 +97,6 @@ public final class CaveTunnelRiverDecorator {
                 riverY = floorY;
             }
             int rise = floorY - riverY;
-            boolean bl = inChunk = x >= chunkMinX && x <= chunkMaxX && z >= chunkMinZ && z <= chunkMaxZ;
             if (rise <= 0) {
                 if (floorY < riverY) {
                     riverY = floorY;
@@ -286,6 +298,72 @@ public final class CaveTunnelRiverDecorator {
         if (state.isAir() || state.getFluidState().is((Fluid)Fluids.WATER)) {
             float n = NoiseUtil.valCoord2D(seed ^ 0x7F4A7C15, saltX, saltZ + saltStep * 31);
             region.setBlock(pos, n > 0.35f ? GRAVEL : COBBLE, 2);
+        }
+    }
+
+    private static int resolveRiverLevel(WorldGenLevel region, Generator generator, int mouthX, int mouthZ, int minY, int maxY) {
+        int floor = CaveTunnelRiverDecorator.findWalkableFloor(region, mouthX, mouthZ, minY, maxY);
+        if (floor >= 0) {
+            return floor;
+        }
+        floor = CaveTunnelRiverDecorator.findLowestAir(region, mouthX, mouthZ, minY, maxY);
+        if (floor >= 0 && CaveTunnelRiverDecorator.hasSolidBed(region, mouthX, floor - 1, mouthZ)) {
+            return floor;
+        }
+        return -1;
+    }
+
+    private static void carveChannelToCavity(WorldGenLevel region, int wx, int wz, int waterY, float perpX, float perpZ, int minY, int maxY) {
+        for (int w = -1; w <= 1; ++w) {
+            int px = wx + Math.round(perpX * (float)w);
+            int pz = wz + Math.round(perpZ * (float)w);
+            for (int y = waterY + 2; y >= minY; --y) {
+                BlockPos pos = new BlockPos(px, y, pz);
+                BlockState state = region.getBlockState(pos);
+                if (state.isAir()) {
+                    break;
+                }
+                if (state.getFluidState().isEmpty() && !state.is(Blocks.BEDROCK)) {
+                    region.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                }
+                if (y <= waterY - 1 && CaveTunnelRiverDecorator.hasSolidBed(region, px, y, pz)) {
+                    break;
+                }
+            }
+        }
+    }
+
+    static boolean hasSolidBed(WorldGenLevel region, int x, int y, int z) {
+        if (y < region.getMinBuildHeight()) {
+            return false;
+        }
+        BlockState state = region.getBlockState(new BlockPos(x, y, z));
+        return !state.isAir() && state.getFluidState().isEmpty();
+    }
+
+    private static int findLowestAir(WorldGenLevel region, int wx, int wz, int minY, int maxY) {
+        for (int y = minY; y <= maxY; ++y) {
+            if (!region.getBlockState(new BlockPos(wx, y, wz)).isAir()) continue;
+            return y;
+        }
+        return -1;
+    }
+
+    private static void carveForcedTunnel(WorldGenLevel region, CarverChunk carver, int wx, int wz, int tunnelY, float perpX, float perpZ, int seed, int step, int minY, int maxY) {
+        for (int w = -1; w <= 1; ++w) {
+            int px = wx + Math.round(perpX * (float)w);
+            int pz = wz + Math.round(perpZ * (float)w);
+            for (int dy = -2; dy <= 2; ++dy) {
+                int y = tunnelY + dy;
+                if (y < minY || y > maxY) continue;
+                CaveTunnelRiverDecorator.carveToAir(region, px, y, pz);
+            }
+            if (!CaveTunnelRiverDecorator.hasSolidBed(region, px, tunnelY - 1, pz)) {
+                continue;
+            }
+            CaveTunnelRiverDecorator.setBedBlock(region, px, tunnelY - 1, pz, seed, px, pz, step);
+            CaveTunnelRiverDecorator.setWater(region, new BlockPos(px, tunnelY, pz));
+            CaveTunnelRiverDecorator.paintRiverColumn(region, carver, px, pz, tunnelY, minY, maxY);
         }
     }
 
