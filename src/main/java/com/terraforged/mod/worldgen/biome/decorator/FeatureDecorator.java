@@ -83,6 +83,18 @@ public class FeatureDecorator {
         this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures);
     }
 
+    /** Surface-only refresh after chunk integrity repair — skips underground/cave biomes. */
+    public void refreshSurfaceDecoration(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator, com.terraforged.mod.worldgen.cave.CarverChunk carver) {
+        BlockPos origin = FeatureDecorator.getSurfaceOrigin(chunk);
+        Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
+        if (CaveBiomeIds.isUndergroundBiome(biome) || CaveBiomeIds.isModCaveBiome(biome)) {
+            return;
+        }
+        WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
+        long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
+        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures);
+    }
+
     private void decorateVegetation(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, CompletableFuture<TerrainData> terrain, StructureFeatureManager structureManager) {
         if (DynamicTreesCompat.isLoaded()) {
             VanillaDecorator.decorate(seed, VEGETATION_STAGE, VEGETATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this);

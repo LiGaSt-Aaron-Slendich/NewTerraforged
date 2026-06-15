@@ -45,7 +45,7 @@ public final class CaveHybridBiomeDecorator {
             CaveDecoratorKind kind = CaveBiomeDecoratorRouter.resolve(biome);
             switch (kind) {
                 case OFFICIAL -> {
-                    List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 4);
+                    List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 6);
                     TerraForgedOfficialCaveDecorator.decorateBiome(origins, chunk, carver, region, generator, biome);
                 }
                 case VANILLA -> CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, entry.getValue());

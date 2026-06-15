@@ -5,6 +5,7 @@ import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
+import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.NoiseCaveGenerator;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
@@ -74,7 +75,8 @@ public class BiomeGenerator {
         CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);
         this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
-        this.noiseCaveGenerator.finishDecorate(chunk);
+        CaveChunkIntegrityPass.runOnce(chunk, scoped, structures, generator, carver, this.featureDecorator, this.surfaceDecorator, terrainFuture);
+        this.noiseCaveGenerator.finishDecorate(chunk, generator);
         ChunkUtil.refreshHeightmaps(chunk);
     }
 }

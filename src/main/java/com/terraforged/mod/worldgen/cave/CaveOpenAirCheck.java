@@ -8,8 +8,9 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class CaveOpenAirCheck {
     private static final int DEEP_SHELTER_DEPTH = 32;
-    private static final int UNDERGROUND_SURFACE_FORBIDDEN_DEPTH = 14;
-    private static final int MEGA_GIGA_SURFACE_FORBIDDEN_DEPTH = 16;
+    /** Underground mega/giga: blocks of surface crust where cave decor must not run. */
+    private static final int UNDERGROUND_SURFACE_FORBIDDEN_DEPTH = 20;
+    private static final int MEGA_GIGA_SURFACE_FORBIDDEN_DEPTH = 24;
 
     private CaveOpenAirCheck() {
     }

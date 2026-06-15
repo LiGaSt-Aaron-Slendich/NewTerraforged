@@ -268,7 +268,7 @@ final class CarverColumnCache {
         if (!this.megaPresent && !this.gigaPresent) {
             return;
         }
-        for (int pass = 0; pass < 2; ++pass) {
+        for (int pass = 0; pass < 1; ++pass) {
             boolean expanded = false;
             for (int i = 0; i < 256; ++i) {
                 if (this.zone[i] != ZONE_NONE || this.oceanBlocked[i]) {

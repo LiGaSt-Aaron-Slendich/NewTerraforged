@@ -89,4 +89,39 @@ public final class CaveSurfaceBiomeRestorer {
         PalettedContainer container = section.getBiomes();
         container.set(biomeX, biomeY, biomeZ, biome);
     }
+
+    /**
+     * Overwrites cave-biome paint in the surface band — used after integrity repair when
+     * {@link #restore} intentionally skips underground-painted quarts.
+     */
+    public static void forceRestoreSurfaceColumns(ChunkAccess chunk, Generator generator, CarverChunk carver) {
+        Source source = generator.getBiomeSource();
+        int climateSeed = Seeds.get((int)generator.getSeed());
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
+        int minY = chunk.getMinBuildHeight();
+        int maxY = chunk.getMaxBuildHeight() - 1;
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (carver != null && carver.isEntranceColumn(lx, lz)) {
+                    continue;
+                }
+                int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
+                int wx = chunkX + lx;
+                int wz = chunkZ + lz;
+                Holder<Biome> surfaceBiome = CaveSurfaceBiomeRestorer.resolveSurfaceBiome(source, climateSeed, wx, wz, surface);
+                if (surfaceBiome == null) {
+                    continue;
+                }
+                int yStart = Math.max(minY, surface - 3);
+                int yEnd = Math.min(maxY, surface + 12);
+                for (int y = yStart; y <= yEnd; ++y) {
+                    if (!CaveChunkSurfaceBounds.mayModify(chunk, carver, lx, y, lz)) {
+                        continue;
+                    }
+                    CaveSurfaceBiomeRestorer.setBiomeQuart(chunk, lx, y, lz, surfaceBiome);
+                }
+            }
+        }
+    }
 }

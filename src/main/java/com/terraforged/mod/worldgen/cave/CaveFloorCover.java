@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
@@ -25,7 +26,15 @@ public final class CaveFloorCover {
     }
 
     /** Normalizes floor height, paints themed cover, returns air anchor for feature placement. */
-    public static BlockPos prepare(ChunkAccess chunk, Holder<Biome> biome, BlockPos airAnchor) {
+    public static BlockPos prepare(ChunkAccess chunk, CarverChunk carver, Holder<Biome> biome, BlockPos airAnchor) {
+        int lx = airAnchor.getX() & 0xF;
+        int lz = airAnchor.getZ() & 0xF;
+        int y = airAnchor.getY();
+        boolean mega = carver != null && carver.isColumnCacheReady() && carver.columnCache().isMegaGigaZone(lx, lz);
+        boolean entrance = carver != null && carver.isEntranceColumn(lx, lz);
+        if (carver == null || !CaveUndergroundGuard.mayPlaceAnchorForBiome(chunk, carver, lx, y, lz, biome, mega, entrance)) {
+            return CaveFloorCover.normalizeAirAnchor(chunk, airAnchor);
+        }
         if (!CaveFloorCover.appliesTo(biome)) {
             return CaveFloorCover.normalizeAirAnchor(chunk, airAnchor);
         }
@@ -38,9 +47,9 @@ public final class CaveFloorCover {
         int bestSolid = -1;
         int bestAir = airAnchor.getY();
         for (int[] offset : PATCH) {
-            int lx = (cx + offset[0]) & 0xF;
-            int lz = (cz + offset[1]) & 0xF;
-            int solidY = CaveFloorCover.findTopSolid(chunk, lx, lz, airAnchor.getY() + 2);
+            int plx = (cx + offset[0]) & 0xF;
+            int plz = (cz + offset[1]) & 0xF;
+            int solidY = CaveFloorCover.findTopSolid(chunk, plx, plz, airAnchor.getY() + 2);
             if (solidY < 0) {
                 continue;
             }
@@ -49,8 +58,8 @@ public final class CaveFloorCover {
                 bestSolid = solidY;
                 bestAir = airY;
             }
-            if (CaveFloorCover.shouldPaint(chunk, lx, solidY, lz)) {
-                chunk.setBlockState(new BlockPos(lx, solidY, lz), cover, false);
+            if (CaveFloorCover.shouldPaint(chunk, carver, plx, solidY, plz)) {
+                chunk.setBlockState(new BlockPos(plx, solidY, plz), cover, false);
             }
         }
         if (bestSolid < 0) {
@@ -69,12 +78,25 @@ public final class CaveFloorCover {
         return new BlockPos(airAnchor.getX(), solidY + 1, airAnchor.getZ());
     }
 
-    private static boolean shouldPaint(ChunkAccess chunk, int lx, int solidY, int lz) {
+    private static boolean shouldPaint(ChunkAccess chunk, CarverChunk carver, int lx, int solidY, int lz) {
         BlockState current = chunk.getBlockState(new BlockPos(lx, solidY, lz));
         if (current.isAir() || !current.getFluidState().isEmpty()) {
             return false;
         }
-        return current.is(BlockTags.BASE_STONE_OVERWORLD) || current.is(Blocks.DIRT) || current.is(Blocks.GRASS_BLOCK) || current.is(Blocks.STONE) || current.is(Blocks.DEEPSLATE) || current.is(Blocks.TUFF) || current.is(Blocks.GRANITE) || current.is(Blocks.DIORITE) || current.is(Blocks.ANDESITE) || current.is(Blocks.CALCITE) || current.is(Blocks.GRAVEL) || current.is(Blocks.COBBLESTONE);
+        if (current.is(Blocks.GRASS_BLOCK) || current.is(Blocks.PODZOL) || current.is(Blocks.MYCELIUM)) {
+            return false;
+        }
+        int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
+        if (solidY >= surface - 4) {
+            return false;
+        }
+        if (carver != null && carver.isColumnCacheReady()) {
+            boolean mega = carver.columnCache().isMegaGigaZone(lx, lz);
+            if (CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, solidY, lz, mega)) {
+                return false;
+            }
+        }
+        return current.is(BlockTags.BASE_STONE_OVERWORLD) || current.is(Blocks.DIRT) || current.is(Blocks.STONE) || current.is(Blocks.DEEPSLATE) || current.is(Blocks.TUFF) || current.is(Blocks.GRANITE) || current.is(Blocks.DIORITE) || current.is(Blocks.ANDESITE) || current.is(Blocks.CALCITE) || current.is(Blocks.GRAVEL) || current.is(Blocks.COBBLESTONE);
     }
 
     private static int findTopSolid(ChunkAccess chunk, int lx, int lz, int startY) {

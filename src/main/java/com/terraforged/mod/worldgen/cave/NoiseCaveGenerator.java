@@ -139,6 +139,10 @@ public class NoiseCaveGenerator {
         planCache.clear();
     }
 
+    public void finishDecorate(ChunkAccess chunk, Generator generator) {
+        this.finishDecorate(chunk);
+    }
+
     public void finishDecorate(ChunkAccess chunk) {
         CarverChunk carver = this.cache.remove(chunk.getPos());
         this.entranceSnapshots.remove(chunk.getPos());

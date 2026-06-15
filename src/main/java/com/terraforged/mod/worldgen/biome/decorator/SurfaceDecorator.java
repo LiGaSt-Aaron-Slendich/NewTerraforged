@@ -2,11 +2,14 @@ package com.terraforged.mod.worldgen.biome.decorator;
 
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
+import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
+import com.terraforged.mod.worldgen.util.ChunkUtil;
 import com.terraforged.mod.worldgen.util.NoiseChunkUtil;
 import net.minecraft.core.Registry;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -32,5 +35,20 @@ public class SurfaceDecorator {
     public void decoratePost(ChunkAccess chunk, Generator generator) {
         TerrainData chunkData = generator.getChunkData(chunk.getPos());
         Surface.apply(chunkData, chunk, generator);
+    }
+
+    /** Re-run full surface rules + cover after integrity repair — does not touch terrain geometry. */
+    public void refreshAfterIntegrity(ChunkAccess chunk, WorldGenLevel region, Generator generator, TerrainData terrain, CarverChunk carver) {
+        if (!(region instanceof WorldGenRegion worldGenRegion)) {
+            return;
+        }
+        this.decorate(chunk, worldGenRegion, generator);
+        ChunkUtil.refreshHeightmaps(chunk);
+        this.decoratePost(chunk, generator);
+        if (terrain != null) {
+            Surface.smoothWater(chunk, region, terrain);
+            Surface.applyPost(chunk, terrain, generator);
+            Surface.repairExposedCover(chunk, region, generator, terrain, carver);
+        }
     }
 }
