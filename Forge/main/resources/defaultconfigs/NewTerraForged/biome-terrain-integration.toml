@@ -1,0 +1,69 @@
+# NewTerraForged — biome ↔ terrain integration
+# Restrict which surface biomes may spawn on each landform terrain.
+#
+# Terrains: steppe, plains, hills_1, hills_2, dales, plateau, badlands, torridonian,
+#           mountains_1, mountains_2, mountains_3, dolomites, mountains_ridge_1, mountains_ridge_2
+#
+# whitelist — if non-empty, ONLY these biomes may appear on this terrain (from the climate pool).
+# blacklist — these biomes never appear on this terrain.
+
+[dolomites]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+]
+
+[mountains_1]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+]
+
+[mountains_2]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+]
+
+[mountains_3]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+]
+
+[mountains_ridge_1]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+]
+
+[mountains_ridge_2]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+]
+
+[plateau]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+]
+
+[torridonian]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+]

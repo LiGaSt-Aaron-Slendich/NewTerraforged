@@ -44,6 +44,8 @@ public class CarverChunk {
     private final Map<Long, Holder<Biome>> patchBiomeOverrides = new HashMap<Long, Holder<Biome>>();
     private final boolean[] entranceColumns = new boolean[256];
     private final boolean[] coastalEntranceColumns = new boolean[256];
+    private final boolean[] biomeRestoreColumns = new boolean[256];
+    private boolean hasEntranceColumns;
     private int tunnelMouthX;
     private int tunnelMouthZ;
     private int tunnelExitX;
@@ -56,6 +58,9 @@ public class CarverChunk {
     public Module megaModifier;
     public Module gigaModifier;
     public TerrainData terrainData;
+    private final CarverColumnCache columns = new CarverColumnCache();
+    private CaveDensityBudget densityBudget;
+    private boolean columnsReady;
 
     public void beginCavePass(NoiseCave config) {
         if (this.cachedFullConfig != config) {
@@ -82,6 +87,8 @@ public class CarverChunk {
         this.decorateAnchors.clear();
         Arrays.fill(this.entranceColumns, false);
         Arrays.fill(this.coastalEntranceColumns, false);
+        Arrays.fill(this.biomeRestoreColumns, false);
+        this.hasEntranceColumns = false;
         this.tunnelMouthX = 0;
         this.tunnelMouthZ = 0;
         this.tunnelExitX = 0;
@@ -90,7 +97,40 @@ public class CarverChunk {
         this.tunnelFlowZ = 0.0f;
         this.tunnelRiver = false;
         this.biomeListIndex = -1;
+        this.densityBudget = null;
+        this.clearColumnCache();
         return this;
+    }
+
+    void setDensityBudget(CaveDensityBudget budget) {
+        this.densityBudget = budget;
+    }
+
+    CaveDensityBudget densityBudget() {
+        return this.densityBudget;
+    }
+
+    public void prepareColumnCache(int seed, ChunkAccess chunk, Generator generator) {
+        if (!this.columnsReady) {
+            this.columns.build(seed, chunk, this, generator);
+            this.columnsReady = true;
+        }
+    }
+
+    public boolean isColumnCacheReady() {
+        return this.columnsReady;
+    }
+
+    CarverColumnCache columnCache() {
+        return this.columns;
+    }
+
+    public void clearColumnCache() {
+        this.columnsReady = false;
+    }
+
+    public int cachedSurface(int dx, int dz) {
+        return this.columns.surfaceY(dx, dz);
     }
 
     public void noteTunnelRiver(int mouthWx, int mouthWz, int chamberWx, int chamberWz, CaveType type) {
@@ -156,7 +196,12 @@ public class CarverChunk {
     public void markEntranceColumn(int dx, int dz) {
         if (dx >= 0 && dx < 16 && dz >= 0 && dz < 16) {
             this.entranceColumns[dz << 4 | dx] = true;
+            this.hasEntranceColumns = true;
         }
+    }
+
+    public boolean hasAnyEntranceColumn() {
+        return this.hasEntranceColumns;
     }
 
     public void noteDecorateAnchor(Holder<Biome> biome, BlockPos worldPos) {
@@ -168,6 +213,47 @@ public class CarverChunk {
             return false;
         }
         return this.entranceColumns[dz << 4 | dx];
+    }
+
+    void restoreEntranceColumns(boolean[] snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        System.arraycopy(snapshot, 0, this.entranceColumns, 0, 256);
+        this.hasEntranceColumns = false;
+        for (boolean entrance : this.entranceColumns) {
+            if (!entrance) {
+                continue;
+            }
+            this.hasEntranceColumns = true;
+            break;
+        }
+    }
+
+    boolean[] snapshotEntranceColumns() {
+        return (boolean[])this.entranceColumns.clone();
+    }
+
+    void markBiomeRestoreColumn(int dx, int dz) {
+        if (dx >= 0 && dx < 16 && dz >= 0 && dz < 16) {
+            this.biomeRestoreColumns[dz << 4 | dx] = true;
+        }
+    }
+
+    boolean needsBiomeRestore(int dx, int dz) {
+        if (dx < 0 || dx > 15 || dz < 0 || dz > 15) {
+            return false;
+        }
+        return this.biomeRestoreColumns[dz << 4 | dx];
+    }
+
+    boolean hasAnyBiomeRestoreColumn() {
+        for (boolean marked : this.biomeRestoreColumns) {
+            if (marked) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void markCoastalEntranceColumn(int dx, int dz) {
@@ -204,6 +290,10 @@ public class CarverChunk {
 
     public void forEachDecorateAnchor(BiConsumer<Holder<Biome>, BlockPos> consumer) {
         this.decorateAnchors.forEach(consumer);
+    }
+
+    public boolean hasDecorateAnchors() {
+        return !this.decorateAnchors.isEmpty();
     }
 
     public void setPatchBiome(int lx, int ly, int lz, Holder<Biome> biome, int chunkMinX, int chunkMinZ) {
@@ -252,6 +342,10 @@ public class CarverChunk {
         return (long)(blockY & 0xFFFF) << 32 | ((long)biomeX & 0xFFFFL) << 16 | (long)biomeZ & 0xFFFFL;
     }
 
+    public BiomeList getBiomes(NoiseCave config) {
+        return this.biomes.get(config);
+    }
+
     public Holder<Biome> getBiome(int x, int z, int blockY, NoiseCave config, Generator generator) {
         CavePlacementType placement = config.getPlacementType();
         return switch (placement) {
@@ -273,7 +367,7 @@ public class CarverChunk {
         int localX = x & 0xF;
         int localZ = z & 0xF;
         float river = this.terrainData.getRiver().get(localX, localZ);
-        return 1.0f - noise * river;
+        return 1.0f - noise * river * 0.45f;
     }
 
     private Holder<Biome> getFullRegionBiome(int x, int z, int blockY, NoiseCave config, Generator generator) {
@@ -343,6 +437,9 @@ public class CarverChunk {
     }
 
     private int getSurfaceY(int x, int z) {
+        if (this.columnsReady) {
+            return this.columns.surfaceY(x & 0xF, z & 0xF);
+        }
         if (this.terrainData == null) {
             return 64;
         }

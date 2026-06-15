@@ -14,6 +14,10 @@ import com.terraforged.mod.worldgen.biome.BiomeGenerator;
 import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
+import com.terraforged.mod.worldgen.cave.CarverChunk;
+import com.terraforged.mod.worldgen.cave.CaveMassifCache;
+import com.terraforged.mod.worldgen.cave.CaveOceanFilter;
+import com.terraforged.mod.worldgen.cave.MegaCaveStructureFilter;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
@@ -64,6 +68,7 @@ public class Generator
 extends ChunkGenerator
 implements IGenerator {
     public static final ProfilerStages PROFILER = new ProfilerStages();
+    private static final int CHUNK_HEIGHT_PADDING = 16;
     public static final Codec<Generator> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.LONG.optionalFieldOf("seed", 0L).forGetter(g -> g.seed), TerrainLevels.CODEC.optionalFieldOf("levels", TerrainLevels.DEFAULT.get()).forGetter(g -> g.levels), WorldGenCodec.CODEC.forGetter(Generator::getRegistries)).apply(instance, instance.stable(GeneratorPreset::build)));
     protected final long seed;
     protected final Source biomeSource;
@@ -74,6 +79,8 @@ implements IGenerator {
     protected final TerrainCache terrainCache;
     protected final ThreadLocal<GeneratorResource> localResource = ThreadLocal.withInitial(GeneratorResource::new);
     private final ThreadLocal<ChunkOceanHeightCache> chunkOceanHeightCache = ThreadLocal.withInitial(ChunkOceanHeightCache::new);
+    private final ThreadLocal<Integer> chunkHeightCacheDepth = ThreadLocal.withInitial(() -> 0);
+    private final ThreadLocal<Boolean> chunkMegaGigaCacheActive = ThreadLocal.withInitial(() -> false);
 
     public Generator(long seed, TerrainLevels levels, VanillaGen vanillaGen, Source biomeSource, BiomeGenerator biomeGenerator, INoiseGenerator noiseGenerator) {
         super(vanillaGen.getStructureSets(), Optional.empty(), (BiomeSource)biomeSource, (BiomeSource)biomeSource, seed);
@@ -92,6 +99,10 @@ implements IGenerator {
 
     public CaveEntranceClaims getCaveEntranceClaims() {
         return this.biomeGenerator.getCaveEntranceClaims();
+    }
+
+    public CarverChunk peekCaveCarver(ChunkPos pos) {
+        return this.biomeGenerator.peekCaveCarver(pos);
     }
 
     protected RegistryAccess getRegistries() {
@@ -136,11 +147,35 @@ implements IGenerator {
     }
 
     public void beginChunkHeightCache(ChunkAccess chunk) {
-        this.chunkOceanHeightCache.get().begin(chunk, 2);
+        this.beginChunkHeightCache(chunk, true);
+    }
+
+    public void beginChunkHeightCache(ChunkAccess chunk, boolean megaGigaCache) {
+        int depth = this.chunkHeightCacheDepth.get();
+        if (depth == 0) {
+            this.chunkOceanHeightCache.get().begin(chunk, CHUNK_HEIGHT_PADDING);
+            this.chunkMegaGigaCacheActive.set(megaGigaCache);
+            if (megaGigaCache) {
+                MegaCaveStructureFilter.beginChunkCache(this, chunk, CHUNK_HEIGHT_PADDING);
+            }
+        }
+        this.chunkHeightCacheDepth.set(depth + 1);
     }
 
     public void endChunkHeightCache() {
-        this.chunkOceanHeightCache.get().clear();
+        int depth = this.chunkHeightCacheDepth.get();
+        if (depth <= 1) {
+            this.chunkHeightCacheDepth.set(0);
+            this.chunkOceanHeightCache.get().clear();
+            if (this.chunkMegaGigaCacheActive.get()) {
+                MegaCaveStructureFilter.endChunkCache();
+            }
+            this.chunkMegaGigaCacheActive.set(false);
+            CaveMassifCache.clear();
+            CaveOceanFilter.clearProximityCache();
+            return;
+        }
+        this.chunkHeightCacheDepth.set(depth - 1);
     }
 
     public int getOceanFloorHeight(int x, int z) {
@@ -208,7 +243,7 @@ implements IGenerator {
     }
 
     public void buildSurface(WorldGenRegion region, StructureFeatureManager structures, ChunkAccess chunk) {
-        this.beginChunkHeightCache(chunk);
+        this.beginChunkHeightCache(chunk, false);
         GenTimer timer = PROFILER.surface.start();
         this.biomeGenerator.surface(chunk, region, this);
         timer.punchOut();
@@ -216,11 +251,9 @@ implements IGenerator {
     }
 
     public void applyCarvers(WorldGenRegion region, long seed, BiomeManager biomes, StructureFeatureManager structures, ChunkAccess chunk, GenerationStep.Carving stage) {
-        this.beginChunkHeightCache(chunk);
         GenTimer timer = PROFILER.carve.start();
         this.biomeGenerator.carve(seed, chunk, region, biomes, stage, this);
         timer.punchOut();
-        this.endChunkHeightCache();
     }
 
     public void applyBiomeDecoration(WorldGenLevel region, ChunkAccess chunk, StructureFeatureManager structures) {
@@ -287,7 +320,12 @@ implements IGenerator {
         lines.add("Ocean Proximity: " + (1.0f - sample.continentNoise));
         lines.add("River Proximity: " + (1.0f - sample.riverNoise));
         PROFILER.addDebugInfo(5000L, lines);
-        CaveDebugInfo.append(this, pos, lines);
+        try {
+            CaveDebugInfo.append(this, pos, lines);
+        }
+        catch (Throwable ignored) {
+            lines.add("Cave debug unavailable");
+        }
     }
 
     public static boolean isTerraForged(ChunkGenerator generator) {

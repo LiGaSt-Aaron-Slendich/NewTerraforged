@@ -18,6 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import javax.imageio.ImageIO;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -25,7 +26,7 @@ import net.minecraft.world.level.biome.Biome;
 public final class CaveCartography {
     private static final int CHAT_PREVIEW = 24;
     private static final int FOOTPRINT_BLOCK_STEP = 4;
-    private static final int MAX_FOOTPRINT_GRID = 512;
+    private static final int MAX_FOOTPRINT_GRID = 640;
     private static final int SECTION_WIDTH = 384;
     private static final Color OUTSIDE = new Color(20, 20, 24);
     private static final Color SPINE = new Color(220, 48, 48);
@@ -40,7 +41,7 @@ public final class CaveCartography {
     public static Result render(ServerLevel level, Generator generator, int centerX, int centerZ, CaveType type) {
         int seed = Seeds.get(generator.getSeed());
         Source source = generator.getBiomeSource();
-        int radius = type == CaveType.GIGA ? CaveModifiers.GIGA_CELL_SCALE / 2 : CaveModifiers.MEGA_CELL_SCALE / 2;
+        int radius = CaveSystemGrid.caveRadius(type);
         int cx = Math.floorDiv(centerX, radius * 2) * radius * 2 + radius;
         int cz = Math.floorDiv(centerZ, radius * 2) * radius * 2 + radius;
         int surfaceY = generator.getOceanFloorHeight(cx, cz);
@@ -54,39 +55,40 @@ public final class CaveCartography {
         CaveBiomeRegistry registry = source.getCaveBiomeRegistry();
         int layoutCx = Math.round(layout.centerX());
         int layoutCz = Math.round(layout.centerZ());
-        int spanBlocks = radius * 2;
         int step = FOOTPRINT_BLOCK_STEP;
-        int gridSize = spanBlocks / step + 1;
-        while (gridSize > MAX_FOOTPRINT_GRID) {
+        CaveCartographyBounds.Box bounds = CaveCartographyBounds.compute(generator, seed, caveConfig, modifier, type, layout.centerX(), layout.centerZ(), step);
+        while (CaveCartographyBounds.gridWidth(bounds, step) > MAX_FOOTPRINT_GRID || CaveCartographyBounds.gridDepth(bounds, step) > MAX_FOOTPRINT_GRID) {
             step += 2;
-            gridSize = spanBlocks / step + 1;
         }
-        int originX = layoutCx - spanBlocks / 2;
-        int originZ = layoutCz - spanBlocks / 2;
+        int gridW = CaveCartographyBounds.gridWidth(bounds, step);
+        int gridH = CaveCartographyBounds.gridDepth(bounds, step);
+        int originX = bounds.minX();
+        int originZ = bounds.minZ();
         HashMap<ResourceLocation, Color> palette = new HashMap<ResourceLocation, Color>();
         HashMap<ResourceLocation, Character> legend = new HashMap<ResourceLocation, Character>();
         HashMap<ResourceLocation, Integer> biomeCounts = new HashMap<ResourceLocation, Integer>();
-        boolean[][] inCave = new boolean[gridSize][gridSize];
-        ResourceLocation[][] grid = new ResourceLocation[gridSize][gridSize];
-        CaveCartography.floodCaveFootprint(seed, generator, caveConfig, modifier, layout, originX, originZ, gridSize, step, inCave, grid, palette, legend, biomeCounts);
+        boolean[][] inCave = new boolean[gridH][gridW];
+        ResourceLocation[][] grid = new ResourceLocation[gridH][gridW];
+        CaveCartography.floodCaveFootprint(generator, seed, caveConfig, modifier, type, layout, originX, originZ, gridW, gridH, step, inCave, grid, palette, legend, biomeCounts);
         ArrayList<String> chat = new ArrayList<String>();
         chat.add(String.format(Locale.ROOT, "=== Cave cartography (%s @ %d,%d) ===", type.name(), layoutCx, layoutCz));
-        chat.add(String.format(Locale.ROOT, "Footprint step: %d blocks | grid: %dx%d (~%d m span)", step, gridSize, gridSize, gridSize * step));
+        chat.add(String.format(Locale.ROOT, "Footprint step: %d blocks | grid: %dx%d | bounds [%d..%d] x [%d..%d]", step, gridW, gridH, bounds.minX(), bounds.maxX(), bounds.minZ(), bounds.maxZ()));
+        chat.add("Map shows carved tunnel footprint + regional biomes (6 debug layers + cross-section).");
         int caveCells = 0;
-        for (int gy = 0; gy < gridSize; ++gy) {
-            for (int gx = 0; gx < gridSize; ++gx) {
+        for (int gy = 0; gy < gridH; ++gy) {
+            for (int gx = 0; gx < gridW; ++gx) {
                 if (!inCave[gy][gx]) continue;
                 ++caveCells;
             }
         }
-        chat.add(String.format(Locale.ROOT, "Cave footprint cells: %d / %d (%.1f%% of grid)", caveCells, gridSize * gridSize, 100.0 * (double)caveCells / (double)(gridSize * gridSize)));
+        chat.add(String.format(Locale.ROOT, "Cave footprint cells: %d / %d (%.1f%% of grid)", caveCells, gridW * gridH, 100.0 * (double)caveCells / (double)(gridW * gridH)));
         CaveCartography.appendDominance(chat, biomeCounts, caveCells);
-        int preview = Math.min(CHAT_PREVIEW, gridSize);
-        int start = Math.max(0, (gridSize - preview) / 2);
-        chat.add("Preview (cave footprint only, one char = one layout cell):");
-        for (int gy = start; gy < start + preview && gy < gridSize; ++gy) {
+        int preview = Math.min(CHAT_PREVIEW, Math.min(gridW, gridH));
+        int start = Math.max(0, (Math.min(gridW, gridH) - preview) / 2);
+        chat.add("Preview (layout footprint, one char = one layout cell):");
+        for (int gy = start; gy < start + preview && gy < gridH; ++gy) {
             StringBuilder row = new StringBuilder(preview);
-            for (int gx = start; gx < start + preview && gx < gridSize; ++gx) {
+            for (int gx = start; gx < start + preview && gx < gridW; ++gx) {
                 if (!inCave[gy][gx]) {
                     row.append(' ');
                     continue;
@@ -112,9 +114,18 @@ public final class CaveCartography {
             textFile = dir.resolve(base + ".txt");
             Files.writeString(textFile, CaveCartography.buildAsciiMap(grid, inCave, legend, step, layoutCx, layoutCz, type, biomeCounts, caveCells), StandardCharsets.UTF_8);
             chat.add("Text map: " + textFile.toAbsolutePath());
-            imageFile = dir.resolve(base + ".png");
+            imageFile = dir.resolve(base + "_regions.png");
             CaveCartography.writeFootprintPng(imageFile, grid, inCave, palette);
-            chat.add("Footprint PNG: " + imageFile.toAbsolutePath());
+            chat.add("Regions map: " + imageFile.toAbsolutePath());
+            Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY);
+            CaveDebugMaps.ExportResult debugMaps = CaveDebugMaps.exportAll(dir, base, seed, layout, inCave, originX, originZ, step, biomeRegistry);
+            chat.add("Debug maps exported (" + debugMaps.mapFiles().size() + " PNG):");
+            for (Path mapPath : debugMaps.mapFiles()) {
+                chat.add("  " + mapPath.getFileName() + " -> " + mapPath.toAbsolutePath());
+            }
+            for (Path legendPath : debugMaps.legendFiles()) {
+                chat.add("  legend: " + legendPath.toAbsolutePath());
+            }
             sectionFile = dir.resolve(base + "_section.png");
             CaveCartography.writeCrossSection(sectionFile, seed, generator, caveConfig, modifier, layout, registry, layoutCx, layoutCz, radius, palette, legend);
             chat.add("Cross-section PNG (spine = mid floor/ceiling): " + sectionFile.toAbsolutePath());
@@ -125,18 +136,22 @@ public final class CaveCartography {
         return new Result(chat, textFile, imageFile, sectionFile);
     }
 
-    private static void floodCaveFootprint(int seed, Generator generator, NoiseCave caveConfig, Module modifier, CaveMegaGigaLayout layout, int originX, int originZ, int gridSize, int step, boolean[][] inCave, ResourceLocation[][] grid, Map<ResourceLocation, Color> palette, Map<ResourceLocation, Character> legend, Map<ResourceLocation, Integer> biomeCounts) {
-        for (int gz = 0; gz < gridSize; ++gz) {
-            for (int gx = 0; gx < gridSize; ++gx) {
+    private static void floodCaveFootprint(Generator generator, int seed, NoiseCave caveConfig, Module modifier, CaveType type, CaveMegaGigaLayout layout, int originX, int originZ, int gridW, int gridH, int step, boolean[][] inCave, ResourceLocation[][] grid, Map<ResourceLocation, Color> palette, Map<ResourceLocation, Character> legend, Map<ResourceLocation, Integer> biomeCounts) {
+        for (int gz = 0; gz < gridH; ++gz) {
+            for (int gx = 0; gx < gridW; ++gx) {
                 int wx = originX + gx * step + step / 2;
                 int wz = originZ + gz * step + step / 2;
                 CaveColumnSimulator.Sample sample = CaveColumnSimulator.sampleMegaGigaForCartography(generator, caveConfig, seed, modifier, wx, wz);
-                if (sample == null) continue;
-                inCave[gz][gx] = true;
+                if (sample == null) {
+                    continue;
+                }
                 CaveBiomeEntry entry = layout.getBiomeAt(wx, wz);
-                ResourceLocation id = entry != null ? entry.biome() : null;
+                if (entry == null) {
+                    continue;
+                }
+                inCave[gz][gx] = true;
+                ResourceLocation id = entry.biome();
                 grid[gz][gx] = id;
-                if (id == null) continue;
                 palette.putIfAbsent(id, CaveCartography.colorFor(id));
                 legend.putIfAbsent(id, CaveCartography.symbolFor(id, legend.size()));
                 biomeCounts.merge(id, 1, Integer::sum);
@@ -233,7 +248,7 @@ public final class CaveCartography {
 
     private static String buildAsciiMap(ResourceLocation[][] grid, boolean[][] inCave, Map<ResourceLocation, Character> legend, int cell, int cx, int cz, CaveType type, Map<ResourceLocation, Integer> biomeCounts, int caveCells) {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format(Locale.ROOT, "# Cave map %s center=%d,%d cell=%d (footprint flood-fill)%n", type, cx, cz, cell));
+        sb.append(String.format(Locale.ROOT, "# Cave map %s center=%d,%d cell=%d (layout footprint)%n", type, cx, cz, cell));
         for (int gy = 0; gy < grid.length; ++gy) {
             for (int gx = 0; gx < grid[gy].length; ++gx) {
                 if (!inCave[gy][gx]) {

@@ -4,6 +4,7 @@ import com.terraforged.mod.worldgen.biome.decorator.FeatureMass;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureMassClassifier;
 import com.terraforged.mod.worldgen.biome.decorator.FeaturePlacement;
 import com.terraforged.mod.worldgen.cave.CaveFeatureRules;
+import com.terraforged.noise.util.NoiseUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.BlockGetter;
@@ -29,6 +30,19 @@ public final class CaveFeaturePlacement {
             case FLOOR -> FeaturePlacement.hasStableGround((BlockGetter)chunk, lx, ly, lz, 1);
             case CEILING -> FeaturePlacement.hasStableCeiling((BlockGetter)chunk, lx, ly, lz, 1);
         };
+    }
+
+    public static BlockPos resolveScatterPos(BlockPos airAnchor, CaveFeatureRules.Anchor anchor, long scatterSeed, int featureIndex, int stageIndex) {
+        BlockPos base = CaveFeaturePlacement.resolveWorldPos(airAnchor, anchor, false);
+        float nx = NoiseUtil.valCoord2D((int)(scatterSeed ^ (long)featureIndex), airAnchor.getX() + stageIndex * 3, airAnchor.getZ());
+        float nz = NoiseUtil.valCoord2D((int)(scatterSeed ^ (long)stageIndex ^ 0x9E3779B9L), airAnchor.getX(), airAnchor.getZ() + featureIndex * 5);
+        int ox = Math.round(nx * 5.0f);
+        int oz = Math.round(nz * 5.0f);
+        if (ox == 0 && oz == 0) {
+            ox = featureIndex % 3 - 1;
+            oz = stageIndex % 3 - 1;
+        }
+        return base.offset(ox, 0, oz);
     }
 
     public static BlockPos resolveWorldPos(BlockPos airAnchor, CaveFeatureRules.Anchor anchor, boolean topLayer) {

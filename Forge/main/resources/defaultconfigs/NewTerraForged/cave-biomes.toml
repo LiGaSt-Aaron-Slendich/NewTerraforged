@@ -25,6 +25,87 @@ config_version = 2
 # Fallback only: minecraft:dripstone_caves, newterraforged:cave
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Decoration & auto-registration
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# ── Hybrid decorator (recommended) ───────────────────────────────────────────
+# use_per_biome_decorators = true  →  CaveHybridBiomeDecorator + CaveBiomeDecoratorRouter
+# Each painted cave biome in a chunk is routed to the backend that tested best:
+#
+#   OFFICIAL  (TerraForgedOfficialCaveDecorator)
+#     — one origin per biome at carved floor height; vanilla placeWithBiomeCheck;
+#       surface clamp keeps features underground (12 blocks below surface in mega/giga).
+#     — scorching, volcanic, mantle, brimstone, dripstone/karst/limestone/tuff,
+#       icicle/stalactite, fungal, mycotoxic, empty-stone caves, vanilla minecraft:* cave biomes.
+#
+#   VANILLA  (CaveBiomeVanillaPass)
+#     — multiple floor origins on a grid + optional ceiling pass (stalactites down);
+#       controlled by vanilla_origin_grid / vanilla_origins_per_biome / vanilla_ceiling_pass.
+#     — glowing_grotto, undergarden (non-fungal).
+#
+#   LEGACY  (CaveBiomeVolumeDecorator — anchor cover + scatter)
+#     — dense floor/ceiling scatter; best for mushroom-heavy biomes that stay empty
+#       with official-only decoration.
+#     — bioshroom, glowshroom, other mushroom cave IDs (not fungal/mycotoxic).
+#
+#   COMPROMISE  (CaveBiomeVolumeDecorator — lighter scatter)
+#     — default fallback for prismachasm, crystal, and other mod cave biomes.
+#
+# Mega/giga chunks also get CaveMegaAccentDecorator (+ CaveTunnelRiverDecorator if a
+# river tunnel was carved). Entrance columns use CaveEntranceSurfaceDecorator separately.
+#
+# ── Global modes (pick ONE — hybrid wins if enabled) ───────────────────────
+# Only one of the five flags below may be true at a time. If several are true, the loader
+# keeps use_per_biome_decorators and disables the others (warnings in latest.log).
+#
+#   use_per_biome_decorators   — hybrid routing above (default, recommended).
+#   use_official_tf_decorator  — OFFICIAL for every painted biome (0.3.x TF style).
+#   use_compromise_decorator   — COMPROMISE for every painted biome.
+#   use_vanilla_pass           — VANILLA for every painted biome (fast, sparse).
+#   use_legacy_decorators      — LEGACY for every painted biome (dense scatter).
+#
+# ── Biome spawn (not decoration) ───────────────────────────────────────────
+# condition_relax — subtract from stat minimums when picking shell biomes in mega/giga
+#                   (0 = strict pool, 3 = much more variety, max 6).
+#
+# ── Vanilla-pass tuning (hybrid VANILLA route + global use_vanilla_pass) ───
+# vanilla_origin_grid       — chunk grid step for floor origins (2 = dense, 8 = sparse).
+# vanilla_origins_per_biome — max floor origins per biome per chunk (+4 for cover-dense biomes).
+# vanilla_ceiling_pass      — second pass at chamber ceiling (stalactites, crystals hanging down).
+#
+# ── Registry ─────────────────────────────────────────────────────────────────
+# auto_register_biomes — scan biome registry; unlisted cave biomes are added automatically.
+# blacklist            — biomes that must NEVER generate in mega/giga (jungle presets use
+#                        dedicated stream decorators instead).
+
+[decoration]
+use_per_biome_decorators = true
+use_official_tf_decorator = false
+condition_relax = 3.0
+use_compromise_decorator = false
+use_vanilla_pass = false
+use_legacy_decorators = false
+auto_register_biomes = true
+vanilla_origin_grid = 2
+vanilla_origins_per_biome = 8
+vanilla_ceiling_pass = true
+
+blacklist = [
+    "minecraft:lush_caves",
+    "minecraft:blooming_caves",
+    "minecraft:crimson_forest",
+    "minecraft:warped_forest",
+    "minecraft:nether_wastes",
+    "minecraft:soul_sand_valley",
+    "minecraft:basalt_deltas",
+    "byg:crimson_gardens",
+    "byg:warped_desert",
+    "byg:embur_bog",
+    "terralith:cave/underground_jungle",
+    "terralith:cave/steaming_jungle",
+]
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Terralith (+ NewTerraForged custom cave biomes)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -177,59 +258,6 @@ moisture = 1
 temperature = -2
 falloff_per_hop = 1.0
 
-[[primary]]
-id = "newterraforged:cave_underground_jungle"
-temperature = 0.72
-vegetation_density = 0.95
-weight = 1.0
-placement_type = "full_region"
-
-[primary.stats.conditions]
-moisture = 2
-fertility = 4
-
-[primary.stats.global]
-moisture = 2
-temperature = 1
-fertility = 3
-
-[primary.stats.local]
-moisture = 2
-fertility = 2
-falloff_per_hop = 0.9
-
-[[transition]]
-id = "newterraforged:cave_steaming_jungle"
-temperature = 0.81
-vegetation_density = 0.75
-weight = 1.0
-placement_type = "full_region"
-
-[transition.stats.conditions]
-moisture = 1
-temperature = 2
-fertility = 2
-
-[transition.stats.global]
-moisture = 2
-temperature = 2
-fertility = 2
-
-[transition.stats.local]
-moisture = 1
-temperature = 1
-fertility = 1
-falloff_per_hop = 1.0
-
-[transition.stats.global_frost]
-moisture = 3
-temperature = 2
-
-[transition.stats.global_wet]
-moisture = -2
-temperature = 2
-fertility = 1
-
 [[transition]]
 id = "terralith:cave/thermal_caves"
 temperature = 0.78
@@ -257,27 +285,6 @@ temperature = 2
 [transition.stats.global_wet]
 moisture = -2
 temperature = 1
-
-[[transition]]
-id = "terralith:cave/underground_jungle"
-temperature = 0.70
-vegetation_density = 0.90
-weight = 0.7
-placement_type = "full_region"
-
-[transition.stats.conditions]
-moisture = 2
-fertility = 3
-
-[transition.stats.global]
-moisture = 2
-temperature = 1
-fertility = 3
-
-[transition.stats.local]
-moisture = 2
-fertility = 2
-falloff_per_hop = 0.9
 
 [[transition]]
 id = "terralith:cave/infested_caves"
@@ -464,26 +471,6 @@ fertility = 1
 falloff_per_hop = 0.9
 
 [[coastal]]
-id = "byg:embur_bog"
-temperature = 0.65
-vegetation_density = 0.50
-weight = 0.85
-placement_type = "full_region"
-
-[coastal.stats.conditions]
-moisture = 2
-
-[coastal.stats.global]
-moisture = 4
-temperature = -1
-fertility = 1
-
-[coastal.stats.local]
-moisture = 2
-fertility = 1
-falloff_per_hop = 0.9
-
-[[coastal]]
 id = "minecraft:dripstone_caves"
 temperature = 0.50
 vegetation_density = 0.40
@@ -617,26 +604,6 @@ moisture = -2
 temperature = 1
 fertility = -1
 falloff_per_hop = 1.0
-
-[[transition]]
-id = "byg:embur_bog"
-temperature = 0.65
-vegetation_density = 0.40
-weight = 0.8
-placement_type = "full_region"
-
-[transition.stats.conditions]
-moisture = 2
-
-[transition.stats.global]
-moisture = 4
-temperature = -1
-fertility = 1
-
-[transition.stats.local]
-moisture = 2
-fertility = 1
-falloff_per_hop = 0.9
 
 [[special]]
 id = "byg:skyris_caves"

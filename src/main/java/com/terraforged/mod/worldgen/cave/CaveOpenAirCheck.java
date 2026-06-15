@@ -7,9 +7,9 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class CaveOpenAirCheck {
-    private static final int DEEP_SHELTER_DEPTH = 48;
-    private static final int UNDERGROUND_SURFACE_FORBIDDEN_DEPTH = 12;
-    private static final int MEGA_GIGA_SURFACE_FORBIDDEN_DEPTH = 4;
+    private static final int DEEP_SHELTER_DEPTH = 32;
+    private static final int UNDERGROUND_SURFACE_FORBIDDEN_DEPTH = 14;
+    private static final int MEGA_GIGA_SURFACE_FORBIDDEN_DEPTH = 16;
 
     private CaveOpenAirCheck() {
     }
@@ -19,7 +19,7 @@ public final class CaveOpenAirCheck {
     }
 
     public static boolean isInUndergroundSurfaceForbiddenZone(ChunkAccess chunk, int lx, int y, int lz, boolean megaGiga) {
-        int depth = megaGiga ? 4 : 12;
+        int depth = megaGiga ? MEGA_GIGA_SURFACE_FORBIDDEN_DEPTH : UNDERGROUND_SURFACE_FORBIDDEN_DEPTH;
         int localSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
         return y >= localSurface - depth;
     }

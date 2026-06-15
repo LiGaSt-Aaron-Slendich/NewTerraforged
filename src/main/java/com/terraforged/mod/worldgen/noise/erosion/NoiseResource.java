@@ -13,6 +13,7 @@ public class NoiseResource {
     public final NoiseData chunk = new NoiseData();
     public final ErosionFilter.Resource erosionResource = new ErosionFilter.Resource();
     public final float[] heightmap;
+    public final float[] baselineHeightmap;
     public final NoiseSample sharedSample;
     public final ObjectMap<NoiseSample> chunkSample;
     public final CompletableFuture<float[]>[] chunkCache;
@@ -23,6 +24,7 @@ public class NoiseResource {
 
     public NoiseResource(NoiseTileSize tileSize) {
         this.heightmap = new float[tileSize.regionSize];
+        this.baselineHeightmap = new float[tileSize.regionSize];
         this.sharedSample = new NoiseSample();
         this.chunkSample = new ObjectMap(1, NoiseSample[]::new);
         this.chunkSample.fill(NoiseSample::new);

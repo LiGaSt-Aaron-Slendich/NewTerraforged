@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen;
 
+import com.terraforged.mod.worldgen.util.NoiseChunkUtil;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.server.level.WorldGenRegion;
@@ -11,6 +12,7 @@ import net.minecraft.world.level.levelgen.Aquifer;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseChunk;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+import net.minecraft.world.level.levelgen.NoiseRouter;
 import net.minecraft.world.level.levelgen.SurfaceSystem;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.carver.CarvingContext;
@@ -20,6 +22,7 @@ import net.minecraft.world.level.levelgen.synth.NormalNoise;
 public class VanillaGen {
     protected final Registry<StructureSet> structureSets;
     protected final NoiseBasedChunkGenerator vanillaGenerator;
+    protected final NoiseRouter noiseRouter;
     protected final Holder<NoiseGeneratorSettings> settings;
     protected final Registry<NormalNoise.NoiseParameters> parameters;
     protected final int lavaLevel;
@@ -44,6 +47,11 @@ public class VanillaGen {
         BlockState defaultBlock = settingsValue.defaultBlock();
         this.surfaceSystem = new SurfaceSystem(parameters, defaultBlock, settingsValue.seaLevel(), seed, WorldgenRandom.Algorithm.XOROSHIRO);
         this.vanillaGenerator = new NoiseBasedChunkGenerator(structures, parameters, biomeSource, seed, settings);
+        this.noiseRouter = NoiseChunkUtil.resolveRouter(this.vanillaGenerator);
+    }
+
+    public NoiseRouter getNoiseRouter() {
+        return this.noiseRouter;
     }
 
     public NoiseBasedChunkGenerator getVanillaGenerator() {

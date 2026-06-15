@@ -24,20 +24,24 @@ public final class CaveLayoutRegionGrid {
     public static final int GIGA_CELL_SIZE = 56;
     private static final float STAT_DECAY_PER_HOP = 0.25f;
     private static final int MAX_STAT_HOPS = 4;
+    private static final float CELL_CENTER_JITTER = 0.22f;
+    private static final float EDGE_DISTORTION = 0.08f;
     private final float centerX;
     private final float centerZ;
     private final int cellSize;
     private final int radius;
+    private final int layoutSeed;
     private final CaveStatVector globalPool;
     private final Map<Long, CaveBiomeEntry> biomes = new HashMap<Long, CaveBiomeEntry>();
     private final Map<Long, CaveStatVector> stats = new HashMap<Long, CaveStatVector>();
     private static final int[][] NEIGHBORS = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
-    private CaveLayoutRegionGrid(float centerX, float centerZ, int cellSize, int radius, CaveStatVector globalPool) {
+    private CaveLayoutRegionGrid(float centerX, float centerZ, int cellSize, int radius, int layoutSeed, CaveStatVector globalPool) {
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.cellSize = cellSize;
         this.radius = radius;
+        this.layoutSeed = layoutSeed;
         this.globalPool = globalPool.clamped();
     }
 
@@ -46,7 +50,38 @@ public final class CaveLayoutRegionGrid {
     }
 
     public CaveBiomeEntry biomeAt(int x, int z) {
-        return this.biomes.get(this.keyAt(x, z));
+        if (this.biomes.isEmpty()) {
+            return null;
+        }
+        int baseIx = this.regionIndexX(x);
+        int baseIz = this.regionIndexZ(z);
+        CaveBiomeEntry best = null;
+        float bestDistSq = Float.MAX_VALUE;
+        float edgeScale = 1.0f + (NoiseUtil.valCoord2D(this.layoutSeed ^ 0x71C33, x, z) + 1.0f) * 0.5f * EDGE_DISTORTION;
+        for (int dix = -1; dix <= 1; ++dix) {
+            for (int diz = -1; diz <= 1; ++diz) {
+                int ix = baseIx + dix;
+                int iz = baseIz + diz;
+                long key = CaveLayoutRegionGrid.pack(ix, iz);
+                CaveBiomeEntry entry = this.biomes.get(key);
+                if (entry == null) {
+                    continue;
+                }
+                float jitterX = NoiseUtil.valCoord2D(this.layoutSeed, ix, iz) * (float)this.cellSize * CELL_CENTER_JITTER;
+                float jitterZ = NoiseUtil.valCoord2D(this.layoutSeed ^ 0x2F1BAAF, iz, ix) * (float)this.cellSize * CELL_CENTER_JITTER;
+                float cx = this.centerX + (float)ix * (float)this.cellSize + (float)this.cellSize * 0.5f + jitterX;
+                float cz = this.centerZ + (float)iz * (float)this.cellSize + (float)this.cellSize * 0.5f + jitterZ;
+                float dx = (float)x - cx;
+                float dz = (float)z - cz;
+                float distSq = (dx * dx + dz * dz) * edgeScale;
+                if (!(distSq < bestDistSq)) {
+                    continue;
+                }
+                bestDistSq = distSq;
+                best = entry;
+            }
+        }
+        return best;
     }
 
     public void overrideBiome(int x, int z, CaveBiomeEntry biome) {
@@ -95,9 +130,9 @@ public final class CaveLayoutRegionGrid {
         return Math.floorDiv(z - (int)this.centerZ, this.cellSize);
     }
 
-    public static CaveLayoutRegionGrid build(float centerX, float centerZ, int radius, boolean isMega, CaveStatVector globalPool, BiFunction<Integer, Integer, CaveBiomeEntry> biomeResolver, List<CaveMegaGigaLayout.GeneratorNode> generators, Function<CaveMegaGigaLayout.GeneratorNode, CaveStatVector> generatorStatSource) {
+    public static CaveLayoutRegionGrid build(float centerX, float centerZ, int radius, boolean isMega, int layoutSeed, CaveStatVector globalPool, BiFunction<Integer, Integer, CaveBiomeEntry> biomeResolver, List<CaveMegaGigaLayout.GeneratorNode> generators, Function<CaveMegaGigaLayout.GeneratorNode, CaveStatVector> generatorStatSource) {
         int cellSize = isMega ? 48 : 56;
-        CaveLayoutRegionGrid grid = new CaveLayoutRegionGrid(centerX, centerZ, cellSize, radius, globalPool);
+        CaveLayoutRegionGrid grid = new CaveLayoutRegionGrid(centerX, centerZ, cellSize, radius, layoutSeed, globalPool);
         int halfCells = (int)Math.ceil((float)radius / (float)cellSize) + 1;
         for (int ix = -halfCells; ix <= halfCells; ++ix) {
             for (int iz = -halfCells; iz <= halfCells; ++iz) {
@@ -106,7 +141,7 @@ public final class CaveLayoutRegionGrid {
                 float dx = (float)cx - centerX;
                 int cz = (int)centerZ + iz * cellSize + cellSize / 2;
                 float dz = (float)cz - centerZ;
-                if (NoiseUtil.sqrt(dx * dx + dz * dz) > (float)radius * 0.98f || (biome = biomeResolver.apply(cx, cz)) == null) continue;
+                if (NoiseUtil.sqrt(dx * dx + dz * dz) > (float)radius * CaveSystemBounds.FOOTPRINT_FRACTION || (biome = biomeResolver.apply(cx, cz)) == null) continue;
                 grid.biomes.put(CaveLayoutRegionGrid.pack(ix, iz), biome);
                 grid.stats.put(CaveLayoutRegionGrid.pack(ix, iz), globalPool);
             }
@@ -148,6 +183,37 @@ public final class CaveLayoutRegionGrid {
             if (replacement == null || replacement.biome().equals(id)) continue;
             this.biomes.put(key, replacement);
             counts.merge(replacement.biome(), 1, Integer::sum);
+        }
+        this.breakAdjacentDuplicateBiomes(seed, replacer);
+    }
+
+    private void breakAdjacentDuplicateBiomes(int seed, CellBiomeReplacer replacer) {
+        if (this.biomes.size() < 4 || replacer == null) {
+            return;
+        }
+        ArrayList<Long> keys = new ArrayList<Long>(this.biomes.keySet());
+        Collections.shuffle(keys, new Random(seed ^ 0xAD1ACB01L));
+        for (Long key : keys) {
+            int ix = (int)(key >> 32);
+            int iz = (int)(long)key;
+            CaveBiomeEntry entry = this.biomes.get(key);
+            if (entry == null) continue;
+            ResourceLocation id = entry.biome();
+            int sameNeighbors = 0;
+            for (int[] dir : NEIGHBORS) {
+                CaveBiomeEntry neighbor = this.biomes.get(CaveLayoutRegionGrid.pack(ix + dir[0], iz + dir[1]));
+                if (neighbor != null && neighbor.biome().equals(id)) {
+                    ++sameNeighbors;
+                }
+            }
+            if (sameNeighbors < 3) continue;
+            int cx = (int)this.centerX + ix * this.cellSize + this.cellSize / 2;
+            int cz = (int)this.centerZ + iz * this.cellSize + this.cellSize / 2;
+            HashSet<ResourceLocation> excluded = new HashSet<ResourceLocation>();
+            excluded.add(id);
+            CaveBiomeEntry replacement = replacer.replace(cx, cz, excluded);
+            if (replacement == null || replacement.biome().equals(id)) continue;
+            this.biomes.put(key, replacement);
         }
     }
 

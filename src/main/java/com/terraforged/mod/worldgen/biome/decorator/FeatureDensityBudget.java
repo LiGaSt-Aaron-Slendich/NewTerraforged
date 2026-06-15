@@ -26,7 +26,7 @@ public class FeatureDensityBudget {
     }
 
     public static FeatureDensityBudget forCaveCeilingMegaGiga() {
-        return new FeatureDensityBudget(0.85f, true);
+        return new FeatureDensityBudget(1.35f, false);
     }
 
     private FeatureDensityBudget(float densityMultiplier, boolean caveTiered) {

@@ -90,11 +90,11 @@ public class CaveBiomeRegistry {
         HashSet<ResourceLocation> seen = new HashSet<ResourceLocation>();
         ArrayList<CaveBiomeEntry> out = new ArrayList<CaveBiomeEntry>();
         for (CaveBiomeEntry entry : this.primary) {
-            if (entry.statGenerator() || CaveBiomeIds.isMegaGigaExcluded(entry.biome()) || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || !seen.add(entry.biome())) continue;
+            if (entry.statGenerator() || CaveBiomeIds.isMegaGigaExcluded(entry.biome()) || CaveBiomeIds.isNetherThemedBiome(entry.biome()) || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || !seen.add(entry.biome())) continue;
             out.add(entry);
         }
         for (CaveBiomeEntry entry : this.transition) {
-            if (entry.statGenerator() || CaveBiomeIds.isMegaGigaExcluded(entry.biome()) || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || !seen.add(entry.biome())) continue;
+            if (entry.statGenerator() || CaveBiomeIds.isMegaGigaExcluded(entry.biome()) || CaveBiomeIds.isNetherThemedBiome(entry.biome()) || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || !seen.add(entry.biome())) continue;
             out.add(entry);
         }
         return List.copyOf(out);

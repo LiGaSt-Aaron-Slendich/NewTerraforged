@@ -20,3 +20,16 @@ transition_max_width_blocks = 40
 island_max_radius_chunks = 1.5
 # false = mega/giga only (no synapse column caves)
 enable_synapse_caves = true
+
+# Cave density budget per chunk (synapse / global only outside mega+giga voronoi zones).
+# Mega and giga always carve at full strength and do not use this budget.
+# xy_limit: integer column cap, or false to use cave_percent of the default (96 columns).
+# yz_limit: optional total carved-block cap per chunk (false = no height/size limit).
+# cave_percent: ~40 = synapse mid-layer only in ~40% of 2×2-chunk regions (fast + no stripes).
+# At 100 all three synapse layers carve everywhere.
+# xy_limit: optional hard per-chunk column cap (advanced); false = use cave_percent thinning only.
+
+[caves]
+xy_limit = false
+yz_limit = false
+cave_percent = 100

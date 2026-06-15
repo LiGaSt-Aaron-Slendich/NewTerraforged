@@ -36,7 +36,7 @@ public final class CaveBiomeClimateAffinity {
     }
 
     public static boolean isWarmOasisBiome(String path) {
-        return CaveBiomeClimateAffinity.containsAny(path, "underground_jungle", "steaming_jungle", "jungle", "thermal_caves", "thermal_springs", "undergarden", "mossy_caves", "fungal", "mycotoxic", "glowshroom", "embur_bog", "ancient_delta", "glowing_grotto");
+        return CaveBiomeClimateAffinity.containsAny(path, "underground_jungle", "steaming_jungle", "jungle", "thermal_caves", "thermal_springs", "undergarden", "mossy_caves", "fungal", "mycotoxic", "glowshroom", "bioshroom", "embur_bog", "ancient_delta", "glowing_grotto");
     }
 
     private static boolean isPureColdBiome(String path) {
@@ -63,7 +63,7 @@ public final class CaveBiomeClimateAffinity {
         if (CaveBiomeClimateAffinity.containsAny(path, "underground_jungle", "steaming_jungle", "undergarden", "glowing_grotto", "embur_bog", "ancient_delta", "mossy_caves")) {
             return CaveBiomeClimateAffinity.of(CaveClimateType.WET, CaveClimateType.NORMAL);
         }
-        if (CaveBiomeClimateAffinity.containsAny(path, "fungal", "mycotoxic", "glowshroom", "crimson_gardens")) {
+        if (CaveBiomeClimateAffinity.containsAny(path, "fungal", "mycotoxic", "glowshroom", "bioshroom", "crimson_gardens")) {
             return CaveBiomeClimateAffinity.of(CaveClimateType.WET, CaveClimateType.NORMAL);
         }
         if (path.contains("thermal_springs") || path.contains("thermal_caves")) {

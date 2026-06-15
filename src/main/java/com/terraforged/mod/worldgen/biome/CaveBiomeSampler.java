@@ -15,6 +15,7 @@ import com.terraforged.mod.worldgen.cave.CaveType;
 import com.terraforged.noise.util.Noise;
 import com.terraforged.noise.util.NoiseUtil;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.core.Holder;
@@ -26,6 +27,7 @@ import net.minecraft.world.level.biome.Biomes;
 
 public class CaveBiomeSampler {
     public static final int OFFSET = 124897;
+    private static final int REGION_CACHE_LIMIT = 256;
     private final int scale;
     private final float frequency;
     private final CaveBiomeRegistry caveBiomeRegistry;
@@ -67,8 +69,8 @@ public class CaveBiomeSampler {
         int cx = CaveBiomeSampler.snapToCaveGrid(x, type);
         int cz = CaveBiomeSampler.snapToCaveGrid(z, type);
         int radius = CaveBiomeSampler.estimateCaveRadius(type);
-        long key = CaveBiomeSampler.packRegionKey(cx, cz);
-        CaveRegionMap regionMap = this.regionMapCache.computeIfAbsent(key, k -> this.createRegionMap(seed, cx, cz, radius, type == CaveType.MEGA, null, 32, 64));
+        long key = CaveBiomeSampler.packRegionKey(seed, cx, cz);
+        CaveRegionMap regionMap = this.getOrCreateRegionMap(key, seed, cx, cz, radius, type == CaveType.MEGA, null, 32, 64);
         CaveBiomeEntry entry = regionMap.getBiomeAt(x, z);
         return entry == null ? null : entry.biome();
     }
@@ -80,8 +82,8 @@ public class CaveBiomeSampler {
         int cx = CaveBiomeSampler.snapToCaveGrid(x, type);
         int cz = CaveBiomeSampler.snapToCaveGrid(z, type);
         int radius = CaveBiomeSampler.estimateCaveRadius(type);
-        long key = CaveBiomeSampler.packRegionKey(cx, cz);
-        return this.regionMapCache.computeIfAbsent(key, k -> this.createRegionMap(seed, cx, cz, radius, type == CaveType.MEGA, null, 32, 64));
+        long key = CaveBiomeSampler.packRegionKey(seed, cx, cz);
+        return this.getOrCreateRegionMap(key, seed, cx, cz, radius, type == CaveType.MEGA, null, 32, 64);
     }
 
     private static int estimateCaveRadius(CaveType type) {
@@ -148,8 +150,8 @@ public class CaveBiomeSampler {
     }
 
     private Holder<Biome> getMegaRegionBiome(int seed, int x, int z, CaveType type, int cx, int cz, int radius, Holder<Biome> surfaceBiome, int blockY, int surfaceY) {
-        long key = CaveBiomeSampler.packRegionKey(cx, cz);
-        CaveRegionMap regionMap = this.regionMapCache.computeIfAbsent(key, k -> this.createRegionMap(seed, cx, cz, radius, !type.isGiga(), surfaceBiome, blockY, surfaceY));
+        long key = CaveBiomeSampler.packRegionKey(seed, cx, cz);
+        CaveRegionMap regionMap = this.getOrCreateRegionMap(key, seed, cx, cz, radius, !type.isGiga(), surfaceBiome, blockY, surfaceY);
         CaveBiomeEntry entry = regionMap.getBiomeAt(x, z);
         if (entry == null) {
             return this.fallbackBiome;
@@ -158,9 +160,26 @@ public class CaveBiomeSampler {
     }
 
     public CaveMegaGigaLayout getMegaGigaLayout(int seed, int cx, int cz, int radius, CaveType type, Holder<Biome> surfaceBiome, int blockY, int surfaceY) {
-        long key = CaveBiomeSampler.packRegionKey(cx, cz);
-        CaveRegionMap regionMap = this.regionMapCache.computeIfAbsent(key, k -> this.createRegionMap(seed, cx, cz, radius, !type.isGiga(), surfaceBiome, blockY, surfaceY));
+        long key = CaveBiomeSampler.packRegionKey(seed, cx, cz);
+        CaveRegionMap regionMap = this.getOrCreateRegionMap(key, seed, cx, cz, radius, !type.isGiga(), surfaceBiome, blockY, surfaceY);
         return regionMap.layout();
+    }
+
+    private CaveRegionMap getOrCreateRegionMap(long key, int seed, int cx, int cz, int radius, boolean isMega, Holder<Biome> surfaceBiome, int blockY, int surfaceY) {
+        CaveRegionMap cached = this.regionMapCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        if (this.regionMapCache.size() >= REGION_CACHE_LIMIT) {
+            Iterator<Long> it = this.regionMapCache.keySet().iterator();
+            if (it.hasNext()) {
+                it.next();
+                it.remove();
+            }
+        }
+        CaveRegionMap created = this.createRegionMap(seed, cx, cz, radius, isMega, surfaceBiome, blockY, surfaceY);
+        this.regionMapCache.put(key, created);
+        return created;
     }
 
     private CaveRegionMap createRegionMap(int seed, int cx, int cz, int radius, boolean isMega, Holder<Biome> surfaceBiome, int sampleY, int surfaceY) {
@@ -193,7 +212,7 @@ public class CaveBiomeSampler {
     }
 
     private Holder<Biome> resolveHolder(CaveBiomeEntry entry) {
-        if (entry == null) {
+        if (entry == null || CaveBiomeIds.isBlockedCaveBiome(entry.biome()) || CaveBiomeIds.isNetherThemedBiome(entry.biome())) {
             return this.fallbackBiome;
         }
         return this.caveBiomeRegistry.getHolder(entry).orElse(this.fallbackBiome);
@@ -206,13 +225,13 @@ public class CaveBiomeSampler {
         return NoiseUtil.clamp(n, 0.0f, 1.0f);
     }
 
-    private static long packRegionKey(int cx, int cz) {
-        return (long)cx << 32 | (long)cz & 0xFFFFFFFFL;
+    private static long packRegionKey(int seed, int cx, int cz) {
+        return (long)Integer.rotateLeft(seed, 13) ^ (long)cx << 32 | (long)cz & 0xFFFFFFFFL;
     }
 
     private Holder<Biome> resolveFallback(BiomeMapManager manager) {
         Registry<Biome> registry = manager.getBiomes();
-        for (ResourceLocation id : new ResourceLocation[]{TerraForged.location("cave"), new ResourceLocation("terraforged", "cave"), new ResourceLocation("minecraft", "dripstone_caves")}) {
+        for (ResourceLocation id : new ResourceLocation[]{TerraForged.location("cave"), new ResourceLocation("terraforged", "cave"), new ResourceLocation("minecraft", "dripstone_caves"), new ResourceLocation("minecraft", "lush_caves")}) {
             Optional holder = registry.getHolder(ResourceKey.create(Registry.BIOME_REGISTRY, (ResourceLocation)id));
             if (!holder.isPresent()) continue;
             return (Holder)holder.get();

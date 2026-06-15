@@ -4,6 +4,7 @@ import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
+import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.NoiseCaveGenerator;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
@@ -45,7 +46,14 @@ public class BiomeGenerator {
         return this.noiseCaveGenerator.getEntranceClaims();
     }
 
+    public CarverChunk peekCaveCarver(net.minecraft.world.level.ChunkPos pos) {
+        return this.noiseCaveGenerator.peekCarver(pos);
+    }
+
     public void carve(long seed, ChunkAccess chunk, WorldGenRegion region, BiomeManager biomes, GenerationStep.Carving step, Generator generator) {
+        if (step != GenerationStep.Carving.AIR) {
+            return;
+        }
         this.noiseCaveGenerator.carve(chunk, generator);
     }
 
@@ -60,8 +68,13 @@ public class BiomeGenerator {
         }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
         this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, 1), structures, terrainFuture, generator);
-        this.noiseCaveGenerator.decorate(chunk, scoped, generator);
+        this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
+        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
+        Surface.repairExposedCover(chunk, region, generator, terrain, carver);
+        this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
+        this.noiseCaveGenerator.finishDecorate(chunk);
+        ChunkUtil.refreshHeightmaps(chunk);
     }
 }

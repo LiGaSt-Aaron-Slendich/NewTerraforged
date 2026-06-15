@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.cave;
 
+import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.cave.CaveModifiers;
 import com.terraforged.mod.worldgen.cave.CaveNoise;
 import com.terraforged.mod.worldgen.cave.CaveType;
@@ -12,7 +13,15 @@ public final class CaveSystemGrid {
     }
 
     public static CaveType dominantType(int seed, int x, int z) {
-        if (CaveNoise.sample(CaveModifiers.giga(), seed, x, z) > 0.12f) {
+        if (CaveNoise.sample(CaveModifiers.giga(), seed, x, z) > GIGA_DOMINANCE) {
+            return CaveType.GIGA;
+        }
+        return CaveType.MEGA;
+    }
+
+    public static CaveType dominantType(Generator generator, int seed, int x, int z) {
+        if (CaveNoise.sample(CaveModifiers.giga(), seed, x, z) > GIGA_DOMINANCE
+                && CaveReliefFilter.qualifiesGigaTerrain(generator, x, z)) {
             return CaveType.GIGA;
         }
         return CaveType.MEGA;

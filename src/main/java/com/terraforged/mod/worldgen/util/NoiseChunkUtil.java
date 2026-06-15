@@ -6,7 +6,7 @@ import com.terraforged.mod.worldgen.VanillaGen;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.util.NoopNoise;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
-import java.lang.invoke.MethodHandle;
+import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.core.QuartPos;
 import net.minecraft.server.level.ColumnPos;
@@ -19,23 +19,22 @@ import net.minecraft.world.level.levelgen.NoiseRouter;
 import net.minecraft.world.level.levelgen.blending.Blender;
 
 public class NoiseChunkUtil {
-    private static final MethodHandle SURFACE_CACHE = ReflectionUtil.field(NoiseChunk.class, Long2IntMap.class, new String[0]);
-    private static final MethodHandle NOISE_ROUTER = ReflectionUtil.field(NoiseBasedChunkGenerator.class, NoiseRouter.class, new String[0]);
+    private static final Field SURFACE_CACHE = ReflectionUtil.getField(NoiseChunk.class, Long2IntMap.class, f -> true);
+    private static final Field NOISE_ROUTER = ReflectionUtil.getField(NoiseBasedChunkGenerator.class, NoiseRouter.class, f -> true);
 
     public static NoiseChunk getNoiseChunk(ChunkAccess chunk, Generator generator) {
         CompletableFuture<TerrainData> terrainData = generator.getChunkDataAsync(chunk.getPos());
         VanillaGen vanillaGen = generator.getVanillaGen();
-        NoiseBasedChunkGenerator vanilla = vanillaGen.getVanillaGenerator();
-        NoiseChunk noiseChunk = chunk.getOrCreateNoiseChunk(NoiseChunkUtil.getRouter(vanilla), () -> NoopNoise.BEARDIFIER, (NoiseGeneratorSettings)vanillaGen.getSettings().value(), vanillaGen.getGlobalFluidPicker(), Blender.empty());
+        NoiseChunk noiseChunk = chunk.getOrCreateNoiseChunk(vanillaGen.getNoiseRouter(), () -> NoopNoise.BEARDIFIER, (NoiseGeneratorSettings)vanillaGen.getSettings().value(), vanillaGen.getGlobalFluidPicker(), Blender.empty());
         NoiseChunkUtil.initChunk(chunk, noiseChunk, terrainData);
         return noiseChunk;
     }
 
-    private static NoiseRouter getRouter(NoiseBasedChunkGenerator generator) {
+    public static NoiseRouter resolveRouter(NoiseBasedChunkGenerator generator) {
         try {
-            return (NoiseRouter) NOISE_ROUTER.invoke(generator);
+            return (NoiseRouter)NOISE_ROUTER.get(generator);
         }
-        catch (Throwable e) {
+        catch (IllegalAccessException e) {
             throw new Error(e);
         }
     }
@@ -77,9 +76,9 @@ public class NoiseChunkUtil {
 
     private static Long2IntMap getCache(NoiseChunk noiseChunk) {
         try {
-            return (Long2IntMap) SURFACE_CACHE.invoke(noiseChunk);
+            return (Long2IntMap)SURFACE_CACHE.get(noiseChunk);
         }
-        catch (Throwable e) {
+        catch (IllegalAccessException e) {
             throw new Error(e);
         }
     }

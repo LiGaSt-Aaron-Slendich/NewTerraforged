@@ -48,7 +48,7 @@ public final class CaveTunnelRiverDecorator {
             return;
         }
         int seed = (int)generator.getSeed();
-        if (!CaveTunnelRiverDecorator.qualifiesMountainMassif(generator, seed, mouthX = carver.tunnelMouthX(), mouthZ = carver.tunnelMouthZ())) {
+        if (!CaveMassifCache.qualifiesMountainMassif(generator, seed, mouthX = carver.tunnelMouthX(), mouthZ = carver.tunnelMouthZ())) {
             return;
         }
         int exitX = carver.tunnelExitX();
@@ -334,7 +334,7 @@ public final class CaveTunnelRiverDecorator {
     }
 
     static boolean hasSolidBed(WorldGenLevel region, int x, int y, int z) {
-        if (y < region.getMinBuildHeight()) {
+        if (y < region.getMinBuildHeight() || !region.hasChunk(x >> 4, z >> 4)) {
             return false;
         }
         BlockState state = region.getBlockState(new BlockPos(x, y, z));
@@ -342,6 +342,9 @@ public final class CaveTunnelRiverDecorator {
     }
 
     private static int findLowestAir(WorldGenLevel region, int wx, int wz, int minY, int maxY) {
+        if (!region.hasChunk(wx >> 4, wz >> 4)) {
+            return -1;
+        }
         for (int y = minY; y <= maxY; ++y) {
             if (!region.getBlockState(new BlockPos(wx, y, wz)).isAir()) continue;
             return y;
@@ -368,6 +371,9 @@ public final class CaveTunnelRiverDecorator {
     }
 
     private static int findWalkableFloor(WorldGenLevel region, int wx, int wz, int minY, int maxY) {
+        if (!region.hasChunk(wx >> 4, wz >> 4)) {
+            return -1;
+        }
         int best = -1;
         for (int y = minY; y <= maxY; ++y) {
             BlockPos pos = new BlockPos(wx, y, wz);
@@ -378,6 +384,9 @@ public final class CaveTunnelRiverDecorator {
     }
 
     private static int findDeepestFloor(WorldGenLevel region, int wx, int wz, int minY, int maxY) {
+        if (!region.hasChunk(wx >> 4, wz >> 4)) {
+            return -1;
+        }
         for (int y = minY; y <= maxY; ++y) {
             BlockPos pos = new BlockPos(wx, y, wz);
             if (!region.getBlockState(pos).isAir() || y <= minY || region.getBlockState(pos.below()).isAir()) continue;
@@ -405,24 +414,7 @@ public final class CaveTunnelRiverDecorator {
     }
 
     static boolean qualifiesMountainMassif(Generator generator, int seed, int wx, int wz) {
-        CaveType type = CaveSystemGrid.dominantType(seed, wx, wz);
-        int cx = CaveSystemGrid.snapCenter(wx, type);
-        int cz = CaveSystemGrid.snapCenter(wz, type);
-        int radius = CaveSystemGrid.caveRadius(type) / 2;
-        int minS = Integer.MAX_VALUE;
-        int maxS = Integer.MIN_VALUE;
-        int sea = generator.getSeaLevel();
-        for (int ox = -radius; ox <= radius; ox += 16) {
-            for (int oz = -radius; oz <= radius; oz += 16) {
-                int sx = cx + ox;
-                int sz = cz + oz;
-                int s = generator.getOceanFloorHeight(sx, sz);
-                if (s <= sea + 4) continue;
-                minS = Math.min(minS, s);
-                maxS = Math.max(maxS, s);
-            }
-        }
-        return minS != Integer.MAX_VALUE && maxS - minS >= 38;
+        return CaveMassifCache.qualifiesMountainMassif(generator, seed, wx, wz);
     }
 
     private static void seedSurfacePool(WorldGenLevel region, Generator generator, int wx, int wz, int floorY) {

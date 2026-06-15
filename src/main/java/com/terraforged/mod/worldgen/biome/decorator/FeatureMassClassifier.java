@@ -6,10 +6,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 public final class FeatureMassClassifier {
-    private static final String[] BLOCKED = new String[]{"geode", "amethyst_geode", "mineshaft", "monster_room", "fossil", "dungeon", "ancient_city", "trial_chambers", "trial_chamber"};
+    private static final String[] BLOCKED = new String[]{"geode", "amethyst_geode", "mineshaft", "monster_room", "fossil", "dungeon", "ancient_city", "trial_chambers", "trial_chamber", "dead_leaves", "dead_log", "dead_leaf", "fallen_log", "deadwood", "dead_fungus", "dead_tree"};
     private static final String[] TREE = new String[]{"tree", "spruce", "oak", "birch", "pine", "jungle", "redwood", "palm", "willow", "maple", "cypress", "mahogany", "dark_forest_vegetation", "forest_vegetation", "mangrove", "azalea_tree", "mega_jungle", "jungle_tree", "fancy_oak", "super_birch", "pine_tree"};
     private static final String[] VEGETATION_SPAWN = new String[]{"plain_vegetation", "meadow_vegetation", "flower_default", "flower_warm", "flower_forest", "flower_plains", "flower_swamp", "patch_tall_grass", "patch_grass", "bamboo_vegetation", "savanna_vegetation"};
-    private static final String[] CEILING_SCATTER = new String[]{"hanging", "roots", "vine", "icicle", "stalactite", "spore_blossom", "glow_lichen", "lichen", "dripstone", "prismoss", "prisma", "rainbow"};
+    private static final String[] CEILING_SCATTER = new String[]{"hanging", "roots", "vine", "icicle", "stalactite", "spore_blossom", "glow_lichen", "lichen", "dripstone", "prismoss", "prisma", "rainbow", "ceiling", "crystal", "cluster", "columns", "frostfire", "amethyst", "bud"};
     private static final String[] DUAL_SURFACE = new String[]{"mushroom", "fungus", "glow_", "moss", "lichen", "patch"};
     private static final String[] CAVE_FLOOR_LARGE = new String[]{"column", "pillar", "large_dripstone", "large_", "huge_", "giant_", "big_", "spire", "spike", "stalagmite", "dripstone_cluster", "mushroom_huge", "huge_mushroom", "big_mushroom", "big_shroom", "mega_shroom", "glowshroom", "shroom_cap", "fungal_colony", "fungal_tree"};
     private static final String[] CAVE_CEILING_LARGE = new String[]{"stalactite", "icicle", "geyser", "thermal", "suspended", "hanging", "dripstone", "spore_blossom", "glow_lichen", "big_shroom", "huge_"};

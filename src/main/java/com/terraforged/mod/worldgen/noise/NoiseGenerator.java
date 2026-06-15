@@ -222,7 +222,7 @@ implements INoiseGenerator {
     }
 
     protected static NoiseTileSize getNoiseTileSize() {
-        return new NoiseTileSize(2);
+        return new NoiseTileSize(1);
     }
 
     protected static Module createOceanTerrain() {

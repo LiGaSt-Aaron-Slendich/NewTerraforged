@@ -42,7 +42,15 @@ public final class CaveBiomeStats {
     }
 
     public boolean matches(CaveStatVector pool) {
-        return pool.meetsConditions(this.conditions);
+        return this.matches(pool, 0.0f);
+    }
+
+    public boolean matches(CaveStatVector pool, float relax) {
+        if (relax <= 0.0f) {
+            return pool.meetsConditions(this.conditions);
+        }
+        CaveStatVector relaxed = new CaveStatVector(this.conditions.moisture() - relax, this.conditions.temperature() - relax, this.conditions.fertility() - relax);
+        return pool.meetsConditions(relaxed);
     }
 
     public boolean hasAnyValue() {

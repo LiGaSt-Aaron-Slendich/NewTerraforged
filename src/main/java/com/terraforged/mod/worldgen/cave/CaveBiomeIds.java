@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.cave;
 
+import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
 import com.terraforged.noise.util.NoiseUtil;
 import java.util.Locale;
 import java.util.Map;
@@ -11,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 public final class CaveBiomeIds {
-    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(Map.entry("regions_unexplored:ancient_delta_caves", "regions_unexplored:ancient_delta"), Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"), Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:mycotoxic_undergrowth"), Map.entry("byg:embur_bog_caves", "byg:embur_bog"), Map.entry("byg:crimson_gardens_caves", "byg:crimson_gardens"), Map.entry("byg:shattered_glacier_caves", "byg:shattered_glacier"), Map.entry("byg:nightshade_redwoods_caves", "byg:nightshade_redwoods"), Map.entry("byg:quartz_desert_caves", "byg:quartz_desert"), Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"), Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves"));
+    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(Map.entry("regions_unexplored:ancient_delta_caves", "regions_unexplored:ancient_delta"), Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"), Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:mycotoxic_undergrowth"), Map.entry("byg:crimson_gardens_caves", "byg:crimson_gardens"), Map.entry("byg:shattered_glacier_caves", "byg:shattered_glacier"), Map.entry("byg:nightshade_redwoods_caves", "byg:nightshade_redwoods"), Map.entry("byg:quartz_desert_caves", "byg:quartz_desert"), Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"), Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves"));
 
     private CaveBiomeIds() {
     }
@@ -122,7 +123,7 @@ public final class CaveBiomeIds {
     }
 
     private static String caveThemeSlug(String path) {
-        if (path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom")) {
+        if (path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom") || path.contains("bioshroom")) {
             return "fungal";
         }
         if (path.contains("crystal")) {
@@ -147,7 +148,7 @@ public final class CaveBiomeIds {
         if (id == null) {
             return false;
         }
-        if (CaveBiomeIds.isBlockedCaveBiome(id)) {
+        if (CaveBiomeIds.isBlockedCaveBiome(id) || CaveBiomeIds.isNetherThemedBiome(id)) {
             return false;
         }
         String ns = id.getNamespace();
@@ -167,7 +168,7 @@ public final class CaveBiomeIds {
     }
 
     private static boolean isRegionalShellBiome(String path) {
-        return path.contains("embur") || path.contains("crimson_gardens") || path.contains("shattered_glacier") || path.contains("nightshade") || path.contains("quartz_desert") || path.contains("ancient_delta") || path.contains("glowing_grotto") || path.contains("brimstone");
+        return path.contains("shattered_glacier") || path.contains("nightshade") || path.contains("quartz_desert") || path.contains("ancient_delta") || path.contains("glowing_grotto") || path.contains("brimstone");
     }
 
     public static boolean isModCaveBiome(Holder<Biome> biome) {
@@ -175,8 +176,11 @@ public final class CaveBiomeIds {
     }
 
     public static boolean isModCaveBiome(ResourceLocation id) {
-        if (id == null || "minecraft".equals(id.getNamespace())) {
+        if (id == null) {
             return false;
+        }
+        if ("minecraft".equals(id.getNamespace())) {
+            return CaveBiomeIds.isUndergroundBiome(id);
         }
         return CaveBiomeIds.isUndergroundBiome(id);
     }
@@ -185,12 +189,35 @@ public final class CaveBiomeIds {
         if (id == null) {
             return true;
         }
+        TFCaveBiomeConfig cfg = TFCaveBiomeConfig.INSTANCE;
+        if (cfg != null && cfg.isBlacklisted(id)) {
+            return true;
+        }
         String path = id.getPath().toLowerCase();
-        return path.contains("lush_caves") || path.contains("blooming_caves");
+        return path.contains("underground_jungle") || path.contains("steaming_jungle") || path.contains("cave_underground_jungle") || path.contains("cave_steaming_jungle");
     }
 
     public static boolean isBlockedCaveBiome(Holder<Biome> biome) {
         return biome.unwrapKey().map(key -> CaveBiomeIds.isBlockedCaveBiome(key.location())).orElse(true);
+    }
+
+    /** Nether-themed biomes must not paint or decorate in overworld cave columns. */
+    public static boolean isNetherThemedBiome(Holder<Biome> biome) {
+        if (biome.unwrapKey().map(key -> CaveBiomeIds.isNetherThemedBiome(key.location())).orElse(false)) {
+            return true;
+        }
+        return Biome.getBiomeCategory(biome) == Biome.BiomeCategory.NETHER;
+    }
+
+    public static boolean isNetherThemedBiome(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        if (path.contains("crimson") || path.contains("warped") || path.contains("nether") || path.contains("soul_sand") || path.contains("basalt_delta") || path.contains("nylium") || path.contains("weeping_vines") || path.contains("netherwart")) {
+            return true;
+        }
+        return path.contains("soul_fire") || path.contains("warped_forest") || path.contains("crimson_forest") || path.contains("embur_bog") || path.contains("embur");
     }
 
     public static boolean isMegaGigaExcluded(ResourceLocation id) {
@@ -198,7 +225,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("subzero") || path.contains("hypogeal") || path.contains("crystal_caves") || path.contains("crystal_cave");
+        return path.contains("subzero") || path.contains("hypogeal") || path.contains("crystal_caves") || path.contains("crystal_cave") || path.contains("underground_jungle") || path.contains("steaming_jungle");
     }
 
     public static boolean isMegaGigaExcluded(Holder<Biome> biome) {
@@ -224,7 +251,7 @@ public final class CaveBiomeIds {
         if (path.contains("frostfire") || path.contains("icicle")) {
             return false;
         }
-        if (CaveBiomeIds.isCrystalCaveBiome(id) || path.contains("fungal") || path.contains("glowshroom") || path.contains("undergarden") || path.contains("jungle") || path.contains("mantle") || path.contains("brimstone") || path.contains("thermal") || path.contains("mycotoxic") || path.contains("mossy") || path.contains("prismachasm") || path.contains("skyris") || path.contains("glowing_grotto") || path.contains("ancient_delta") || path.contains("embur")) {
+        if (CaveBiomeIds.isCrystalCaveBiome(id) || path.contains("fungal") || path.contains("glowshroom") || path.contains("undergarden") || path.contains("jungle") || path.contains("mantle") || path.contains("brimstone") || path.contains("thermal") || path.contains("mycotoxic") || path.contains("mossy") || path.contains("prismachasm") || path.contains("skyris") || path.contains("glowing_grotto") || path.contains("ancient_delta")) {
             return false;
         }
         return path.contains("deep_caves") || path.contains("ice_caves") || path.contains("infested") || path.contains("desert_caves") || path.contains("frost_caves") || path.contains("redstone_caves") || path.contains("quartz_desert") || path.contains("subzero") || path.contains("hypogeal") || path.contains("nightshade") || path.contains("shattered_glacier");
@@ -239,7 +266,15 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("crystal_caves") || path.contains("crystal_cave") || path.contains("crystaline") || path.contains("prismachasm") || path.contains("prismarite") || path.contains("prisma") || path.contains("skyris");
+        return path.contains("crystal_caves") || path.contains("crystal_cave") || path.contains("crystaline") || path.contains("prismachasm") || path.contains("prismarite") || path.contains("prisma");
+    }
+
+    public static boolean isSkyrisCaveBiome(ResourceLocation id) {
+        return id != null && id.getPath().toLowerCase().contains("skyris");
+    }
+
+    public static boolean isSkyrisCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isSkyrisCaveBiome(key.location())).orElse(false);
     }
 
     public static boolean isCrystalCaveBiome(Holder<Biome> biome) {
@@ -251,7 +286,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom");
+        return path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom") || path.contains("bioshroom");
     }
 
     public static boolean isFungalCaveBiome(Holder<Biome> biome) {
@@ -271,7 +306,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("glowing_grotto") || path.contains("grotto") || path.contains("ancient_delta") || path.contains("embur_bog") || path.contains("dripstone_caves");
+        return path.contains("glowing_grotto") || path.contains("grotto") || path.contains("ancient_delta") || path.contains("dripstone_caves");
     }
 
     public static boolean isCoastalGrottoBiome(Holder<Biome> biome) {
@@ -283,7 +318,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("deep_caves") || path.contains("infested") || path.contains("mossy") || path.contains("crystal") || path.contains("icicle") || path.contains("karst") || path.contains("limestone") || path.contains("chalk") || path.contains("mycotoxic") || path.contains("ancient_delta") || path.contains("embur") || path.contains("quartz") || path.contains("steaming_jungle") || path.contains("fungal") || path.contains("glowshroom");
+        return path.contains("deep_caves") || path.contains("infested") || path.contains("mossy") || path.contains("crystal") || path.contains("icicle") || path.contains("karst") || path.contains("limestone") || path.contains("chalk") || path.contains("mycotoxic") || path.contains("ancient_delta") || path.contains("quartz") || path.contains("steaming_jungle") || path.contains("fungal") || path.contains("glowshroom");
     }
 
     private static boolean isSurfaceOverworldBiome(String path) {
@@ -419,6 +454,31 @@ public final class CaveBiomeIds {
 
     public static boolean isScorchingCaveBiome(ResourceLocation id) {
         return id != null && id.getPath().toLowerCase().contains("scorching");
+    }
+
+    /** Cover-heavy cave biomes need more decoration origins (mycelium, crystal clusters, vents). */
+    public static boolean isCoverDenseCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isCoverDenseCaveBiome(key.location())).orElse(false);
+    }
+
+    public static boolean isCoverDenseCaveBiome(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("bioshroom") || path.contains("fungal") || path.contains("mycotoxic") || path.contains("crystal") || path.contains("prismachasm") || path.contains("scorching") || path.contains("glowshroom");
+    }
+
+    public static boolean isEmburBogBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isEmburBogBiome(key.location())).orElse(false);
+    }
+
+    public static boolean isEmburBogBiome(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("embur_bog") || path.contains("embur") && path.contains("bog");
     }
 
     public static boolean isHeatShellCaveBiome(ResourceLocation id) {

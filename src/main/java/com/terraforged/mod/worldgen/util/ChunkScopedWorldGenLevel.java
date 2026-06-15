@@ -77,32 +77,40 @@ implements WorldGenLevel {
     }
 
     public static WorldGenLevel wrapWithUndergroundGuard(WorldGenLevel level, ChunkAccess chunk) {
-        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, chunk, null, null);
+        return ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(level, chunk, null);
+    }
+
+    public static WorldGenLevel wrapWithUndergroundGuard(WorldGenLevel level, ChunkAccess chunk, CarverChunk carver) {
+        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, chunk, null, carver);
     }
 
     public static WorldGenLevel wrapWithBiomeGuard(WorldGenLevel level, ChunkAccess chunk, Holder<Biome> boundBiome, CarverChunk carver) {
-        ChunkAccess guardChunk = chunk;
-        CarverChunk guardCarver = carver;
-        if (level instanceof ChunkScopedWorldGenLevel) {
-            ChunkScopedWorldGenLevel scoped = (ChunkScopedWorldGenLevel)level;
-            if (scoped.undergroundGuardChunk != null) {
-                guardChunk = scoped.undergroundGuardChunk;
-            }
-            if (scoped.biomeGuardCarver != null) {
-                guardCarver = scoped.biomeGuardCarver;
-            }
-        }
-        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, guardChunk, boundBiome, guardCarver);
+        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, null, boundBiome, carver);
     }
 
     private static WorldGenLevel wrap(WorldGenLevel level, ChunkAccess chunk, int radius, ChunkAccess undergroundGuardChunk, Holder<Biome> boundBiome, CarverChunk biomeGuardCarver) {
-        if (level instanceof ChunkScopedWorldGenLevel) {
-            ChunkScopedWorldGenLevel scoped = (ChunkScopedWorldGenLevel)level;
-            if (scoped.chunkX == chunk.getPos().x && scoped.chunkZ == chunk.getPos().z && scoped.radius == radius && scoped.undergroundGuardChunk == undergroundGuardChunk && scoped.boundBiome == boundBiome && scoped.biomeGuardCarver == biomeGuardCarver) {
+        ChunkAccess mergedGuardChunk = undergroundGuardChunk;
+        CarverChunk mergedCarver = biomeGuardCarver;
+        Holder<Biome> mergedBiome = boundBiome;
+        WorldGenLevel root = level;
+        while (root instanceof ChunkScopedWorldGenLevel scoped) {
+            if (mergedGuardChunk == null && scoped.undergroundGuardChunk != null) {
+                mergedGuardChunk = scoped.undergroundGuardChunk;
+            }
+            if (mergedCarver == null && scoped.biomeGuardCarver != null) {
+                mergedCarver = scoped.biomeGuardCarver;
+            }
+            if (mergedBiome == null && scoped.boundBiome != null) {
+                mergedBiome = scoped.boundBiome;
+            }
+            root = scoped.delegate;
+        }
+        if (level instanceof ChunkScopedWorldGenLevel scoped) {
+            if (scoped.chunkX == chunk.getPos().x && scoped.chunkZ == chunk.getPos().z && scoped.radius == radius && scoped.delegate == root && scoped.undergroundGuardChunk == mergedGuardChunk && scoped.boundBiome == mergedBiome && scoped.biomeGuardCarver == mergedCarver) {
                 return scoped;
             }
         }
-        return new ChunkScopedWorldGenLevel(level, chunk.getPos(), radius, undergroundGuardChunk, boundBiome, biomeGuardCarver);
+        return new ChunkScopedWorldGenLevel(root, chunk.getPos(), radius, mergedGuardChunk, mergedBiome, mergedCarver);
     }
 
     private boolean passesUndergroundGuard(BlockPos pos) {
@@ -112,7 +120,7 @@ implements WorldGenLevel {
         if (this.boundBiome != null) {
             return CaveUndergroundGuard.mayWriteBlockForBiome(this, this.undergroundGuardChunk, pos, this.boundBiome, this.biomeGuardCarver);
         }
-        return CaveUndergroundGuard.mayWriteBlock(this, this.undergroundGuardChunk, pos);
+        return CaveUndergroundGuard.mayWriteBlock(this, this.undergroundGuardChunk, pos, this.biomeGuardCarver);
     }
 
     private boolean inRange(BlockPos pos) {

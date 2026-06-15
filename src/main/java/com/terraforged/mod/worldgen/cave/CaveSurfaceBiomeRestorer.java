@@ -23,12 +23,22 @@ public final class CaveSurfaceBiomeRestorer {
     }
 
     public static void restore(ChunkAccess chunk, Generator generator) {
+        CaveSurfaceBiomeRestorer.restore(chunk, generator, null);
+    }
+
+    public static void restore(ChunkAccess chunk, Generator generator, CarverChunk carver) {
+        if (carver != null && !carver.hasAnyBiomeRestoreColumn()) {
+            return;
+        }
         Source source = generator.getBiomeSource();
         int climateSeed = Seeds.get((int)generator.getSeed());
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
+                if (carver != null && !carver.needsBiomeRestore(lx, lz)) {
+                    continue;
+                }
                 int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
                 int restoreFrom = surface - 64;
                 int wx = chunkX + lx;
@@ -40,6 +50,9 @@ public final class CaveSurfaceBiomeRestorer {
                 int yStart = Math.max(minY, restoreFrom);
                 int yEnd = Math.min(maxY, surface + 16);
                 for (int y = yStart; y <= yEnd; ++y) {
+                    if (carver != null && carver.isEntranceColumn(lx, lz) && y >= surface - CaveUndergroundGuard.ENTRANCE_BIOME_DEPTH) {
+                        continue;
+                    }
                     Holder<Biome> existing = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
                     if (existing != null && (CaveBiomeIds.isUndergroundBiome(existing) || CaveBiomeIds.isPatchPaintedBiome(existing))) continue;
                     CaveSurfaceBiomeRestorer.setBiomeQuart(chunk, lx, y, lz, surfaceBiome);

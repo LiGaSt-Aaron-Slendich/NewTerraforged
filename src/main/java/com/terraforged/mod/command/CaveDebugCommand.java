@@ -59,8 +59,14 @@ public final class CaveDebugCommand {
             return 0;
         }
         BlockPos pos = player.blockPosition();
-        for (String line : CaveDebugCommand.collectLines(generator, level, pos, mode)) {
-            player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+        try {
+            for (String line : CaveDebugCommand.collectLines(generator, level, pos, mode)) {
+                player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+            }
+        }
+        catch (Throwable t) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Cave debug failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
         }
         return 1;
     }
@@ -88,9 +94,15 @@ public final class CaveDebugCommand {
             return 0;
         }
         CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
-        CaveCartography.Result result = CaveCartography.render(level, generator, pos.getX(), pos.getZ(), type);
-        for (String line : result.chatLines()) {
-            player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+        try {
+            CaveCartography.Result result = CaveCartography.render(level, generator, pos.getX(), pos.getZ(), type);
+            for (String line : result.chatLines()) {
+                player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+            }
+        }
+        catch (Throwable t) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Cartography failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
         }
         return 1;
     }
@@ -152,7 +164,12 @@ public final class CaveDebugCommand {
             lines.add("");
             CaveDebugCommand.appendRegistrySummary(source, lines);
             lines.add("");
-            CaveFeatureDiagnostics.append(generator, (LevelReader)level, pos, lines);
+            try {
+                CaveFeatureDiagnostics.append(generator, (LevelReader)level, pos, lines);
+            }
+            catch (Throwable t) {
+                lines.add("Feature diagnostics failed: " + t.getClass().getSimpleName() + ": " + t.getMessage());
+            }
         }
         return lines;
     }

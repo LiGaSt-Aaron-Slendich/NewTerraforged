@@ -32,6 +32,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextComponent;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import net.minecraft.Util;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
@@ -57,52 +61,52 @@ public class TFCommands {
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> getLocateCaveCommand() {
-        return (LiteralArgumentBuilder)TFCommands.root("locatecave").then(((RequiredArgumentBuilder)((RequiredArgumentBuilder)Commands.argument((String)"type", (ArgumentType)StringArgumentType.string()).suggests((ctx, builder) -> {
-            builder.suggest("giga");
-            builder.suggest("mega");
-            return builder.buildFuture();
-        }).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, -1))).then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)100000)).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"))))).then(((RequiredArgumentBuilder)Commands.argument((String)"subtype", (ArgumentType)StringArgumentType.string()).suggests((ctx, builder) -> {
-            builder.suggest("coastal");
-            builder.suggest("tunnel");
-            builder.suggest("ogpm");
-            return builder.buildFuture();
-        }).executes(c -> {
-            CaveSubtype st = TFCommands.parseSubtype((CommandContext<CommandSourceStack>)c);
-            return st == null ? 0 : TFCommands.locateCave((CommandContext<CommandSourceStack>)c, st, -1);
-        })).then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)100000)).executes(c -> {
-            CaveSubtype st = TFCommands.parseSubtype((CommandContext<CommandSourceStack>)c);
-            return st == null ? 0 : TFCommands.locateCave((CommandContext<CommandSourceStack>)c, st, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"));
-        }))));
+        return (LiteralArgumentBuilder)TFCommands.root("locatecave").then(TFCommands.locateCaveTypeBranch());
     }
 
-    private static CaveSubtype parseSubtype(CommandContext<CommandSourceStack> context) {
-        String raw = StringArgumentType.getString(context, (String)"subtype");
-        try {
-            return CaveSubtype.forName(raw);
-        }
-        catch (IllegalArgumentException e) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Unknown cave subtype: " + raw + " (use coastal, tunnel, ogpm)").withStyle(ChatFormatting.RED));
-            return null;
-        }
+    private static RequiredArgumentBuilder<CommandSourceStack, String> locateCaveTypeBranch() {
+        RequiredArgumentBuilder<CommandSourceStack, String> type = (RequiredArgumentBuilder)Commands.argument((String)"type", (ArgumentType)StringArgumentType.string()).suggests((ctx, builder) -> {
+            builder.suggest("giga");
+            builder.suggest("mega");
+            builder.suggest("grotto");
+            return builder.buildFuture();
+        }).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, CaveLocator.LocateMode.SYSTEM, -1));
+        type.then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)CaveLocator.MAX_SEARCH_RADIUS)).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, CaveLocator.LocateMode.SYSTEM, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"))));
+        type.then(TFCommands.locateCaveEntranceBranch());
+        type.then(TFCommands.locateCaveSubtypeBranch("coastal", CaveSubtype.COASTAL));
+        type.then(TFCommands.locateCaveSubtypeBranch("tunnel", CaveSubtype.TUNNEL));
+        type.then(TFCommands.locateCaveSubtypeBranch("ogpm", CaveSubtype.TUNNEL));
+        return type;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> locateCaveEntranceBranch() {
+        LiteralArgumentBuilder<CommandSourceStack> branch = (LiteralArgumentBuilder)Commands.literal((String)"entrance").executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, CaveLocator.LocateMode.ENTRANCE, -1));
+        branch.then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)CaveLocator.MAX_SEARCH_RADIUS)).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, CaveLocator.LocateMode.ENTRANCE, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"))));
+        branch.then(TFCommands.locateCaveEntranceSubtypeBranch("coastal", CaveSubtype.COASTAL));
+        branch.then(TFCommands.locateCaveEntranceSubtypeBranch("tunnel", CaveSubtype.TUNNEL));
+        branch.then(TFCommands.locateCaveEntranceSubtypeBranch("ogpm", CaveSubtype.TUNNEL));
+        return branch;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> locateCaveEntranceSubtypeBranch(String name, CaveSubtype subtype) {
+        LiteralArgumentBuilder<CommandSourceStack> branch = (LiteralArgumentBuilder)Commands.literal((String)name).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, subtype, CaveLocator.LocateMode.ENTRANCE, -1));
+        branch.then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)CaveLocator.MAX_SEARCH_RADIUS)).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, subtype, CaveLocator.LocateMode.ENTRANCE, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"))));
+        return branch;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> locateCaveSubtypeBranch(String name, CaveSubtype subtype) {
+        LiteralArgumentBuilder<CommandSourceStack> branch = (LiteralArgumentBuilder)Commands.literal((String)name).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, subtype, CaveLocator.LocateMode.SYSTEM, -1));
+        branch.then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)CaveLocator.MAX_SEARCH_RADIUS)).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, subtype, CaveLocator.LocateMode.SYSTEM, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"))));
+        return branch;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> getTFCommand() {
-        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)TFCommands.root("tf").then(Commands.literal((String)"locate").then(Commands.literal((String)"cave").then(((RequiredArgumentBuilder)((RequiredArgumentBuilder)Commands.argument((String)"type", (ArgumentType)StringArgumentType.string()).suggests((ctx, builder) -> {
-            builder.suggest("giga");
-            builder.suggest("mega");
-            return builder.buildFuture();
-        }).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, -1))).then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)100000)).executes(c -> TFCommands.locateCave((CommandContext<CommandSourceStack>)c, CaveSubtype.ANY, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"))))).then(((RequiredArgumentBuilder)Commands.argument((String)"subtype", (ArgumentType)StringArgumentType.string()).suggests((ctx, builder) -> {
-            builder.suggest("coastal");
-            builder.suggest("tunnel");
-            builder.suggest("ogpm");
-            return builder.buildFuture();
-        }).executes(c -> {
-            CaveSubtype st = TFCommands.parseSubtype((CommandContext<CommandSourceStack>)c);
-            return st == null ? 0 : TFCommands.locateCave((CommandContext<CommandSourceStack>)c, st, -1);
-        })).then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)256, (int)100000)).executes(c -> {
-            CaveSubtype st = TFCommands.parseSubtype((CommandContext<CommandSourceStack>)c);
-            return st == null ? 0 : TFCommands.locateCave((CommandContext<CommandSourceStack>)c, st, IntegerArgumentType.getInteger((CommandContext)c, (String)"radius"));
-        }))))))).then(Commands.literal((String)"export").then(Commands.literal((String)"structures").executes(TFCommands::export)))).then(Commands.literal((String)"regen").then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)1)).executes(TFCommands::regen)))).then(Commands.literal((String)"preview").executes(TFCommands::openPreview));
+        LiteralArgumentBuilder<CommandSourceStack> root = TFCommands.root("tf");
+        root.then(Commands.literal("locate").then(Commands.literal("cave").then(TFCommands.locateCaveTypeBranch())));
+        root.then(Commands.literal("export").then(Commands.literal("structures").executes(TFCommands::export)));
+        root.then(Commands.literal("regen").then(Commands.argument("radius", IntegerArgumentType.integer(1)).executes(TFCommands::regen)));
+        root.then(Commands.literal("preview").executes(TFCommands::openPreview));
+        return root;
     }
 
     private static int openPreview(CommandContext<CommandSourceStack> context) {
@@ -175,43 +179,89 @@ public class TFCommands {
         return TFCommands.text("Found terrain: ").withStyle(ChatFormatting.GREEN).append((Component)TFCommands.text(terrain.getName()).withStyle(ChatFormatting.YELLOW)).append((Component)TFCommands.text(" Distance: ").withStyle(ChatFormatting.GREEN)).append((Component)TFCommands.text(distanceText).withStyle(ChatFormatting.YELLOW)).append((Component)TFCommands.text(". ").withStyle(ChatFormatting.GREEN)).append((Component)TFCommands.text("Teleport").withStyle(new ChatFormatting[]{ChatFormatting.YELLOW, ChatFormatting.UNDERLINE}).withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, commandText)).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TFCommands.text("Location: ").withStyle(ChatFormatting.GREEN).append((Component)TFCommands.text(positionText).withStyle(ChatFormatting.YELLOW))))));
     }
 
-    private static int locateCave(CommandContext<CommandSourceStack> context, CaveSubtype subtype, int radius) throws CommandSyntaxException {
-        MutableComponent message;
-        ServerPlayer player;
-        BlockPos at;
-        CaveLocator.Result result;
-        CaveType type;
+    private static int locateCave(CommandContext<CommandSourceStack> context, CaveSubtype subtype, CaveLocator.LocateMode mode, int radius) throws CommandSyntaxException {
         Generator generator = GeneratorPreset.getGenerator(((CommandSourceStack)context.getSource()).getLevel());
         if (generator == null) {
             ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
             return 0;
         }
-        String typeName = StringArgumentType.getString(context, (String)"type").toUpperCase();
-        try {
-            type = CaveType.forName(typeName);
+        String typeName = StringArgumentType.getString(context, (String)"type").toLowerCase();
+        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        BlockPos at = player.blockPosition();
+        UUID playerId = player.getUUID();
+        MinecraftServer server = player.getServer();
+        final boolean grotto = "grotto".equals(typeName);
+        CaveType type = null;
+        if (!grotto) {
+            try {
+                type = CaveType.forName(typeName.toUpperCase());
+            }
+            catch (IllegalArgumentException e) {
+                ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Unknown cave type: " + typeName + " (use giga, mega, or grotto)").withStyle(ChatFormatting.RED));
+                return 0;
+            }
+            if (type != CaveType.GIGA && type != CaveType.MEGA) {
+                ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Only giga, mega, and grotto are searchable").withStyle(ChatFormatting.RED));
+                return 0;
+            }
         }
-        catch (IllegalArgumentException e) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Unknown cave type: " + typeName + " (use giga or mega)").withStyle(ChatFormatting.RED));
-            return 0;
+        int searchRadius = radius;
+        if (searchRadius < 0) {
+            searchRadius = grotto ? CaveLocator.DEFAULT_RADIUS_GROTTO : CaveLocator.defaultRadius(type);
         }
-        if (type != CaveType.GIGA && type != CaveType.MEGA) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Only giga and mega are searchable").withStyle(ChatFormatting.RED));
-            return 0;
-        }
-        if (radius < 0) {
-            radius = CaveLocator.defaultRadius(type);
-        }
-        if ((result = CaveLocator.find(generator, type, subtype, (at = (player = ((CommandSourceStack)context.getSource()).getPlayerOrException()).blockPosition()).getX(), at.getZ(), radius)) == null) {
-            String subtypeText = subtype != CaveSubtype.ANY ? " " + subtype.getName() : "";
-            message = TFCommands.text("No" + subtypeText + " " + type.getName() + " cave within " + radius + " blocks. Try larger radius.").withStyle(ChatFormatting.RED);
-        } else {
-            String cmd = String.format("/tp %s %s %s", result.x(), result.y(), result.z());
-            String dist = String.format("%.0f", Math.sqrt(at.distToCenterSqr((double)result.x(), (double)result.y(), (double)result.z())));
-            String subtypeLabel = result.subtype() != CaveSubtype.ANY ? ", subtype " + result.subtype().getName() : "";
-            message = TFCommands.text("Found " + type.getName() + " cave" + subtypeLabel + " (~" + dist + "m, strength ").withStyle(ChatFormatting.GREEN).append((Component)TFCommands.text(String.format("%.2f", Float.valueOf(result.strength()))).withStyle(ChatFormatting.YELLOW)).append((Component)TFCommands.text("). ").withStyle(ChatFormatting.GREEN)).append((Component)TFCommands.text("Teleport").withStyle(new ChatFormatting[]{ChatFormatting.AQUA, ChatFormatting.UNDERLINE}).withStyle(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd)).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TFCommands.text("Go to " + result.x() + " " + result.y() + " " + result.z())))));
-        }
-        player.sendMessage((Component)message, player.getUUID());
+        final int finalRadius = searchRadius;
+        final CaveType finalType = type;
+        String modeText = mode == CaveLocator.LocateMode.ENTRANCE ? " entrance" : "";
+        String subtypeText = subtype != CaveSubtype.ANY ? " " + subtype.getName() : "";
+        String targetLabel = grotto ? "grotto" : finalType.getName() + modeText + subtypeText;
+        player.sendMessage((Component)TFCommands.text("Searching nearest " + targetLabel + " within " + finalRadius + " blocks (background)...").withStyle(ChatFormatting.GRAY), playerId);
+        CompletableFuture.supplyAsync(() -> {
+            if (grotto) {
+                return CaveLocator.findGrotto(generator, at.getX(), at.getZ(), finalRadius);
+            }
+            return CaveLocator.find(generator, finalType, subtype, mode, at.getX(), at.getZ(), finalRadius);
+        }, Util.backgroundExecutor()).thenAccept(result -> server.execute(() -> {
+            ServerPlayer online = server.getPlayerList().getPlayer(playerId);
+            if (online == null) {
+                return;
+            }
+            MutableComponent message;
+            if (result == null) {
+                String failMode = mode == CaveLocator.LocateMode.ENTRANCE ? " entrance" : "";
+                String failSubtype = subtype != CaveSubtype.ANY ? " " + subtype.getName() : "";
+                if (grotto) {
+                    message = TFCommands.text("No river grotto entrance within " + finalRadius + " blocks. Try: /locatecave grotto " + Math.min(finalRadius * 2, CaveLocator.MAX_SEARCH_RADIUS)).withStyle(ChatFormatting.RED);
+                } else {
+                    message = TFCommands.text("No" + failSubtype + " " + finalType.getName() + failMode + " within " + finalRadius + " blocks. Try: /locatecave " + typeName + (mode == CaveLocator.LocateMode.ENTRANCE ? " entrance " : " ") + Math.min(finalRadius * 2, CaveLocator.MAX_SEARCH_RADIUS)).withStyle(ChatFormatting.RED);
+                }
+            } else {
+                message = TFCommands.createCaveLocateMessage(at, result, finalRadius);
+            }
+            online.sendMessage((Component)message, playerId);
+        }));
         return 1;
+    }
+
+    private static MutableComponent createCaveLocateMessage(BlockPos origin, CaveLocator.Result result, int searchRadius) {
+        String cmd = String.format("/tp %s %s %s", result.x(), result.y(), result.z());
+        String coords = String.format("X: %d  Y: %d  Z: %d", result.x(), result.y(), result.z());
+        double distance = Math.sqrt(origin.distToCenterSqr((double)result.x(), (double)result.y(), (double)result.z()));
+        String dist = String.format("%.0f", distance);
+        String typeLabel = result.type() == CaveType.GLOBAL ? "grotto" : result.type().getName();
+        String modeLabel = result.mode() == CaveLocator.LocateMode.ENTRANCE ? ", entrance" : ", system center";
+        String kindLabel = result.entranceKind() != CaveLocator.EntranceKind.SYSTEM ? ", " + result.entranceKind().label() : "";
+        String subtypeLabel = result.subtype() != CaveSubtype.ANY ? ", subtype " + result.subtype().getName() : "";
+        String strengthLabel = result.mode() == CaveLocator.LocateMode.SYSTEM
+                ? ", strength " + String.format("%.2f", result.strength())
+                : "";
+        return TFCommands.text("Found " + typeLabel + modeLabel + kindLabel + subtypeLabel + strengthLabel + ". ").withStyle(ChatFormatting.GREEN)
+                .append((Component)TFCommands.text(coords).withStyle(ChatFormatting.YELLOW))
+                .append((Component)TFCommands.text(" (").withStyle(ChatFormatting.GREEN))
+                .append((Component)TFCommands.text(dist + "m away").withStyle(ChatFormatting.AQUA))
+                .append((Component)TFCommands.text(", searched " + searchRadius + "m). ").withStyle(ChatFormatting.GREEN))
+                .append((Component)TFCommands.text("Teleport").withStyle(new ChatFormatting[]{ChatFormatting.AQUA, ChatFormatting.UNDERLINE}).withStyle(s -> s
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TFCommands.text(coords + " — click to teleport")))));
     }
 
     private static MutableComponent text(String message) {

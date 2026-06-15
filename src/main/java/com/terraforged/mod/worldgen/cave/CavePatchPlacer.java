@@ -35,8 +35,9 @@ public final class CavePatchPlacer {
         int minY = config.getMinY();
         int maxY = Math.min(config.getMaxY(), chunk.getHighestSectionPosition() + 15);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int lx = 0; lx < 16; ++lx) {
-            for (int lz = 0; lz < 16; ++lz) {
+        for (int lx = 0; lx < 16; lx += 2) {
+            for (int lz = 0; lz < 16; lz += 2) {
+                if (!carver.columnCache().matches(config.getType(), lx, lz)) continue;
                 int wx = chunkX + lx;
                 int wz = chunkZ + lz;
                 int floorY = CavePatchPlacer.findFloorAir(chunk, lx, lz, minY, maxY);
@@ -152,6 +153,7 @@ public final class CavePatchPlacer {
             pos.set(lx, y, lz);
             if (!chunk.getBlockState(pos).isAir()) continue;
             CavePatchPlacer.setBiomeQuart(chunk, lx, y, lz, biome);
+            carver.markBiomeRestoreColumn(lx, lz);
             carver.setPatchBiome(lx, y, lz, biome, chunkMinX, chunkMinZ);
         }
     }

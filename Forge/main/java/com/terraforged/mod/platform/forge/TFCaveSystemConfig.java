@@ -3,6 +3,8 @@ package com.terraforged.mod.platform.forge;
 import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.terraforged.mod.platform.forge.TFConfigLoader;
+import com.terraforged.mod.worldgen.cave.CaveDensityConfigLoader;
+import com.terraforged.mod.worldgen.cave.CaveDensitySettings;
 import com.terraforged.mod.worldgen.cave.CaveSystemConfig;
 
 public final class TFCaveSystemConfig {
@@ -19,6 +21,7 @@ public final class TFCaveSystemConfig {
     public int transitionMaxWidth = 24;
     public double islandMaxRadius = 1.5;
     public boolean enableSynapseCaves = true;
+    public CaveDensitySettings caveDensity = CaveDensitySettings.DEFAULT;
 
     public static void load() {
         CommentedFileConfig cfg = TFConfigLoader.open("NewTerraForged/caves.toml");
@@ -43,6 +46,7 @@ public final class TFCaveSystemConfig {
         this.transitionMaxWidth = TFConfigLoader.getInt(normal, "transition_max_width_blocks", this.transitionMaxWidth);
         this.islandMaxRadius = TFConfigLoader.getDouble(normal, "island_max_radius_chunks", this.islandMaxRadius);
         this.enableSynapseCaves = TFConfigLoader.getBool(normal, "enable_synapse_caves", this.enableSynapseCaves);
+        this.caveDensity = CaveDensityConfigLoader.read(TFConfigLoader.section((Config)root, "caves"));
     }
 
     public CaveSystemConfig toSystemConfig() {

@@ -35,23 +35,74 @@ public final class CaveOceanFilter {
         return !CaveOceanFilter.isCoastalCliffColumn(generator, worldX, worldZ);
     }
 
+    public static void clearProximityCache() {
+        CaveOceanProximityCache.clear();
+        CaveRiverProximityCache.clear();
+    }
+
     public static boolean isCoastalCliffColumn(Generator generator, int worldX, int worldZ) {
         int sea = generator.getSeaLevel();
         int surface = generator.getOceanFloorHeight(worldX, worldZ);
         if (surface <= sea) {
             return false;
         }
+        if (generator.getTerrainSample(worldX, worldZ).continentNoise >= 0.78f) {
+            return false;
+        }
         if (CaveOceanFilter.sampleHeightGradient(generator, worldX, worldZ) < 0.5f) {
             return false;
         }
-        return CaveOceanFilter.hasOceanNearby(generator, worldX, worldZ);
+        return CaveOceanFilter.isNearSea(generator, worldX, worldZ);
     }
 
     public static boolean isNearSea(Generator generator, int worldX, int worldZ) {
-        if (CaveOceanFilter.hasOceanNearby(generator, worldX, worldZ)) {
-            return true;
+        return CaveOceanProximityCache.isNearSea(generator, worldX, worldZ);
+    }
+
+    /** Column surface is at or below sea level (river/lake/ocean water). */
+    public static boolean isSurfaceWaterColumn(Generator generator, int worldX, int worldZ) {
+        return generator.getOceanFloorHeight(worldX, worldZ) <= generator.getSeaLevel();
+    }
+
+    /**
+     * Hillside near water but not submerged — suitable for a ramp entrance with a stream, not a ceiling breach.
+     */
+    public static boolean qualifiesRiverEntranceVicinity(Generator generator, int worldX, int worldZ) {
+        if (CaveOceanFilter.isSurfaceWaterColumn(generator, worldX, worldZ)) {
+            return false;
         }
-        return generator.getTerrainSample((int)worldX, (int)worldZ).continentNoise < 0.6f;
+        if (!CaveOceanFilter.isNearSea(generator, worldX, worldZ)) {
+            return false;
+        }
+        return CaveOceanFilter.sampleHeightGradient(generator, worldX, worldZ) >= 0.35f;
+    }
+
+    /** Offset a mouth position away from submerged columns while staying near the watercourse. */
+    public static int[] offsetMouthFromWater(Generator generator, int mouthX, int mouthZ, float ux, float uz, int minOffset, int maxOffset) {
+        if (!CaveOceanFilter.isSurfaceWaterColumn(generator, mouthX, mouthZ)) {
+            return new int[]{mouthX, mouthZ};
+        }
+        float perpX = -uz;
+        float perpZ = ux;
+        for (int dist = minOffset; dist <= maxOffset; dist += 2) {
+            for (int side = -1; side <= 1; side += 2) {
+                int cx = mouthX + Math.round(perpX * (float)dist * (float)side);
+                int cz = mouthZ + Math.round(perpZ * (float)dist * (float)side);
+                if (CaveOceanFilter.isSurfaceWaterColumn(generator, cx, cz)) {
+                    continue;
+                }
+                if (generator.getOceanFloorHeight(cx, cz) <= generator.getSeaLevel() + 2) {
+                    continue;
+                }
+                return new int[]{cx, cz};
+            }
+        }
+        int upX = mouthX + Math.round(ux * (float)maxOffset);
+        int upZ = mouthZ + Math.round(uz * (float)maxOffset);
+        if (!CaveOceanFilter.isSurfaceWaterColumn(generator, upX, upZ)) {
+            return new int[]{upX, upZ};
+        }
+        return new int[]{mouthX, mouthZ};
     }
 
     public static boolean isOcean(Generator generator, int worldX, int worldZ) {
@@ -70,7 +121,7 @@ public final class CaveOceanFilter {
         return generator.getTerrainSample((int)worldX, (int)worldZ).continentNoise < 0.25f;
     }
 
-    private static float sampleHeightGradient(Generator generator, int x, int z) {
+    static float sampleHeightGradient(Generator generator, int x, int z) {
         NoiseSample north = generator.getTerrainSample(x, z - 4);
         NoiseSample south = generator.getTerrainSample(x, z + 4);
         NoiseSample east = generator.getTerrainSample(x + 4, z);
@@ -78,21 +129,5 @@ public final class CaveOceanFilter {
         float dx = east.heightNoise - west.heightNoise;
         float dz = south.heightNoise - north.heightNoise;
         return NoiseUtil.clamp(NoiseUtil.sqrt(dx * dx + dz * dz), 0.0f, 1.0f);
-    }
-
-    private static boolean hasOceanNearby(Generator generator, int x, int z) {
-        int sea = generator.getSeaLevel();
-        for (int dist = 16; dist <= 64; dist += 16) {
-            if (!CaveOceanFilter.isOpenOceanColumn(generator, x + dist, z, sea) && !CaveOceanFilter.isOpenOceanColumn(generator, x - dist, z, sea) && !CaveOceanFilter.isOpenOceanColumn(generator, x, z + dist, sea) && !CaveOceanFilter.isOpenOceanColumn(generator, x, z - dist, sea)) continue;
-            return true;
-        }
-        return false;
-    }
-
-    private static boolean isOpenOceanColumn(Generator generator, int x, int z, int sea) {
-        if (generator.getOceanFloorHeight(x, z) <= sea) {
-            return true;
-        }
-        return generator.getTerrainSample((int)x, (int)z).continentNoise < 0.5f;
     }
 }

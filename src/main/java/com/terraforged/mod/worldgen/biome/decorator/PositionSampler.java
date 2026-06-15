@@ -33,12 +33,13 @@ public class PositionSampler {
     public static final float SQUASH_FACTOR = 2.0f / NoiseUtil.sqrt(3.0f);
     private static final float MOD_BIOME_FREQ = 0.16f;
     private static final float MOD_BIOME_JITTER = 0.55f;
-    private static final int COVER_GRID_STEP = 4;
-    private static final float SURFACE_COVER_DENSITY = 0.45f;
-    private static final float MOD_RIVER_CUTOFF = 0.08f;
+    private static final int COVER_GRID_STEP = 2;
+    private static final float SURFACE_COVER_DENSITY = 0.68f;
+    private static final float MOD_RIVER_CUTOFF = 0.04f;
+    private static final float MIN_GRASS_VIABILITY = 0.03f;
 
     public static void placeVegetation(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, CompletableFuture<TerrainData> terrain, FeatureDecorator decorator) {
-        FeatureDensityBudget budget = new FeatureDensityBudget(0.45f);
+        FeatureDensityBudget budget = new FeatureDensityBudget(SURFACE_COVER_DENSITY);
         int offset = PositionSampler.placeTreesAndGrass(seed, chunk, level, terrain, generator, random, decorator, budget);
         PositionSampler.placeOther(seed, offset, origin, biome, level, generator, random, decorator, budget);
     }
@@ -76,6 +77,7 @@ public class PositionSampler {
                 if (modBiome) {
                     offset = PositionSampler.sample(seed, offset + i, x, z, 0.16f, 0.55f, context, PositionSampler::placeModAt);
                     offset = PositionSampler.placeModGrassAt(seed, offset + i, x, z, context);
+                    offset = PositionSampler.fillModSurfaceGaps(seed, offset + i, x, z, context);
                     continue;
                 }
                 offset = PositionSampler.placeAt(seed, offset + i, x, z, context);
@@ -83,6 +85,51 @@ public class PositionSampler {
             }
             offset = PositionSampler.sample(seed, offset + i, x, z, config.frequency(), config.jitter(), context, PositionSampler::placeAt);
             offset = PositionSampler.placeGrassAt(seed, offset + i, x, z, context);
+            if (modBiome) {
+                offset = PositionSampler.fillModSurfaceGaps(seed, offset + i, x, z, context);
+            }
+        }
+        return offset;
+    }
+
+    private static int fillModSurfaceGaps(long seed, int offset, int chunkMinX, int chunkMinZ, SamplerContext context) {
+        WorldGenLevel region = context.region;
+        Generator generator = context.generator;
+        WorldgenRandom random = context.random;
+        BlockPos.MutableBlockPos pos = context.pos;
+        ChunkAccess chunk = context.chunk;
+        FeatureDensityBudget budget = context.featureBudget;
+        PlacedFeature[] grass = context.features.grass();
+        if (grass.length == 0) {
+            return offset;
+        }
+        for (int dz = 0; dz < 16; dz += COVER_GRID_STEP) {
+            for (int dx = 0; dx < 16; dx += COVER_GRID_STEP) {
+                if (context.terrainData().getRiver().get(dx, dz) < MOD_RIVER_CUTOFF) {
+                    continue;
+                }
+                int x = chunkMinX + dx;
+                int z = chunkMinZ + dz;
+                int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+                if (y <= generator.getSeaLevel()) {
+                    continue;
+                }
+                pos.set(x, y, z);
+                if (region.getBiome((BlockPos)pos).value() != context.biome) {
+                    continue;
+                }
+                if (CavePlacementFilter.shouldSkipTree(generator, chunk, x, y, z)) {
+                    continue;
+                }
+                for (PlacedFeature feature : grass) {
+                    random.setFeatureSeed(seed, offset + dx * 3 + dz, VegetationFeatures.STAGE);
+                    if (!FeatureDensity.tryPlace(feature, budget, dx, dz, region, generator, (Random)random, (BlockPos)pos, true)) {
+                        continue;
+                    }
+                    ++offset;
+                    break;
+                }
+            }
         }
         return offset;
     }
@@ -235,7 +282,7 @@ public class PositionSampler {
         }
         int lx = x & 0xF;
         int lz = z & 0xF;
-        if (context.terrainData().getRiver().get(lx, lz) < 0.08f) {
+        if (context.terrainData().getRiver().get(lx, lz) < MOD_RIVER_CUTOFF) {
             return offset;
         }
         int y = context.chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, lx, lz);
@@ -269,12 +316,12 @@ public class PositionSampler {
         if (grass.length == 0) {
             return offset;
         }
-        for (int dz = 0; dz < 16; dz += 4) {
-            for (int dx = 0; dx < 16; dx += 4) {
-                if (context.terrainData().getRiver().get(dx, dz) < 0.08f) continue;
+        for (int dz = 0; dz < 16; dz += COVER_GRID_STEP) {
+            for (int dx = 0; dx < 16; dx += COVER_GRID_STEP) {
+                if (context.terrainData().getRiver().get(dx, dz) < MOD_RIVER_CUTOFF) continue;
                 int x = chunkMinX + dx;
                 int z = chunkMinZ + dz;
-                int y = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
                 if (y <= generator.getSeaLevel()) continue;
                 pos.set(x, y, z);
                 if (region.getBiome((BlockPos)pos).value() != context.biome) continue;
@@ -294,10 +341,10 @@ public class PositionSampler {
         WorldgenRandom random = context.random;
         BlockPos.MutableBlockPos pos = context.pos;
         ChunkAccess chunk = context.chunk;
-        for (int dz = 0; dz < 16; dz += 4) {
-            for (int dx = 0; dx < 16; dx += 4) {
+        for (int dz = 0; dz < 16; dz += COVER_GRID_STEP) {
+            for (int dx = 0; dx < 16; dx += COVER_GRID_STEP) {
                 float viability = context.viability.get(dx, dz);
-                if (viability < 0.08f) continue;
+                if (viability < MIN_GRASS_VIABILITY) continue;
                 int x = chunkMinX + dx;
                 int z = chunkMinZ + dz;
                 int y = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);

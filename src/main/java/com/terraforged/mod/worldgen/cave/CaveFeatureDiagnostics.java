@@ -6,7 +6,7 @@ import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureMassClassifier;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
-import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
+import com.terraforged.mod.worldgen.cave.CaveDecorationSettings;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.CaveFeatureFilters;
 import com.terraforged.mod.worldgen.cave.CaveFeaturePlacement;
@@ -66,6 +66,9 @@ public final class CaveFeatureDiagnostics {
         } else if (CaveBiomeIds.isBlockedCaveBiome(painted)) {
             canFeatures = false;
             blockReason = "biome is blocked for decoration";
+        } else if (CaveBiomeIds.isNetherThemedBiome(painted)) {
+            canFeatures = false;
+            blockReason = "nether-themed biome blocked in overworld caves";
         } else if (CaveBiomeIds.isDedicatedDecoratedCaveBiome(painted)) {
             canFeatures = true;
             blockReason = "uses dedicated decorator (not volume scatter)";
@@ -83,7 +86,14 @@ public final class CaveFeatureDiagnostics {
             blockReason = "no solid floor under anchor";
         } else {
             canFeatures = true;
-            blockReason = "volume/accent decorators eligible";
+            blockReason = switch (CaveDecorationSettings.activeModeLabel()) {
+                case "hybrid" -> "hybrid decorator (" + CaveBiomeDecoratorRouter.resolve(painted).name().toLowerCase() + " for this biome)";
+                case "official" -> "official TF decorator eligible (chunk corner origin per cave config)";
+                case "compromise" -> "compromise decorator eligible (cover + scatter anchors)";
+                case "vanilla" -> "vanilla pass eligible (chunk origins)";
+                case "legacy" -> "volume/accent decorators eligible";
+                default -> "no decoration mode enabled";
+            };
         }
         lines.add("");
         lines.add(String.format(Locale.ROOT, "Features: %s due to '%s'", canFeatures ? "true" : "false", blockReason));
@@ -111,20 +121,29 @@ public final class CaveFeatureDiagnostics {
         BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
         List stages = settings.features();
         int shown = 0;
-        for (int stageIndex = 0; stageIndex < stages.size() && shown < 4; ++stageIndex) {
+        int allowed = 0;
+        int rejected = 0;
+        for (int stageIndex = 0; stageIndex < stages.size(); ++stageIndex) {
             HolderSet stage;
             if (!CaveFeatureFilters.isModCaveDecorationStage(stageIndex) || (stage = (HolderSet)stages.get(stageIndex)) == null || stage.size() == 0) continue;
-            for (int i = 0; i < stage.size() && shown < 4; ++i) {
+            for (int i = 0; i < stage.size(); ++i) {
                 Holder placed = stage.get(i);
                 ResourceLocation id = FeatureMassClassifier.featurePath((Holder<PlacedFeature>)placed);
-                if (id == null) continue;
+                if (id == null || CaveFeatureFilters.isDeferredOrGlobalFeature((Holder<PlacedFeature>)placed)) continue;
                 String verdict = CaveFeatureDiagnostics.classifyFeature((Holder<PlacedFeature>)placed, biome);
+                if (verdict.startsWith("allowed")) {
+                    ++allowed;
+                } else {
+                    ++rejected;
+                }
+                if (shown >= 6) continue;
                 lines.add(String.format(Locale.ROOT, "Feature type: %s due to \"%s\"", id, verdict));
                 ++shown;
             }
         }
+        lines.add(String.format(Locale.ROOT, "Feature candidates: %d allowed, %d rejected (deferred/global skipped)", allowed, rejected));
         if (shown == 0) {
-            lines.add("Feature type: (none) due to \"no mod-cave decoration stages in biome\"");
+            lines.add("Feature type: (none) due to \"no biome-native decoration stages\"");
         }
     }
 
@@ -132,43 +151,52 @@ public final class CaveFeatureDiagnostics {
         if (CaveFeatureFilters.isForbiddenForCaveBiome(placed, biome)) {
             return "forbidden for this cave biome";
         }
+        if (CaveDecorationSettings.useCompromiseDecorator()) {
+            return "allowed — compromise pass (cover/scatter at floor anchors)";
+        }
+        if (CaveDecorationSettings.useVanillaPass()) {
+            return "allowed — vanilla pass (predicates decide placement)";
+        }
         if (!CaveFeatureFilters.isModCaveFeatureAllowed(placed, biome)) {
             return "filtered by cave feature rules";
         }
         if (!CaveFeatureFilters.belongsToModCaveBiome(placed, biome)) {
-            return "feature theme does not match biome";
+            return "feature theme does not match biome (legacy filter)";
         }
         if (CaveFeatureFilters.isAnchorOnlyFeature(placed)) {
-            return "anchor-only (needs volume anchor pass)";
+            return "anchor-only (needs legacy volume pass)";
         }
-        return "allowed \u0432\u0402\u201d may place when anchor/budget pass";
+        return "allowed — may place when anchor/budget pass";
     }
 
     private static void appendTunnelDiagnostics(Generator generator, int seed, int x, int z, String caveSystem, List<String> lines) {
         CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
-        boolean nearSea = CaveOceanFilter.isNearSea(generator, x, z);
-        boolean massif = CaveTunnelRiverDecorator.qualifiesMountainMassif(generator, seed, x, z);
-        boolean tagTunnel = !nearSea && massif;
+        boolean prospective = CaveSiteTags.qualifiesProspectiveTunnel(generator, seed, x, z);
+        boolean completed = CaveSiteTags.qualifiesTunnelMegaGiga(generator, seed, x, z);
         long systemKey = CaveSystemGrid.systemKey(x, z, type);
         CaveEntranceClaims claims = generator.getCaveEntranceClaims();
         boolean mouthClaimed = claims.isClaimed(systemKey);
         boolean exitClaimed = claims.hasExit(systemKey);
         CaveEntranceClaims.TunnelAxis axis = claims.tunnelAxis(systemKey);
+        if (axis == null) {
+            axis = CaveSiteTags.prospectiveTunnelAxis(seed, type, x, z);
+        }
         lines.add("");
         lines.add("[OGPM(T)]");
-        lines.add("Tag subtype tunnel: " + tagTunnel + " (relief massif=" + massif + ", nearSea=" + nearSea + ")");
+        lines.add("Tunnel subtype (both openings carved): " + completed);
+        lines.add("Prospective tunnel pair (validated mouth+exit): " + prospective);
         lines.add("System mouth claimed: " + mouthClaimed + ", exit claimed: " + exitClaimed);
         if (axis != null) {
             lines.add(String.format(Locale.ROOT, "Tunnel axis: mouth (%d,%d) -> exit (%d,%d)", axis.mouthX(), axis.mouthZ(), axis.exitX(), axis.exitZ()));
         } else {
-            lines.add("Tunnel axis: none (river/exit not registered for this system)");
+            lines.add("Tunnel axis: none");
         }
-        if (tagTunnel && axis == null) {
-            lines.add("Note: massif qualifies but axis not registered yet (chunk gen in progress or near sea at mouth anchor)");
-        } else if (tagTunnel && !mouthClaimed) {
-            lines.add("Note: axis registered; mouth carve runs at anchor column during chunk generation");
-        } else if (tagTunnel && mouthClaimed && !exitClaimed) {
+        if (prospective && !mouthClaimed) {
+            lines.add("Note: validated pair; mouth carve runs at anchor column during chunk generation");
+        } else if (mouthClaimed && !exitClaimed) {
             lines.add("Note: mouth carved; exit carve pending at opposite anchor");
+        } else if (completed) {
+            lines.add("Note: both tunnel openings carved — true through-cave");
         }
     }
 }

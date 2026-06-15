@@ -64,8 +64,15 @@ public class StructureTerrain {
             if (x < bounds.minX() || x > bounds.maxX() || z < bounds.minZ() || z > bounds.maxZ() || highest != null && bounds.minY() <= highest.getBoundingBox().minY()) continue;
             highest = piece;
         }
-        boolean raised = this.raiseTerrain(x, y, z, maxY, chunk);
-        boolean carved = this.carveTerrain(x, maxPosY, z, chunk, highest);
+        boolean raised = false;
+        boolean carved = false;
+        if (highest != null) {
+            BoundingBox bounds = highest.getBoundingBox();
+            if (x >= bounds.minX() && x <= bounds.maxX() && z >= bounds.minZ() && z <= bounds.maxZ()) {
+                raised = this.raiseTerrain(x, y, z, maxY, chunk);
+            }
+            carved = this.carveTerrain(x, maxPosY, z, chunk, highest);
+        }
         if (raised || carved) {
             terrainData.getHeight().set(x, z, chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z));
         }
@@ -87,16 +94,9 @@ public class StructureTerrain {
         if (piece == null) {
             return false;
         }
-        int surface = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
-        int ceiling = Math.max(y, surface);
         BoundingBox bounds = piece.getBoundingBox();
         int minY = StructureTerrain.getPieceY(piece);
         int maxY = bounds.maxY();
-        if (ceiling > maxY + 5) {
-            float alpha = StructureTerrain.getEllipseDistAlpha(x, z, bounds);
-            float depth = (float)(ceiling - maxY) * 0.5f;
-            maxY += NoiseUtil.round(depth * alpha);
-        }
         for (int py = minY; py <= maxY; ++py) {
             chunk.setBlockState((BlockPos)this.pos.set(x, py, z), this.air, false);
         }

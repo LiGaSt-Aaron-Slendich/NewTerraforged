@@ -38,7 +38,7 @@ implements INoiseGenerator {
 
     public ErodedNoiseGenerator(NoiseTileSize tileSize, NoiseGenerator generator) {
         FilterSettings.Erosion settings = new FilterSettings.Erosion();
-        settings.dropletsPerChunk = 350;
+        settings.dropletsPerChunk = 96;
         this.tileSize = tileSize;
         this.generator = generator;
         this.erosion = new ErosionFilter(tileSize.regionLength, settings);
@@ -95,6 +95,7 @@ implements INoiseGenerator {
             this.collectNeighbours(seed, chunkX, chunkZ, resource);
             this.generateCenterChunk(seed, chunkX, chunkZ, resource);
             this.awaitNeighbours(resource);
+            System.arraycopy(resource.heightmap, 0, resource.baselineHeightmap, 0, resource.heightmap.length);
             this.generateErosion(seed, chunkX, chunkZ, resource);
             this.generateRivers(seed, chunkX, chunkZ, resource);
             consumer.accept(resource.chunk);
@@ -166,10 +167,17 @@ implements INoiseGenerator {
             for (int dx = min; dx < max; ++dx) {
                 float nx = this.getNoiseCoord(startX + dx);
                 int tileIndex = this.tileSize.indexOfRel(dx, dz);
-                float height = resource.heightmap[tileIndex];
+                float eroded = resource.heightmap[tileIndex];
+                float baseline = resource.baselineHeightmap[tileIndex];
                 int chunkIndex = resource.chunk.index().of(dx, dz);
                 NoiseSample sample = resource.chunkSample.get(chunkIndex);
-                sample.heightNoise = height;
+                if (sample.continentNoise < 0.25f) {
+                    sample.heightNoise = baseline;
+                } else if (sample.continentNoise < 0.55f) {
+                    sample.heightNoise = Math.min(eroded, baseline);
+                } else {
+                    sample.heightNoise = eroded;
+                }
                 this.generator.sampleRiver(seed, nx, nz, sample);
                 resource.chunk.setNoise(chunkIndex, sample);
             }

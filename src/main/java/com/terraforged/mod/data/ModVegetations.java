@@ -35,11 +35,11 @@ public interface ModVegetations {
         }
 
         static VegetationConfig copse(Seed seed, RegistryAccess access) {
-            return new VegetationConfig(0.2f, 0.8f, 0.6f, Factory.tag("trees/copses", access), (Viability)SumViability.builder(0.0f).with(0.2f, new SaturationViability(0.7f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 35.0f, 150.0f)).with(-0.5f, new SlopeViability(65.0f, 0.55f)).with(1.0f, new NoiseViability(Source.simplex(seed.next(), 110, 2).clamp(0.85, 0.95f).map(0.0, 1.0))).build());
+            return new VegetationConfig(0.2f, 0.8f, 0.6f, Factory.tag("trees/copses", access), (Viability)SumViability.builder(0.0f).with(0.2f, new SaturationViability(0.7f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 35.0f, 150.0f)).with(-0.25f, new SlopeViability(65.0f, 0.55f)).with(1.0f, new NoiseViability(Source.simplex(seed.next(), 110, 2).clamp(0.85, 0.95f).map(0.0, 1.0))).build());
         }
 
         static VegetationConfig hardy(Seed seed, RegistryAccess access) {
-            return new VegetationConfig(0.22f, 0.8f, 0.7f, Factory.tag("trees/hardy", access), (Viability)SumViability.builder(0.5f).with(0.2f, new SaturationViability(0.85f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 40.0f, 190.0f)).with(-0.8f, new SlopeViability(55.0f, 0.65f)).with(-0.8f, new BiomeEdgeViability(0.65f)).with(-0.4f, new NoiseViability(Source.simplex(seed.next(), 120, 2).clamp(0.4, 0.8).map(0.0, 1.0))).build());
+            return new VegetationConfig(0.22f, 0.8f, 0.7f, Factory.tag("trees/hardy", access), (Viability)SumViability.builder(0.5f).with(0.2f, new SaturationViability(0.85f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 40.0f, 190.0f)).with(-0.35f, new SlopeViability(55.0f, 0.65f)).with(-0.8f, new BiomeEdgeViability(0.65f)).with(-0.4f, new NoiseViability(Source.simplex(seed.next(), 120, 2).clamp(0.4, 0.8).map(0.0, 1.0))).build());
         }
 
         static VegetationConfig hardySlopes(Seed seed, RegistryAccess access) {
@@ -47,11 +47,11 @@ public interface ModVegetations {
         }
 
         static VegetationConfig sparse(Seed seed, RegistryAccess access) {
-            return new VegetationConfig(0.15f, 0.75f, 0.35f, Factory.tag("trees/sparse", access), (Viability)SumViability.builder(0.0f).with(0.4f, new SaturationViability(0.95f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 50.0f, 175.0f)).with(-1.0f, new SlopeViability(65.0f, 0.6f)).with(1.0f, new NoiseViability(Source.simplex(seed.next(), 100, 3).clamp(0.8, 0.85).map(0.0, 1.0))).build());
+            return new VegetationConfig(0.15f, 0.75f, 0.35f, Factory.tag("trees/sparse", access), (Viability)SumViability.builder(0.0f).with(0.4f, new SaturationViability(0.95f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 50.0f, 175.0f)).with(-0.45f, new SlopeViability(65.0f, 0.6f)).with(1.0f, new NoiseViability(Source.simplex(seed.next(), 100, 3).clamp(0.8, 0.85).map(0.0, 1.0))).build());
         }
 
         static VegetationConfig rainforest(Seed seed, RegistryAccess access) {
-            return new VegetationConfig(0.35f, 0.75f, 0.7f, Factory.tag("trees/rainforest", access), (Viability)SumViability.builder(0.45f).with(0.25f, new SaturationViability(0.7f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 60.0f, 180.0f)).with(-0.5f, new SlopeViability(55.0f, 0.65f)).with(-0.8f, new BiomeEdgeViability(0.7f)).with(-0.4f, new NoiseViability(Source.simplex(seed.next(), 100, 2).clamp(0.7, 0.9).map(0.0, 1.0))).build());
+            return new VegetationConfig(0.35f, 0.75f, 0.7f, Factory.tag("trees/rainforest", access), (Viability)SumViability.builder(0.45f).with(0.25f, new SaturationViability(0.7f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 60.0f, 180.0f)).with(-0.25f, new SlopeViability(55.0f, 0.65f)).with(-0.8f, new BiomeEdgeViability(0.7f)).with(-0.4f, new NoiseViability(Source.simplex(seed.next(), 100, 2).clamp(0.7, 0.9).map(0.0, 1.0))).build());
         }
 
         static VegetationConfig sparseRainforest(Seed seed, RegistryAccess access) {
@@ -59,11 +59,11 @@ public interface ModVegetations {
         }
 
         static VegetationConfig temperate(Seed seed, RegistryAccess access) {
-            return new VegetationConfig(0.2f, 0.8f, 0.6f, Factory.tag("trees/temperate", access), (Viability)SumViability.builder(0.7f).with(0.25f, new SaturationViability(0.95f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 45.0f, 150.0f)).with(-0.6f, new SlopeViability(55.0f, 0.65f)).with(-0.8f, new BiomeEdgeViability(0.7f)).with(-0.5f, new NoiseViability(Source.simplex(seed.next(), 120, 2).clamp(0.4, 0.6).map(0.0, 1.0))).build());
+            return new VegetationConfig(0.2f, 0.8f, 0.6f, Factory.tag("trees/temperate", access), (Viability)SumViability.builder(0.7f).with(0.25f, new SaturationViability(0.95f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 45.0f, 150.0f)).with(-0.3f, new SlopeViability(55.0f, 0.65f)).with(-0.8f, new BiomeEdgeViability(0.7f)).with(-0.5f, new NoiseViability(Source.simplex(seed.next(), 120, 2).clamp(0.4, 0.6).map(0.0, 1.0))).build());
         }
 
         static VegetationConfig patchy(Seed seed, RegistryAccess access) {
-            return new VegetationConfig(0.2f, 0.75f, 0.5f, Factory.tag("trees/patchy", access), (Viability)SumViability.builder(0.65f).with(0.2f, new SaturationViability(0.9f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 40.0f, 165.0f)).with(-1.0f, new SlopeViability(60.0f, 0.65f)).with(-0.75f, new BiomeEdgeViability(0.8f)).with(-0.45f, new NoiseViability(Source.simplex(seed.next(), 150, 3).clamp(0.4, 0.7).map(0.0, 1.0))).build());
+            return new VegetationConfig(0.2f, 0.75f, 0.5f, Factory.tag("trees/patchy", access), (Viability)SumViability.builder(0.65f).with(0.2f, new SaturationViability(0.9f, 1.0f)).with(-1.0f, new HeightViability(-100.0f, 40.0f, 165.0f)).with(-0.45f, new SlopeViability(60.0f, 0.65f)).with(-0.75f, new BiomeEdgeViability(0.8f)).with(-0.45f, new NoiseViability(Source.simplex(seed.next(), 150, 3).clamp(0.4, 0.7).map(0.0, 1.0))).build());
         }
 
         static LazyTag<Biome> tag(String name, RegistryAccess access) {

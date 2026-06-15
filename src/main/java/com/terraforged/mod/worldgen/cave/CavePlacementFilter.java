@@ -18,6 +18,10 @@ public final class CavePlacementFilter {
     public static boolean shouldSkipTree(Generator generator, ChunkAccess chunk, int x, int y, int z) {
         int lx = x & 0xF;
         int lz = z & 0xF;
+        CarverChunk carver = generator.peekCaveCarver(chunk.getPos());
+        if (carver != null && carver.isColumnCacheReady() && carver.columnCache().skipTree(lx, lz)) {
+            return true;
+        }
         int surface = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, lx, lz);
         if (MegaCaveStructureFilter.isInMegaOrGigaCave(generator, x, z)) {
             if (CavePlacementFilter.hasOpenCaveAir(chunk, lx, y, lz)) {

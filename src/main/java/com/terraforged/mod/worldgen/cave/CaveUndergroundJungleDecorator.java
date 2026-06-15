@@ -56,28 +56,33 @@ public final class CaveUndergroundJungleDecorator {
                 int wx = chunkX + lx;
                 int wz = chunkZ + lz;
                 int floorY = CaveUndergroundJungleDecorator.findFloor(chunk, lx, lz, minY, maxY);
-                if (floorY < 0 || !CaveUndergroundJungleDecorator.isTarget(biome = carver.resolveBiome(chunk, lx, floorY, lz)) || !CaveUndergroundJungleDecorator.mayPlace(chunk, carver, lx, floorY, lz, generator, wx, wz, biome) || CaveBiomeIds.isSteamingJungleBiome(biome) && CaveBiomeIds.isSteamingThermalCell(region.getSeed(), wx, wz)) continue;
+                if (floorY < 0 || !CaveUndergroundJungleDecorator.isJungleStreamBiome(biome = carver.resolveBiome(chunk, lx, floorY, lz)) || !CaveUndergroundJungleDecorator.mayPlace(chunk, carver, lx, floorY, lz, generator, wx, wz, biome) || CaveBiomeIds.isSteamingJungleBiome(biome) && CaveBiomeIds.isSteamingThermalCell(region.getSeed(), wx, wz)) continue;
                 long seed = random.setDecorationSeed(region.getSeed(), wx, wz);
+                if (streamBudget > 0 && random.nextFloat() < 0.22f) {
+                    --streamBudget;
+                    CaveJungleStreamDecorator.carveStream(chunk, carver, region, generator, random, wx, floorY, wz, seed);
+                }
+                if (!CaveUndergroundJungleDecorator.isSteamingTarget(biome)) continue;
                 BlockPos floorPos = CaveFeaturePlacement.resolveWorldPos(new BlockPos(wx, floorY, wz), CaveFeatureRules.Anchor.FLOOR, false);
-                boolean underground = CaveBiomeIds.isUndergroundJungleBiome(biome);
-                if (random.nextFloat() < (underground ? 0.88f : 0.65f)) {
+                if (random.nextFloat() < 0.65f) {
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, FLOOR, region, generator, random, floorPos, seed, 0);
                 }
-                if (random.nextFloat() < (underground ? 0.62f : 0.42f)) {
+                if (random.nextFloat() < 0.42f) {
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, TREES, region, generator, random, floorPos, seed, 10);
                 }
                 if ((ceilY = CaveUndergroundJungleDecorator.findCeiling(chunk, lx, lz, floorY + 5, maxY)) > floorY + 6 && random.nextFloat() < 0.55f && CaveUndergroundJungleDecorator.mayPlace(chunk, carver, lx, vineY = ceilY - random.nextInt(2), lz, generator, wx, wz, biome)) {
                     BlockPos ceilPos = CaveFeaturePlacement.resolveWorldPos(new BlockPos(wx, vineY, wz), CaveFeatureRules.Anchor.CEILING, false);
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, VINES, region, generator, random, ceilPos, seed, 20);
                 }
-                if (streamBudget <= 0 || !(random.nextFloat() < 0.22f)) continue;
-                --streamBudget;
-                CaveJungleStreamDecorator.carveStream(chunk, carver, region, generator, random, wx, floorY, wz, seed);
             }
         }
     }
 
-    private static boolean isTarget(Holder<Biome> biome) {
+    private static boolean isSteamingTarget(Holder<Biome> biome) {
+        return CaveBiomeIds.isSteamingJungleBiome(biome);
+    }
+
+    private static boolean isJungleStreamBiome(Holder<Biome> biome) {
         return CaveBiomeIds.isUndergroundJungleBiome(biome) || CaveBiomeIds.isSteamingJungleBiome(biome);
     }
 
@@ -127,7 +132,8 @@ public final class CaveUndergroundJungleDecorator {
     }
 
     static boolean isJungleBiome(CarverChunk carver, ChunkAccess chunk, int lx, int y, int lz) {
-        return CaveUndergroundJungleDecorator.isTarget(carver.resolveBiome(chunk, lx, y, lz));
+        Holder<Biome> biome = carver.resolveBiome(chunk, lx, y, lz);
+        return CaveBiomeIds.isUndergroundJungleBiome(biome) || CaveBiomeIds.isSteamingJungleBiome(biome);
     }
 
     static boolean isThermalBiome(CarverChunk carver, ChunkAccess chunk, int lx, int y, int lz) {

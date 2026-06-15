@@ -4,6 +4,7 @@ import com.terraforged.engine.world.biome.type.BiomeType;
 import com.terraforged.mod.util.storage.WeightMap;
 import com.terraforged.mod.worldgen.biome.IBiomeSampler;
 import com.terraforged.mod.worldgen.biome.util.BiomeMapManager;
+import com.terraforged.mod.worldgen.biome.util.BiomeTerrainIntegration;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import net.minecraft.core.Holder;
@@ -24,7 +25,9 @@ implements IBiomeSampler {
 
     public Holder<Biome> sampleBiome(int seed, int x, int z) {
         ClimateSample sample = this.getSample(seed, x, z);
+        WeightMap<Holder<Biome>> pool = this.biomeMapManager.getBiomeMap().get(sample.climateType);
         Holder<Biome> biome = this.getInitialBiome(sample.biomeNoise, sample.climateType);
+        biome = BiomeTerrainIntegration.filter(biome, sample.terrainType.getName(), pool);
         return this.getBiomeOverride(biome, sample);
     }
 
