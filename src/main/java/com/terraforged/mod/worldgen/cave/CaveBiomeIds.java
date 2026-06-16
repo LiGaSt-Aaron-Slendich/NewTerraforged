@@ -123,10 +123,7 @@ public final class CaveBiomeIds {
     }
 
     private static String caveThemeSlug(String path) {
-        if (path.contains("mycotoxic")) {
-            return "mycotoxic";
-        }
-        if (path.contains("fungal") || path.contains("glowshroom") || path.contains("bioshroom")) {
+        if (path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom") || path.contains("bioshroom")) {
             return "fungal";
         }
         if (path.contains("crystal")) {
@@ -200,7 +197,7 @@ public final class CaveBiomeIds {
         return path.contains("underground_jungle") || path.contains("steaming_jungle") || path.contains("cave_underground_jungle") || path.contains("cave_steaming_jungle") || CaveBiomeIds.isSulfurRiverBiome(id);
     }
 
-    /** Anchor / scatter guard: same biome or shared cave theme (bioshroom↔fungal, etc.). */
+    /** Anchor / scatter guard: same biome or shared cave theme (fungal↔mycotoxic, etc.). */
     public static boolean matchesDecorAnchor(Holder<Biome> expected, Holder<Biome> resolved) {
         if (expected == null || resolved == null) {
             return false;
@@ -217,9 +214,6 @@ public final class CaveBiomeIds {
 
     /** Nether-themed biomes must not paint or decorate in overworld cave columns. */
     public static boolean isNetherThemedBiome(Holder<Biome> biome) {
-        if (biome.unwrapKey().map(key -> CaveBiomeIds.isRegionalShellBiome(key.location())).orElse(false)) {
-            return false;
-        }
         if (biome.unwrapKey().map(key -> CaveBiomeIds.isNetherThemedBiome(key.location())).orElse(false)) {
             return true;
         }
@@ -303,27 +297,11 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("fungal") || path.contains("glowshroom") || path.contains("bioshroom");
+        return path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom") || path.contains("bioshroom");
     }
 
     public static boolean isFungalCaveBiome(Holder<Biome> biome) {
         return biome.unwrapKey().map(key -> CaveBiomeIds.isFungalCaveBiome(key.location())).orElse(false);
-    }
-
-    public static boolean isMycotoxicCaveBiome(ResourceLocation id) {
-        return id != null && id.getPath().toLowerCase().contains("mycotoxic");
-    }
-
-    public static boolean isMycotoxicCaveBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.isMycotoxicCaveBiome(key.location())).orElse(false);
-    }
-
-    public static boolean isBrimstoneCaveBiome(ResourceLocation id) {
-        return id != null && id.getPath().toLowerCase().contains("brimstone");
-    }
-
-    public static boolean isBrimstoneCaveBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.isBrimstoneCaveBiome(key.location())).orElse(false);
     }
 
     public static boolean isPrismachasmBiome(Holder<Biome> biome) {
@@ -535,7 +513,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("bioshroom") || path.contains("fungal") || path.contains("mycotoxic") || path.contains("crystal") || path.contains("prismachasm") || path.contains("scorching") || path.contains("glowshroom") || path.contains("brimstone");
+        return path.contains("bioshroom") || path.contains("fungal") || path.contains("mycotoxic") || path.contains("crystal") || path.contains("prismachasm") || path.contains("scorching") || path.contains("glowshroom");
     }
 
     public static boolean isEmburBogBiome(Holder<Biome> biome) {

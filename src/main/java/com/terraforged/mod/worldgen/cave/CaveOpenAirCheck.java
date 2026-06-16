@@ -20,34 +20,9 @@ public final class CaveOpenAirCheck {
     }
 
     public static boolean isInUndergroundSurfaceForbiddenZone(ChunkAccess chunk, int lx, int y, int lz, boolean megaGiga) {
-        if (megaGiga && CaveOpenAirCheck.hasLocalCeilingShelter(chunk, lx, y, lz, 8)) {
-            return false;
-        }
         int depth = megaGiga ? MEGA_GIGA_SURFACE_FORBIDDEN_DEPTH : UNDERGROUND_SURFACE_FORBIDDEN_DEPTH;
         int localSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
         return y >= localSurface - depth;
-    }
-
-    /** True when a solid ceiling exists above y with at least minClearance air blocks beneath it. */
-    public static boolean hasLocalCeilingShelter(ChunkAccess chunk, int lx, int y, int lz, int minClearance) {
-        int maxY = Math.min(chunk.getMaxBuildHeight(), y + minClearance + 32);
-        int airBelow = 0;
-        for (int dy = y + 1; dy <= maxY; ++dy) {
-            BlockState state = chunk.getBlockState(new BlockPos(lx, dy, lz));
-            if (state.isAir() || !state.getFluidState().isEmpty()) {
-                ++airBelow;
-                continue;
-            }
-            if (CaveOpenAirCheck.isIgnoredCover(state)) {
-                continue;
-            }
-            return airBelow >= minClearance;
-        }
-        return false;
-    }
-
-    public static boolean mayDecorateInShelteredCavern(ChunkAccess chunk, int lx, int y, int lz, boolean megaGiga) {
-        return megaGiga && CaveOpenAirCheck.hasLocalCeilingShelter(chunk, lx, y, lz, 6);
     }
 
     public static boolean isSunFloor(ChunkAccess chunk, int lx, int y, int lz) {
@@ -64,9 +39,6 @@ public final class CaveOpenAirCheck {
             return true;
         }
         if (y < surface - 48) {
-            return false;
-        }
-        if (CaveOpenAirCheck.hasLocalCeilingShelter(chunk, lx, y, lz, 6)) {
             return false;
         }
         return CaveOpenAirCheck.isColumnOpenToSky(chunk, lx, y, lz, surface);

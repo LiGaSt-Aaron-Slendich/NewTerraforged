@@ -59,10 +59,7 @@ public final class CaveFeatureFilters {
             if (CaveFeatureFilters.isPrismachasmFeature(fPath) && bPath.contains("prismachasm")) {
                 return true;
             }
-            if (CaveBiomeIds.isFungalCaveBiome(biome) && (fPath.contains("fungal") || fPath.contains("bioshroom") || fPath.contains("mushroom") || fPath.contains("mycel")) && !fPath.contains("mycotoxic")) {
-                return true;
-            }
-            if (CaveBiomeIds.isMycotoxicCaveBiome(biome) && (fPath.contains("mycotoxic") || fPath.contains("toxic") && fPath.contains("mushroom"))) {
+            if (CaveBiomeIds.isFungalCaveBiome(biome) && (fPath.contains("fungal") || fPath.contains("bioshroom") || fPath.contains("mushroom") || fPath.contains("mycel"))) {
                 return true;
             }
             String slug = CaveFeatureFilters.biomeFeatureSlug(bPath);
@@ -190,15 +187,6 @@ public final class CaveFeatureFilters {
         if (fPath.contains("fungal") && !bPath.contains("fungal") && !bPath.contains("bioshroom")) {
             return true;
         }
-        if (fPath.contains("mycotoxic") && !bPath.contains("mycotoxic")) {
-            return true;
-        }
-        if (bPath.contains("fungal") && !bPath.contains("mycotoxic") && (fPath.contains("mycotoxic") || fPath.contains("toxic") && fPath.contains("mushroom"))) {
-            return true;
-        }
-        if (bPath.contains("mycotoxic") && (fPath.contains("fungal") || fPath.contains("bioshroom") && !fPath.contains("mycotoxic"))) {
-            return true;
-        }
         if (fPath.contains("bioshroom") && !bPath.contains("bioshroom") && !bPath.contains("fungal")) {
             return true;
         }
@@ -242,16 +230,10 @@ public final class CaveFeatureFilters {
             return false;
         }
         if (fPath.contains("glowshroom")) {
-            return !bPath.contains("glowshroom") && !CaveBiomeIds.isFungalCaveBiome(biome) && !CaveBiomeIds.isMycotoxicCaveBiome(biome);
+            return !bPath.contains("glowshroom") && !CaveBiomeIds.isFungalCaveBiome(biome);
         }
         if (fPath.contains("mushroom") || fPath.contains("shroom") || fPath.contains("fungus") || fPath.contains("mycel")) {
-            if (CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
-                return !fPath.contains("mycotoxic") && !fPath.contains("toxic");
-            }
-            if (CaveBiomeIds.isFungalCaveBiome(biome)) {
-                return fPath.contains("mycotoxic") || fPath.contains("toxic") && fPath.contains("mushroom");
-            }
-            return true;
+            return !CaveBiomeIds.isFungalCaveBiome(biome);
         }
         String slug = CaveFeatureFilters.biomeFeatureSlug(bPath);
         return slug.length() < 3 || !fPath.contains(slug);
@@ -424,9 +406,6 @@ public final class CaveFeatureFilters {
         if (CaveBiomeIds.isFungalCaveBiome(biome) && path.contains("cave/stone/")) {
             return false;
         }
-        if (CaveBiomeIds.isMycotoxicCaveBiome(biome) && path.contains("cave/stone/")) {
-            return false;
-        }
         if (path.contains("monster_room") || path.contains("fossil")) {
             return false;
         }
@@ -460,12 +439,6 @@ public final class CaveFeatureFilters {
                 return false;
             }
             return path.contains("grass") || path.contains("moss") && path.contains("patch") || path.contains("bioshroom") && (path.contains("grass") || path.contains("moss") || path.contains("block"));
-        }
-        if (CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
-            return path.contains("mycotoxic") || path.contains("toxic") || path.contains("mushroom") || path.contains("mycel") || path.contains("moss") && path.contains("patch");
-        }
-        if (CaveBiomeIds.isBrimstoneCaveBiome(biome)) {
-            return path.contains("brimstone") || path.contains("boric") || path.contains("anthracite") || path.contains("scorch") || path.contains("ash");
         }
         if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
             return path.contains("scorch") || path.contains("charred") || path.contains("ash") || path.contains("vent") || path.contains("vine") || path.contains("moss") || path.contains("fungus") || path.contains("mushroom");

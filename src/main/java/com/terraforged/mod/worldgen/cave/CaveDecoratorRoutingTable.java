@@ -60,12 +60,12 @@ public final class CaveDecoratorRoutingTable {
                 "empty_stone", "stone_cave", CaveDecoratorRoutingTable.MINECRAFT_CAVE_TOKEN
         )));
         rules.add(new PatternRule(CaveDecoratorKind.COMPROMISE, List.of(
-                "scorching", "mantle", "magma",
+                "scorching", "mantle", "magma", "brimstone",
                 "dripstone",
                 "fungal", "mycotoxic", "frostfire"
         )));
         rules.add(new PatternRule(CaveDecoratorKind.VANILLA, List.of("glowing_grotto", "undergarden")));
-        rules.add(new PatternRule(CaveDecoratorKind.LEGACY, List.of("bioshroom", "glowshroom", "brimstone")));
+        rules.add(new PatternRule(CaveDecoratorKind.LEGACY, List.of("bioshroom", "glowshroom")));
         return new CaveDecoratorRoutingTable(overrides, rules, CaveDecoratorKind.COMPROMISE);
     }
 

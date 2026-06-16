@@ -93,9 +93,6 @@ public final class CaveFloorCover {
         }
         if (carver != null && carver.isColumnCacheReady()) {
             boolean mega = carver.columnCache().isMegaGigaZone(lx, lz);
-            if (CaveOpenAirCheck.mayDecorateInShelteredCavern(chunk, lx, solidY, lz, mega)) {
-                return true;
-            }
             if (CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, solidY, lz, mega)) {
                 return false;
             }
@@ -121,25 +118,11 @@ public final class CaveFloorCover {
     private static BlockState coverBlock(Holder<Biome> biome) {
         String path = biome.unwrapKey().map(key -> key.location().getPath().toLowerCase()).orElse("");
         String ns = biome.unwrapKey().map(key -> key.location().getNamespace()).orElse("minecraft");
-        if (path.contains("mycotoxic")) {
-            Block toxic = CaveFloorCover.firstBlock(ns, "mycelium", "toxic_moss", "mycotoxic_moss");
-            if (toxic == null) {
-                toxic = CaveFloorCover.firstBlock("regions_unexplored", "mycelium", "mycotoxic_moss");
-            }
-            return toxic != null ? toxic.defaultBlockState() : Blocks.MYCELIUM.defaultBlockState();
-        }
-        if (path.contains("fungal") || path.contains("bioshroom") || path.contains("glowshroom")) {
+        if (path.contains("mycotoxic") || path.contains("fungal") || path.contains("bioshroom") || path.contains("glowshroom")) {
             Block fungal = CaveFloorCover.firstBlock(ns, "mycelium", "fungal_moss", "glow_mycelium", "bioshroom_block");
             return fungal != null ? fungal.defaultBlockState() : Blocks.MYCELIUM.defaultBlockState();
         }
-        if (path.contains("brimstone")) {
-            Block brim = CaveFloorCover.firstBlock("byg", "brimstone", "brimstone_block", "brimstone_stone");
-            if (brim == null) {
-                brim = CaveFloorCover.firstBlock(ns, "brimstone", "brimstone_block");
-            }
-            return brim != null ? brim.defaultBlockState() : Blocks.BASALT.defaultBlockState();
-        }
-        if (path.contains("scorching") || path.contains("volcanic") || path.contains("mantle")) {
+        if (path.contains("scorching") || path.contains("brimstone") || path.contains("volcanic") || path.contains("mantle")) {
             Block scorch = CaveFloorCover.firstBlock("regions_unexplored", "scorched_grass", "scorched_dirt", "charred_grass");
             if (scorch == null) {
                 scorch = CaveFloorCover.firstBlock("terralith", "scorched_grass", "charred_grass");

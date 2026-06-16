@@ -51,8 +51,6 @@ public final class CaveMegaAccentDecorator {
     private static final ResourceLocation[] FUNGAL_CEILING = new ResourceLocation[]{new ResourceLocation("terralith", "cave/fungal/hanging_roots_cluster"), new ResourceLocation("terralith", "cave/fungal/hanging_roots_single"), new ResourceLocation("terralith", "cave/fungal/vines"), new ResourceLocation("terralith", "cave/fungal/lichen_spread")};
     private static final ResourceLocation[] FUNGAL_FLOOR = new ResourceLocation[]{new ResourceLocation("terralith", "cave/fungal/huge_mushroom_scattered"), new ResourceLocation("terralith", "cave/fungal/patch_mushroom"), new ResourceLocation("terralith", "cave/fungal/coarse_dirt"), new ResourceLocation("terralith", "cave/fungal/lichen_spread")};
     private static final ResourceLocation[] FROSTFIRE_FLOOR = new ResourceLocation[]{new ResourceLocation("terralith", "cave/frostfire/columns"), new ResourceLocation("terralith", "cave/frostfire/frostfire_patch"), new ResourceLocation("terralith", "cave/frostfire/sculk_patch")};
-    private static final ResourceLocation[] BRIMSTONE_ACCENTS = new ResourceLocation[]{new ResourceLocation("byg", "boric_fire"), new ResourceLocation("byg", "patch_boric_fire"), new ResourceLocation("byg", "brimstone_pillar"), new ResourceLocation("byg", "brimstone_patches"), new ResourceLocation("byg", "brimstone_blobs"), new ResourceLocation("byg", "brimstone_fumarole")};
-    private static final ResourceLocation[] MYCOTOXIC_FLOOR = new ResourceLocation[]{new ResourceLocation("regions_unexplored", "mycotoxic_mushroom"), new ResourceLocation("regions_unexplored", "mycotoxic_mushroom_scattered"), new ResourceLocation("regions_unexplored", "mycotoxic_vegetation"), new ResourceLocation("regions_unexplored", "mycotoxic_grass")};
     private static final int MIN_LARGE_HALL_HEIGHT = 20;
 
     private CaveMegaAccentDecorator() {
@@ -93,11 +91,10 @@ public final class CaveMegaAccentDecorator {
                 boolean crystalBiome = CaveBiomeIds.isCrystalCaveBiome(biome);
                 boolean prismaBiome = CaveBiomeIds.isPrismachasmBiome(biome);
                 boolean scorchingBiome = CaveBiomeIds.isScorchingCaveBiome(biome);
-                boolean brimstoneBiome = CaveBiomeIds.isBrimstoneCaveBiome(biome);
-                if (!MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, wx, floorY, wz) && !crystalBiome && !prismaBiome && !scorchingBiome && !brimstoneBiome) continue;
+                if (!MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, wx, floorY, wz) && !crystalBiome && !prismaBiome && !scorchingBiome) continue;
                 boolean volcanic = CaveBiomeIds.isVolcanicCaveBiome(biome);
                 boolean mantle = CaveMegaAccentDecorator.isMantleBiome(biome);
-                boolean brimstone = brimstoneBiome;
+                boolean brimstone = CaveMegaAccentDecorator.isBrimstoneBiome(biome);
                 boolean cold = CaveMegaAccentDecorator.isColdCaveBiome(biome);
                 boolean crystal = CaveBiomeIds.isCrystalCaveBiome(biome);
                 boolean ice = CaveMegaAccentDecorator.isIceCaveBiome(biome);
@@ -120,23 +117,17 @@ public final class CaveMegaAccentDecorator {
                 if (volcanic || scorching) {
                     if (mantle && !brimstone && !scorching && random.nextFloat() < 0.14f) {
                         CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, MANTLE_ACCENTS, region, generator, random, wx, floorY, wz, seed, 30, 5);
-                    } else if ((scorching || volcanic) && !brimstone && CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) && random.nextFloat() < (scorching ? 0.26f : 0.42f)) {
+                    } else if ((scorching || brimstone || volcanic) && CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) && random.nextFloat() < (scorching ? 0.26f : 0.42f)) {
                         random.setFeatureSeed(seed, 30, 5);
                         CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, 1);
                     }
                 }
-                if (brimstone && random.nextFloat() < 0.52f) {
-                    random.setFeatureSeed(seed, 31, 0);
-                    CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, BRIMSTONE_ACCENTS, region, generator, random, wx, floorY, wz, seed, 31, 5);
-                } else if (CaveBiomeIds.isFrostfireCaveBiome(biome) && random.nextFloat() < 0.38f) {
+                if (CaveBiomeIds.isFrostfireCaveBiome(biome) && random.nextFloat() < 0.38f) {
                     random.setFeatureSeed(seed, 9, 0);
                     CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, FROSTFIRE_FLOOR, region, generator, random, wx, floorY, wz, seed, 9, 4);
                 } else if (CaveBiomeIds.isFungalCaveBiome(biome) && random.nextFloat() < 0.42f) {
                     random.setFeatureSeed(seed, 8, 0);
                     CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, FUNGAL_FLOOR, region, generator, random, wx, floorY, wz, seed, 8, 4);
-                } else if (CaveBiomeIds.isMycotoxicCaveBiome(biome) && random.nextFloat() < 0.42f) {
-                    random.setFeatureSeed(seed, 8, 1);
-                    CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, MYCOTOXIC_FLOOR, region, generator, random, wx, floorY, wz, seed, 8, 4);
                 } else if (cold && frostColumns != null && !ice && random.nextFloat() < 0.32f) {
                     random.setFeatureSeed(seed, 10, 0);
                     FeaturePlacement.place(frostColumns, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, floorY, wz), true);
@@ -196,21 +187,10 @@ public final class CaveMegaAccentDecorator {
                 wz = chunkZ + lz;
                 floorY = CaveMegaAccentDecorator.findFloor(chunk, lx, lz, minY, maxY);
                 if (floorY < 0 || !CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, floorY, lz, generator, wx, wz, biome = carver.resolveBiome(chunk, lx, floorY, lz))) continue;
-                if (!CaveBiomeIds.isScorchingCaveBiome(biome) && !CaveBiomeIds.isVolcanicCaveBiome(biome) || CaveBiomeIds.isBrimstoneCaveBiome(biome) || !CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) || CaveBiomeIds.isScorchingCaveBiome(biome) && random.nextFloat() >= 0.22f) continue;
+                if (!CaveBiomeIds.isScorchingCaveBiome(biome) && !CaveBiomeIds.isVolcanicCaveBiome(biome) || !CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) || CaveBiomeIds.isScorchingCaveBiome(biome) && random.nextFloat() >= 0.22f) continue;
                 long seed = random.setDecorationSeed(region.getSeed(), wx, wz);
                 random.setFeatureSeed(seed, 80, 5);
                 CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, 1);
-            }
-        }
-        for (lx = 2; lx < 16; lx += 3) {
-            for (lz = 2; lz < 16; lz += 3) {
-                wx = chunkX + lx;
-                wz = chunkZ + lz;
-                floorY = CaveMegaAccentDecorator.findFloor(chunk, lx, lz, minY, maxY);
-                if (floorY < 0 || !CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, floorY, lz, generator, wx, wz, biome = carver.resolveBiome(chunk, lx, floorY, lz)) || !CaveBiomeIds.isBrimstoneCaveBiome(biome) || !CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) || random.nextFloat() >= 0.38f) continue;
-                long seed = random.setDecorationSeed(region.getSeed(), wx, wz);
-                random.setFeatureSeed(seed, 81, 5);
-                CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, BRIMSTONE_ACCENTS, region, generator, random, wx, floorY, wz, seed, 81, 5);
             }
         }
     }
@@ -339,6 +319,10 @@ public final class CaveMegaAccentDecorator {
 
     private static boolean isMantleBiome(Holder<Biome> biome) {
         return biome.unwrapKey().map(key -> key.location().getPath().toLowerCase().contains("mantle")).orElse(false);
+    }
+
+    private static boolean isBrimstoneBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> key.location().getPath().toLowerCase().contains("brimstone")).orElse(false);
     }
 
     private static boolean isColdCaveBiome(Holder<Biome> biome) {

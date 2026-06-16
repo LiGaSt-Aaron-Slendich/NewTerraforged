@@ -30,7 +30,7 @@ patterns = [
 [[decorator_routing.rule]]
 decorator = "compromise"
 patterns = [
-    "scorching", "mantle", "magma",
+    "scorching", "mantle", "magma", "brimstone",
     "dripstone",
     "fungal", "mycotoxic", "bioshroom", "prismachasm",
     "frostfire",
@@ -42,4 +42,4 @@ patterns = ["glowing_grotto", "undergarden"]
 
 [[decorator_routing.rule]]
 decorator = "legacy"
-patterns = ["bioshroom", "glowshroom", "mushroom_cave", "mushroom_caves", "brimstone"]
+patterns = ["bioshroom", "glowshroom", "mushroom_cave", "mushroom_caves"]
