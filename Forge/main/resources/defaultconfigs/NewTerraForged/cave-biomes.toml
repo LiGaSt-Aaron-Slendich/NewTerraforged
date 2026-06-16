@@ -42,6 +42,7 @@ use_compromise_decorator = false
 use_vanilla_pass = false
 use_legacy_decorators = false
 auto_register_biomes = true
+condition_relax = 3.0
 vanilla_origin_grid = 2
 vanilla_origins_per_biome = 8
 vanilla_ceiling_pass = true

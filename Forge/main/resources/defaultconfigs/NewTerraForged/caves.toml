@@ -3,32 +3,32 @@
 # Restart the game after editing.
 
 [mega]
-region_count_min = 7
-region_count_max = 10
-transition_per_region = 3
+region_count_min = 5
+region_count_max = 8
+transition_per_region = 2
 scale = 1.0
 
 [giga]
 region_count_min = 7
 region_count_max = 10
-transition_per_region = 6
+transition_per_region = 3
 scale = 2.0
 
 [normal]
 max_biomes_per_system = 2
-transition_max_width_blocks = 15
-island_max_radius_chunks = 1.5
+transition_max_width_blocks = 40
+island_max_radius_chunks = 3
 # false = mega/giga only (no synapse column caves)
 enable_synapse_caves = true
 
 # Cave density budget per chunk (synapse / global only outside mega+giga voronoi zones).
 # Mega and giga always carve at full strength and consume this budget first.
 # xy_limit / yz_limit: integer cap, or false to use cave_percent of the default instead.
-# cave_percent: 100 = vanilla mod default density; 40 = 40% of default when a limit is false.
+# cave_percent: 100 = vanilla mod default density; 70 = 70% of default when a limit is false.
 
 [caves]
 xy_limit = false
 yz_limit = false
-cave_percent = 100
+cave_percent = 70
 surface_roof_buffer_mega_giga = 26
 surface_roof_buffer_synapse = 22
