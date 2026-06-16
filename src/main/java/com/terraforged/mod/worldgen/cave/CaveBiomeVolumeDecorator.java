@@ -18,7 +18,7 @@ import net.minecraft.world.level.levelgen.RandomSource;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 
 public final class CaveBiomeVolumeDecorator {
-    private static final int MEGA_GIGA_ANCHOR_GRID = 6;
+    private static final int MEGA_GIGA_ANCHOR_GRID = 2;
 
     private CaveBiomeVolumeDecorator() {
     }
@@ -141,7 +141,7 @@ public final class CaveBiomeVolumeDecorator {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sameBiomeKey(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }
@@ -161,8 +161,8 @@ public final class CaveBiomeVolumeDecorator {
         int maxY = chunk.getHighestSectionPosition() + 15;
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
-        for (int lx = 0; lx < 16; lx += 4) {
-            for (int lz = 0; lz < 16; lz += 4) {
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, null, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
                 if (floorY < 0 || !CaveBiomeIds.isModCaveBiome(resolved = carver.resolveBiome(chunk, lx, floorY, lz)) || CaveBiomeIds.isBlockedCaveBiome(resolved)) continue;
@@ -183,7 +183,7 @@ public final class CaveBiomeVolumeDecorator {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sameBiomeKey(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }
@@ -196,8 +196,7 @@ public final class CaveBiomeVolumeDecorator {
             columnMegaGiga = MegaCaveStructureFilter.isInMegaOrGigaCave(generator, wx, wz);
         }
         int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-        int minDepth = columnMegaGiga ? CaveUndergroundGuard.MEGA_GIGA_ANCHOR_DEPTH : CaveUndergroundGuard.MIN_ANCHOR_DEPTH;
-        int scanTop = Math.min(maxY, surface - minDepth);
+        int scanTop = Math.min(maxY, surface + 12);
         int scanBottom = Math.max(minY, surface - 72);
         boolean entrance = carver.isEntranceColumn(lx, lz);
         for (int y = scanTop; y >= scanBottom; --y) {

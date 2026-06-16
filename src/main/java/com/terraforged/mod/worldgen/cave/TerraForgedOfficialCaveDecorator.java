@@ -113,25 +113,7 @@ public final class TerraForgedOfficialCaveDecorator {
         if (y < chunk.getMinBuildHeight() + 4 || y >= surface - 2) {
             return null;
         }
-        int snapped = TerraForgedOfficialCaveDecorator.snapToFloorAir(chunk, lx, lz, y, chunk.getMinBuildHeight() + 4);
-        if (snapped < 0 || snapped >= surface - 2) {
-            return null;
-        }
-        return new BlockPos(x, snapped, z);
-    }
-
-    /** Scan downward to the nearest air cell with a connected solid floor (cave floor, not mid-cavern air). */
-    private static int snapToFloorAir(ChunkAccess chunk, int lx, int lz, int startY, int minY) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int y = startY; y >= minY; --y) {
-            if (!chunk.getBlockState(pos.set(lx, y, lz)).isAir()) {
-                continue;
-            }
-            if (CaveFeaturePlacement.hasConnectedFloor(chunk, pos, 2)) {
-                return y;
-            }
-        }
-        return -1;
+        return new BlockPos(x, y, z);
     }
 
     private static void decorate(BlockPos airAnchor, ChunkAccess chunk, WorldGenLevel region, Generator generator, BiomeGenerationSettings settings, WorldgenRandom random) {

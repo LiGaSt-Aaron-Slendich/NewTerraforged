@@ -358,8 +358,8 @@ public final class CaveBiomeFeatureRunner {
         WorldGenLevel placement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, biome, carver);
         BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
         CaveFeaturePlan.Cache planCache = new CaveFeaturePlan.Cache();
-        CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, 6, 28);
-        CaveBiomeFeatureRunner.decoratePlannedFeatures(floorAnchor, false, chunk, region, placement, generator, biome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 6 : 5);
+        CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, -1, MAX_SCATTER_ATTEMPTS);
+        CaveBiomeFeatureRunner.decoratePlannedFeatures(floorAnchor, false, chunk, region, placement, generator, biome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 12 : 10);
         // No surface-style trees underground — only scatter / cover features.
         if ((CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) && !MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, floorAnchor.getX(), floorAnchor.getY(), floorAnchor.getZ())) {
             CaveBiomeFeatureRunner.decorateVolcanicVents(floorAnchor, chunk, carver, region, placement, generator, biome, settings, random);
@@ -376,8 +376,8 @@ public final class CaveBiomeFeatureRunner {
             }
             WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
             BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
-            CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, 5, 22);
-            CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 7 : 6);
+            CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, -1, MAX_SCATTER_ATTEMPTS);
+            CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 14 : 11);
         }
     }
 

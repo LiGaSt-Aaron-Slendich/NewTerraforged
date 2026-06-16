@@ -45,7 +45,7 @@ public final class CaveHybridBiomeDecorator {
             CaveDecoratorKind kind = CaveBiomeDecoratorRouter.resolve(biome);
             switch (kind) {
                 case OFFICIAL -> {
-                    List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 6);
+                    List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 4);
                     TerraForgedOfficialCaveDecorator.decorateBiome(origins, chunk, carver, region, generator, biome);
                 }
                 case VANILLA -> CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, entry.getValue());
@@ -72,20 +72,14 @@ public final class CaveHybridBiomeDecorator {
     static List<BlockPos> collectOriginsForBiome(ChunkAccess chunk, CarverChunk carver, Generator generator, Holder<Biome> target, BlockPos seed, int chunkX, int chunkZ, int minY, int maxY, int grid) {
         ArrayList<BlockPos> origins = new ArrayList<>();
         HashSet<Long> seen = new HashSet<>();
-        int seedLx = seed.getX() & 0xF;
-        int seedLz = seed.getZ() & 0xF;
-        int seedFloor = CaveBiomeVolumeDecorator.findFloorAirPublic(chunk, carver, target, seedLx, seedLz, minY, maxY, generator, seed.getX(), seed.getZ());
-        if (seedFloor >= 0) {
-            BlockPos floorSeed = new BlockPos(seed.getX(), seedFloor, seed.getZ());
-            seen.add(floorSeed.asLong());
-            origins.add(floorSeed);
-        }
+        seen.add(seed.asLong());
+        origins.add(seed);
         for (int lx = 0; lx < 16; lx += grid) {
             for (int lz = 0; lz < 16; lz += grid) {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAirPublic(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sameBiomeKey(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) {
+                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) {
                     continue;
                 }
                 origins.add(pos);
