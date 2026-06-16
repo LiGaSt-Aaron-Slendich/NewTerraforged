@@ -701,6 +701,9 @@ final class CarverColumnCache {
             return false;
         }
         boolean megaGiga = this.zone(lx, lz) != ZONE_NONE;
+        if (CaveOpenAirCheck.mayDecorateInShelteredCavern(chunk, lx, y, lz, megaGiga)) {
+            return false;
+        }
         if (CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, y, lz, megaGiga)) {
             return true;
         }

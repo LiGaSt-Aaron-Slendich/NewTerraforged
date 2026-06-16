@@ -49,13 +49,20 @@ public final class CaveBiomeFeatureRunner {
             CaveBiomeFeatureRunner.decorateFungalCover(chunk, carver, region, generator, biome, floorAnchor, random);
             return;
         }
+        if (CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
+            CaveBiomeFeatureRunner.decorateMycotoxicCover(chunk, carver, region, generator, biome, floorAnchor, random);
+            return;
+        }
         if (CaveBiomeIds.isCrystalCaveBiome(biome) && !CaveBiomeIds.isPrismachasmBiome(biome) && !CaveBiomeIds.isSkyrisCaveBiome(biome)) {
             CaveBiomeFeatureRunner.decorateCrystalCover(chunk, carver, region, generator, biome, floorAnchor, random);
             return;
         }
         java.util.function.Predicate<Holder<PlacedFeature>> matcher;
         int seedSalt;
-        if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
+        if (CaveBiomeIds.isBrimstoneCaveBiome(biome)) {
+            matcher = CaveBiomeFeatureRunner::isBrimstoneCoverFeature;
+            seedSalt = 205;
+        } else if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
             matcher = CaveBiomeFeatureRunner::isScorchingCoverFeature;
             seedSalt = 200;
         } else if (CaveBiomeIds.isPrismachasmBiome(biome)) {
@@ -124,8 +131,11 @@ public final class CaveBiomeFeatureRunner {
     }
 
     private static int coverBudgetFor(Holder<Biome> biome) {
-        if (CaveBiomeIds.isFungalCaveBiome(biome)) {
+        if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
             return 14;
+        }
+        if (CaveBiomeIds.isBrimstoneCaveBiome(biome)) {
+            return 13;
         }
         if (CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome)) {
             return 12;
@@ -228,6 +238,31 @@ public final class CaveBiomeFeatureRunner {
         return path.contains("scorch") || path.contains("ash") || path.contains("charred") || path.contains("basalt_strip") || path.contains("magma_strip") || path.contains("frostfire_patch") || path.contains("yellowstone") && (path.contains("floor") || path.contains("cover") || path.contains("patch") || path.contains("spread")) || path.contains("cover") || path.contains("carpet") || path.contains("floor") || path.contains("spread") || path.contains("replacer") || path.contains("tiles");
     }
 
+    private static boolean isBrimstoneCoverFeature(Holder<PlacedFeature> placed) {
+        ResourceLocation id = FeatureMassClassifier.featurePath(placed);
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        if (path.contains("vent") && !path.contains("fumarole")) {
+            return false;
+        }
+        return path.contains("brimstone") || path.contains("boric") || path.contains("anthracite") || path.contains("cover") || path.contains("patch") || path.contains("spread") || path.contains("floor") || path.contains("pillar") || path.contains("blob");
+    }
+
+    private static void decorateMycotoxicCover(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome, BlockPos floorAnchor, WorldgenRandom random) {
+        CaveBiomeFeatureRunner.decorateThemedCover(chunk, carver, region, generator, biome, floorAnchor, random, CaveBiomeFeatureRunner::isMycotoxicCoverFeature, 180);
+    }
+
+    private static boolean isMycotoxicCoverFeature(Holder<PlacedFeature> placed) {
+        ResourceLocation id = FeatureMassClassifier.featurePath(placed);
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("mycotoxic") || path.contains("toxic") || path.contains("mycel") || path.contains("cover") || path.contains("carpet") || path.contains("floor") || path.contains("spread") || path.contains("mushroom") && !path.contains("fungal");
+    }
+
     private static boolean isPrismachasmCoverFeature(Holder<PlacedFeature> placed) {
         ResourceLocation id = FeatureMassClassifier.featurePath(placed);
         if (id == null) {
@@ -285,6 +320,12 @@ public final class CaveBiomeFeatureRunner {
         }
         if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
             return CaveBiomeFeatureRunner.isScorchingCoverFeature(placed);
+        }
+        if (CaveBiomeIds.isBrimstoneCaveBiome(biome)) {
+            return CaveBiomeFeatureRunner.isBrimstoneCoverFeature(placed);
+        }
+        if (CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
+            return CaveBiomeFeatureRunner.isMycotoxicCoverFeature(placed);
         }
         if (CaveBiomeIds.isPrismachasmBiome(biome)) {
             return CaveBiomeFeatureRunner.isPrismachasmCoverFeature(placed);
@@ -532,6 +573,12 @@ public final class CaveBiomeFeatureRunner {
         if (CaveBiomeIds.isFungalCaveBiome(biome)) {
             return 16;
         }
+        if (CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
+            return 16;
+        }
+        if (CaveBiomeIds.isBrimstoneCaveBiome(biome)) {
+            return 20;
+        }
         return 14;
     }
 
@@ -548,11 +595,17 @@ public final class CaveBiomeFeatureRunner {
         if (CaveBiomeIds.isFungalCaveBiome(biome)) {
             return DynamicTreesCompat.isLoaded() ? 10 : 14;
         }
+        if (CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
+            return 14;
+        }
+        if (CaveBiomeIds.isBrimstoneCaveBiome(biome)) {
+            return 22;
+        }
         return 12;
     }
 
     private static int mushroomScatterBudget(Holder<Biome> biome) {
-        if (!CaveBiomeIds.isFungalCaveBiome(biome)) {
+        if (!CaveBiomeIds.isFungalCaveBiome(biome) && !CaveBiomeIds.isMycotoxicCaveBiome(biome)) {
             return Integer.MAX_VALUE;
         }
         return 4;
@@ -827,7 +880,7 @@ public final class CaveBiomeFeatureRunner {
         if (path.contains("hanging") || path.contains("stalactite") || path.contains("icicle")) {
             return false;
         }
-        return path.contains("prismoss") || path.contains("hyssop") || path.contains("prismachasm") || path.contains("ash_vent") || path.contains("scorching") || path.contains("cluster") && !path.contains("ceiling") && !path.contains("hanging");
+        return path.contains("prismoss") || path.contains("hyssop") || path.contains("prismachasm") || path.contains("ash_vent") || path.contains("scorching") || path.contains("brimstone") || path.contains("boric") || path.contains("cluster") && !path.contains("ceiling") && !path.contains("hanging");
     }
 
     private static boolean isFrostfireFloorColumn(Holder<PlacedFeature> placed) {
