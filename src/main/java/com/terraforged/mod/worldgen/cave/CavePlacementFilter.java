@@ -11,6 +11,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 public final class CavePlacementFilter {
     private static final int MIN_DEPTH_BELOW_SURFACE = 6;
     private static final int MIN_OPEN_AIR_ABOVE = 4;
+    private static final int MEGA_GIGA_SURFACE_TREE_MARGIN = 3;
 
     private CavePlacementFilter() {
     }
@@ -19,8 +20,17 @@ public final class CavePlacementFilter {
         int lx = x & 0xF;
         int lz = z & 0xF;
         CarverChunk carver = generator.peekCaveCarver(chunk.getPos());
-        if (carver != null && carver.isColumnCacheReady() && carver.columnCache().skipTree(lx, lz)) {
-            return true;
+        if (carver != null && carver.isColumnCacheReady()) {
+            CarverColumnCache columns = carver.columnCache();
+            if (columns.zone(lx, lz) != CarverColumnCache.ZONE_NONE) {
+                int surface = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, lx, lz);
+                if (y < surface - MEGA_GIGA_SURFACE_TREE_MARGIN) {
+                    return true;
+                }
+            }
+            if (columns.skipTree(lx, lz)) {
+                return true;
+            }
         }
         int surface = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, lx, lz);
         if (MegaCaveStructureFilter.isInMegaOrGigaCave(generator, x, z)) {

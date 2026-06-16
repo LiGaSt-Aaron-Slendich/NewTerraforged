@@ -15,7 +15,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 public final class CaveFeatureRestorer {
     private static final int MIN_CAVE_AIR = 10;
     private static final int SURFACE_CRUST = 2;
-    /** Only scan this many blocks above the lowest cave air — features sit on the floor band. */
+    /** Only scan this many blocks above the lowest cave air — mushrooms sit on the floor band. */
     private static final int FLOOR_BAND = 48;
     private static final int MIN_FLOOR_DEPTH = 2;
     private static final int MAX_AIR_BELOW_SUPPORT = 2;
@@ -41,8 +41,8 @@ public final class CaveFeatureRestorer {
                 if (range == null) {
                     continue;
                 }
-                int yTop = Math.min(range[1], range[0] + FLOOR_BAND);
-                for (int y = range[0]; y <= yTop; ++y) {
+                int mushroomTop = Math.min(range[1], range[0] + FLOOR_BAND);
+                for (int y = range[0]; y <= range[1]; ++y) {
                     pos.set(lx, y, lz);
                     BlockState state = chunk.getBlockState(pos);
                     if (CaveFeatureRestorer.isTreeMaterial(state)) {
@@ -50,7 +50,7 @@ public final class CaveFeatureRestorer {
                         ++removed;
                         continue;
                     }
-                    if (!CaveFeatureRestorer.isMushroomOrVegetation(state)) {
+                    if (y > mushroomTop || !CaveFeatureRestorer.isMushroomOrVegetation(state)) {
                         continue;
                     }
                     if (CaveFeatureRestorer.isEmbeddedInStone(chunk, lx, y, lz, state)

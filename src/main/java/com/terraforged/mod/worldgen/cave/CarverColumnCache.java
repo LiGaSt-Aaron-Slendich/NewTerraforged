@@ -445,7 +445,7 @@ final class CarverColumnCache {
                     flags = (byte)(flags | FLAG_SKIP_TREE);
                 }
             }
-            if (carver.isEntranceColumn(dx, dz)) {
+            if (carver.isEntranceColumn(dx, dz) && !megaGiga) {
                 flags = (byte)(flags & ~FLAG_SKIP_TREE);
             }
             this.decorationFlags[i] = flags;

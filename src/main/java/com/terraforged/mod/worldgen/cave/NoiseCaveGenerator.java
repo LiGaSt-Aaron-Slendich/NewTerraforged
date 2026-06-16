@@ -222,6 +222,7 @@ public class NoiseCaveGenerator {
         }
         CaveRiverEntranceHydrator.hydrate(chunk, carver, generator);
         CaveFlatWallRepair.afterCarve(seed, chunk, carver, generator, this.caves, this::getModifier);
+        carver.columnCache().buildDecorationFlags(carver, chunk);
         this.entranceSnapshots.put(chunk.getPos(), carver.snapshotEntranceColumns());
         ChunkUtil.refreshHeightmaps(chunk);
         CaveSurfaceBiomeRestorer.restore(chunk, generator, carver);

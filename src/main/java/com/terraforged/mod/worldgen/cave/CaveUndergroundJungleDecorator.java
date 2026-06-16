@@ -34,7 +34,6 @@ import net.minecraft.world.level.material.Fluids;
 public final class CaveUndergroundJungleDecorator {
     private static final int GRID = 5;
     private static final ResourceLocation[] FLOOR = new ResourceLocation[]{new ResourceLocation("terralith", "cave/fungal/coarse_dirt"), new ResourceLocation("minecraft", "patch_grass_jungle"), new ResourceLocation("terralith", "cave/fungal/patch_mushroom")};
-    private static final ResourceLocation[] TREES = new ResourceLocation[]{new ResourceLocation("minecraft", "trees_jungle"), new ResourceLocation("minecraft", "trees_sparse_jungle")};
     private static final ResourceLocation[] VINES = new ResourceLocation[]{new ResourceLocation("terralith", "cave/fungal/vines"), new ResourceLocation("minecraft", "classic_vines_cave_feature"), new ResourceLocation("terralith", "cave/fungal/hanging_roots_single"), new ResourceLocation("terralith", "cave/fungal/hanging_roots_cluster")};
 
     private CaveUndergroundJungleDecorator() {
@@ -66,9 +65,6 @@ public final class CaveUndergroundJungleDecorator {
                 BlockPos floorPos = CaveFeaturePlacement.resolveWorldPos(new BlockPos(wx, floorY, wz), CaveFeatureRules.Anchor.FLOOR, false);
                 if (random.nextFloat() < 0.65f) {
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, FLOOR, region, generator, random, floorPos, seed, 0);
-                }
-                if (random.nextFloat() < 0.42f && CaveFeaturePlacement.hasConnectedFloor(chunk, new BlockPos(wx, floorY, wz), 2)) {
-                    CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, TREES, region, generator, random, floorPos, seed, 10);
                 }
                 if ((ceilY = CaveUndergroundJungleDecorator.findCeiling(chunk, lx, lz, floorY + 5, maxY)) > floorY + 6 && random.nextFloat() < 0.55f && CaveUndergroundJungleDecorator.mayPlace(chunk, carver, lx, vineY = ceilY - random.nextInt(2), lz, generator, wx, wz, biome)) {
                     BlockPos ceilPos = CaveFeaturePlacement.resolveWorldPos(new BlockPos(wx, vineY, wz), CaveFeatureRules.Anchor.CEILING, false);

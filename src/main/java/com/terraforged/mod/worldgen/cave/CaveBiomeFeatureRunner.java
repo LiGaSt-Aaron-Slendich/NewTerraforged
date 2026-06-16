@@ -391,7 +391,7 @@ public final class CaveBiomeFeatureRunner {
         long baseSeed = random.setDecorationSeed(region.getSeed(), anchor.getX(), anchor.getZ());
         int placed = 0;
         for (CaveFeaturePlan.StageFeature entry : candidates) {
-            if (FeatureMassClassifier.spawnsSurfaceVegetation(entry.feature())) continue;
+            if (FeatureMassClassifier.isTree(entry.feature()) || FeatureMassClassifier.spawnsSurfaceVegetation(entry.feature())) continue;
             if (!CaveFeatureFilters.isModCaveFeatureAllowed(entry.feature(), biome) || !CaveFeatureFilters.belongsToModCaveBiome(entry.feature(), biome) || CaveFeatureFilters.isForbiddenForCaveBiome(entry.feature(), biome)) continue;
             if (CaveBiomeFeatureRunner.isGlobalCaveHelper(entry.feature())) continue;
             if (!CaveBiomeFeatureRunner.matchesAnchor(entry.feature(), ceiling)) continue;
