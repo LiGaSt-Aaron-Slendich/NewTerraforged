@@ -20,9 +20,9 @@ default = "compromise"
 [[decorator_routing.rule]]
 decorator = "official"
 patterns = [
-    "scorching", "mantle", "magma",
+    "mantle", "magma",
     "dripstone", "karst", "limestone", "tuff_cave", "tuff_caves",
-    "icicle", "stalactite", "fungal", "mycotoxic", "prismachasm",
+    "icicle", "stalactite", "mycotoxic", "prismachasm",
     "deepslate", "basalt", "blackstone",
     "@minecraft_cave",
 ]
@@ -38,4 +38,4 @@ patterns = ["glowing_grotto", "undergarden", "frostfire"]
 
 [[decorator_routing.rule]]
 decorator = "legacy"
-patterns = ["bioshroom", "glowshroom", "mushroom_cave", "mushroom_caves"]
+patterns = ["bioshroom", "glowshroom", "mushroom_cave", "mushroom_caves", "fungal", "scorching"]

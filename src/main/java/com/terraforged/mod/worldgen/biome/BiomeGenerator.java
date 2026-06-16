@@ -6,7 +6,6 @@ import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
-import com.terraforged.mod.worldgen.cave.CaveDecorationSanitizer;
 import com.terraforged.mod.worldgen.cave.CaveSurfaceProximityGuard;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.CaveFeatureIntegrityPass;
@@ -85,9 +84,6 @@ public class BiomeGenerator {
         CaveSurfaceProximityGuard.repair(chunk, carver, generator, region, terrain);
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);
         this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
-        if (carver != null && carver.anyMegaGiga()) {
-            CaveDecorationSanitizer.sanitize(chunk, carver, generator);
-        }
         CaveChunkIntegrityPass.runOnce(chunk, scoped, structures, generator, carver, this.featureDecorator, this.surfaceDecorator, terrainFuture);
         CaveFeatureIntegrityPass.runOnce(chunk, carver, generator);
         this.noiseCaveGenerator.finishDecorate(chunk, generator);

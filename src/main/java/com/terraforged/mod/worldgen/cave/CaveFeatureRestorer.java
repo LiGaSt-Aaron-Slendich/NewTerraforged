@@ -2,15 +2,18 @@ package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Fast underground cleanup: strip cave trees and fix floating / embedded mushrooms.
+ * Fast underground cleanup: strip leaked surface trees and fix floating vanilla mushrooms.
+ * Mod cave decoration (fungal/scorching blocks) is never removed.
  */
 public final class CaveFeatureRestorer {
     private static final int MIN_CAVE_AIR = 10;
@@ -29,7 +32,7 @@ public final class CaveFeatureRestorer {
             return 0;
         }
         CarverColumnCache columns = carver.columnCache();
-        if (!columns.anyMegaGiga() && !columns.anySynapseEligible() && !CaveFeatureRestorer.anySkipTreeColumn(columns)) {
+        if (!columns.anyMegaGiga() && !columns.anySynapseEligible()) {
             return 0;
         }
         int[][] ranges = CaveFeatureRestorer.buildScanRanges(chunk);
@@ -45,12 +48,12 @@ public final class CaveFeatureRestorer {
                 for (int y = range[0]; y <= range[1]; ++y) {
                     pos.set(lx, y, lz);
                     BlockState state = chunk.getBlockState(pos);
-                    if (CaveFeatureRestorer.isTreeMaterial(state)) {
+                    if (CaveFeatureRestorer.isVanillaTreeMaterial(state)) {
                         chunk.setBlockState(pos, AIR, false);
                         ++removed;
                         continue;
                     }
-                    if (y > mushroomTop || !CaveFeatureRestorer.isMushroomOrVegetation(state)) {
+                    if (CaveFeatureRestorer.isModBlock(state) || y > mushroomTop || !CaveFeatureRestorer.isVanillaMushroomOrVegetation(state)) {
                         continue;
                     }
                     if (CaveFeatureRestorer.isEmbeddedInStone(chunk, lx, y, lz, state)
@@ -62,15 +65,6 @@ public final class CaveFeatureRestorer {
             }
         }
         return removed;
-    }
-
-    static boolean anySkipTreeColumn(CarverColumnCache columns) {
-        for (int i = 0; i < 256; ++i) {
-            if (columns.skipTree(i & 0xF, i >> 4)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static int[][] buildScanRanges(ChunkAccess chunk) {
@@ -106,12 +100,21 @@ public final class CaveFeatureRestorer {
         return ranges;
     }
 
-    private static boolean isTreeMaterial(BlockState state) {
+    private static boolean isModBlock(BlockState state) {
+        ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        return id != null && !"minecraft".equals(id.getNamespace());
+    }
+
+    /** Surface trees only — mod cave leaves/shrooms are intentional decoration. */
+    private static boolean isVanillaTreeMaterial(BlockState state) {
+        if (CaveFeatureRestorer.isModBlock(state)) {
+            return false;
+        }
         return state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES) || state.is(BlockTags.SAPLINGS);
     }
 
-    private static boolean isMushroomOrVegetation(BlockState state) {
-        if (state.isAir() || CaveFeatureRestorer.isTreeMaterial(state)) {
+    private static boolean isVanillaMushroomOrVegetation(BlockState state) {
+        if (state.isAir() || CaveFeatureRestorer.isModBlock(state) || CaveFeatureRestorer.isVanillaTreeMaterial(state)) {
             return false;
         }
         return state.is(Blocks.RED_MUSHROOM) || state.is(Blocks.BROWN_MUSHROOM)
@@ -123,14 +126,14 @@ public final class CaveFeatureRestorer {
     }
 
     private static boolean isEmbeddedInStone(ChunkAccess chunk, int lx, int y, int lz, BlockState state) {
-        if (!CaveFeatureRestorer.isMushroomBlock(state)) {
+        if (!CaveFeatureRestorer.isVanillaMushroomBlock(state)) {
             return false;
         }
         int solidSides = 0;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int[] offset : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
             BlockState neighbor = chunk.getBlockState(pos.set(lx + offset[0], y + offset[1], lz + offset[2]));
-            if (neighbor.isAir() || CaveFeatureRestorer.isMushroomBlock(neighbor)) {
+            if (neighbor.isAir() || CaveFeatureRestorer.isVanillaMushroomBlock(neighbor)) {
                 continue;
             }
             if (neighbor.isSolidRender((BlockGetter)chunk, pos)) {
@@ -140,7 +143,7 @@ public final class CaveFeatureRestorer {
         return solidSides >= 2;
     }
 
-    private static boolean isMushroomBlock(BlockState state) {
+    private static boolean isVanillaMushroomBlock(BlockState state) {
         return state.is(Blocks.RED_MUSHROOM) || state.is(Blocks.BROWN_MUSHROOM)
                 || state.is(Blocks.RED_MUSHROOM_BLOCK) || state.is(Blocks.BROWN_MUSHROOM_BLOCK)
                 || state.is(Blocks.MUSHROOM_STEM) || state.is(Blocks.SHROOMLIGHT);
@@ -191,6 +194,6 @@ public final class CaveFeatureRestorer {
         if (state.isAir() || !state.getFluidState().isEmpty()) {
             return false;
         }
-        return state.is(BlockTags.LOGS) || !CaveFeatureRestorer.isMushroomOrVegetation(state) && !CaveFeatureRestorer.isTreeMaterial(state);
+        return state.is(BlockTags.LOGS) || !CaveFeatureRestorer.isVanillaMushroomOrVegetation(state) && !CaveFeatureRestorer.isVanillaTreeMaterial(state);
     }
 }
