@@ -200,7 +200,7 @@ public final class CaveChunkOrderRestorer {
             CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
         }
         if (featureDecorator != null && region != null && structures != null && terrainFuture != null) {
-            featureDecorator.refreshSurfaceDecoration(chunk, region, structures, terrainFuture, generator, carver);
+            featureDecorator.decorate(chunk, region, structures, terrainFuture, generator);
         }
         ChunkUtil.refreshHeightmaps(chunk);
     }

@@ -29,7 +29,7 @@ public final class CaveFeatureRestorer {
             return 0;
         }
         CarverColumnCache columns = carver.columnCache();
-        if (!columns.anyMegaGiga() && !columns.anySynapseEligible()) {
+        if (!columns.anyMegaGiga() && !columns.anySynapseEligible() && !CaveFeatureRestorer.anySkipTreeColumn(columns)) {
             return 0;
         }
         int[][] ranges = CaveFeatureRestorer.buildScanRanges(chunk);
@@ -62,6 +62,15 @@ public final class CaveFeatureRestorer {
             }
         }
         return removed;
+    }
+
+    static boolean anySkipTreeColumn(CarverColumnCache columns) {
+        for (int i = 0; i < 256; ++i) {
+            if (columns.skipTree(i & 0xF, i >> 4)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static int[][] buildScanRanges(ChunkAccess chunk) {

@@ -16,7 +16,7 @@ public final class CaveFeatureIntegrityPass {
             return;
         }
         CarverColumnCache columns = carver.columnCache();
-        if (!columns.anyMegaGiga() && !columns.anySynapseEligible()) {
+        if (!columns.anyMegaGiga() && !columns.anySynapseEligible() && !CaveFeatureRestorer.anySkipTreeColumn(columns)) {
             return;
         }
         int removed = CaveFeatureRestorer.restore(chunk, carver, generator);

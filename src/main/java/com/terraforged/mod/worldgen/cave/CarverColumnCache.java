@@ -448,6 +448,12 @@ final class CarverColumnCache {
             if (carver.isEntranceColumn(dx, dz) && !megaGiga) {
                 flags = (byte)(flags & ~FLAG_SKIP_TREE);
             }
+            if ((flags & FLAG_SKIP_TREE) == 0) {
+                int floor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                if (floor < surface - 6 && CaveOpenAirCheck.isOpenAir(chunk, dx, floor, dz)) {
+                    flags = (byte)(flags | FLAG_SKIP_TREE);
+                }
+            }
             this.decorationFlags[i] = flags;
         }
     }

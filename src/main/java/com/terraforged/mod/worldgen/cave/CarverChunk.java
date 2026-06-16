@@ -137,6 +137,16 @@ public class CarverChunk {
         return this.columns.surfaceY(dx, dz);
     }
 
+    public void refreshDecorationFlags(ChunkAccess chunk) {
+        if (this.columnsReady) {
+            this.columns.buildDecorationFlags(this, chunk);
+        }
+    }
+
+    public boolean anyMegaGiga() {
+        return this.columnsReady && this.columns.anyMegaGiga();
+    }
+
     public void noteTunnelRiver(int mouthWx, int mouthWz, int chamberWx, int chamberWz, CaveType type) {
         this.tunnelMouthX = mouthWx;
         this.tunnelMouthZ = mouthWz;
