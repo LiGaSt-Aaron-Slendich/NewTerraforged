@@ -125,7 +125,7 @@ public final class CaveBiomeFeatureRunner {
 
     private static int coverBudgetFor(Holder<Biome> biome) {
         if (CaveBiomeIds.isFungalCaveBiome(biome)) {
-            return 9;
+            return 14;
         }
         if (CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome)) {
             return 12;

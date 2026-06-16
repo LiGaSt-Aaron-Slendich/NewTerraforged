@@ -18,7 +18,6 @@ public final class CaveFeatureFilters {
 
     public static boolean isModCaveDecorationStage(int stageIndex) {
         return stageIndex == GenerationStep.Decoration.RAW_GENERATION.ordinal()
-                || stageIndex == GenerationStep.Decoration.LAKES.ordinal()
                 || stageIndex == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
                 || stageIndex == GenerationStep.Decoration.SURFACE_STRUCTURES.ordinal()
                 || stageIndex == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
@@ -401,6 +400,9 @@ public final class CaveFeatureFilters {
         if (CaveFeatureFilters.isHeavyDripstoneFeature(path) && !CaveFeatureFilters.allowsDripstoneFeatures(biome)) {
             return false;
         }
+        if (CaveFeatureFilters.isSurfaceShrubOrLeaves(path)) {
+            return false;
+        }
         if (CaveBiomeIds.isFungalCaveBiome(biome) && path.contains("cave/stone/")) {
             return false;
         }
@@ -439,7 +441,7 @@ public final class CaveFeatureFilters {
             return path.contains("grass") || path.contains("moss") && path.contains("patch") || path.contains("bioshroom") && (path.contains("grass") || path.contains("moss") || path.contains("block"));
         }
         if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
-            return path.contains("scorch") || path.contains("charred") || path.contains("ash") || path.contains("vent") || path.contains("grass") || path.contains("fern") || path.contains("flower") || path.contains("patch") || path.contains("vine") || path.contains("moss") || path.contains("fungus") || path.contains("mushroom");
+            return path.contains("scorch") || path.contains("charred") || path.contains("ash") || path.contains("vent") || path.contains("vine") || path.contains("moss") || path.contains("fungus") || path.contains("mushroom");
         }
         if (CaveBiomeIds.isPrismachasmBiome(biome) || CaveBiomeIds.isCrystalCaveBiome(biome)) {
             return path.contains("prism") || path.contains("hyssop") || path.contains("crystal") || path.contains("moss") || path.contains("grass") || path.contains("patch") || path.contains("cluster") || path.contains("lichen") || path.contains("amethyst");
@@ -567,6 +569,15 @@ public final class CaveFeatureFilters {
             String path = key.location().getPath().toLowerCase();
             return path.contains("dripstone") || path.contains("karst") || path.contains("grotto") || path.contains("tuff_cave") || path.contains("tuff_caves") || path.contains("limestone") || path.contains("icicle");
         }).orElse(false);
+    }
+
+    /** Surface-style shrubs, ferns and leaf litter — not cave floor decor except jungle presets. */
+    public static boolean isSurfaceShrubOrLeaves(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        return path.contains("bush") || path.contains("shrub") || path.contains("fern") || path.contains("leaf_litter")
+                || path.contains("dead_bush") || path.contains("leaves") && !path.contains("glow_lichen");
     }
 
     private static boolean isVolumeStage(int stageIndex) {

@@ -52,7 +52,7 @@ public final class CaveHybridBiomeDecorator {
         }
         for (Map.Entry<Holder<Biome>, BlockPos> entry : officialDeferred) {
             Holder<Biome> biome = entry.getKey();
-            List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 6);
+            List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 4);
             TerraForgedOfficialCaveDecorator.decorateBiome(origins, chunk, carver, region, generator, biome);
         }
         if (columns.anyMegaGiga()) {
