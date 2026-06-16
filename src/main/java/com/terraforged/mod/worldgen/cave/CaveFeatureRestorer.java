@@ -1,32 +1,25 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
-import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * Underground-only cleanup: floating cave vegetation and blocks painted for a different cave biome.
+ * Fast underground cleanup: strip cave trees and fix floating / embedded mushrooms.
  */
 public final class CaveFeatureRestorer {
-    private static final int MAX_SUPPORT_SCAN = 32;
+    private static final int MIN_CAVE_AIR = 10;
+    private static final int SURFACE_CRUST = 2;
+    /** Only scan this many blocks above the lowest cave air — features sit on the floor band. */
+    private static final int FLOOR_BAND = 48;
     private static final int MIN_FLOOR_DEPTH = 2;
     private static final int MAX_AIR_BELOW_SUPPORT = 2;
-    private static final int MIN_CAVE_AIR = 10;
-    private static final int MAX_TREE_CLUSTER = 4096;
-    private static final int SURFACE_CRUST = 2;
-    private static final int CAVE_SCAN_ABOVE_FLOOR = 128;
-    private static final int[] NEIGHBOR_OFFSETS = new int[]{-1, 0, 0, 1, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, 1};
+    private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 
     private CaveFeatureRestorer() {
     }
@@ -35,123 +28,34 @@ public final class CaveFeatureRestorer {
         if (carver == null || !carver.isColumnCacheReady()) {
             return 0;
         }
-        int removed = 0;
-        removed += CaveFeatureRestorer.removeWrongBiomeVegetation(chunk, carver);
-        removed += CaveFeatureRestorer.removeFloatingClusters(chunk);
-        removed += CaveFeatureRestorer.removeUnsupportedVegetation(chunk);
-        removed += CaveFeatureRestorer.removeUnsupportedLogs(chunk);
-        removed += CaveFeatureRestorer.removeFloatingClusters(chunk);
-        return removed;
-    }
-
-    private static int removeWrongBiomeVegetation(ChunkAccess chunk, CarverChunk carver) {
-        int removed = 0;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BlockState air = Blocks.AIR.defaultBlockState();
-        for (int lx = 0; lx < 16; ++lx) {
-            for (int lz = 0; lz < 16; ++lz) {
-                int[] range = CaveFeatureRestorer.caveScanRange(chunk, lx, lz);
-                if (range == null) {
-                    continue;
-                }
-                for (int y = range[1]; y >= range[0]; --y) {
-                    pos.set(lx, y, lz);
-                    BlockState state = chunk.getBlockState(pos);
-                    if (!CaveFeatureRestorer.isRemovableFeature(state)) {
-                        continue;
-                    }
-                    Holder<Biome> painted = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
-                    if (painted == null || !CaveBiomeIds.isModCaveBiome(painted)) {
-                        continue;
-                    }
-                    Holder<Biome> expected = carver.resolveBiome(chunk, lx, y, lz);
-                    if (CaveBiomeIds.sameBiomeKey(painted, expected)) {
-                        continue;
-                    }
-                    chunk.setBlockState(pos, air, false);
-                    ++removed;
-                }
-            }
+        CarverColumnCache columns = carver.columnCache();
+        if (!columns.anyMegaGiga() && !columns.anySynapseEligible()) {
+            return 0;
         }
-        return removed;
-    }
-
-    private static int removeFloatingClusters(ChunkAccess chunk) {
-        LongOpenHashSet processed = new LongOpenHashSet();
-        LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BlockState air = Blocks.AIR.defaultBlockState();
+        int[][] ranges = CaveFeatureRestorer.buildScanRanges(chunk);
         int removed = 0;
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
-                int[] range = CaveFeatureRestorer.caveScanRange(chunk, lx, lz);
+                int[] range = ranges[lx | lz << 4];
                 if (range == null) {
                     continue;
                 }
-                int yBottom = range[0];
-                int yTop = range[1];
-                for (int y = yBottom; y <= yTop; ++y) {
-                    long key = CaveFeatureRestorer.pack(chunk, lx, y, lz);
-                    if (processed.contains(key)) {
-                        continue;
-                    }
+                int yTop = Math.min(range[1], range[0] + FLOOR_BAND);
+                for (int y = range[0]; y <= yTop; ++y) {
                     pos.set(lx, y, lz);
                     BlockState state = chunk.getBlockState(pos);
-                    if (!CaveFeatureRestorer.isTreeMaterial(state)) {
+                    if (CaveFeatureRestorer.isTreeMaterial(state)) {
+                        chunk.setBlockState(pos, AIR, false);
+                        ++removed;
                         continue;
                     }
-                    LongOpenHashSet seen = new LongOpenHashSet();
-                    List<long[]> component = new ArrayList<>();
-                    queue.clear();
-                    seen.add(key);
-                    processed.add(key);
-                    queue.enqueue(key);
-                    component.add(new long[]{lx, y, lz});
-                    boolean grounded = CaveFeatureRestorer.isLogBlock(state)
-                            ? CaveFeatureRestorer.hasCaveTreeGrounding(chunk, lx, y, lz, range)
-                            : CaveFeatureRestorer.hasCaveVegetationGrounding(chunk, lx, y, lz, range);
-                    int count = 1;
-                    while (!queue.isEmpty() && count < MAX_TREE_CLUSTER) {
-                        long current = queue.dequeueLong();
-                        int cx = CaveFeatureRestorer.unpackX(current);
-                        int cy = CaveFeatureRestorer.unpackY(chunk, current);
-                        int cz = CaveFeatureRestorer.unpackZ(current);
-                        for (int i = 0; i < NEIGHBOR_OFFSETS.length; i += 3) {
-                            int nx = cx + NEIGHBOR_OFFSETS[i];
-                            int ny = cy + NEIGHBOR_OFFSETS[i + 1];
-                            int nz = cz + NEIGHBOR_OFFSETS[i + 2];
-                            if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16 || ny < yBottom || ny > yTop) {
-                                continue;
-                            }
-                            long next = CaveFeatureRestorer.pack(chunk, nx, ny, nz);
-                            if (seen.contains(next)) {
-                                continue;
-                            }
-                            pos.set(nx, ny, nz);
-                            BlockState neighbor = chunk.getBlockState(pos);
-                            if (!CaveFeatureRestorer.isTreeMaterial(neighbor) && !CaveFeatureRestorer.isVegetationBlock(neighbor)) {
-                                continue;
-                            }
-                            seen.add(next);
-                            processed.add(next);
-                            queue.enqueue(next);
-                            component.add(new long[]{nx, ny, nz});
-                            ++count;
-                            if (!grounded) {
-                                if (CaveFeatureRestorer.isLogBlock(neighbor)) {
-                                    grounded = CaveFeatureRestorer.hasCaveTreeGrounding(chunk, nx, ny, nz, range);
-                                } else if (CaveFeatureRestorer.hasCaveVegetationGrounding(chunk, nx, ny, nz, range)) {
-                                    grounded = true;
-                                }
-                            }
-                        }
-                    }
-                    if (grounded) {
+                    if (!CaveFeatureRestorer.isMushroomOrVegetation(state)) {
                         continue;
                     }
-                    for (long[] block : component) {
-                        pos.set((int)block[0], (int)block[1], (int)block[2]);
-                        chunk.setBlockState(pos, air, false);
+                    if (CaveFeatureRestorer.isEmbeddedInStone(chunk, lx, y, lz, state)
+                            || !CaveFeatureRestorer.hasCaveFloorSupport(chunk, lx, y, lz, range[0])) {
+                        chunk.setBlockState(pos, AIR, false);
                         ++removed;
                     }
                 }
@@ -160,220 +64,124 @@ public final class CaveFeatureRestorer {
         return removed;
     }
 
-    private static int removeUnsupportedVegetation(ChunkAccess chunk) {
-        int removed = 0;
+    private static int[][] buildScanRanges(ChunkAccess chunk) {
+        int[][] ranges = new int[256][];
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BlockState air = Blocks.AIR.defaultBlockState();
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
-                int[] range = CaveFeatureRestorer.caveScanRange(chunk, lx, lz);
-                if (range == null) {
+                int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
+                int minY = Math.max(chunk.getMinBuildHeight() + 8, surface - 96);
+                int topAir = -1;
+                int bottomAir = Integer.MAX_VALUE;
+                int air = 0;
+                for (int y = surface; y >= minY; --y) {
+                    if (!chunk.getBlockState(pos.set(lx, y, lz)).isAir()) {
+                        continue;
+                    }
+                    ++air;
+                    topAir = y;
+                    bottomAir = Math.min(bottomAir, y);
+                }
+                if (air < MIN_CAVE_AIR || topAir < 0) {
                     continue;
                 }
-                for (int y = range[1]; y >= range[0]; --y) {
-                    pos.set(lx, y, lz);
-                    BlockState state = chunk.getBlockState(pos);
-                    if (!CaveFeatureRestorer.isVegetationBlock(state) || CaveFeatureRestorer.isLogBlock(state)) {
-                        continue;
-                    }
-                    if (CaveFeatureRestorer.hasCaveVegetationGrounding(chunk, lx, y, lz, range)) {
-                        continue;
-                    }
-                    for (int cy = y; cy <= range[1]; ++cy) {
-                        pos.set(lx, cy, lz);
-                        BlockState above = chunk.getBlockState(pos);
-                        if (!CaveFeatureRestorer.isVegetationBlock(above) || CaveFeatureRestorer.isLogBlock(above)) {
-                            if (cy == y) {
-                                break;
-                            }
-                            continue;
-                        }
-                        chunk.setBlockState(pos, air, false);
-                        ++removed;
-                    }
+                int scanTop = Math.min(topAir, surface - SURFACE_CRUST);
+                if (scanTop < bottomAir) {
+                    scanTop = surface - SURFACE_CRUST;
+                }
+                if (scanTop >= bottomAir) {
+                    ranges[lx | lz << 4] = new int[]{bottomAir, scanTop};
                 }
             }
         }
-        return removed;
-    }
-
-    /** Removes log columns/stubs that lost their canopy but still float above the cave floor. */
-    private static int removeUnsupportedLogs(ChunkAccess chunk) {
-        int removed = 0;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BlockState air = Blocks.AIR.defaultBlockState();
-        for (int lx = 0; lx < 16; ++lx) {
-            for (int lz = 0; lz < 16; ++lz) {
-                int[] range = CaveFeatureRestorer.caveScanRange(chunk, lx, lz);
-                if (range == null) {
-                    continue;
-                }
-                for (int y = range[1]; y >= range[0]; --y) {
-                    pos.set(lx, y, lz);
-                    BlockState state = chunk.getBlockState(pos);
-                    if (!CaveFeatureRestorer.isLogBlock(state)) {
-                        continue;
-                    }
-                    if (CaveFeatureRestorer.hasCaveTreeGrounding(chunk, lx, y, lz, range)) {
-                        continue;
-                    }
-                    for (int cy = y; cy <= range[1]; ++cy) {
-                        pos.set(lx, cy, lz);
-                        BlockState above = chunk.getBlockState(pos);
-                        if (!CaveFeatureRestorer.isLogBlock(above)) {
-                            if (cy == y) {
-                                break;
-                            }
-                            continue;
-                        }
-                        chunk.setBlockState(pos, air, false);
-                        ++removed;
-                    }
-                }
-            }
-        }
-        return removed;
-    }
-
-    /** Returns [bottomY, topY] underground scan band, or null when the column has no cave volume. */
-    static int[] caveScanRange(ChunkAccess chunk, int lx, int lz) {
-        int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-        int minY = Math.max(chunk.getMinBuildHeight() + 8, surface - CAVE_SCAN_ABOVE_FLOOR);
-        int topAir = -1;
-        int bottomAir = Integer.MAX_VALUE;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int air = 0;
-        for (int y = surface; y >= minY; --y) {
-            if (!chunk.getBlockState(pos.set(lx, y, lz)).isAir()) {
-                continue;
-            }
-            ++air;
-            topAir = y;
-            bottomAir = Math.min(bottomAir, y);
-        }
-        if (air < MIN_CAVE_AIR || topAir < 0) {
-            return null;
-        }
-        int scanTop = Math.min(topAir, surface - SURFACE_CRUST);
-        if (scanTop < bottomAir) {
-            scanTop = surface - SURFACE_CRUST;
-        }
-        if (scanTop < bottomAir) {
-            return null;
-        }
-        return new int[]{bottomAir, scanTop};
-    }
-
-    private static boolean isRemovableFeature(BlockState state) {
-        return CaveFeatureRestorer.isVegetationBlock(state) || CaveFeatureRestorer.isTreeMaterial(state);
+        return ranges;
     }
 
     private static boolean isTreeMaterial(BlockState state) {
         return state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES) || state.is(BlockTags.SAPLINGS);
     }
 
-    private static boolean isLogBlock(BlockState state) {
-        return state.is(BlockTags.LOGS);
-    }
-
-    private static boolean isVegetationBlock(BlockState state) {
-        if (state.isAir()) {
+    private static boolean isMushroomOrVegetation(BlockState state) {
+        if (state.isAir() || CaveFeatureRestorer.isTreeMaterial(state)) {
             return false;
         }
-        return CaveFeatureRestorer.isTreeMaterial(state) || state.is(Blocks.BAMBOO) || state.is(Blocks.BAMBOO_SAPLING)
-                || state.is(Blocks.COCOA) || state.is(Blocks.CHORUS_PLANT) || state.is(Blocks.CHORUS_FLOWER) || state.is(Blocks.GLOW_LICHEN)
-                || state.is(Blocks.VINE) || state.is(Blocks.WEEPING_VINES) || state.is(Blocks.WEEPING_VINES_PLANT)
-                || state.is(Blocks.TWISTING_VINES) || state.is(Blocks.TWISTING_VINES_PLANT)
-                || state.is(Blocks.SPORE_BLOSSOM) || state.is(Blocks.HANGING_ROOTS)
-                || state.is(Blocks.BIG_DRIPLEAF) || state.is(Blocks.BIG_DRIPLEAF_STEM) || state.is(Blocks.SMALL_DRIPLEAF)
-                || state.is(Blocks.RED_MUSHROOM) || state.is(Blocks.BROWN_MUSHROOM)
-                || state.is(Blocks.RED_MUSHROOM_BLOCK) || state.is(Blocks.BROWN_MUSHROOM_BLOCK) || state.is(Blocks.MUSHROOM_STEM)
-                || state.is(Blocks.SHROOMLIGHT) || state.is(Blocks.WARPED_WART_BLOCK) || state.is(Blocks.NETHER_WART_BLOCK);
+        return state.is(Blocks.RED_MUSHROOM) || state.is(Blocks.BROWN_MUSHROOM)
+                || state.is(Blocks.RED_MUSHROOM_BLOCK) || state.is(Blocks.BROWN_MUSHROOM_BLOCK)
+                || state.is(Blocks.MUSHROOM_STEM) || state.is(Blocks.SHROOMLIGHT)
+                || state.is(Blocks.WARPED_WART_BLOCK) || state.is(Blocks.NETHER_WART_BLOCK)
+                || state.is(Blocks.HANGING_ROOTS) || state.is(Blocks.SPORE_BLOSSOM)
+                || state.is(Blocks.GLOW_LICHEN) || state.is(Blocks.VINE);
     }
 
-    private static boolean hasCaveVegetationGrounding(ChunkAccess chunk, int lx, int y, int lz, int[] range) {
-        return CaveFeatureRestorer.hasCaveTreeGrounding(chunk, lx, y, lz, range);
-    }
-
-    /** True when the block sits on a cave floor mass, not a thin shelf above open cavern air. */
-    private static boolean hasCaveTreeGrounding(ChunkAccess chunk, int lx, int y, int lz, int[] range) {
-        if (!CaveFeatureRestorer.hasConnectedFloorBelow(chunk, lx, y, lz, MIN_FLOOR_DEPTH)) {
+    private static boolean isEmbeddedInStone(ChunkAccess chunk, int lx, int y, int lz, BlockState state) {
+        if (!CaveFeatureRestorer.isMushroomBlock(state)) {
             return false;
         }
-        int supportBottom = y - 1;
+        int solidSides = 0;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        while (supportBottom >= range[0] && CaveFeatureRestorer.isSupportColumnBlock(chunk.getBlockState(pos.set(lx, supportBottom, lz)))) {
+        for (int[] offset : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockState neighbor = chunk.getBlockState(pos.set(lx + offset[0], y + offset[1], lz + offset[2]));
+            if (neighbor.isAir() || CaveFeatureRestorer.isMushroomBlock(neighbor)) {
+                continue;
+            }
+            if (neighbor.isSolidRender((BlockGetter)chunk, pos)) {
+                ++solidSides;
+            }
+        }
+        return solidSides >= 2;
+    }
+
+    private static boolean isMushroomBlock(BlockState state) {
+        return state.is(Blocks.RED_MUSHROOM) || state.is(Blocks.BROWN_MUSHROOM)
+                || state.is(Blocks.RED_MUSHROOM_BLOCK) || state.is(Blocks.BROWN_MUSHROOM_BLOCK)
+                || state.is(Blocks.MUSHROOM_STEM) || state.is(Blocks.SHROOMLIGHT);
+    }
+
+    private static boolean hasCaveFloorSupport(ChunkAccess chunk, int lx, int y, int lz, int caveFloor) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int below = y - 1;
+        if (below < caveFloor) {
+            return false;
+        }
+        BlockState floor = chunk.getBlockState(pos.set(lx, below, lz));
+        if (floor.isAir() || !floor.getFluidState().isEmpty() || !floor.isSolidRender((BlockGetter)chunk, pos)) {
+            return false;
+        }
+        int solid = 1;
+        for (int dy = 2; dy <= MIN_FLOOR_DEPTH + 2; ++dy) {
+            int by = y - dy;
+            if (by < chunk.getMinBuildHeight()) {
+                break;
+            }
+            BlockState state = chunk.getBlockState(pos.set(lx, by, lz));
+            if (state.isAir() || !state.getFluidState().isEmpty()) {
+                break;
+            }
+            if (state.isSolidRender((BlockGetter)chunk, pos) && ++solid >= MIN_FLOOR_DEPTH) {
+                break;
+            }
+        }
+        if (solid < MIN_FLOOR_DEPTH) {
+            return false;
+        }
+        int supportBottom = below;
+        while (supportBottom >= caveFloor && CaveFeatureRestorer.isSupportColumn(chunk.getBlockState(pos.set(lx, supportBottom, lz)))) {
             --supportBottom;
         }
         ++supportBottom;
         int airBelow = 0;
-        for (int by = supportBottom - 1; by >= Math.max(range[0], supportBottom - 16); --by) {
-            BlockState state = chunk.getBlockState(pos.set(lx, by, lz));
-            if (state.isAir()) {
-                if (++airBelow > MAX_AIR_BELOW_SUPPORT) {
-                    return false;
-                }
-                continue;
-            }
-            if (!state.getFluidState().isEmpty()) {
+        for (int by = supportBottom - 1; by >= Math.max(caveFloor, supportBottom - 12); --by) {
+            if (chunk.getBlockState(pos.set(lx, by, lz)).isAir() && ++airBelow > MAX_AIR_BELOW_SUPPORT) {
                 return false;
             }
-            if (state.isSolidRender((BlockGetter)chunk, pos)) {
-                return true;
-            }
-            return false;
         }
-        return airBelow <= MAX_AIR_BELOW_SUPPORT;
+        return true;
     }
 
-    private static boolean isSupportColumnBlock(BlockState state) {
+    private static boolean isSupportColumn(BlockState state) {
         if (state.isAir() || !state.getFluidState().isEmpty()) {
             return false;
         }
-        return CaveFeatureRestorer.isLogBlock(state) || !CaveFeatureRestorer.isVegetationBlock(state);
-    }
-
-    private static boolean hasConnectedFloorBelow(ChunkAccess chunk, int lx, int y, int lz, int minSolidDepth) {
-        int floorY = y - 1;
-        if (floorY <= chunk.getMinBuildHeight()) {
-            return false;
-        }
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BlockState floor = chunk.getBlockState(pos.set(lx, floorY, lz));
-        if (floor.isAir() || !floor.getFluidState().isEmpty() || !floor.isSolidRender((BlockGetter)chunk, pos)) {
-            return false;
-        }
-        return CaveFeatureRestorer.countSolidDepth(chunk, lx, floorY, lz, minSolidDepth) >= minSolidDepth;
-    }
-
-    private static int countSolidDepth(ChunkAccess chunk, int lx, int startY, int lz, int minSolidDepth) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int solid = 0;
-        for (int y = startY; y >= Math.max(chunk.getMinBuildHeight(), startY - minSolidDepth - 4); --y) {
-            BlockState state = chunk.getBlockState(pos.set(lx, y, lz));
-            if (state.isAir() || !state.getFluidState().isEmpty()) {
-                break;
-            }
-            if (state.isSolidRender((BlockGetter)chunk, pos) && ++solid >= minSolidDepth) {
-                return solid;
-            }
-        }
-        return solid;
-    }
-
-    private static long pack(ChunkAccess chunk, int x, int y, int z) {
-        return (long)(y - chunk.getMinBuildHeight()) << 8 | (long)x << 4 | (long)z;
-    }
-
-    private static int unpackX(long key) {
-        return (int)(key >> 4 & 0xFL);
-    }
-
-    private static int unpackY(ChunkAccess chunk, long key) {
-        return (int)(key >> 8) + chunk.getMinBuildHeight();
-    }
-
-    private static int unpackZ(long key) {
-        return (int)(key & 0xFL);
+        return state.is(BlockTags.LOGS) || !CaveFeatureRestorer.isMushroomOrVegetation(state) && !CaveFeatureRestorer.isTreeMaterial(state);
     }
 }

@@ -301,10 +301,7 @@ public final class CaveBiomeFeatureRunner {
         WorldGenLevel placement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, biome, carver);
         BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
         String biomeNs = biome.unwrapKey().map(key -> key.location().getNamespace()).orElse("");
-        CaveBiomeFeatureRunner.decorateNativeScatter(floorAnchor, false, chunk, region, placement, generator, biome, biomeNs, settings, random, includeTrees);
-        if (includeTrees) {
-            CaveBiomeFeatureRunner.decorateNativeTrees(floorAnchor, chunk, placement, generator, biome, biomeNs, settings, random);
-        }
+        CaveBiomeFeatureRunner.decorateNativeScatter(floorAnchor, false, chunk, region, placement, generator, biome, biomeNs, settings, random, false);
         int lx = floorAnchor.getX() & 0xF;
         int lz = floorAnchor.getZ() & 0xF;
         int minY = chunk.getMinBuildHeight();
@@ -363,9 +360,7 @@ public final class CaveBiomeFeatureRunner {
         CaveFeaturePlan.Cache planCache = new CaveFeaturePlan.Cache();
         CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, 6, 28);
         CaveBiomeFeatureRunner.decoratePlannedFeatures(floorAnchor, false, chunk, region, placement, generator, biome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 6 : 5);
-        if (includeTrees) {
-            CaveBiomeFeatureRunner.decorateTrees(floorAnchor, chunk, placement, generator, biome, settings, random);
-        }
+        // No surface-style trees underground — only scatter / cover features.
         if ((CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) && !MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, floorAnchor.getX(), floorAnchor.getY(), floorAnchor.getZ())) {
             CaveBiomeFeatureRunner.decorateVolcanicVents(floorAnchor, chunk, carver, region, placement, generator, biome, settings, random);
         }
@@ -566,7 +561,7 @@ public final class CaveBiomeFeatureRunner {
 
     private static int floorSupportDepth(Holder<PlacedFeature> placed, Holder<Biome> biome) {
         if (CaveBiomeFeatureRunner.isLargeVerticalMushroom(placed)) {
-            return 3;
+            return 4;
         }
         if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeFeatureRunner.isSmallMushroomScatter(placed)) {
             return 2;

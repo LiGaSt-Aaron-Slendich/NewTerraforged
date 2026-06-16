@@ -2,6 +2,7 @@ package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
 import com.terraforged.mod.worldgen.Generator;
+import com.terraforged.mod.worldgen.biome.decorator.FeatureMassClassifier;
 import com.terraforged.mod.worldgen.biome.decorator.FeaturePlacement;
 import com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel;
 import java.util.ArrayList;
@@ -123,6 +124,9 @@ public final class CaveBiomeVanillaPass {
             }
             for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
                 Holder<PlacedFeature> feature = stage.get(featureIndex);
+                if (FeatureMassClassifier.isTree(feature) || FeatureMassClassifier.spawnsSurfaceVegetation(feature)) {
+                    continue;
+                }
                 random.setFeatureSeed(seed, featureIndex, stageIndex);
                 FeaturePlacement.place(feature, guarded, (ChunkGenerator)generator, (Random)random, origin, true);
             }

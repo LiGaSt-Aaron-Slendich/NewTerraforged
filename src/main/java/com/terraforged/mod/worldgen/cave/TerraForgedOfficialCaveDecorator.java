@@ -152,12 +152,6 @@ public final class TerraForgedOfficialCaveDecorator {
                     continue;
                 }
                 BlockPos placePos = airAnchor;
-                if (FeatureMassClassifier.isTree(placed)) {
-                    if (!CaveFeaturePlacement.hasConnectedFloor(chunk, airAnchor, 3)) {
-                        continue;
-                    }
-                    placePos = CaveFeaturePlacement.resolveWorldPos(airAnchor, CaveFeatureRules.Anchor.FLOOR, false);
-                }
                 random.setFeatureSeed(baseSeed, featureIndex, stageIndex);
                 FeaturePlacement.place(placed, region, (ChunkGenerator)generator, (Random)random, placePos, true);
             }
@@ -166,6 +160,9 @@ public final class TerraForgedOfficialCaveDecorator {
 
     /** Skip full geode shells and other features that pierce the surface from a single origin. */
     private static boolean shouldSkipFeature(Holder<PlacedFeature> placed) {
+        if (FeatureMassClassifier.isTree(placed)) {
+            return true;
+        }
         return placed.unwrapKey().map(key -> TerraForgedOfficialCaveDecorator.isBlockedFeaturePath(key.location().getPath())).orElse(false);
     }
 
