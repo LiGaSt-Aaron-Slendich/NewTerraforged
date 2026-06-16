@@ -75,7 +75,6 @@ public class BiomeGenerator {
         CaveFlatWallRepair.withNeighbors((int)generator.getSeed(), chunk, carver, generator, region, this.noiseCaveGenerator.caveConfigs(), this.noiseCaveGenerator::modifierFor);
         this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, 1), structures, terrainFuture, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
-        CaveFeatureIntegrityPass.runOnce(chunk, carver, generator);
         CaveFlatWallRepair.afterDecorate((int)generator.getSeed(), chunk, carver, generator, region, this.noiseCaveGenerator.caveConfigs(), this.noiseCaveGenerator::modifierFor);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
@@ -83,6 +82,7 @@ public class BiomeGenerator {
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);
         this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
         CaveChunkIntegrityPass.runOnce(chunk, scoped, structures, generator, carver, this.featureDecorator, this.surfaceDecorator, terrainFuture);
+        CaveFeatureIntegrityPass.runOnce(chunk, carver, generator);
         this.noiseCaveGenerator.finishDecorate(chunk, generator);
         ChunkUtil.refreshHeightmaps(chunk);
     }

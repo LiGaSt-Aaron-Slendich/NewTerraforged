@@ -72,8 +72,14 @@ public final class CaveHybridBiomeDecorator {
     static List<BlockPos> collectOriginsForBiome(ChunkAccess chunk, CarverChunk carver, Generator generator, Holder<Biome> target, BlockPos seed, int chunkX, int chunkZ, int minY, int maxY, int grid) {
         ArrayList<BlockPos> origins = new ArrayList<>();
         HashSet<Long> seen = new HashSet<>();
-        seen.add(seed.asLong());
-        origins.add(seed);
+        int seedLx = seed.getX() & 0xF;
+        int seedLz = seed.getZ() & 0xF;
+        int seedFloor = CaveBiomeVolumeDecorator.findFloorAirPublic(chunk, carver, target, seedLx, seedLz, minY, maxY, generator, seed.getX(), seed.getZ());
+        if (seedFloor >= 0) {
+            BlockPos floorSeed = new BlockPos(seed.getX(), seedFloor, seed.getZ());
+            seen.add(floorSeed.asLong());
+            origins.add(floorSeed);
+        }
         for (int lx = 0; lx < 16; lx += grid) {
             for (int lz = 0; lz < 16; lz += grid) {
                 BlockPos pos;

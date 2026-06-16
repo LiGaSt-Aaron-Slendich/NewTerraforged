@@ -21,6 +21,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 public final class CaveFeatureRestorer {
     private static final int MAX_SUPPORT_SCAN = 32;
     private static final int MIN_FLOOR_DEPTH = 2;
+    private static final int MAX_AIR_BELOW_SUPPORT = 2;
     private static final int MIN_CAVE_AIR = 10;
     private static final int MAX_TREE_CLUSTER = 4096;
     private static final int SURFACE_CRUST = 2;
@@ -107,8 +108,8 @@ public final class CaveFeatureRestorer {
                     queue.enqueue(key);
                     component.add(new long[]{lx, y, lz});
                     boolean grounded = CaveFeatureRestorer.isLogBlock(state)
-                            ? CaveFeatureRestorer.hasConnectedFloorBelow(chunk, lx, y, lz, MIN_FLOOR_DEPTH)
-                            : CaveFeatureRestorer.hasGroundedSupport(chunk, lx, y, lz);
+                            ? CaveFeatureRestorer.hasCaveTreeGrounding(chunk, lx, y, lz, range)
+                            : CaveFeatureRestorer.hasCaveVegetationGrounding(chunk, lx, y, lz, range);
                     int count = 1;
                     while (!queue.isEmpty() && count < MAX_TREE_CLUSTER) {
                         long current = queue.dequeueLong();
@@ -138,8 +139,8 @@ public final class CaveFeatureRestorer {
                             ++count;
                             if (!grounded) {
                                 if (CaveFeatureRestorer.isLogBlock(neighbor)) {
-                                    grounded = CaveFeatureRestorer.hasConnectedFloorBelow(chunk, nx, ny, nz, MIN_FLOOR_DEPTH);
-                                } else if (CaveFeatureRestorer.hasGroundedSupport(chunk, nx, ny, nz)) {
+                                    grounded = CaveFeatureRestorer.hasCaveTreeGrounding(chunk, nx, ny, nz, range);
+                                } else if (CaveFeatureRestorer.hasCaveVegetationGrounding(chunk, nx, ny, nz, range)) {
                                     grounded = true;
                                 }
                             }
@@ -175,7 +176,7 @@ public final class CaveFeatureRestorer {
                     if (!CaveFeatureRestorer.isVegetationBlock(state) || CaveFeatureRestorer.isLogBlock(state)) {
                         continue;
                     }
-                    if (CaveFeatureRestorer.hasGroundedSupport(chunk, lx, y, lz)) {
+                    if (CaveFeatureRestorer.hasCaveVegetationGrounding(chunk, lx, y, lz, range)) {
                         continue;
                     }
                     for (int cy = y; cy <= range[1]; ++cy) {
@@ -213,7 +214,7 @@ public final class CaveFeatureRestorer {
                     if (!CaveFeatureRestorer.isLogBlock(state)) {
                         continue;
                     }
-                    if (CaveFeatureRestorer.hasConnectedFloorBelow(chunk, lx, y, lz, MIN_FLOOR_DEPTH)) {
+                    if (CaveFeatureRestorer.hasCaveTreeGrounding(chunk, lx, y, lz, range)) {
                         continue;
                     }
                     for (int cy = y; cy <= range[1]; ++cy) {
@@ -290,22 +291,46 @@ public final class CaveFeatureRestorer {
                 || state.is(Blocks.SHROOMLIGHT) || state.is(Blocks.WARPED_WART_BLOCK) || state.is(Blocks.NETHER_WART_BLOCK);
     }
 
-    private static boolean hasGroundedSupport(ChunkAccess chunk, int lx, int y, int lz) {
+    private static boolean hasCaveVegetationGrounding(ChunkAccess chunk, int lx, int y, int lz, int[] range) {
+        return CaveFeatureRestorer.hasCaveTreeGrounding(chunk, lx, y, lz, range);
+    }
+
+    /** True when the block sits on a cave floor mass, not a thin shelf above open cavern air. */
+    private static boolean hasCaveTreeGrounding(ChunkAccess chunk, int lx, int y, int lz, int[] range) {
+        if (!CaveFeatureRestorer.hasConnectedFloorBelow(chunk, lx, y, lz, MIN_FLOOR_DEPTH)) {
+            return false;
+        }
+        int supportBottom = y - 1;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int below = y - 1; below >= Math.max(chunk.getMinBuildHeight(), y - MAX_SUPPORT_SCAN); --below) {
-            BlockState state = chunk.getBlockState(pos.set(lx, below, lz));
-            if (CaveFeatureRestorer.isVegetationBlock(state)) {
+        while (supportBottom >= range[0] && CaveFeatureRestorer.isSupportColumnBlock(chunk.getBlockState(pos.set(lx, supportBottom, lz)))) {
+            --supportBottom;
+        }
+        ++supportBottom;
+        int airBelow = 0;
+        for (int by = supportBottom - 1; by >= Math.max(range[0], supportBottom - 16); --by) {
+            BlockState state = chunk.getBlockState(pos.set(lx, by, lz));
+            if (state.isAir()) {
+                if (++airBelow > MAX_AIR_BELOW_SUPPORT) {
+                    return false;
+                }
                 continue;
             }
-            if (state.isAir() || !state.getFluidState().isEmpty()) {
+            if (!state.getFluidState().isEmpty()) {
                 return false;
             }
-            if (!state.isSolidRender((BlockGetter)chunk, pos)) {
-                return false;
+            if (state.isSolidRender((BlockGetter)chunk, pos)) {
+                return true;
             }
-            return CaveFeatureRestorer.countSolidDepth(chunk, lx, below, lz, MIN_FLOOR_DEPTH) >= MIN_FLOOR_DEPTH;
+            return false;
         }
-        return false;
+        return airBelow <= MAX_AIR_BELOW_SUPPORT;
+    }
+
+    private static boolean isSupportColumnBlock(BlockState state) {
+        if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        return CaveFeatureRestorer.isLogBlock(state) || !CaveFeatureRestorer.isVegetationBlock(state);
     }
 
     private static boolean hasConnectedFloorBelow(ChunkAccess chunk, int lx, int y, int lz, int minSolidDepth) {
