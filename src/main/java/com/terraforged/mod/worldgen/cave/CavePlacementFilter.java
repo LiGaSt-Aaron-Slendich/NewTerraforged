@@ -4,6 +4,7 @@ import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.cave.CaveOpenAirCheck;
 import com.terraforged.mod.worldgen.cave.MegaCaveStructureFilter;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -21,6 +22,16 @@ public final class CavePlacementFilter {
         CarverChunk carver = generator.peekCaveCarver(chunk.getPos());
         if (carver != null && carver.isColumnCacheReady() && carver.columnCache().skipTree(lx, lz)) {
             return true;
+        }
+        Holder<net.minecraft.world.level.biome.Biome> painted = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
+        if (painted != null && CaveBiomeIds.isModCaveBiome(painted)) {
+            return true;
+        }
+        for (int dy = -2; dy <= 2; ++dy) {
+            painted = CarverChunk.readPaintedBiomeAt(chunk, lx, y + dy, lz);
+            if (painted != null && CaveBiomeIds.isModCaveBiome(painted)) {
+                return true;
+            }
         }
         int surface = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, lx, lz);
         int floor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, lx, lz);

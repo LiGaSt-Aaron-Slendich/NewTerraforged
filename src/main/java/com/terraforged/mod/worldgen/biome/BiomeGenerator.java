@@ -9,7 +9,6 @@ import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
 import com.terraforged.mod.worldgen.cave.CaveSurfaceProximityGuard;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.CaveFeatureIntegrityPass;
-import com.terraforged.mod.worldgen.cave.CaveFlatWallRepair;
 import com.terraforged.mod.worldgen.cave.NoiseCaveGenerator;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel;
@@ -72,13 +71,8 @@ public class BiomeGenerator {
         }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
         CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
-        if (carver != null) {
-            carver.refreshDecorationFlags(chunk);
-        }
-        CaveFlatWallRepair.withNeighbors((int)generator.getSeed(), chunk, carver, generator, region, this.noiseCaveGenerator.caveConfigs(), this.noiseCaveGenerator::modifierFor);
         this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, 1), structures, terrainFuture, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
-        CaveFlatWallRepair.afterDecorate((int)generator.getSeed(), chunk, carver, generator, region, this.noiseCaveGenerator.caveConfigs(), this.noiseCaveGenerator::modifierFor);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
         CaveSurfaceProximityGuard.repair(chunk, carver, generator, region, terrain);

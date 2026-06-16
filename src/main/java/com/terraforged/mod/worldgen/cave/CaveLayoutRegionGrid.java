@@ -207,11 +207,13 @@ public final class CaveLayoutRegionGrid {
             int iz = (int)(long)key;
             for (int[] dir : NEIGHBORS) {
                 CaveBiomeEntry neighbor = this.biomes.get(CaveLayoutRegionGrid.pack(ix + dir[0], iz + dir[1]));
-                if (neighbor == null || !CaveBiomeIds.isVegetationDenseCaveBiome(neighbor.biome())) {
+                if (neighbor == null || !CaveBiomeIds.isModCaveBiome(neighbor.biome())
+                        || CaveBiomeIds.isAggressiveCaveBiome(neighbor.biome())
+                        || CaveBiomeIds.isTransitionTaggedCaveBiome(neighbor)) {
                     continue;
                 }
                 CaveBiomeEntry transition = registry.findTransitionBetween(entry.caveTemperature(), neighbor.caveTemperature(), entry.biome(), neighbor.biome());
-                if (transition == null || transition.biome().equals(entry.biome()) || CaveBiomeIds.isAggressiveCaveBiome(transition.biome())) {
+                if (transition == null || transition.biome().equals(entry.biome()) || CaveBiomeIds.isAggressiveCaveBiome(transition.biome()) || CaveBiomeIds.isSulfurRiverBiome(transition.biome())) {
                     continue;
                 }
                 pending.put(key, transition);

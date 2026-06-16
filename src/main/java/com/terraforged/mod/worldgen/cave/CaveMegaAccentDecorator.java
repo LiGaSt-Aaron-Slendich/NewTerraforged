@@ -47,6 +47,11 @@ public final class CaveMegaAccentDecorator {
     private static final ResourceLocation[] PRISMA_CEILING = new ResourceLocation[]{new ResourceLocation("regions_unexplored", "hanging_prismarite"), new ResourceLocation("regions_unexplored", "large_prismarite_cluster"), new ResourceLocation("regions_unexplored", "prismarite_cluster"), new ResourceLocation("regions_unexplored", "prismoss"), new ResourceLocation("regions_unexplored", "cave_hyssop"), new ResourceLocation("terralith", "cave/crystal/amethyst/crystal_down")};
     private static final ResourceLocation[] MANTLE_ACCENTS = new ResourceLocation[]{new ResourceLocation("terralith", "cave/mantle/lava_drip"), new ResourceLocation("terralith", "cave/mantle/magma_strip"), new ResourceLocation("terralith", "cave/mantle/basalt_strip")};
     private static final ResourceLocation[] VOLCANIC_VENT_ACCENTS = new ResourceLocation[]{new ResourceLocation("regions_unexplored", "ash_vent"), new ResourceLocation("regions_unexplored", "scorching_ash_vent"), new ResourceLocation("regions_unexplored", "scorching/ash_vent"), new ResourceLocation("terralith", "yellowstone/vents"), new ResourceLocation("terralith", "yellowstone/vents_small")};
+    private static final ResourceLocation[] REDSTONE_CEILING = new ResourceLocation[]{new ResourceLocation("regions_unexplored", "redstone_cave_ceiling"), new ResourceLocation("regions_unexplored", "redstone_cave_cluster"), new ResourceLocation("regions_unexplored", "redstone_cave_ore"), new ResourceLocation("terralith", "cave/generic/noise_reducer"), new ResourceLocation("minecraft", "ore_redstone"), new ResourceLocation("minecraft", "ore_redstone_lower")};
+    private static final ResourceLocation[] FUNGAL_CEILING = new ResourceLocation[]{new ResourceLocation("terralith", "cave/fungal/hanging_roots_cluster"), new ResourceLocation("terralith", "cave/fungal/hanging_roots_single"), new ResourceLocation("terralith", "cave/fungal/vines"), new ResourceLocation("terralith", "cave/fungal/lichen_spread")};
+    private static final ResourceLocation[] FUNGAL_FLOOR = new ResourceLocation[]{new ResourceLocation("terralith", "cave/fungal/huge_mushroom_scattered"), new ResourceLocation("terralith", "cave/fungal/patch_mushroom"), new ResourceLocation("terralith", "cave/fungal/coarse_dirt"), new ResourceLocation("terralith", "cave/fungal/lichen_spread")};
+    private static final ResourceLocation[] FROSTFIRE_FLOOR = new ResourceLocation[]{new ResourceLocation("terralith", "cave/frostfire/columns"), new ResourceLocation("terralith", "cave/frostfire/frostfire_patch"), new ResourceLocation("terralith", "cave/frostfire/sculk_patch")};
+    private static final int MIN_LARGE_HALL_HEIGHT = 20;
 
     private CaveMegaAccentDecorator() {
     }
@@ -116,15 +121,20 @@ public final class CaveMegaAccentDecorator {
                         random.setFeatureSeed(seed, 30, 5);
                         CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, 1);
                     }
-                } else if (large != null && CaveMegaAccentDecorator.allowsDripstoneAccent(biome) && (bend || random.nextFloat() < 0.38f)) {
-                    random.setFeatureSeed(seed, 0, 0);
-                    FeaturePlacement.place(large, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, floorY, wz), true);
                 }
-                if (cold && frostColumns != null && !ice && random.nextFloat() < 0.32f) {
+                if (CaveBiomeIds.isFrostfireCaveBiome(biome) && random.nextFloat() < 0.38f) {
+                    random.setFeatureSeed(seed, 9, 0);
+                    CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, FROSTFIRE_FLOOR, region, generator, random, wx, floorY, wz, seed, 9, 4);
+                } else if (CaveBiomeIds.isFungalCaveBiome(biome) && random.nextFloat() < 0.42f) {
+                    random.setFeatureSeed(seed, 8, 0);
+                    CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, FUNGAL_FLOOR, region, generator, random, wx, floorY, wz, seed, 8, 4);
+                } else if (cold && frostColumns != null && !ice && random.nextFloat() < 0.32f) {
                     random.setFeatureSeed(seed, 10, 0);
                     FeaturePlacement.place(frostColumns, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, floorY, wz), true);
                 }
                 if ((ceilY = CaveMegaAccentDecorator.findCeiling(chunk, lx, lz, floorY + 4, maxY)) <= floorY + 5 || !CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, ceilY, lz, generator, wx, wz, biome)) continue;
+                int hallHeight = ceilY - floorY;
+                CaveMegaAccentDecorator.decorateLargeHallCeiling((Registry<PlacedFeature>)registry, region, generator, random, chunk, carver, wx, floorY, ceilY, wz, seed, biome);
                 if (ice && random.nextFloat() < 0.55f) {
                     random.setFeatureSeed(seed, 12, 1);
                     CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, TERRALITH_ICE_CEILING, region, generator, random, wx, ceilY, wz, seed, 50, 5);
@@ -134,14 +144,8 @@ public final class CaveMegaAccentDecorator {
                 } else if (cold && iceCrystal != null && random.nextFloat() < 0.38f) {
                     random.setFeatureSeed(seed, 11, 1);
                     FeaturePlacement.place(iceCrystal, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, ceilY, wz), true);
-                } else if (large != null && CaveMegaAccentDecorator.allowsDripstoneAccent(biome) && random.nextFloat() < 0.44f) {
-                    random.setFeatureSeed(seed, 1, 1);
-                    FeaturePlacement.place(large, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, ceilY, wz), true);
-                } else if (dripCluster != null && CaveMegaAccentDecorator.allowsDripstoneAccent(biome) && random.nextFloat() < 0.28f) {
-                    random.setFeatureSeed(seed, 14, 1);
-                    FeaturePlacement.place(dripCluster, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, ceilY, wz), true);
                 }
-                if (vines != null && random.nextFloat() < 0.28f && CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, vineY = ceilY - random.nextInt(3), lz, generator, wx, wz, biome)) {
+                if (vines != null && (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isUndergroundJungleBiome(biome)) && random.nextFloat() < 0.28f && CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, vineY = ceilY - random.nextInt(3), lz, generator, wx, wz, biome)) {
                     random.setFeatureSeed(seed, 3, 2);
                     FeaturePlacement.place(vines, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, vineY, wz), true);
                 }
@@ -189,37 +193,27 @@ public final class CaveMegaAccentDecorator {
                 CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, 1);
             }
         }
-        CaveMegaAccentDecorator.decorateUniversalDripstoneColumns(chunk, carver, region, generator, random, large, dripCluster, minY, maxY, chunkX, chunkZ);
     }
 
-    /** Sparse pass for stone caves missed by the main accent grid — large columns only, no pointed dripstone. */
-    private static void decorateUniversalDripstoneColumns(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, WorldgenRandom random, Holder<PlacedFeature> large, Holder<PlacedFeature> dripCluster, int minY, int maxY, int chunkX, int chunkZ) {
-        if (large == null && dripCluster == null) {
+    private static void decorateLargeHallCeiling(Registry<PlacedFeature> registry, WorldGenLevel region, Generator generator, WorldgenRandom random, ChunkAccess chunk, CarverChunk carver, int wx, int floorY, int ceilY, int wz, long seed, Holder<Biome> floorBiome) {
+        int hallHeight = ceilY - floorY;
+        if (hallHeight < MIN_LARGE_HALL_HEIGHT) {
             return;
         }
-        for (int lx = 3; lx < 16; lx += 6) {
-            for (int lz = 3; lz < 16; lz += 6) {
-                int wx = chunkX + lx;
-                int wz = chunkZ + lz;
-                int floorY = CaveMegaAccentDecorator.findFloor(chunk, lx, lz, minY, maxY);
-                if (floorY < 0) continue;
-                Holder<Biome> biome = carver.resolveBiome(chunk, lx, floorY, lz);
-                if (!CaveBiomeIds.isUndergroundBiome(biome) || !CaveMegaAccentDecorator.allowsDripstoneAccent(biome) || CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome) || CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome) || CaveMegaAccentDecorator.isIceCaveBiome(biome)) continue;
-                int ceilY = CaveMegaAccentDecorator.findCeiling(chunk, lx, lz, floorY + 4, maxY);
-                if (ceilY <= floorY + 5) continue;
-                long seed = random.setDecorationSeed(region.getSeed(), wx, wz);
-                if (large != null && CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, floorY, lz, generator, wx, wz, biome) && random.nextFloat() < 0.32f) {
-                    random.setFeatureSeed(seed, 90, 1);
-                    FeaturePlacement.place(large, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, floorY, wz), true);
-                }
-                if (large != null && CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, ceilY, lz, generator, wx, wz, biome) && random.nextFloat() < 0.36f) {
-                    random.setFeatureSeed(seed, 91, 1);
-                    FeaturePlacement.place(large, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, ceilY, wz), true);
-                } else if (dripCluster != null && CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, ceilY, lz, generator, wx, wz, biome) && random.nextFloat() < 0.24f) {
-                    random.setFeatureSeed(seed, 93, 1);
-                    FeaturePlacement.place(dripCluster, region, (ChunkGenerator)generator, (Random)random, new BlockPos(wx, ceilY, wz), true);
-                }
-            }
+        int lx = wx & 0xF;
+        int lz = wz & 0xF;
+        Holder<Biome> ceilBiome = carver.resolveBiome(chunk, lx, ceilY, lz);
+        if (!CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, ceilY, lz, generator, wx, wz, ceilBiome)) {
+            return;
+        }
+        boolean fungalFloor = CaveBiomeIds.isFungalCaveBiome(floorBiome);
+        if (random.nextFloat() < 0.85f) {
+            random.setFeatureSeed(seed, 15, 1);
+            CaveMegaAccentDecorator.placeFirstMatch(registry, REDSTONE_CEILING, region, generator, random, wx, ceilY, wz, seed, 16, 5);
+        }
+        if (fungalFloor && random.nextFloat() < 0.52f) {
+            random.setFeatureSeed(seed, 17, 1);
+            CaveMegaAccentDecorator.placeFirstMatch(registry, FUNGAL_CEILING, region, generator, random, wx, ceilY, wz, seed, 18, 5);
         }
     }
 

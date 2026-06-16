@@ -18,7 +18,7 @@ public final class TFCaveSystemConfig {
     public int gigaTransitionPerRegion = 6;
     public double gigaScale = 2.0;
     public int normalMaxBiomes = 2;
-    public int transitionMaxWidth = 40;
+    public int transitionMaxWidth = 15;
     public double islandMaxRadius = 1.5;
     public boolean enableSynapseCaves = true;
     /** Blocks of stone kept below heightmap before cave ceiling. */

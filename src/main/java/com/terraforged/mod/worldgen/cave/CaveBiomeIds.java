@@ -194,7 +194,18 @@ public final class CaveBiomeIds {
             return true;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("underground_jungle") || path.contains("steaming_jungle") || path.contains("cave_underground_jungle") || path.contains("cave_steaming_jungle");
+        return path.contains("underground_jungle") || path.contains("steaming_jungle") || path.contains("cave_underground_jungle") || path.contains("cave_steaming_jungle") || CaveBiomeIds.isSulfurRiverBiome(id);
+    }
+
+    /** Anchor / scatter guard: same biome or shared cave theme (fungal↔mycotoxic, etc.). */
+    public static boolean matchesDecorAnchor(Holder<Biome> expected, Holder<Biome> resolved) {
+        if (expected == null || resolved == null) {
+            return false;
+        }
+        if (CaveBiomeIds.sameBiomeKey(expected, resolved)) {
+            return true;
+        }
+        return CaveBiomeIds.sharesCaveTheme(expected, resolved);
     }
 
     public static boolean isBlockedCaveBiome(Holder<Biome> biome) {
@@ -434,6 +445,42 @@ public final class CaveBiomeIds {
             return false;
         }
         return id.getPath().toLowerCase().contains("redstone_caves");
+    }
+
+    public static boolean isRedstoneCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isGenericRedstoneTransition(key.location())).orElse(false);
+    }
+
+    public static boolean isFrostfireCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isFrostfireCaveBiome(key.location())).orElse(false);
+    }
+
+    public static boolean isFrostfireCaveBiome(ResourceLocation id) {
+        return id != null && id.getPath().toLowerCase().contains("frostfire");
+    }
+
+    /** Biomes that register ceiling scatter (fungal/crystal/redstone). Heat-shell and stone caves do not. */
+    public static boolean supportsCeilingDecoration(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.supportsCeilingDecoration(key.location())).orElse(false);
+    }
+
+    public static boolean supportsCeilingDecoration(ResourceLocation id) {
+        if (id == null || CaveBiomeIds.isHeatShellCaveBiome(id) || CaveBiomeIds.isEmptyStoneCave(id)) {
+            return false;
+        }
+        if (CaveBiomeIds.isSparseCaveBiome(id) && !CaveBiomeIds.isGenericRedstoneTransition(id)) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return CaveBiomeIds.isFungalCaveBiome(id) || CaveBiomeIds.isCrystalCaveBiome(id)
+                || CaveBiomeIds.isPrismachasmBiome(id) || CaveBiomeIds.isSkyrisCaveBiome(id)
+                || CaveBiomeIds.isGenericRedstoneTransition(id) || CaveBiomeIds.isUndergroundJungleBiome(id)
+                || path.contains("ice_caves") || path.contains("icicle") || path.contains("frostfire");
+    }
+
+    public static boolean isMantleScorchingPair(ResourceLocation a, ResourceLocation b) {
+        return CaveBiomeIds.pathContains(a, "mantle") && CaveBiomeIds.pathContains(b, "scorching")
+                || CaveBiomeIds.pathContains(b, "mantle") && CaveBiomeIds.pathContains(a, "scorching");
     }
 
     public static boolean isPatchPaintedBiome(Holder<Biome> biome) {

@@ -17,7 +17,12 @@ public final class CaveFeatureFilters {
     }
 
     public static boolean isModCaveDecorationStage(int stageIndex) {
-        return stageIndex == GenerationStep.Decoration.RAW_GENERATION.ordinal() || stageIndex == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal() || stageIndex == GenerationStep.Decoration.SURFACE_STRUCTURES.ordinal() || stageIndex == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal() || stageIndex == GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
+        return stageIndex == GenerationStep.Decoration.RAW_GENERATION.ordinal()
+                || stageIndex == GenerationStep.Decoration.LAKES.ordinal()
+                || stageIndex == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
+                || stageIndex == GenerationStep.Decoration.SURFACE_STRUCTURES.ordinal()
+                || stageIndex == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
+                || stageIndex == GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
     }
 
     public static boolean belongsToModCaveBiome(Holder<PlacedFeature> placed, Holder<Biome> biome) {
@@ -393,6 +398,12 @@ public final class CaveFeatureFilters {
         if (CaveFeatureFilters.isMegaHandledColumnFeature(path, biome)) {
             return false;
         }
+        if (CaveFeatureFilters.isHeavyDripstoneFeature(path) && !CaveFeatureFilters.allowsDripstoneFeatures(biome)) {
+            return false;
+        }
+        if (CaveBiomeIds.isFungalCaveBiome(biome) && path.contains("cave/stone/")) {
+            return false;
+        }
         if (path.contains("monster_room") || path.contains("fossil")) {
             return false;
         }
@@ -541,7 +552,21 @@ public final class CaveFeatureFilters {
         if (path.contains("prismarite") || path.contains("prismoss") || path.contains("hyssop")) {
             return biome.unwrapKey().map(key -> key.location().getPath().toLowerCase().contains("prismachasm")).orElse(false) == false;
         }
-        return path.contains("large_dripstone") || path.contains("pointed_dripstone") || path.contains("dripstone_cluster") || path.contains("cave/ice/icicle");
+        return CaveFeatureFilters.isHeavyDripstoneFeature(path);
+    }
+
+    public static boolean isHeavyDripstoneFeature(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        return path.contains("large_dripstone") || path.contains("pointed_dripstone") || path.contains("dripstone_cluster") || path.contains("stalactite") || path.contains("cave/ice/icicle");
+    }
+
+    public static boolean allowsDripstoneFeatures(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> {
+            String path = key.location().getPath().toLowerCase();
+            return path.contains("dripstone") || path.contains("karst") || path.contains("grotto") || path.contains("tuff_cave") || path.contains("tuff_caves") || path.contains("limestone") || path.contains("icicle");
+        }).orElse(false);
     }
 
     private static boolean isVolumeStage(int stageIndex) {

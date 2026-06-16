@@ -483,7 +483,7 @@ public final class CaveMegaGigaLayout {
                 continue;
             }
             CaveBiomeEntry transition = registry.findTransitionBetween(sector.biome().caveTemperature(), next.biome().caveTemperature(), sector.biome().biome(), next.biome().biome());
-            if (transition == null || CaveBiomeIds.isBlockedCaveBiome(transition.biome())) {
+            if (transition == null || CaveBiomeIds.isBlockedCaveBiome(transition.biome()) || CaveBiomeIds.isSulfurRiverBiome(transition.biome())) {
                 continue;
             }
             float wobble = angularWidth * (0.75f + CaveMegaGigaLayout.noise01(seed, i + 900) * 0.5f);

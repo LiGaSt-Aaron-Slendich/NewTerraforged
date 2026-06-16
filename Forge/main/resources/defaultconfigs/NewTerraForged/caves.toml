@@ -16,7 +16,7 @@ scale = 2.0
 
 [normal]
 max_biomes_per_system = 2
-transition_max_width_blocks = 40
+transition_max_width_blocks = 15
 island_max_radius_chunks = 1.5
 # false = mega/giga only (no synapse column caves)
 enable_synapse_caves = true

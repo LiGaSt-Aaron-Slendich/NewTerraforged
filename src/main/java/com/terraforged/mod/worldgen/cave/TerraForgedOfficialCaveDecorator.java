@@ -150,6 +150,9 @@ public final class TerraForgedOfficialCaveDecorator {
 
     private static boolean isBlockedFeaturePath(String path) {
         String lower = path.toLowerCase();
+        if (CaveFeatureFilters.isHeavyDripstoneFeature(lower)) {
+            return true;
+        }
         return lower.contains("geode") || lower.contains("mega_geode") || lower.contains("crystal_geode")
                 || lower.contains("monster_room") || lower.contains("fossil")
                 || lower.startsWith("ore_") || lower.contains("/ore_")

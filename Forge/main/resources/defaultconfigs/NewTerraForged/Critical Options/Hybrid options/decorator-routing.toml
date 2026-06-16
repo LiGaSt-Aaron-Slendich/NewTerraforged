@@ -20,21 +20,25 @@ default = "compromise"
 [[decorator_routing.rule]]
 decorator = "official"
 patterns = [
-    "scorching", "mantle", "magma",
-    "dripstone", "karst", "limestone", "tuff_cave", "tuff_caves",
-    "icicle", "stalactite", "fungal", "mycotoxic", "prismachasm",
+    "karst", "limestone", "tuff_cave", "tuff_caves",
+    "icicle", "stalactite",
     "deepslate", "basalt", "blackstone",
     "@minecraft_cave",
 ]
 
-# Brimstone: official TF decorator handles it poorly — use compromise instead.
+# Cover + scatter — dripstone uses bounded compromise (official TF runs every feature at one origin).
 [[decorator_routing.rule]]
 decorator = "compromise"
-patterns = ["brimstone"]
+patterns = [
+    "scorching", "mantle", "magma", "brimstone",
+    "dripstone",
+    "fungal", "mycotoxic", "bioshroom", "prismachasm",
+    "frostfire",
+]
 
 [[decorator_routing.rule]]
 decorator = "vanilla"
-patterns = ["glowing_grotto", "undergarden", "frostfire"]
+patterns = ["glowing_grotto", "undergarden"]
 
 [[decorator_routing.rule]]
 decorator = "legacy"

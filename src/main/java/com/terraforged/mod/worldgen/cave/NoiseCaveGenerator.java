@@ -21,6 +21,7 @@ import com.terraforged.mod.worldgen.cave.CaveMegaAccentDecorator;
 import com.terraforged.mod.worldgen.cave.CaveModifiers;
 import com.terraforged.mod.worldgen.cave.CavePatchPlacer;
 import com.terraforged.mod.worldgen.cave.CaveSurfaceBiomeRestorer;
+import com.terraforged.mod.worldgen.cave.CaveSystemBounds;
 import com.terraforged.mod.worldgen.cave.CaveSystemGrid;
 import com.terraforged.mod.worldgen.cave.CaveThermalSpringsDecorator;
 import com.terraforged.mod.worldgen.cave.CaveTunnelRiverDecorator;
@@ -81,6 +82,7 @@ public class NoiseCaveGenerator {
         if (carver == null) {
             return;
         }
+        carver.columnCache().invalidateDecorationFlags();
         carver.columnCache().buildDecorationFlags(carver, chunk);
         CarverColumnCache columns = carver.columnCache();
         boolean megaGiga = columns.anyMegaGiga();
@@ -204,7 +206,13 @@ public class NoiseCaveGenerator {
         }
         NoiseCave synapseProbe = NoiseCaveGenerator.findPrimarySynapseConfig(this.caves);
         if (NoiseCaveGenerator.isCaveEnabled(synapseProbe)) {
-            columns.ensureSynapseEligibility(synapseProbe, seed);
+            int cx = chunk.getPos().getMiddleBlockX();
+            int cz = chunk.getPos().getMiddleBlockZ();
+            if (columns.anyMegaGiga() || CaveSystemBounds.isWithinFootprint(cx, cz, CaveType.MEGA) || CaveSystemBounds.isWithinFootprint(cx, cz, CaveType.GIGA)) {
+                columns.ensureSynapseEligibility(synapseProbe, seed);
+            } else {
+                columns.probeSynapseEligibility(synapseProbe, seed);
+            }
         }
         for (NoiseCave config : this.carveOrderCaves) {
             CaveBiomeRegistry registry;
@@ -221,7 +229,6 @@ public class NoiseCaveGenerator {
             CaveGrottoCarver.tryCarveChunk(seed, chunk, carver, generator, NoiseCaveGenerator.findSynapseConfig(this.caves), generator.getCaveEntranceClaims());
         }
         CaveRiverEntranceHydrator.hydrate(chunk, carver, generator);
-        CaveFlatWallRepair.afterCarve(seed, chunk, carver, generator, this.caves, this::getModifier);
         carver.columnCache().buildDecorationFlags(carver, chunk);
         this.entranceSnapshots.put(chunk.getPos(), carver.snapshotEntranceColumns());
         ChunkUtil.refreshHeightmaps(chunk);

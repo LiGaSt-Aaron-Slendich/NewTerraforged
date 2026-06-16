@@ -172,12 +172,12 @@ public class NoiseCaveCarver {
             if (densityBudget != null && !megaGiga && !columns.isMegaGigaZone(dx, dz)) {
                 densityBudget.consumeSecondary(verticalSpan);
             }
-            if (columns.reserveEntrance(dx, dz) && top >= surface - 6 && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+            if (columns.reserveEntrance(dx, dz) && top >= surface - 14 && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
                 carver.markEntranceColumn(dx, dz);
                 if (columns.nearSea() && columns.riverHillside(dx, dz)) {
                     carver.markCoastalEntranceColumn(dx, dz);
                 }
-            } else if (surfaceBreach && top >= surface - 6 && !columns.suppressSurfaceBreach(dx, dz) && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+            } else if (surfaceBreach && top >= surface - 10 && !columns.suppressSurfaceBreach(dx, dz) && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
                 carver.markEntranceColumn(dx, dz);
                 if (columns.nearSea() && columns.riverHillside(dx, dz)) {
                     carver.markCoastalEntranceColumn(dx, dz);
@@ -459,7 +459,8 @@ public class NoiseCaveCarver {
             }
             float openThreshold = massif ? 0.62f : 0.78f;
             if (breachMask >= openThreshold && columns != null && columns.reserveEntrance(dx, dz)) {
-                return 0;
+                int relaxed = Math.max(12, base / 3);
+                return columns.localSurfaceSlope(dx, dz, 3) ? Math.max(14, relaxed) : relaxed;
             }
             if (breachMask >= openThreshold) {
                 return Math.max(6, base / 2);

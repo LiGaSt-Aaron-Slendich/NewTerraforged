@@ -246,63 +246,6 @@ moisture = -2
 temperature = 1
 
 [[transition]]
-id = "newterraforged:cave_sulfur_river"
-temperature = 0.68
-vegetation_density = 0.12
-weight = 1.2
-placement_type = "full_region"
-
-[transition.stats.conditions]
-temperature = 1
-
-[transition.stats.global]
-temperature = 2
-moisture = -1
-fertility = -1
-
-[transition.stats.local]
-temperature = 1
-falloff_per_hop = 1.0
-
-[[transition]]
-id = "newterraforged:cave_sulfur_river"
-temperature = 0.68
-vegetation_density = 0.12
-weight = 1.2
-placement_type = "full_region"
-
-[transition.stats.conditions]
-temperature = 1
-
-[transition.stats.global]
-temperature = 2
-moisture = -1
-fertility = -1
-
-[transition.stats.local]
-temperature = 1
-falloff_per_hop = 1.0
-
-[[transition]]
-id = "newterraforged:cave_sulfur_river"
-temperature = 0.68
-vegetation_density = 0.12
-weight = 1.2
-placement_type = "full_region"
-
-[transition.stats.conditions]
-temperature = 1
-
-[transition.stats.global]
-temperature = 2
-moisture = -1
-fertility = -1
-
-[transition.stats.local]
-temperature = 1
-falloff_per_hop = 1.0
-
-[[transition]]
 id = "terralith:cave/infested_caves"
 temperature = 0.40
 vegetation_density = 0.15
@@ -668,7 +611,7 @@ falloff_per_hop = 1.0
 
 [[transition]]
 id = "regions_unexplored:scorching_caves"
-temperature = 0.06
+temperature = 0.78
 vegetation_density = 0.10
 weight = 0.48
 placement_type = "full_region"

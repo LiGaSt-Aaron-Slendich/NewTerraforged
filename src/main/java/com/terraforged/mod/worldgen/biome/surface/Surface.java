@@ -172,6 +172,9 @@ public class Surface {
     }
 
     public static void repairExposedCover(ChunkAccess chunk, WorldGenLevel region, Generator generator, TerrainData terrainData, CarverChunk carver) {
+        if (carver != null && carver.anyMegaGiga() && !carver.hasSurfaceRisk()) {
+            return;
+        }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int dz = 0; dz < 16; ++dz) {
             for (int dx = 0; dx < 16; ++dx) {

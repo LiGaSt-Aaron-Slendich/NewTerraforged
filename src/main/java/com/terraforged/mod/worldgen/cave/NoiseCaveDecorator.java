@@ -21,6 +21,7 @@ import java.util.Random;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -175,12 +176,16 @@ public class NoiseCaveDecorator {
         boolean ceiling = anchor == CaveFeatureRules.Anchor.CEILING;
         int placedOnCeiling = 0;
         for (CaveFeaturePlan.StageFeature entry : candidates) {
+            ResourceLocation featureId = FeatureMassClassifier.featurePath(entry.feature());
+            if (featureId != null && CaveFeatureFilters.isHeavyDripstoneFeature(featureId.getPath().toLowerCase()) && !CaveFeatureFilters.allowsDripstoneFeatures(biome)) {
+                continue;
+            }
             if (FeatureMassClassifier.spawnsSurfaceVegetation(entry.feature()) || !CaveFeaturePlacement.mayPlace(entry.feature(), anchor, airPos, chunk) || !budget.canPlace(entry.mass(), localX, localZ)) continue;
             BlockPos placePos = CaveFeaturePlacement.resolveWorldPos(airPos, anchor, entry.topLayer());
             random.setFeatureSeed(baseSeed, entry.featureIndex(), entry.stageIndex());
             if (!NoiseCaveDecorator.placeFeature(entry.feature(), placement, generator, random, placePos)) continue;
             budget.record(entry.mass(), localX, localZ);
-            if (ceiling && megaGiga && ++placedOnCeiling >= 3) break;
+            if (ceiling && megaGiga && ++placedOnCeiling >= 1) break;
         }
     }
 

@@ -31,7 +31,7 @@ import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 public final class CaveBiomeFeatureRunner {
-    private static final int MAX_SCATTER_ATTEMPTS = 64;
+    private static final int MAX_SCATTER_ATTEMPTS = 28;
 
     private CaveBiomeFeatureRunner() {
     }
@@ -84,8 +84,10 @@ public final class CaveBiomeFeatureRunner {
         int coverBudget = CaveBiomeFeatureRunner.coverBudgetFor(biome);
         int[][] offsets = CaveBiomeFeatureRunner.coverOffsets(coverBudget);
         block0: for (int[] offset : offsets) {
-            BlockPos placePos = CaveFeaturePlacement.resolveWorldPos(floorAnchor.offset(offset[0], 0, offset[1]), CaveFeatureRules.Anchor.FLOOR, false);
-            if (!CaveFeaturePlacement.hasSolidFloorBelow(chunk, placePos)) continue;
+            BlockPos offsetAnchor = floorAnchor.offset(offset[0], 0, offset[1]);
+            offsetAnchor = CaveFloorCover.prepare(chunk, carver, biome, offsetAnchor);
+            BlockPos placePos = CaveFeaturePlacement.resolveWorldPos(offsetAnchor, CaveFeatureRules.Anchor.FLOOR, false);
+            if (!CaveFeaturePlacement.hasSolidFloorBelow(chunk, offsetAnchor)) continue;
             for (int stageIndex = 0; stageIndex < stages.size(); ++stageIndex) {
                 HolderSet stage;
                 if (!CaveFeatureFilters.isModCaveDecorationStage(stageIndex) || (stage = (HolderSet)stages.get(stageIndex)) == null || stage.size() == 0) continue;
@@ -123,7 +125,7 @@ public final class CaveBiomeFeatureRunner {
 
     private static int coverBudgetFor(Holder<Biome> biome) {
         if (CaveBiomeIds.isFungalCaveBiome(biome)) {
-            return 14;
+            return 9;
         }
         if (CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome)) {
             return 12;
@@ -308,14 +310,13 @@ public final class CaveBiomeFeatureRunner {
         int maxY = chunk.getHighestSectionPosition() + 15;
         int ceilY = CaveColumnScan.findCeilingAboveFloor(chunk, lx, lz, floorAnchor.getY() + 4, maxY);
         if (ceilY > floorAnchor.getY() + 5 && CaveBiomeFeatureRunner.mayPlaceCeiling(chunk, carver, ceilAnchor = new BlockPos(floorAnchor.getX(), ceilY, floorAnchor.getZ()), generator, biome)) {
-            Holder<Biome> ceilBiome = carver.resolveBiome(chunk, lx, ceilY, lz);
-            if (!CaveBiomeIds.isModCaveBiome(ceilBiome)) {
-                ceilBiome = biome;
+            Holder<Biome> ceilBiome = CaveBiomeFeatureRunner.resolveCeilBiome(chunk, carver, lx, ceilY, lz, biome);
+            if (ceilBiome != null) {
+                String ceilNs = ceilBiome.unwrapKey().map(key -> key.location().getNamespace()).orElse(biomeNs);
+                WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
+                BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
+                CaveBiomeFeatureRunner.decorateNativeScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilNs, ceilSettings, random, false);
             }
-            String ceilNs = ceilBiome.unwrapKey().map(key -> key.location().getNamespace()).orElse(biomeNs);
-            WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
-            BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
-            CaveBiomeFeatureRunner.decorateNativeScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilNs, ceilSettings, random, false);
         }
     }
 
@@ -338,14 +339,13 @@ public final class CaveBiomeFeatureRunner {
         int ceilY = CaveColumnScan.findCeilingAboveFloor(chunk, lx, lz, floorAnchor.getY() + 4, maxY);
         BlockPos ceilAnchor;
         if (ceilY > floorAnchor.getY() + 5 && CaveBiomeFeatureRunner.mayPlaceCeiling(chunk, carver, ceilAnchor = new BlockPos(floorAnchor.getX(), ceilY, floorAnchor.getZ()), generator, biome)) {
-            Holder<Biome> ceilBiome = carver.resolveBiome(chunk, lx, ceilY, lz);
-            if (!CaveBiomeIds.isModCaveBiome(ceilBiome)) {
-                ceilBiome = biome;
+            Holder<Biome> ceilBiome = CaveBiomeFeatureRunner.resolveCeilBiome(chunk, carver, lx, ceilY, lz, biome);
+            if (ceilBiome != null) {
+                WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
+                BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
+                CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, 6, 24);
+                CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, 4);
             }
-            WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
-            BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
-            CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, 6, 24);
-            CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, 4);
         }
     }
 
@@ -370,14 +370,13 @@ public final class CaveBiomeFeatureRunner {
         int maxY = chunk.getHighestSectionPosition() + 15;
         int ceilY = CaveColumnScan.findCeilingAboveFloor(chunk, lx, lz, floorAnchor.getY() + 4, maxY);
         if (ceilY > floorAnchor.getY() + 5 && CaveBiomeFeatureRunner.mayPlaceCeiling(chunk, carver, ceilAnchor = new BlockPos(floorAnchor.getX(), ceilY, floorAnchor.getZ()), generator, biome)) {
-            Holder<Biome> ceilBiome = carver.resolveBiome(chunk, lx, ceilY, lz);
-            if (!CaveBiomeIds.isModCaveBiome(ceilBiome)) {
-                ceilBiome = biome;
+            Holder<Biome> ceilBiome = CaveBiomeFeatureRunner.resolveCeilBiome(chunk, carver, lx, ceilY, lz, biome);
+            if (ceilBiome != null) {
+                WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
+                BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
+                CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, -1, MAX_SCATTER_ATTEMPTS);
+                CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 14 : 11);
             }
-            WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
-            BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
-            CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, -1, MAX_SCATTER_ATTEMPTS);
-            CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 14 : 11);
         }
     }
 
@@ -391,6 +390,10 @@ public final class CaveBiomeFeatureRunner {
         long baseSeed = random.setDecorationSeed(region.getSeed(), anchor.getX(), anchor.getZ());
         int placed = 0;
         for (CaveFeaturePlan.StageFeature entry : candidates) {
+            ResourceLocation featurePath = FeatureMassClassifier.featurePath(entry.feature());
+            if (featurePath != null && CaveFeatureFilters.isHeavyDripstoneFeature(featurePath.getPath().toLowerCase()) && !CaveFeatureFilters.allowsDripstoneFeatures(biome)) {
+                continue;
+            }
             if (FeatureMassClassifier.isTree(entry.feature()) || FeatureMassClassifier.spawnsSurfaceVegetation(entry.feature())) continue;
             if (!CaveFeatureFilters.isModCaveFeatureAllowed(entry.feature(), biome) || !CaveFeatureFilters.belongsToModCaveBiome(entry.feature(), biome) || CaveFeatureFilters.isForbiddenForCaveBiome(entry.feature(), biome)) continue;
             if (CaveBiomeFeatureRunner.isGlobalCaveHelper(entry.feature())) continue;
@@ -448,7 +451,7 @@ public final class CaveBiomeFeatureRunner {
 
     private static void decorateScatter(BlockPos anchor, boolean ceiling, ChunkAccess chunk, WorldGenLevel underground, WorldGenLevel biomePlacement, Generator generator, Holder<Biome> biome, BiomeGenerationSettings settings, WorldgenRandom random, int scatterBudgetOverride, int maxAttempts) {
         int placed = CaveBiomeFeatureRunner.decorateScatterPass(anchor, ceiling, chunk, underground, biomePlacement, generator, biome, settings, random, scatterBudgetOverride, maxAttempts, true);
-        if (placed == 0 || scatterBudgetOverride < 0) {
+        if (placed == 0) {
             CaveBiomeFeatureRunner.decorateScatterPass(anchor, ceiling, chunk, underground, biomePlacement, generator, biome, settings, random, scatterBudgetOverride, maxAttempts, false);
         }
     }
@@ -466,6 +469,10 @@ public final class CaveBiomeFeatureRunner {
             if (!CaveFeatureFilters.isModCaveDecorationStage(stageIndex) || (stage = (HolderSet)stages.get(stageIndex)) == null || stage.size() == 0) continue;
             for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
                 Holder placed = stage.get(featureIndex);
+                ResourceLocation scatterPath = FeatureMassClassifier.featurePath((Holder<PlacedFeature>)placed);
+                if (scatterPath != null && CaveFeatureFilters.isHeavyDripstoneFeature(scatterPath.getPath().toLowerCase()) && !CaveFeatureFilters.allowsDripstoneFeatures(biome)) {
+                    continue;
+                }
                 if (!ceiling && CaveBiomeFeatureRunner.isSmallMushroomScatter((Holder<PlacedFeature>)placed) && mushroomPlaced >= mushroomBudget) continue;
                 if (!ceiling && CaveBiomeFeatureRunner.isLargeVerticalMushroom((Holder<PlacedFeature>)placed) && mushroomPlaced >= 1) continue;
                 if (CaveFeatureFilters.isDeferredOrGlobalFeature((Holder<PlacedFeature>)placed) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || DynamicTreesCompat.isLoaded() && CaveBiomeIds.isFungalCaveBiome(biome) && (DynamicTreesCompat.isDynamicTreesFeature((Holder<PlacedFeature>)placed) || !ceiling && CaveBiomeFeatureRunner.isVanillaFungalScatter((Holder<PlacedFeature>)placed)) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome) || CaveFeatureFilters.isForbiddenForCaveBiome((Holder<PlacedFeature>)placed, biome) || !CaveBiomeFeatureRunner.matchesAnchor((Holder<PlacedFeature>)placed, ceiling) || FeatureMassClassifier.isTree((Holder<PlacedFeature>)placed) || !ceiling && !CaveBiomeFeatureRunner.allowsFloorScatter((Holder<PlacedFeature>)placed, biome) || !ceiling && CaveBiomeFeatureRunner.requiresConnectedFloor((Holder<PlacedFeature>)placed, biome) && !CaveFeaturePlacement.hasConnectedFloor(chunk, anchor, CaveBiomeFeatureRunner.floorSupportDepth((Holder<PlacedFeature>)placed, biome)) || ceiling && CaveBiomeFeatureRunner.requiresConnectedCeiling((Holder<PlacedFeature>)placed, biome) && !CaveFeaturePlacement.hasConnectedCeiling(chunk, anchor, 2)) continue;
@@ -523,7 +530,7 @@ public final class CaveBiomeFeatureRunner {
             return 18;
         }
         if (CaveBiomeIds.isFungalCaveBiome(biome)) {
-            return 12;
+            return 16;
         }
         return 14;
     }
@@ -539,7 +546,7 @@ public final class CaveBiomeFeatureRunner {
             return 22;
         }
         if (CaveBiomeIds.isFungalCaveBiome(biome)) {
-            return DynamicTreesCompat.isLoaded() ? 5 : 8;
+            return DynamicTreesCompat.isLoaded() ? 10 : 14;
         }
         return 12;
     }
@@ -548,7 +555,18 @@ public final class CaveBiomeFeatureRunner {
         if (!CaveBiomeIds.isFungalCaveBiome(biome)) {
             return Integer.MAX_VALUE;
         }
-        return 1;
+        return 4;
+    }
+
+    private static Holder<Biome> resolveCeilBiome(ChunkAccess chunk, CarverChunk carver, int lx, int ceilY, int lz, Holder<Biome> floorBiome) {
+        if (!CaveBiomeIds.supportsCeilingDecoration(floorBiome)) {
+            return null;
+        }
+        Holder<Biome> ceilBiome = carver.resolveBiome(chunk, lx, ceilY, lz);
+        if (!CaveBiomeIds.isModCaveBiome(ceilBiome) || !CaveBiomeIds.matchesDecorAnchor(floorBiome, ceilBiome)) {
+            return null;
+        }
+        return ceilBiome;
     }
 
     private static boolean requiresConnectedFloor(Holder<PlacedFeature> placed, Holder<Biome> biome) {
@@ -738,6 +756,9 @@ public final class CaveBiomeFeatureRunner {
     }
 
     static boolean mayPlaceCeiling(ChunkAccess chunk, CarverChunk carver, BlockPos anchor, Generator generator, Holder<Biome> biome) {
+        if (!CaveBiomeIds.supportsCeilingDecoration(biome)) {
+            return false;
+        }
         int lx = anchor.getX() & 0xF;
         int lz = anchor.getZ() & 0xF;
         boolean megaGiga = MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, anchor.getX(), anchor.getY(), anchor.getZ());

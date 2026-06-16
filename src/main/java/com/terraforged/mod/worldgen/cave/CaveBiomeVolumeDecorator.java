@@ -18,7 +18,9 @@ import net.minecraft.world.level.levelgen.RandomSource;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 
 public final class CaveBiomeVolumeDecorator {
-    private static final int MEGA_GIGA_ANCHOR_GRID = 2;
+    private static final int MEGA_GIGA_ANCHOR_GRID = 4;
+    private static final int MAX_MEGA_GIGA_ANCHORS = 10;
+    private static final int PAINTED_BIOME_PROBE_STRIDE = 4;
 
     private CaveBiomeVolumeDecorator() {
     }
@@ -141,7 +143,7 @@ public final class CaveBiomeVolumeDecorator {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                if (floorY < 0 || !CaveBiomeIds.matchesDecorAnchor(target, resolved = carver.resolveBiome(chunk, lx, floorY, lz)) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }
@@ -161,8 +163,8 @@ public final class CaveBiomeVolumeDecorator {
         int maxY = chunk.getHighestSectionPosition() + 15;
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
-        for (int lx = 0; lx < 16; ++lx) {
-            for (int lz = 0; lz < 16; ++lz) {
+        for (int lx = 0; lx < 16; lx += PAINTED_BIOME_PROBE_STRIDE) {
+            for (int lz = 0; lz < 16; lz += PAINTED_BIOME_PROBE_STRIDE) {
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, null, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
                 if (floorY < 0 || !CaveBiomeIds.isModCaveBiome(resolved = carver.resolveBiome(chunk, lx, floorY, lz)) || CaveBiomeIds.isBlockedCaveBiome(resolved)) continue;
@@ -180,10 +182,13 @@ public final class CaveBiomeVolumeDecorator {
         int grid = CaveBiomeVolumeDecorator.anchorGridFor(target, megaGigaChunk);
         for (int lx = 0; lx < 16; lx += grid) {
             for (int lz = 0; lz < 16; lz += grid) {
+                if (megaGigaChunk && anchors.size() >= MAX_MEGA_GIGA_ANCHORS) {
+                    return anchors;
+                }
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                if (floorY < 0 || !CaveBiomeIds.matchesDecorAnchor(target, resolved = carver.resolveBiome(chunk, lx, floorY, lz)) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }
@@ -226,13 +231,13 @@ public final class CaveBiomeVolumeDecorator {
             return 2;
         }
         if (CaveBiomeIds.isFungalCaveBiome(biome) && megaGigaChunk) {
-            return MEGA_GIGA_ANCHOR_GRID;
+            return 4;
+        }
+        if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
+            return megaGigaChunk ? 3 : 2;
         }
         if (CaveBiomeIds.isModJunglePresetBiome(biome) || CaveBiomeIds.isUndergroundJungleBiome(biome) || CaveBiomeIds.isModThermalPresetBiome(biome)) {
             return 3;
-        }
-        if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
-            return 2;
         }
         if (megaGigaChunk) {
             return MEGA_GIGA_ANCHOR_GRID;

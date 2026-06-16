@@ -23,7 +23,8 @@ public final class CaveFlatWallRepair {
     private static final int MAX_WALL_AIR = 10;
     private static final int MIN_ASYMMETRY = 6;
     private static final int MIN_OPEN_NEIGHBORS = 2;
-    private static final int REPAIR_PASSES = 3;
+    private static final int REPAIR_PASSES = 2;
+    private static final int REPAIR_PASSES_DECORATE = 1;
     private static final int BORDER_DEPTH = 2;
 
     private CaveFlatWallRepair() {
@@ -34,15 +35,22 @@ public final class CaveFlatWallRepair {
     }
 
     public static void withNeighbors(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, WorldGenLevel region, NoiseCave[] caves, Function<NoiseCave, Module> modifierFor) {
-        CaveFlatWallRepair.runRepair(seed, chunk, carver, generator, caves, modifierFor, region, true);
+        CaveFlatWallRepair.runRepair(seed, chunk, carver, generator, caves, modifierFor, region, true, REPAIR_PASSES_DECORATE);
     }
 
     /** Late pass after cave volume decoration — catches walls exposed once neighbors finished. */
     public static void afterDecorate(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, WorldGenLevel region, NoiseCave[] caves, Function<NoiseCave, Module> modifierFor) {
-        CaveFlatWallRepair.runRepair(seed, chunk, carver, generator, caves, modifierFor, region, true);
+        if (carver == null || !carver.isColumnCacheReady() || !carver.columnCache().anyMegaGiga()) {
+            return;
+        }
+        CaveFlatWallRepair.runRepair(seed, chunk, carver, generator, caves, modifierFor, region, false, REPAIR_PASSES_DECORATE);
     }
 
     private static void runRepair(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, NoiseCave[] caves, Function<NoiseCave, Module> modifierFor, WorldGenLevel region, boolean includeInterior) {
+        CaveFlatWallRepair.runRepair(seed, chunk, carver, generator, caves, modifierFor, region, includeInterior, REPAIR_PASSES);
+    }
+
+    private static void runRepair(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, NoiseCave[] caves, Function<NoiseCave, Module> modifierFor, WorldGenLevel region, boolean includeInterior, int maxPasses) {
         if (carver == null || !carver.isColumnCacheReady()) {
             return;
         }
@@ -51,7 +59,7 @@ public final class CaveFlatWallRepair {
             return;
         }
         int total = 0;
-        for (int pass = 0; pass < REPAIR_PASSES; ++pass) {
+        for (int pass = 0; pass < maxPasses; ++pass) {
             int repaired = 0;
             repaired += CaveFlatWallRepair.repairBorderColumns(seed, chunk, carver, generator, caves, modifierFor, region);
             if (includeInterior) {
@@ -69,15 +77,19 @@ public final class CaveFlatWallRepair {
     }
 
     private static boolean shouldRun(CarverColumnCache columns, ChunkAccess chunk) {
+        int open = CaveFlatWallRepair.countOpenColumns(chunk);
+        if (open < 2) {
+            return false;
+        }
         if (columns.anyMegaGiga()) {
-            return true;
+            return open >= 3;
         }
         int cx = chunk.getPos().getMiddleBlockX();
         int cz = chunk.getPos().getMiddleBlockZ();
         if (CaveSystemBounds.isWithinFootprint(cx, cz, CaveType.MEGA) || CaveSystemBounds.isWithinFootprint(cx, cz, CaveType.GIGA)) {
-            return true;
+            return open >= 3;
         }
-        return CaveFlatWallRepair.countOpenColumns(chunk) >= 3;
+        return open >= 3;
     }
 
     private static int countOpenColumns(ChunkAccess chunk) {

@@ -87,7 +87,8 @@ public final class CaveFloorCover {
             return false;
         }
         int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-        if (solidY >= surface - 4) {
+        int margin = carver != null && carver.isColumnCacheReady() && carver.columnCache().isMegaGigaZone(lx, lz) ? 2 : 4;
+        if (solidY >= surface - margin) {
             return false;
         }
         if (carver != null && carver.isColumnCacheReady()) {

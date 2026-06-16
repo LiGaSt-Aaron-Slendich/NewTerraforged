@@ -37,28 +37,37 @@ public final class CaveHybridBiomeDecorator {
         int maxY = chunk.getHighestSectionPosition() + 15;
         WorldgenRandom random = new WorldgenRandom((RandomSource)new LegacyRandomSource(region.getSeed()));
         HashSet<Holder<Biome>> decorated = new HashSet<>();
+        ArrayList<Map.Entry<Holder<Biome>, BlockPos>> officialDeferred = new ArrayList<>();
         for (Map.Entry<Holder<Biome>, BlockPos> entry : painted.entrySet()) {
             Holder<Biome> biome = entry.getKey();
             if (CaveBiomeIds.isDedicatedDecoratedCaveBiome(biome) || !decorated.add(biome)) {
                 continue;
             }
             CaveDecoratorKind kind = CaveBiomeDecoratorRouter.resolve(biome);
-            switch (kind) {
-                case OFFICIAL -> {
-                    List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 4);
-                    TerraForgedOfficialCaveDecorator.decorateBiome(origins, chunk, carver, region, generator, biome);
-                }
-                case VANILLA -> CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, entry.getValue());
-                case LEGACY -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, entry.getValue(), true, random, true);
-                default -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGigaChunk, random, CaveBiomeIds.isCoverDenseCaveBiome(biome));
+            if (kind == CaveDecoratorKind.OFFICIAL) {
+                officialDeferred.add(entry);
+                continue;
             }
+            CaveHybridBiomeDecorator.decorateBiomeEntry(kind, chunk, carver, region, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, megaGigaChunk, random);
+        }
+        for (Map.Entry<Holder<Biome>, BlockPos> entry : officialDeferred) {
+            Holder<Biome> biome = entry.getKey();
+            List<BlockPos> origins = CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, 6);
+            TerraForgedOfficialCaveDecorator.decorateBiome(origins, chunk, carver, region, generator, biome);
         }
         if (columns.anyMegaGiga()) {
             CaveMegaAccentDecorator.decorate(chunk, carver, region, generator);
-        if (carver.hasTunnelRiver()) {
-            CaveTunnelRiverDecorator.decorate(chunk, carver, region, generator);
+            if (carver.hasTunnelRiver()) {
+                CaveTunnelRiverDecorator.decorate(chunk, carver, region, generator);
+            }
         }
-        CaveSulfurRiverDecorator.decorate(chunk, carver, region, generator);
+    }
+
+    private static void decorateBiomeEntry(CaveDecoratorKind kind, ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome, BlockPos seed, int chunkX, int chunkZ, int minY, int maxY, boolean megaGigaChunk, WorldgenRandom random) {
+        switch (kind) {
+            case VANILLA -> CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, seed);
+            case LEGACY -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, seed, true, random, true);
+            default -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, seed, megaGigaChunk, random, CaveBiomeIds.isCoverDenseCaveBiome(biome));
         }
     }
 
@@ -79,7 +88,7 @@ public final class CaveHybridBiomeDecorator {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAirPublic(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) {
+                if (floorY < 0 || !CaveBiomeIds.sameBiomeKey(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) {
                     continue;
                 }
                 origins.add(pos);

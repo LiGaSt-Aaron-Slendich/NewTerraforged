@@ -37,7 +37,7 @@ public final class CaveUndergroundGuard {
         if (!CaveUndergroundGuard.biomeMatchesAnchor(chunk, carver, lx, y, lz, expected)) {
             if (megaGiga && CaveBiomeIds.isModCaveBiome(expected)) {
                 Holder<Biome> resolved = carver.resolveBiome(chunk, lx, y, lz);
-                if (!CaveBiomeIds.isModCaveBiome(resolved) || !CaveBiomeIds.sharesCaveTheme(resolved, expected) && !CaveBiomeIds.sameBiomeKey(resolved, expected)) {
+                if (!CaveBiomeIds.isModCaveBiome(resolved) || !CaveBiomeIds.matchesDecorAnchor(expected, resolved)) {
                     return false;
                 }
             } else {
@@ -62,7 +62,7 @@ public final class CaveUndergroundGuard {
         if (!CaveUndergroundGuard.biomeMatchesAnchor(chunk, carver, lx, y, lz, expected)) {
             if (megaGiga && CaveBiomeIds.isModCaveBiome(expected)) {
                 Holder<Biome> resolved = carver.resolveBiome(chunk, lx, y, lz);
-                if (!CaveBiomeIds.isModCaveBiome(resolved) || !CaveBiomeIds.sharesCaveTheme(resolved, expected) && !CaveBiomeIds.sameBiomeKey(resolved, expected)) {
+                if (!CaveBiomeIds.isModCaveBiome(resolved) || !CaveBiomeIds.matchesDecorAnchor(expected, resolved)) {
                     return false;
                 }
             } else {
@@ -74,19 +74,16 @@ public final class CaveUndergroundGuard {
 
     private static boolean biomeMatchesAnchor(ChunkAccess chunk, CarverChunk carver, int lx, int y, int lz, Holder<Biome> expected) {
         Holder<Biome> painted = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
-        if (painted != null && CaveBiomeIds.isUndergroundBiome(painted) && (CaveBiomeIds.sameBiomeKey(painted, expected) || CaveBiomeIds.sharesCaveTheme(painted, expected))) {
+        if (painted != null && CaveBiomeIds.isUndergroundBiome(painted) && CaveBiomeIds.matchesDecorAnchor(expected, painted)) {
             return true;
         }
         for (int dy : NEIGHBOR_Y) {
             int checkY = y + dy;
-            if (checkY < chunk.getMinBuildHeight() || checkY > chunk.getMaxBuildHeight() || (painted = CarverChunk.readPaintedBiomeAt(chunk, lx, checkY, lz)) == null || !CaveBiomeIds.isUndergroundBiome(painted) || !CaveBiomeIds.sameBiomeKey(painted, expected) && !CaveBiomeIds.sharesCaveTheme(painted, expected)) continue;
+            if (checkY < chunk.getMinBuildHeight() || checkY > chunk.getMaxBuildHeight() || (painted = CarverChunk.readPaintedBiomeAt(chunk, lx, checkY, lz)) == null || !CaveBiomeIds.isUndergroundBiome(painted) || !CaveBiomeIds.matchesDecorAnchor(expected, painted)) continue;
             return true;
         }
         Holder<Biome> resolved = carver.resolveBiome(chunk, lx, y, lz);
-        if (CaveBiomeIds.sameBiomeKey(resolved, expected) || CaveBiomeIds.sharesCaveTheme(resolved, expected)) {
-            return true;
-        }
-        return CaveBiomeIds.isModCaveBiome(expected) && CaveBiomeIds.isModCaveBiome(resolved) && CaveBiomeIds.sharesCaveTheme(resolved, expected);
+        return CaveBiomeIds.matchesDecorAnchor(expected, resolved);
     }
 
     public static boolean mayPlaceEntranceAccent(ChunkAccess chunk, int lx, int y, int lz) {
@@ -119,7 +116,7 @@ public final class CaveUndergroundGuard {
 
     private static boolean biomeMatches(ChunkAccess chunk, CarverChunk carver, int lx, int y, int lz, Holder<Biome> bound) {
         Holder<Biome> biome = carver != null ? carver.resolveBiome(chunk, lx, y, lz) : CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
-        return biome != null && (CaveBiomeIds.sameBiomeKey(biome, bound) || CaveBiomeIds.sharesCaveTheme(biome, bound));
+        return biome != null && CaveBiomeIds.matchesDecorAnchor(bound, biome);
     }
 
     public static boolean mayWriteBlock(WorldGenLevel level, ChunkAccess primaryChunk, BlockPos worldPos) {

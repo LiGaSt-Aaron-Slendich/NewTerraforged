@@ -9,33 +9,40 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.material.Fluids;
 
 /**
- * Carves a shallow sulfur river channel in painted transition cells and fills it with water
+ * Shallow sulfur river channel in painted transition cells — flat floors only, filled with water
  * (yellow-tinted via biome special effects on {@code newterraforged:cave_sulfur_river}).
  */
 public final class CaveSulfurRiverDecorator {
     private static final BlockState WATER = Blocks.WATER.defaultBlockState();
     private static final BlockState GRAVEL = Blocks.GRAVEL.defaultBlockState();
-    private static final int GRID = 4;
-    private static final int BASIN_DEPTH = 3;
+    private static final int GRID = 5;
+    private static final int BASIN_DEPTH = 4;
     private static final int CHANNEL_HALF = 2;
+    private static final int MAX_LOCAL_SLOPE = 2;
 
     private CaveSulfurRiverDecorator() {
     }
 
     public static void decorate(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator) {
+        if (!carver.columnCache().anyMegaGiga()) {
+            return;
+        }
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
         int minY = chunk.getMinBuildHeight();
         int maxY = chunk.getHighestSectionPosition() + 15;
         int seed = (int)generator.getSeed();
-        for (int lx = 0; lx < 16; lx += GRID) {
-            for (int lz = 0; lz < 16; lz += GRID) {
+        CarverColumnCache columns = carver.columnCache();
+        for (int lx = 2; lx < 16; lx += GRID) {
+            for (int lz = 2; lz < 16; lz += GRID) {
+                if (columns.localSurfaceSlope(lx, lz, MAX_LOCAL_SLOPE + 1)) {
+                    continue;
+                }
                 int wx = chunkX + lx;
                 int wz = chunkZ + lz;
-                int floorY = findFloor(chunk, lx, lz, minY, maxY);
+                int floorY = CaveSulfurRiverDecorator.findFloor(chunk, lx, lz, minY, maxY);
                 if (floorY < 0) {
                     continue;
                 }
@@ -44,16 +51,17 @@ public final class CaveSulfurRiverDecorator {
                     continue;
                 }
                 float riverNoise = NoiseUtil.valCoord2D(seed ^ 0x5EC0012, wx, wz);
-                if (riverNoise < -0.15f) {
+                if (riverNoise < -0.35f) {
                     continue;
                 }
-                int waterY = floorY - BASIN_DEPTH + 1;
-                carveBasin(region, carver, chunk, lx, lz, floorY, waterY, minY, maxY, seed, wx, wz);
+                CaveSulfurRiverDecorator.carveBasin(region, chunk, lx, lz, floorY, minY, maxY);
             }
         }
     }
 
-    private static void carveBasin(WorldGenLevel region, CarverChunk carver, ChunkAccess chunk, int lx, int lz, int floorY, int waterY, int minY, int maxY, int seed, int wx, int wz) {
+    private static void carveBasin(WorldGenLevel region, ChunkAccess chunk, int lx, int lz, int floorY, int minY, int maxY) {
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
         for (int dx = -CHANNEL_HALF; dx <= CHANNEL_HALF; ++dx) {
             for (int dz = -CHANNEL_HALF; dz <= CHANNEL_HALF; ++dz) {
                 int plx = lx + dx;
@@ -62,29 +70,30 @@ public final class CaveSulfurRiverDecorator {
                     continue;
                 }
                 float edge = NoiseUtil.sqrt((float)(dx * dx + dz * dz));
-                if (edge > (float)CHANNEL_HALF + 0.35f) {
+                if (edge > (float)CHANNEL_HALF + 0.4f) {
                     continue;
                 }
-                int localFloor = findFloor(chunk, plx, plz, minY, maxY);
+                int localFloor = CaveSulfurRiverDecorator.findFloor(chunk, plx, plz, minY, maxY);
                 if (localFloor < 0) {
                     continue;
                 }
-                int baseY = Math.min(localFloor, floorY);
-                for (int y = baseY; y > baseY - BASIN_DEPTH && y > minY; --y) {
-                    BlockPos pos = new BlockPos(chunk.getPos().getMinBlockX() + plx, y, chunk.getPos().getMinBlockZ() + plz);
+                int waterY = localFloor;
+                int carveBottom = Math.max(minY + 1, localFloor - BASIN_DEPTH);
+                for (int y = localFloor; y >= carveBottom; --y) {
+                    BlockPos pos = new BlockPos(chunkX + plx, y, chunkZ + plz);
                     BlockState state = region.getBlockState(pos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) {
                         continue;
                     }
-                    if (y <= waterY) {
-                        region.setBlock(pos, WATER, 2);
-                    } else {
+                    if (y < waterY) {
                         region.setBlock(pos, GRAVEL, 2);
                     }
                 }
-                BlockPos surface = new BlockPos(chunk.getPos().getMinBlockX() + plx, waterY, chunk.getPos().getMinBlockZ() + plz);
-                if (region.getBlockState(surface).isAir()) {
-                    region.setBlock(surface, WATER, 2);
+                for (int y = waterY; y <= localFloor + 1 && y <= maxY; ++y) {
+                    BlockPos pos = new BlockPos(chunkX + plx, y, chunkZ + plz);
+                    if (region.getBlockState(pos).isAir()) {
+                        region.setBlock(pos, WATER, 3);
+                    }
                 }
             }
         }

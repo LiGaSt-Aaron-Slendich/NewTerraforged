@@ -37,8 +37,8 @@ public final class CaveFeaturePlacement {
         BlockPos base = CaveFeaturePlacement.resolveWorldPos(airAnchor, anchor, false);
         float nx = NoiseUtil.valCoord2D((int)(scatterSeed ^ (long)featureIndex), airAnchor.getX() + stageIndex * 3, airAnchor.getZ());
         float nz = NoiseUtil.valCoord2D((int)(scatterSeed ^ (long)stageIndex ^ 0x9E3779B9L), airAnchor.getX(), airAnchor.getZ() + featureIndex * 5);
-        int ox = Math.round(nx * 5.0f);
-        int oz = Math.round(nz * 5.0f);
+        int ox = Math.round(nx * 3.0f);
+        int oz = Math.round(nz * 3.0f);
         if (ox == 0 && oz == 0) {
             ox = featureIndex % 3 - 1;
             oz = stageIndex % 3 - 1;
@@ -51,6 +51,7 @@ public final class CaveFeaturePlacement {
         int ox = placePos.getX() - airAnchor.getX();
         int oz = placePos.getZ() - airAnchor.getZ();
         BlockPos offsetAir = airAnchor.offset(ox, 0, oz);
+        offsetAir = CaveFeaturePlacement.snapScatterAirAnchor(chunk, offsetAir);
         int lx = offsetAir.getX() & 0xF;
         int lz = offsetAir.getZ() & 0xF;
         int y = offsetAir.getY();
@@ -68,6 +69,22 @@ public final class CaveFeaturePlacement {
             return null;
         }
         return CaveFeaturePlacement.resolveWorldPos(offsetAir, anchor, false);
+    }
+
+    /** Walk down to the nearest walkable floor air above solid ground (slopes / stepped terrain). */
+    public static BlockPos snapScatterAirAnchor(ChunkAccess chunk, BlockPos airAnchor) {
+        int lx = airAnchor.getX() & 0xF;
+        int lz = airAnchor.getZ() & 0xF;
+        int startY = Math.min(airAnchor.getY() + 2, chunk.getMaxBuildHeight() - 2);
+        for (int y = startY; y >= chunk.getMinBuildHeight() + 1; --y) {
+            if (!chunk.getBlockState(new BlockPos(lx, y, lz)).isAir()) {
+                continue;
+            }
+            if (FeaturePlacement.hasStableGround((BlockGetter)chunk, lx, y, lz, 1)) {
+                return new BlockPos(airAnchor.getX(), y, airAnchor.getZ());
+            }
+        }
+        return airAnchor;
     }
 
     public static BlockPos resolveWorldPos(BlockPos airAnchor, CaveFeatureRules.Anchor anchor, boolean topLayer) {
