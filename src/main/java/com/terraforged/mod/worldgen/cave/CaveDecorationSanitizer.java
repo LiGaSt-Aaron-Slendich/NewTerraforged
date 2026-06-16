@@ -63,6 +63,44 @@ public final class CaveDecorationSanitizer {
         CaveSurfaceBiomeRestorer.restore(chunk, generator, carver);
     }
 
+    /** Surface-band cleanup for columns flagged during carving as crust-risk only. */
+    public static void sanitizeRiskColumns(ChunkAccess chunk, CarverChunk carver, Generator generator) {
+        if (carver == null || !carver.hasSurfaceRisk()) {
+            return;
+        }
+        Source source = generator.getBiomeSource();
+        int climateSeed = Seeds.get((int)generator.getSeed());
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
+        int minY = chunk.getMinBuildHeight();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (!carver.isSurfaceRiskColumn(lx, lz)) {
+                    continue;
+                }
+                int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
+                int wx = chunkX + lx;
+                int wz = chunkZ + lz;
+                Holder<Biome> surfaceBiome = CaveSurfaceBiomeRestorer.resolveSurfaceBiome(source, climateSeed, wx, wz, surface);
+                int yTop = CaveDecorationSanitizer.findSurfaceColumnTop(chunk, lx, lz, surface);
+                int yBottom = Math.max(minY, surface - SURFACE_CRUST);
+                for (int y = yTop; y >= yBottom; --y) {
+                    pos.set(lx, y, lz);
+                    BlockState state = chunk.getBlockState(pos);
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (!CaveDecorationSanitizer.isCorruptedSurfaceBlock(chunk, lx, y, lz, state, surfaceBiome)) {
+                        continue;
+                    }
+                    chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
+                }
+            }
+        }
+        CaveSurfaceBiomeRestorer.restoreRiskColumns(chunk, generator, carver);
+    }
+
     private static int findSurfaceColumnTop(ChunkAccess chunk, int lx, int lz, int surface) {
         int maxY = Math.min(chunk.getMaxBuildHeight() - 1, surface + SURFACE_LIFT);
         for (int y = maxY; y >= surface; --y) {

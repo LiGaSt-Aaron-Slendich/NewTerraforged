@@ -141,7 +141,7 @@ public final class CaveBiomeVolumeDecorator {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                if (floorY < 0 || !CaveBiomeIds.sameBiomeKey(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }
@@ -183,7 +183,7 @@ public final class CaveBiomeVolumeDecorator {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                if (floorY < 0 || !CaveBiomeIds.sameBiomeKey(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }

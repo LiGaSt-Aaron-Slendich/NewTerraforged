@@ -184,6 +184,12 @@ public class Surface {
                 }
                 pos.set(dx, y, dz);
                 BlockState top = chunk.getBlockState((BlockPos)pos);
+                if (chunk.getBlockState((BlockPos)pos.setY(y + 1)).isAir()) {
+                    if (Surface.needsGrassRestore(top)) {
+                        chunk.setBlockState((BlockPos)pos.setY(y), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+                        continue;
+                    }
+                }
                 if (!Surface.needsSurfaceCover(top)) {
                     continue;
                 }
@@ -247,6 +253,10 @@ public class Surface {
             }
         }
         return null;
+    }
+
+    private static boolean needsGrassRestore(BlockState state) {
+        return state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.ROOTED_DIRT) || state.is(Blocks.PODZOL) || state.is(Blocks.MYCELIUM);
     }
 
     private static boolean needsSurfaceCover(BlockState state) {

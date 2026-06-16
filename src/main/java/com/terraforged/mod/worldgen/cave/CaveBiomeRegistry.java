@@ -137,6 +137,12 @@ public class CaveBiomeRegistry {
         if (CaveBiomeIds.isMantleThermalPair(a, b)) {
             return this.findEntryByPath("quartz_desert");
         }
+        if (CaveBiomeIds.isAggressiveVegetationPair(a, b)) {
+            CaveBiomeEntry sulfur = this.findEntryByPath("sulfur");
+            if (sulfur != null) {
+                return sulfur;
+            }
+        }
         if (CaveBiomeIds.isFrostWarmPair(a, b)) {
             return this.findEntryByPath("shattered_glacier");
         }

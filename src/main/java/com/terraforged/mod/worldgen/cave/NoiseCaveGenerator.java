@@ -68,6 +68,14 @@ public class NoiseCaveGenerator {
         return this.cache.get(pos);
     }
 
+    public NoiseCave[] caveConfigs() {
+        return this.caves;
+    }
+
+    public Module modifierFor(NoiseCave cave) {
+        return this.getModifier(cave);
+    }
+
     public void decorateVolume(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
         CarverChunk carver = this.prepareDecorateCarver((int)generator.getSeed(), chunk, generator);
         if (carver == null) {
@@ -213,6 +221,7 @@ public class NoiseCaveGenerator {
             CaveGrottoCarver.tryCarveChunk(seed, chunk, carver, generator, NoiseCaveGenerator.findSynapseConfig(this.caves), generator.getCaveEntranceClaims());
         }
         CaveRiverEntranceHydrator.hydrate(chunk, carver, generator);
+        CaveFlatWallRepair.afterCarve(seed, chunk, carver, generator, this.caves, this::getModifier);
         this.entranceSnapshots.put(chunk.getPos(), carver.snapshotEntranceColumns());
         ChunkUtil.refreshHeightmaps(chunk);
         CaveSurfaceBiomeRestorer.restore(chunk, generator, carver);

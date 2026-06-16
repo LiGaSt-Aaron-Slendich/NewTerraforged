@@ -1,11 +1,12 @@
 package com.terraforged.mod.worldgen.cave;
 
+import com.terraforged.mod.platform.forge.TFCaveSystemConfig;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.noise.Module;
 
 public final class CaveColumnSimulator {
-    private static final int MEGA_GIGA_ROOF_BUFFER = 26;
+    private static final int DEFAULT_MEGA_GIGA_ROOF_BUFFER = 26;
     private static final int VERTICAL_SCAN_STEP = 8;
 
     private CaveColumnSimulator() {
@@ -31,12 +32,13 @@ public final class CaveColumnSimulator {
         }
         int surface = generator.getOceanFloorHeight(x, z);
         int minY = generator.getMinY();
-        float value = CaveNoise.sample(modifier, seed, x, z);
+        float value = CaveNoise.sampleMerged(modifier, seed, x, z);
         int cavern = config.getCavernSize(seed, x, z, value);
         if (cavern < minCavern) {
             return null;
         }
-        int ceilingCap = surface - MEGA_GIGA_ROOF_BUFFER;
+        int roofBuffer = CaveColumnSimulator.configuredMegaGigaRoof();
+        int ceilingCap = roofBuffer <= 0 ? surface + cavern * 2 : surface - roofBuffer;
         if (ceilingCap <= minY) {
             return null;
         }
@@ -74,6 +76,13 @@ public final class CaveColumnSimulator {
             return null;
         }
         return new Sample(bestBottom, bestTop, bestBottom + bestTop >> 1);
+    }
+
+    private static int configuredMegaGigaRoof() {
+        if (TFCaveSystemConfig.INSTANCE == null) {
+            return DEFAULT_MEGA_GIGA_ROOF_BUFFER;
+        }
+        return TFCaveSystemConfig.INSTANCE.surfaceRoofBufferMegaGiga;
     }
 
     private static Sample chamberAtY(int minY, int ceilingCap, int cavern, int y) {

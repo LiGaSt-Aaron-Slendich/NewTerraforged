@@ -6,7 +6,10 @@ import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
+import com.terraforged.mod.worldgen.cave.CaveSurfaceProximityGuard;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
+import com.terraforged.mod.worldgen.cave.CaveFeatureIntegrityPass;
+import com.terraforged.mod.worldgen.cave.CaveFlatWallRepair;
 import com.terraforged.mod.worldgen.cave.NoiseCaveGenerator;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel;
@@ -68,11 +71,15 @@ public class BiomeGenerator {
             terrain = terrainFuture.join();
         }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
+        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
+        CaveFlatWallRepair.withNeighbors((int)generator.getSeed(), chunk, carver, generator, region, this.noiseCaveGenerator.caveConfigs(), this.noiseCaveGenerator::modifierFor);
         this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, 1), structures, terrainFuture, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
+        CaveFeatureIntegrityPass.runOnce(chunk, carver, generator);
+        CaveFlatWallRepair.afterDecorate((int)generator.getSeed(), chunk, carver, generator, region, this.noiseCaveGenerator.caveConfigs(), this.noiseCaveGenerator::modifierFor);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
-        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
+        CaveSurfaceProximityGuard.repair(chunk, carver, generator, region, terrain);
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);
         this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
         CaveChunkIntegrityPass.runOnce(chunk, scoped, structures, generator, carver, this.featureDecorator, this.surfaceDecorator, terrainFuture);

@@ -19,7 +19,7 @@ public final class CaveChunkIntegrityPass {
     }
 
     public static void runOnce(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator, CarverChunk carver, FeatureDecorator featureDecorator, SurfaceDecorator surfaceDecorator, CompletableFuture<TerrainData> terrainFuture) {
-        if (chunk == null || carver == null) {
+        if (chunk == null || carver == null || !carver.hasSurfaceRisk()) {
             return;
         }
         long chunkKey = chunk.getPos().toLong();
@@ -32,7 +32,7 @@ public final class CaveChunkIntegrityPass {
         }
         int cx = chunk.getPos().getMiddleBlockX();
         int cz = chunk.getPos().getMiddleBlockZ();
-        CaveChunkIntegrityPass.log("Found corrupted chunk... (" + cx + ", " + cz + ") — " + report.detail());
+        CaveChunkIntegrityPass.log("Surface-risk chunk corrupted (" + cx + ", " + cz + ") — " + report.detail());
         CaveChunkIntegrityPass.log("Restoring order... (" + cx + ", " + cz + ")");
         boolean restored = CaveChunkOrderRestorer.restore(chunk, carver, generator, region, structures, featureDecorator, surfaceDecorator, terrainFuture, report);
         if (restored) {

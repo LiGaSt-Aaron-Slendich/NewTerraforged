@@ -15,6 +15,7 @@ public final class ModCaveBiomeFactories {
     public static final String THERMAL_SPRINGS = "cave_thermal_springs";
     public static final String UNDERGROUND_JUNGLE = "cave_underground_jungle";
     public static final String STEAMING_JUNGLE = "cave_steaming_jungle";
+    public static final String SULFUR_RIVER = "cave_sulfur_river";
     private static final ResourceKey<Biome> PRESET_THERMAL = ResourceKey.create(Registry.BIOME_REGISTRY, (ResourceLocation)new ResourceLocation("terralith", "yellowstone"));
     private static final ResourceKey<Biome> PRESET_JUNGLE = ResourceKey.create(Registry.BIOME_REGISTRY, (ResourceLocation)new ResourceLocation("terralith", "cave/underground_jungle"));
     private static final ResourceKey<Biome> PRESET_STEAMING = ResourceKey.create(Registry.BIOME_REGISTRY, (ResourceLocation)new ResourceLocation("terralith", "cave/thermal_caves"));
@@ -43,6 +44,14 @@ public final class ModCaveBiomeFactories {
         return ModCaveBiomeFactories.fromCavePreset(PRESET_STEAMING, FEATURE_JUNGLE, CaveBiomeFeaturePresets.Profile.STEAMING, builder -> {
             builder.temperature(0.81f);
             builder.downfall(0.65f);
+        });
+    }
+
+    public static Biome sulfurRiver() {
+        return ModCaveBiomeFactories.fromCavePreset(PRESET_THERMAL, (ResourceKey<Biome>)Biomes.DRIPSTONE_CAVES, CaveBiomeFeaturePresets.Profile.THERMAL, builder -> {
+            builder.temperature(0.72f);
+            builder.downfall(0.35f);
+            builder.specialEffects(new net.minecraft.world.level.biome.BiomeSpecialEffects.Builder().waterColor(0xD4C040).waterFogColor(0xC0A830).fogColor(0x605030).skyColor(0).build());
         });
     }
 

@@ -112,9 +112,9 @@ public final class CaveMegaAccentDecorator {
                 if (volcanic || scorching) {
                     if (mantle && !brimstone && !scorching && random.nextFloat() < 0.14f) {
                         CaveMegaAccentDecorator.placeFirstMatch((Registry<PlacedFeature>)registry, MANTLE_ACCENTS, region, generator, random, wx, floorY, wz, seed, 30, 5);
-                    } else if ((scorching || brimstone || volcanic) && CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) && random.nextFloat() < (scorching ? 0.62f : 0.42f)) {
+                    } else if ((scorching || brimstone || volcanic) && CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) && random.nextFloat() < (scorching ? 0.26f : 0.42f)) {
                         random.setFeatureSeed(seed, 30, 5);
-                        CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, scorching ? 2 : 1);
+                        CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, 1);
                     }
                 } else if (large != null && CaveMegaAccentDecorator.allowsDripstoneAccent(biome) && (bend || random.nextFloat() < 0.38f)) {
                     random.setFeatureSeed(seed, 0, 0);
@@ -183,10 +183,10 @@ public final class CaveMegaAccentDecorator {
                 wz = chunkZ + lz;
                 floorY = CaveMegaAccentDecorator.findFloor(chunk, lx, lz, minY, maxY);
                 if (floorY < 0 || !CaveMegaAccentDecorator.mayPlace(chunk, carver, lx, floorY, lz, generator, wx, wz, biome = carver.resolveBiome(chunk, lx, floorY, lz))) continue;
-                if (!CaveBiomeIds.isScorchingCaveBiome(biome) && !CaveBiomeIds.isVolcanicCaveBiome(biome) || !CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz)) continue;
+                if (!CaveBiomeIds.isScorchingCaveBiome(biome) && !CaveBiomeIds.isVolcanicCaveBiome(biome) || !CaveMegaAccentDecorator.isValidVentFloor(chunk, lx, floorY, lz) || CaveBiomeIds.isScorchingCaveBiome(biome) && random.nextFloat() >= 0.22f) continue;
                 long seed = random.setDecorationSeed(region.getSeed(), wx, wz);
                 random.setFeatureSeed(seed, 80, 5);
-                CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, CaveBiomeIds.isScorchingCaveBiome(biome) ? 2 : 1);
+                CaveMegaAccentDecorator.placeVentCluster((Registry<PlacedFeature>)registry, region, generator, random, chunk, lx, floorY, lz, wx, wz, seed, 1);
             }
         }
         CaveMegaAccentDecorator.decorateUniversalDripstoneColumns(chunk, carver, region, generator, random, large, dripCluster, minY, maxY, chunkX, chunkZ);

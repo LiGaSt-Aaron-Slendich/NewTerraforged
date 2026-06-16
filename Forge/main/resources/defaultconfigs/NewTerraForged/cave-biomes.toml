@@ -27,61 +27,17 @@ config_version = 2
 # ══════════════════════════════════════════════════════════════════════════════
 # Decoration & auto-registration
 # ══════════════════════════════════════════════════════════════════════════════
-#
-# ── Hybrid decorator (recommended) ───────────────────────────────────────────
-# use_per_biome_decorators = true  →  CaveHybridBiomeDecorator + CaveBiomeDecoratorRouter
-# Each painted cave biome in a chunk is routed to the backend that tested best:
-#
-#   OFFICIAL  (TerraForgedOfficialCaveDecorator)
-#     — one origin per biome at carved floor height; vanilla placeWithBiomeCheck;
-#       surface clamp keeps features underground (12 blocks below surface in mega/giga).
-#     — scorching, volcanic, mantle, brimstone, dripstone/karst/limestone/tuff,
-#       icicle/stalactite, fungal, mycotoxic, empty-stone caves, vanilla minecraft:* cave biomes.
-#
-#   VANILLA  (CaveBiomeVanillaPass)
-#     — multiple floor origins on a grid + optional ceiling pass (stalactites down);
-#       controlled by vanilla_origin_grid / vanilla_origins_per_biome / vanilla_ceiling_pass.
-#     — glowing_grotto, undergarden (non-fungal).
-#
-#   LEGACY  (CaveBiomeVolumeDecorator — anchor cover + scatter)
-#     — dense floor/ceiling scatter; best for mushroom-heavy biomes that stay empty
-#       with official-only decoration.
-#     — bioshroom, glowshroom, other mushroom cave IDs (not fungal/mycotoxic).
-#
-#   COMPROMISE  (CaveBiomeVolumeDecorator — lighter scatter)
-#     — default fallback for prismachasm, crystal, and other mod cave biomes.
-#
-# Mega/giga chunks also get CaveMegaAccentDecorator (+ CaveTunnelRiverDecorator if a
-# river tunnel was carved). Entrance columns use CaveEntranceSurfaceDecorator separately.
-#
-# ── Global modes (pick ONE — hybrid wins if enabled) ───────────────────────
-# Only one of the five flags below may be true at a time. If several are true, the loader
-# keeps use_per_biome_decorators and disables the others (warnings in latest.log).
-#
-#   use_per_biome_decorators   — hybrid routing above (default, recommended).
-#   use_official_tf_decorator  — OFFICIAL for every painted biome (0.3.x TF style).
-#   use_compromise_decorator   — COMPROMISE for every painted biome.
-#   use_vanilla_pass           — VANILLA for every painted biome (fast, sparse).
-#   use_legacy_decorators      — LEGACY for every painted biome (dense scatter).
-#
-# ── Biome spawn (not decoration) ───────────────────────────────────────────
-# condition_relax — subtract from stat minimums when picking shell biomes in mega/giga
-#                   (0 = strict pool, 3 = much more variety, max 6).
-#
-# ── Vanilla-pass tuning (hybrid VANILLA route + global use_vanilla_pass) ───
-# vanilla_origin_grid       — chunk grid step for floor origins (2 = dense, 8 = sparse).
-# vanilla_origins_per_biome — max floor origins per biome per chunk (+4 for cover-dense biomes).
-# vanilla_ceiling_pass      — second pass at chamber ceiling (stalactites, crystals hanging down).
-#
-# ── Registry ─────────────────────────────────────────────────────────────────
-# auto_register_biomes — scan biome registry; unlisted cave biomes are added automatically.
-# blacklist            — biomes that must NEVER generate in mega/giga (jungle presets use
-#                        dedicated stream decorators instead).
+# use_per_biome_decorators — hybrid routing (official / vanilla / legacy / compromise per biome).
+# use_official_tf_decorator — single backend for every painted biome (0.3.x TF style).
+# use_compromise_decorator — themed cover + scatter anchors + mega accents.
+# use_vanilla_pass — TerraLith-style placeWithBiomeCheck once per feature per chunk (fast, sparse cover).
+# use_legacy_decorators — full old anchor/scatter + noise-cave decorator loop (slowest, kept for rollback).
+# auto_register_biomes — scan biome registry; any cave biome not listed below is registered automatically.
+# blacklist — biomes that must NEVER generate in mega/giga (jungle presets use dedicated stream decorators).
 
 [decoration]
 use_per_biome_decorators = true
 use_official_tf_decorator = false
-condition_relax = 3.0
 use_compromise_decorator = false
 use_vanilla_pass = false
 use_legacy_decorators = false
@@ -89,6 +45,9 @@ auto_register_biomes = true
 vanilla_origin_grid = 2
 vanilla_origins_per_biome = 8
 vanilla_ceiling_pass = true
+
+# Hybrid decorator routing lives in:
+#   NewTerraForged/Critical Options/Hybrid options/decorator-routing.toml
 
 blacklist = [
     "minecraft:lush_caves",
@@ -285,6 +244,63 @@ temperature = 2
 [transition.stats.global_wet]
 moisture = -2
 temperature = 1
+
+[[transition]]
+id = "newterraforged:cave_sulfur_river"
+temperature = 0.68
+vegetation_density = 0.12
+weight = 1.2
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = 1
+
+[transition.stats.global]
+temperature = 2
+moisture = -1
+fertility = -1
+
+[transition.stats.local]
+temperature = 1
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "newterraforged:cave_sulfur_river"
+temperature = 0.68
+vegetation_density = 0.12
+weight = 1.2
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = 1
+
+[transition.stats.global]
+temperature = 2
+moisture = -1
+fertility = -1
+
+[transition.stats.local]
+temperature = 1
+falloff_per_hop = 1.0
+
+[[transition]]
+id = "newterraforged:cave_sulfur_river"
+temperature = 0.68
+vegetation_density = 0.12
+weight = 1.2
+placement_type = "full_region"
+
+[transition.stats.conditions]
+temperature = 1
+
+[transition.stats.global]
+temperature = 2
+moisture = -1
+fertility = -1
+
+[transition.stats.local]
+temperature = 1
+falloff_per_hop = 1.0
 
 [[transition]]
 id = "terralith:cave/infested_caves"

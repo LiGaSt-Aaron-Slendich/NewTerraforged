@@ -35,6 +35,15 @@ public interface ModCaves {
         }
 
         static NoiseCave mega(int seed, float scale, int minY, int maxY) {
+            return Factory.megaShape(seed, scale, minY, maxY, CaveType.MEGA);
+        }
+
+        /** Same carve geometry as mega, scaled up — avoids giga-only chunk-edge artifacts. */
+        static NoiseCave giga(int seed, float scale, int minY, int maxY) {
+            return Factory.megaShape(seed, 1.35f * scale, minY, maxY, CaveType.GIGA);
+        }
+
+        private static NoiseCave megaShape(int seed, float scale, int minY, int maxY, CaveType type) {
             int elevationScale = NoiseUtil.floor(200.0f * scale);
             int networkScale = NoiseUtil.floor(250.0f * scale);
             int floorScale = NoiseUtil.floor(50.0f * scale);
@@ -42,22 +51,7 @@ public interface ModCaves {
             Module elevation = Source.simplex(++seed, elevationScale, 2).map(0.3, 0.7);
             Module shape = Source.simplex(++seed, networkScale, 3).bias(-0.5).abs().scale(2.0).invert().clamp(0.75, 1.0).map(0.0, 1.0);
             Module floor = Source.simplex(++seed, floorScale, 2).clamp(0.0, 0.3).map(0.0, 1.0);
-            return new NoiseCave(seed, CaveType.MEGA, CavePlacementType.FULL_REGION, elevation, shape, floor, size, minY, maxY);
-        }
-
-        static NoiseCave giga(int seed, float scale, int minY, int maxY) {
-            float geom = 1.35f * scale;
-            int elevationScale = NoiseUtil.floor(200.0f * geom);
-            int networkScale = NoiseUtil.floor(250.0f * geom);
-            int floorScale = NoiseUtil.floor(28.0f * geom);
-            int floorDetailScale = NoiseUtil.floor(12.0f * geom);
-            int size = NoiseUtil.floor(34.0f * geom);
-            Module elevation = Source.simplex(++seed, elevationScale, 3).map(0.22, 0.78);
-            Module shape = Source.simplex(++seed, networkScale, 3).bias(-0.5).abs().scale(2.0).invert().clamp(0.72, 1.0).map(0.0, 1.0);
-            Module floor = Source.simplex(++seed, floorScale, 3).clamp(0.0, 0.42).map(0.0, 1.0);
-            Module floorDetail = Source.simplex(++seed, floorDetailScale, 2).clamp(0.0, 0.28).map(0.0, 1.0);
-            floor = floor.add(floorDetail).clamp(0.0, 1.0);
-            return new NoiseCave(seed, CaveType.GIGA, CavePlacementType.FULL_REGION, elevation, shape, floor, size, minY, maxY);
+            return new NoiseCave(seed, type, CavePlacementType.FULL_REGION, elevation, shape, floor, size, minY, maxY);
         }
 
         static NoiseCave[] getDefaults() {

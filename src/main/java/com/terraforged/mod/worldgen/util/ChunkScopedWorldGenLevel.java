@@ -85,7 +85,7 @@ implements WorldGenLevel {
     }
 
     public static WorldGenLevel wrapWithBiomeGuard(WorldGenLevel level, ChunkAccess chunk, Holder<Biome> boundBiome, CarverChunk carver) {
-        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, null, boundBiome, carver);
+        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, chunk, boundBiome, carver);
     }
 
     private static WorldGenLevel wrap(WorldGenLevel level, ChunkAccess chunk, int radius, ChunkAccess undergroundGuardChunk, Holder<Biome> boundBiome, CarverChunk biomeGuardCarver) {

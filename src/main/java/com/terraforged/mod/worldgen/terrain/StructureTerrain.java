@@ -32,6 +32,7 @@ public class StructureTerrain {
         chunk.getAllStarts().values().forEach(start -> {
             for (StructurePiece piece : start.getPieces()) {
                 if (!piece.isCloseToChunk(chunkPos, 20)) continue;
+                if (StructureTerrain.shouldSkipTerrainPiece(piece)) continue;
                 if (piece instanceof PoolElementStructurePiece) {
                     PoolElementStructurePiece element = (PoolElementStructurePiece)piece;
                     StructureTemplatePool.Projection projection = element.getElement().getProjection();
@@ -91,7 +92,7 @@ public class StructureTerrain {
     }
 
     protected boolean carveTerrain(int x, int y, int z, ChunkAccess chunk, StructurePiece piece) {
-        if (piece == null) {
+        if (piece == null || StructureTerrain.shouldSkipTerrainPiece(piece)) {
             return false;
         }
         BoundingBox bounds = piece.getBoundingBox();
@@ -154,5 +155,19 @@ public class StructureTerrain {
 
     protected static int getDist(int pos, int min, int max) {
         return Math.max(0, Math.max(min - pos, pos - max));
+    }
+
+    /**
+     * Shipwrecks and similar ocean structures use tall, razor-thin bounding boxes that fill or
+     * carve full chunk columns and leave vertical terrain monoliths.
+     */
+    private static boolean shouldSkipTerrainPiece(StructurePiece piece) {
+        return StructureTerrain.isMonolithBoundingBox(piece.getBoundingBox());
+    }
+
+    private static boolean isMonolithBoundingBox(BoundingBox bounds) {
+        int minHoriz = Math.min(bounds.getXSpan(), bounds.getZSpan());
+        int maxHoriz = Math.max(bounds.getXSpan(), bounds.getZSpan());
+        return bounds.getYSpan() > 24 && minHoriz <= 4 && maxHoriz <= 40;
     }
 }

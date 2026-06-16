@@ -53,15 +53,16 @@ public final class CaveChunkOrderRestorer {
 
     /** Phase 1: strip every surface feature first, then repair terrain and cover — no decoration yet. */
     private static void phase1Surface(ChunkAccess chunk, CarverChunk carver, Generator generator, WorldGenLevel region, CompletableFuture<TerrainData> terrainFuture, List<CutFeature> extracted, CaveChunkCorruptionReport report) {
+        TerrainData terrain = terrainFuture != null ? terrainFuture.getNow(generator.getChunkDataIfReady(chunk.getPos())) : generator.getChunkDataIfReady(chunk.getPos());
         CaveChunkOrderRestorer.stripAllSurfaceFeatures(chunk, carver, extracted);
         ChunkUtil.refreshHeightmaps(chunk);
-        CaveChunkSurfaceRepair.repairNoiseSurface(chunk, carver, generator, region, false);
+        CaveChunkSurfaceRepair.repairNoiseSurface(chunk, carver, generator, region, terrain, false);
         CaveSurfaceBiomeRestorer.forceRestoreSurfaceColumns(chunk, generator, carver);
-        TerrainData terrain = terrainFuture != null ? terrainFuture.getNow(generator.getChunkDataIfReady(chunk.getPos())) : generator.getChunkDataIfReady(chunk.getPos());
         if (terrain != null && region != null) {
             Surface.repairExposedCover(chunk, region, generator, terrain, carver);
             Surface.applyPost(chunk, terrain, generator);
         }
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
         CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver);
         ChunkUtil.refreshHeightmaps(chunk);
     }
@@ -170,7 +171,9 @@ public final class CaveChunkOrderRestorer {
             }
         }
         if (after.issues().contains(CaveChunkCorruptionReport.Issue.NOISE)) {
-            CaveChunkSurfaceRepair.repairNoiseSurface(chunk, carver, generator, region, true);
+            TerrainData terrain = terrainFuture != null ? terrainFuture.getNow(generator.getChunkDataIfReady(chunk.getPos())) : generator.getChunkDataIfReady(chunk.getPos());
+            CaveChunkSurfaceRepair.repairNoiseSurface(chunk, carver, generator, region, terrain, true);
+            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
             CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver);
             ChunkUtil.refreshHeightmaps(chunk);
             after = CaveChunkCorruptionChecker.verify(chunk, carver, generator);
@@ -194,6 +197,7 @@ public final class CaveChunkOrderRestorer {
         TerrainData terrain = terrainFuture != null ? terrainFuture.getNow(generator.getChunkDataIfReady(chunk.getPos())) : generator.getChunkDataIfReady(chunk.getPos());
         if (surfaceDecorator != null && region != null && terrain != null) {
             surfaceDecorator.refreshAfterIntegrity(chunk, region, generator, terrain, carver);
+            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
         }
         if (featureDecorator != null && region != null && structures != null && terrainFuture != null) {
             featureDecorator.decorate(chunk, region, structures, terrainFuture, generator);

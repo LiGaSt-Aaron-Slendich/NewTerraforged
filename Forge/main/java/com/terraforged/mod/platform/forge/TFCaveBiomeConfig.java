@@ -6,6 +6,7 @@ import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.terraforged.mod.platform.forge.TFConfigLoader;
 import com.terraforged.mod.worldgen.cave.CaveBiomeStats;
 import com.terraforged.mod.worldgen.cave.CaveClimateType;
+import com.terraforged.mod.worldgen.cave.CaveDecoratorRoutingTable;
 import com.terraforged.mod.worldgen.cave.CaveStatVector;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,8 +28,8 @@ public final class TFCaveBiomeConfig {
     public boolean usePerBiomeDecorators = true;
     /** Lower minimum stat thresholds when picking shell biomes (0 = strict, 3 = much more variety). */
     public float conditionRelax = 3.0f;
-    /** Compromise decorator: themed cover + bounded scatter + mega accents (default on). */
-    public boolean useCompromiseCaveDecorator = true;
+    /** Compromise decorator: themed cover + bounded scatter + mega accents. */
+    public boolean useCompromiseCaveDecorator = false;
     /** TerraLith-style {@code placeWithBiomeCheck} per chunk. */
     public boolean useVanillaCavePass = false;
     /** Legacy anchor/scatter decorators (volume, mega accent, noise cave decorator). */
@@ -38,10 +39,11 @@ public final class TFCaveBiomeConfig {
     /** Chunk grid step for vanilla decoration origins (2–8). Lower = denser cover/features. */
     public int vanillaOriginGrid = 2;
     /** Max floor origins per biome per chunk. */
-    public int vanillaOriginsPerBiome = 6;
+    public int vanillaOriginsPerBiome = 8;
     /** Also run vanilla pass at ceiling anchor (stalactites, crystal down). */
     public boolean vanillaCeilingPass = true;
     public final List<String> blacklist = new ArrayList<String>();
+    public CaveDecoratorRoutingTable decoratorRouting = CaveDecoratorRoutingTable.defaults();
 
     public static void load() {
         CommentedFileConfig cfg = TFConfigLoader.open("NewTerraForged/cave-biomes.toml");
@@ -76,6 +78,7 @@ public final class TFCaveBiomeConfig {
         this.transition.addAll(TFCaveBiomeConfig.readTable((Config)root, "transition"));
         this.special.addAll(TFCaveBiomeConfig.readTable((Config)root, "special"));
         this.coastal.addAll(TFCaveBiomeConfig.readTable((Config)root, "coastal"));
+        this.decoratorRouting = CaveDecoratorRoutingLoader.load();
     }
 
     private void enforceExclusiveDecorationMode() {

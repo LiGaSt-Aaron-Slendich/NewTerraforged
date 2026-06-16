@@ -67,7 +67,7 @@ public final class CaveUndergroundJungleDecorator {
                 if (random.nextFloat() < 0.65f) {
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, FLOOR, region, generator, random, floorPos, seed, 0);
                 }
-                if (random.nextFloat() < 0.42f) {
+                if (random.nextFloat() < 0.42f && CaveFeaturePlacement.hasConnectedFloor(chunk, new BlockPos(wx, floorY, wz), 2)) {
                     CaveUndergroundJungleDecorator.placeFirst((Registry<PlacedFeature>)registry, TREES, region, generator, random, floorPos, seed, 10);
                 }
                 if ((ceilY = CaveUndergroundJungleDecorator.findCeiling(chunk, lx, lz, floorY + 5, maxY)) > floorY + 6 && random.nextFloat() < 0.55f && CaveUndergroundJungleDecorator.mayPlace(chunk, carver, lx, vineY = ceilY - random.nextInt(2), lz, generator, wx, wz, biome)) {

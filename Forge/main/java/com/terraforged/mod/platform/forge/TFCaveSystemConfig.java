@@ -9,18 +9,21 @@ import com.terraforged.mod.worldgen.cave.CaveSystemConfig;
 
 public final class TFCaveSystemConfig {
     public static TFCaveSystemConfig INSTANCE;
-    public int megaRegionCountMin = 5;
-    public int megaRegionCountMax = 12;
+    public int megaRegionCountMin = 7;
+    public int megaRegionCountMax = 10;
     public int megaTransitionPerRegion = 3;
     public double megaScale = 1.0;
-    public int gigaRegionCountMin = 5;
-    public int gigaRegionCountMax = 26;
+    public int gigaRegionCountMin = 7;
+    public int gigaRegionCountMax = 10;
     public int gigaTransitionPerRegion = 6;
     public double gigaScale = 2.0;
     public int normalMaxBiomes = 2;
-    public int transitionMaxWidth = 24;
+    public int transitionMaxWidth = 40;
     public double islandMaxRadius = 1.5;
     public boolean enableSynapseCaves = true;
+    /** Blocks of stone kept below heightmap before cave ceiling. */
+    public int surfaceRoofBufferMegaGiga = 26;
+    public int surfaceRoofBufferSynapse = 22;
     public CaveDensitySettings caveDensity = CaveDensitySettings.DEFAULT;
 
     public static void load() {
@@ -46,7 +49,10 @@ public final class TFCaveSystemConfig {
         this.transitionMaxWidth = TFConfigLoader.getInt(normal, "transition_max_width_blocks", this.transitionMaxWidth);
         this.islandMaxRadius = TFConfigLoader.getDouble(normal, "island_max_radius_chunks", this.islandMaxRadius);
         this.enableSynapseCaves = TFConfigLoader.getBool(normal, "enable_synapse_caves", this.enableSynapseCaves);
-        this.caveDensity = CaveDensityConfigLoader.read(TFConfigLoader.section((Config)root, "caves"));
+        Config caves = TFConfigLoader.section((Config)root, "caves");
+        this.surfaceRoofBufferMegaGiga = TFConfigLoader.getInt(caves, "surface_roof_buffer_mega_giga", TFConfigLoader.getInt(normal, "surface_roof_buffer_mega_giga", this.surfaceRoofBufferMegaGiga));
+        this.surfaceRoofBufferSynapse = TFConfigLoader.getInt(caves, "surface_roof_buffer_synapse", TFConfigLoader.getInt(normal, "surface_roof_buffer_synapse", this.surfaceRoofBufferSynapse));
+        this.caveDensity = CaveDensityConfigLoader.read(caves);
     }
 
     public CaveSystemConfig toSystemConfig() {

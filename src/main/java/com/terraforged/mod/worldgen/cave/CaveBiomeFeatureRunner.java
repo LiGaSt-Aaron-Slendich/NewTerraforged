@@ -473,12 +473,16 @@ public final class CaveBiomeFeatureRunner {
                 Holder placed = stage.get(featureIndex);
                 if (!ceiling && CaveBiomeFeatureRunner.isSmallMushroomScatter((Holder<PlacedFeature>)placed) && mushroomPlaced >= mushroomBudget) continue;
                 if (!ceiling && CaveBiomeFeatureRunner.isLargeVerticalMushroom((Holder<PlacedFeature>)placed) && mushroomPlaced >= 1) continue;
-                if (CaveFeatureFilters.isDeferredOrGlobalFeature((Holder<PlacedFeature>)placed) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || DynamicTreesCompat.isLoaded() && CaveBiomeIds.isFungalCaveBiome(biome) && (DynamicTreesCompat.isDynamicTreesFeature((Holder<PlacedFeature>)placed) || !ceiling && CaveBiomeFeatureRunner.isVanillaFungalScatter((Holder<PlacedFeature>)placed)) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome) || CaveFeatureFilters.isForbiddenForCaveBiome((Holder<PlacedFeature>)placed, biome) || !CaveBiomeFeatureRunner.matchesAnchor((Holder<PlacedFeature>)placed, ceiling) || FeatureMassClassifier.isTree((Holder<PlacedFeature>)placed) || !ceiling && !CaveBiomeFeatureRunner.allowsFloorScatter((Holder<PlacedFeature>)placed, biome) || !ceiling && CaveFeatureFilters.requiresSolidFloor((Holder<PlacedFeature>)placed) && !CaveFeaturePlacement.hasSolidFloorBelow(chunk, anchor) || ceiling && !FeaturePlacement.hasStableCeiling((BlockGetter)chunk, anchor.getX(), anchor.getY(), anchor.getZ(), 1)) continue;
+                if (CaveFeatureFilters.isDeferredOrGlobalFeature((Holder<PlacedFeature>)placed) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || DynamicTreesCompat.isLoaded() && CaveBiomeIds.isFungalCaveBiome(biome) && (DynamicTreesCompat.isDynamicTreesFeature((Holder<PlacedFeature>)placed) || !ceiling && CaveBiomeFeatureRunner.isVanillaFungalScatter((Holder<PlacedFeature>)placed)) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome) || CaveFeatureFilters.isForbiddenForCaveBiome((Holder<PlacedFeature>)placed, biome) || !CaveBiomeFeatureRunner.matchesAnchor((Holder<PlacedFeature>)placed, ceiling) || FeatureMassClassifier.isTree((Holder<PlacedFeature>)placed) || !ceiling && !CaveBiomeFeatureRunner.allowsFloorScatter((Holder<PlacedFeature>)placed, biome) || !ceiling && CaveBiomeFeatureRunner.requiresConnectedFloor((Holder<PlacedFeature>)placed, biome) && !CaveFeaturePlacement.hasConnectedFloor(chunk, anchor, CaveBiomeFeatureRunner.floorSupportDepth((Holder<PlacedFeature>)placed, biome)) || ceiling && CaveBiomeFeatureRunner.requiresConnectedCeiling((Holder<PlacedFeature>)placed, biome) && !CaveFeaturePlacement.hasConnectedCeiling(chunk, anchor, 2)) continue;
                 if (biomeOnly && CaveBiomeFeatureRunner.isGlobalCaveHelper((Holder<PlacedFeature>)placed)) continue;
                 if (!biomeOnly && !CaveBiomeFeatureRunner.isGlobalCaveHelper((Holder<PlacedFeature>)placed)) continue;
                 random.setFeatureSeed(baseSeed, featureIndex, stageIndex);
                 CaveFeatureRules.Anchor kind = ceiling ? CaveFeatureRules.Anchor.CEILING : CaveFeatureRules.Anchor.FLOOR;
-                BlockPos placePos = CaveFeaturePlacement.resolveScatterPos(anchor, kind, baseSeed, featureIndex, stageIndex);
+                int floorDepth = !ceiling ? CaveBiomeFeatureRunner.floorSupportDepth((Holder<PlacedFeature>)placed, biome) : 0;
+                BlockPos placePos = CaveFeaturePlacement.validateScatterPlacement(chunk, anchor, kind, baseSeed, featureIndex, stageIndex, floorDepth);
+                if (placePos == null) {
+                    continue;
+                }
                 if (++attempts > maxAttempts) {
                     return placedCount;
                 }
@@ -507,7 +511,7 @@ public final class CaveBiomeFeatureRunner {
             if (!CaveFeatureFilters.isModCaveDecorationStage(stageIndex) || (stage = (HolderSet)stages.get(stageIndex)) == null || stage.size() == 0) continue;
             for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
                 Holder placed = stage.get(featureIndex);
-                if (!CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome) || CaveFeatureFilters.isForbiddenForCaveBiome((Holder<PlacedFeature>)placed, biome) || !CaveBiomeFeatureRunner.matchesAnchor((Holder<PlacedFeature>)placed, false) || FeatureMassClassifier.isTree((Holder<PlacedFeature>)placed)) continue;
+                if (!CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome) || CaveFeatureFilters.isForbiddenForCaveBiome((Holder<PlacedFeature>)placed, biome) || !CaveBiomeFeatureRunner.matchesAnchor((Holder<PlacedFeature>)placed, false) || FeatureMassClassifier.isTree((Holder<PlacedFeature>)placed) || !CaveFeaturePlacement.hasConnectedFloor(chunk, anchor, 2)) continue;
                 random.setFeatureSeed(baseSeed, featureIndex + 200, stageIndex);
                 BlockPos placePos = CaveFeaturePlacement.resolveWorldPos(anchor, CaveFeatureRules.Anchor.FLOOR, false);
                 if (!FeaturePlacement.place((Holder<PlacedFeature>)placed, underground, (ChunkGenerator)generator, (Random)random, placePos, true)) continue;
@@ -548,6 +552,24 @@ public final class CaveBiomeFeatureRunner {
     private static int mushroomScatterBudget(Holder<Biome> biome) {
         if (!CaveBiomeIds.isFungalCaveBiome(biome)) {
             return Integer.MAX_VALUE;
+        }
+        return 1;
+    }
+
+    private static boolean requiresConnectedFloor(Holder<PlacedFeature> placed, Holder<Biome> biome) {
+        return CaveFeatureFilters.requiresSolidFloor(placed) || CaveBiomeFeatureRunner.isSmallMushroomScatter(placed) || CaveBiomeFeatureRunner.isLargeVerticalMushroom(placed) || CaveBiomeIds.isFungalCaveBiome(biome);
+    }
+
+    private static boolean requiresConnectedCeiling(Holder<PlacedFeature> placed, Holder<Biome> biome) {
+        return CaveBiomeIds.isFungalCaveBiome(biome) || FeatureMassClassifier.isCaveCeilingFeature(placed);
+    }
+
+    private static int floorSupportDepth(Holder<PlacedFeature> placed, Holder<Biome> biome) {
+        if (CaveBiomeFeatureRunner.isLargeVerticalMushroom(placed)) {
+            return 3;
+        }
+        if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeFeatureRunner.isSmallMushroomScatter(placed)) {
+            return 2;
         }
         return 1;
     }
@@ -646,7 +668,7 @@ public final class CaveBiomeFeatureRunner {
         int floorY = floorAnchor.getY();
         List stages = settings.features();
         long baseSeed = random.setDecorationSeed(region.getSeed(), floorAnchor.getX(), floorAnchor.getZ());
-        int clusterSize = CaveBiomeIds.isScorchingCaveBiome(biome) ? 1 + random.nextInt(2) : 1;
+        int clusterSize = 1;
         block0: for (int attempt = 0; attempt < clusterSize; ++attempt) {
             int ox = attempt == 0 ? 0 : -2 + random.nextInt(5);
             int oz = attempt == 0 ? 0 : -2 + random.nextInt(5);
@@ -706,7 +728,7 @@ public final class CaveBiomeFeatureRunner {
             if (!CaveFeatureFilters.isModCaveDecorationStage(stageIndex) || (stage = (HolderSet)stages.get(stageIndex)) == null || stage.size() == 0) continue;
             for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
                 Holder placed = stage.get(featureIndex);
-                if (!FeatureMassClassifier.isTree((Holder<PlacedFeature>)placed) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome)) continue;
+                if (!FeatureMassClassifier.isTree((Holder<PlacedFeature>)placed) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placed, biome) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placed, biome) || !CaveFeaturePlacement.hasConnectedFloor(chunk, anchor, 3)) continue;
                 random.setFeatureSeed(baseSeed, featureIndex + 100, stageIndex);
                 FeaturePlacement.place((Holder<PlacedFeature>)placed, region, (ChunkGenerator)generator, (Random)random, placePos, true);
             }

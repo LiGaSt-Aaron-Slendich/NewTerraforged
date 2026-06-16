@@ -1,4 +1,10 @@
 # NewTerraForged — surface biome climate assignments
+# Pack: Terralith (82), BYG (71), Regions Unexplored (74), Biomes O' Plenty (62) = 289 biomes.
+# Quark 1.18.2 — немає overworld біомів.
+# Conquest Reforged / Wild Nature — у jar немає наземних біомів (лише печерні в cave-biomes.toml);
+#   якщо з'являться в реєстрі — підхоплюються через auto_detect_mod_biomes = true.
+# Cave / underground / nether біоми виключені (див. cave-biomes.toml).
+#
 # Climates: desert, savanna, tropical_rainforest, taiga, tundra,
 # temperate_forest, temperate_rainforest, grassland, cold_steppe, steppe, alpine
 
@@ -6,61 +12,804 @@
 mod_biome_weight = 5.0
 auto_detect_mod_biomes = true
 
+# ── desert (35) ──
+
+# biomesoplenty
+[[desert]]
+id = "biomesoplenty:cold_desert"
+weight = 1.0
+
+[[desert]]
+id = "biomesoplenty:dryland"
+weight = 1.0
+
+[[desert]]
+id = "biomesoplenty:dune_beach"
+weight = 1.0
+
+[[desert]]
+id = "biomesoplenty:lush_desert"
+weight = 1.0
+
+[[desert]]
+id = "biomesoplenty:scrubland"
+weight = 1.0
+
+[[desert]]
+id = "biomesoplenty:wasteland"
+weight = 1.0
+
+[[desert]]
+id = "biomesoplenty:wooded_scrubland"
+weight = 1.0
+
+[[desert]]
+id = "biomesoplenty:wooded_wasteland"
+weight = 1.0
+
+
+# byg
+[[desert]]
+id = "byg:atacama_desert"
+weight = 1.0
+
+[[desert]]
+id = "byg:mojave_desert"
+weight = 1.0
+
+[[desert]]
+id = "byg:sierra_badlands"
+weight = 1.0
+
+[[desert]]
+id = "byg:warped_desert"
+weight = 1.0
+
+[[desert]]
+id = "byg:windswept_desert"
+weight = 1.0
+
+[[desert]]
+id = "byg:windswept_dunes"
+weight = 1.0
+
+
+# regions_unexplored
+[[desert]]
+id = "regions_unexplored:arid_mountains"
+weight = 1.0
+
+[[desert]]
+id = "regions_unexplored:dry_bushland"
+weight = 1.0
+
+[[desert]]
+id = "regions_unexplored:icy_desert"
+weight = 1.0
+
+[[desert]]
+id = "regions_unexplored:joshua_desert"
+weight = 1.0
+
+[[desert]]
+id = "regions_unexplored:outback"
+weight = 1.0
+
+[[desert]]
+id = "regions_unexplored:saguaro_desert"
+weight = 1.0
+
+[[desert]]
+id = "regions_unexplored:wooded_arid_mountains"
+weight = 1.0
+
+
+# terralith
+[[desert]]
+id = "terralith:ancient_sands"
+weight = 1.0
+
+[[desert]]
+id = "terralith:arid_highlands"
+weight = 1.0
+
+[[desert]]
+id = "terralith:brushland"
+weight = 1.0
+
+[[desert]]
+id = "terralith:bryce_canyon"
+weight = 1.0
+
 [[desert]]
 id = "terralith:desert_canyon"
 weight = 1.0
 
 [[desert]]
 id = "terralith:desert_oasis"
-weight = 0.8
+weight = 1.0
+
+[[desert]]
+id = "terralith:desert_spires"
+weight = 0.7
+
+[[desert]]
+id = "terralith:gravel_desert"
+weight = 1.0
+
+[[desert]]
+id = "terralith:red_oasis"
+weight = 1.0
 
 [[desert]]
 id = "terralith:sandstone_valley"
 weight = 1.0
 
-[[savanna]]
+[[desert]]
 id = "terralith:savanna_badlands"
+weight = 1.0
+
+[[desert]]
+id = "terralith:snowy_badlands"
+weight = 1.0
+
+[[desert]]
+id = "terralith:warped_mesa"
+weight = 1.0
+
+[[desert]]
+id = "terralith:white_mesa"
+weight = 1.0
+
+# ── savanna (9) ──
+
+# biomesoplenty
+[[savanna]]
+id = "biomesoplenty:lush_savanna"
+weight = 1.0
+
+
+# byg
+[[savanna]]
+id = "byg:araucaria_savanna"
+weight = 1.0
+
+[[savanna]]
+id = "byg:baobab_savanna"
+weight = 1.0
+
+
+# regions_unexplored
+[[savanna]]
+id = "regions_unexplored:baobab_savanna"
+weight = 1.0
+
+
+# terralith
+[[savanna]]
+id = "terralith:ashen_savanna"
+weight = 1.0
+
+[[savanna]]
+id = "terralith:fractured_savanna"
+weight = 1.0
+
+[[savanna]]
+id = "terralith:gravel_beach"
+weight = 1.0
+
+[[savanna]]
+id = "terralith:orchid_swamp"
 weight = 1.0
 
 [[savanna]]
 id = "terralith:savanna_slopes"
-weight = 0.9
+weight = 1.0
+
+# ── tropical_rainforest (24) ──
+
+# biomesoplenty
+[[tropical_rainforest]]
+id = "biomesoplenty:bamboo_grove"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "biomesoplenty:bayou"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "biomesoplenty:fungal_jungle"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "biomesoplenty:old_growth_woodland"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "biomesoplenty:rainforest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "biomesoplenty:rocky_rainforest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "biomesoplenty:tropics"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "biomesoplenty:woodland"
+weight = 1.0
+
+
+# byg
+[[tropical_rainforest]]
+id = "byg:bayou"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "byg:temperate_rainforest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "byg:tropical_rainforest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "byg:white_mangrove_marshes"
+weight = 1.0
+
+
+# regions_unexplored
+[[tropical_rainforest]]
+id = "regions_unexplored:bamboo_forest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "regions_unexplored:bayou"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "regions_unexplored:giant_bayou"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "regions_unexplored:old_growth_rainforest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "regions_unexplored:rainforest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "regions_unexplored:smouldering_woodland"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "regions_unexplored:tropics"
+weight = 1.0
+
+
+# terralith
+[[tropical_rainforest]]
+id = "terralith:amethyst_canyon"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "terralith:amethyst_rainforest"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "terralith:jungle_mountains"
+weight = 1.0
+
+[[tropical_rainforest]]
+id = "terralith:rocky_jungle"
+weight = 1.0
 
 [[tropical_rainforest]]
 id = "terralith:tropical_jungle"
 weight = 1.0
 
-[[tropical_rainforest]]
-id = "terralith:rocky_jungle"
-weight = 0.8
+# ── taiga (30) ──
 
+# biomesoplenty
+[[taiga]]
+id = "biomesoplenty:boreal_forest"
+weight = 1.0
+
+[[taiga]]
+id = "biomesoplenty:cherry_blossom_grove"
+weight = 1.0
+
+[[taiga]]
+id = "biomesoplenty:coniferous_forest"
+weight = 1.0
+
+[[taiga]]
+id = "biomesoplenty:fir_clearing"
+weight = 1.0
+
+[[taiga]]
+id = "biomesoplenty:mystic_grove"
+weight = 0.7
+
+[[taiga]]
+id = "biomesoplenty:snowy_coniferous_forest"
+weight = 1.0
+
+[[taiga]]
+id = "biomesoplenty:snowy_fir_clearing"
+weight = 1.0
+
+
+# byg
+[[taiga]]
+id = "byg:autumnal_taiga"
+weight = 1.0
+
+[[taiga]]
+id = "byg:borealis_grove"
+weight = 1.0
+
+[[taiga]]
+id = "byg:coniferous_forest"
+weight = 1.0
+
+[[taiga]]
+id = "byg:firecracker_shrubland"
+weight = 1.0
+
+[[taiga]]
+id = "byg:frosted_coniferous_forest"
+weight = 1.0
+
+[[taiga]]
+id = "byg:frosted_taiga"
+weight = 1.0
+
+[[taiga]]
+id = "byg:imparius_grove"
+weight = 1.0
+
+[[taiga]]
+id = "byg:maple_taiga"
+weight = 1.0
+
+[[taiga]]
+id = "byg:temperate_grove"
+weight = 1.0
+
+
+# regions_unexplored
+[[taiga]]
+id = "regions_unexplored:alpha_grove"
+weight = 1.0
+
+[[taiga]]
+id = "regions_unexplored:autumnal_mixed_taiga"
+weight = 1.0
+
+[[taiga]]
+id = "regions_unexplored:boreal_forest"
+weight = 1.0
+
+[[taiga]]
+id = "regions_unexplored:canadian_forest"
+weight = 1.0
+
+[[taiga]]
+id = "regions_unexplored:cold_boreal_forest"
+weight = 1.0
+
+[[taiga]]
+id = "regions_unexplored:golden_boreal_forest"
+weight = 1.0
+
+[[taiga]]
+id = "regions_unexplored:old_growth_boreal_forest"
+weight = 1.0
+
+[[taiga]]
+id = "regions_unexplored:temperate_grove"
+weight = 1.0
+
+
+# terralith
 [[taiga]]
 id = "terralith:alpine_grove"
 weight = 1.0
 
 [[taiga]]
-id = "terralith:cloud_forest"
-weight = 0.9
+id = "terralith:birch_taiga"
+weight = 1.0
+
+[[taiga]]
+id = "terralith:moonlight_grove"
+weight = 1.0
+
+[[taiga]]
+id = "terralith:sakura_grove"
+weight = 1.0
+
+[[taiga]]
+id = "terralith:siberian_grove"
+weight = 1.0
+
+[[taiga]]
+id = "terralith:siberian_taiga"
+weight = 1.0
+
+# ── tundra (14) ──
+
+# biomesoplenty
+[[tundra]]
+id = "biomesoplenty:snowy_maple_woods"
+weight = 1.0
+
+[[tundra]]
+id = "biomesoplenty:tundra"
+weight = 1.0
+
+
+# byg
+[[tundra]]
+id = "byg:cardinal_tundra"
+weight = 1.0
+
+
+# regions_unexplored
+[[tundra]]
+id = "regions_unexplored:frozen_forest"
+weight = 1.0
+
+[[tundra]]
+id = "regions_unexplored:frozen_tundra"
+weight = 1.0
+
+[[tundra]]
+id = "regions_unexplored:icy_heights"
+weight = 1.0
+
+
+# terralith
+[[tundra]]
+id = "terralith:alpha_islands_winter"
+weight = 1.0
+
+[[tundra]]
+id = "terralith:frozen_cliffs"
+weight = 1.0
 
 [[tundra]]
 id = "terralith:ice_marsh"
 weight = 1.0
 
 [[tundra]]
-id = "terralith:snowy_badlands"
-weight = 0.8
+id = "terralith:skylands_winter"
+weight = 0.7
 
 [[tundra]]
-id = "terralith:frozen_tundra"
-weight = 0.55
+id = "terralith:snowy_maple_forest"
+weight = 1.0
+
+[[tundra]]
+id = "terralith:snowy_shield"
+weight = 1.0
+
+[[tundra]]
+id = "terralith:wintry_forest"
+weight = 1.0
+
+[[tundra]]
+id = "terralith:wintry_lowlands"
+weight = 1.0
+
+# ── temperate_forest (35) ──
+
+# biomesoplenty
+[[temperate_forest]]
+id = "biomesoplenty:dead_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "biomesoplenty:forested_field"
+weight = 1.0
+
+[[temperate_forest]]
+id = "biomesoplenty:mediterranean_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "biomesoplenty:old_growth_dead_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "biomesoplenty:ominous_woods"
+weight = 1.0
+
+[[temperate_forest]]
+id = "biomesoplenty:pumpkin_patch"
+weight = 1.0
+
+
+# byg
+[[temperate_forest]]
+id = "byg:aspen_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:cika_woods"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:ebony_woods"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:forgotten_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:fragment_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:jacaranda_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:nightshade_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:red_oak_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:shulkren_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:weeping_witch_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "byg:zelkova_forest"
+weight = 1.0
+
+
+# regions_unexplored
+[[temperate_forest]]
+id = "regions_unexplored:blackwood_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:cold_deciduous_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:deciduous_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:eucalyptus_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:flowering_oak_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:pine_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:pumpkin_fields"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:roofed_eucalyptus_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:silver_birch_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:willow_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "regions_unexplored:wooded_steppe"
+weight = 1.0
+
+
+# terralith
+[[temperate_forest]]
+id = "terralith:alpine_highlands"
+weight = 1.0
+
+[[temperate_forest]]
+id = "terralith:cloud_forest"
+weight = 1.0
+
+[[temperate_forest]]
+id = "terralith:forested_highlands"
+weight = 1.0
+
+[[temperate_forest]]
+id = "terralith:highlands"
+weight = 1.0
+
+[[temperate_forest]]
+id = "terralith:moonlight_valley"
+weight = 1.0
+
+[[temperate_forest]]
+id = "terralith:sakura_valley"
+weight = 1.0
 
 [[temperate_forest]]
 id = "terralith:temperate_highlands"
 weight = 1.0
 
-[[temperate_forest]]
+# ── temperate_rainforest (41) ──
+
+# biomesoplenty
+[[temperate_rainforest]]
+id = "biomesoplenty:bog"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:lavender_field"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:lavender_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:maple_woods"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:marsh"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:orchard"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:redwood_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:seasonal_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "biomesoplenty:wetland"
+weight = 1.0
+
+
+# byg
+[[temperate_rainforest]]
+id = "byg:autumnal_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:autumnal_valley"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:black_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:canadian_shield"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:cherry_blossom_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:cypress_swamplands"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:embur_bog"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:guiana_shield"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:lush_stacks"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:orchard"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:redwood_thicket"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "byg:weeping_mire"
+weight = 1.0
+
+
+# regions_unexplored
+[[temperate_rainforest]]
+id = "regions_unexplored:autumnal_fields"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:autumnal_maple_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:cherry_hills"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:flower_field"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:fungal_fen"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:lush_delta"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:lush_hills"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:maple_forest"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:orchard"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:redwoods"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "regions_unexplored:sparse_redwoods"
+weight = 1.0
+
+
+# terralith
+[[temperate_rainforest]]
+id = "terralith:alpha_islands"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "terralith:caldera"
+weight = 1.0
+
+[[temperate_rainforest]]
 id = "terralith:lavender_forest"
-weight = 0.9
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "terralith:lavender_valley"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "terralith:lush_valley"
+weight = 1.0
 
 [[temperate_rainforest]]
 id = "terralith:mirage_isles"
@@ -70,30 +819,448 @@ weight = 0.7
 id = "terralith:shield"
 weight = 1.0
 
+[[temperate_rainforest]]
+id = "terralith:shield_clearing"
+weight = 1.0
+
+[[temperate_rainforest]]
+id = "terralith:skylands_autumn"
+weight = 0.7
+
+# ── grassland (35) ──
+
+# biomesoplenty
 [[grassland]]
-id = "terralith:steppe"
+id = "biomesoplenty:muskeg"
 weight = 1.0
 
 [[grassland]]
-id = "terralith:valley"
+id = "biomesoplenty:rainbow_hills"
 weight = 1.0
 
 [[grassland]]
-id = "terralith:yellowstone"
-weight = 0.9
+id = "biomesoplenty:spider_nest"
+weight = 1.0
+
+[[grassland]]
+id = "biomesoplenty:undergrowth"
+weight = 1.0
+
+[[grassland]]
+id = "biomesoplenty:visceral_heap"
+weight = 1.0
+
+[[grassland]]
+id = "biomesoplenty:withered_abyss"
+weight = 1.0
+
+
+# byg
+[[grassland]]
+id = "byg:arisian_undergrowth"
+weight = 1.0
+
+[[grassland]]
+id = "byg:basalt_barrera"
+weight = 1.0
+
+[[grassland]]
+id = "byg:bulbis_gardens"
+weight = 1.0
+
+[[grassland]]
+id = "byg:cryptic_wastes"
+weight = 1.0
+
+[[grassland]]
+id = "byg:dacite_ridges"
+weight = 1.0
+
+[[grassland]]
+id = "byg:dacite_shore"
+weight = 1.0
+
+[[grassland]]
+id = "byg:dead_sea"
+weight = 1.0
+
+[[grassland]]
+id = "byg:ethereal_islands"
+weight = 1.0
+
+[[grassland]]
+id = "byg:glowstone_gardens"
+weight = 1.0
+
+[[grassland]]
+id = "byg:magma_wastes"
+weight = 1.0
+
+[[grassland]]
+id = "byg:rainbow_beach"
+weight = 1.0
+
+[[grassland]]
+id = "byg:skyris_vale"
+weight = 1.0
+
+[[grassland]]
+id = "byg:viscal_isles"
+weight = 1.0
+
+[[grassland]]
+id = "byg:wailing_garth"
+weight = 1.0
+
+[[grassland]]
+id = "byg:windswept_beach"
+weight = 1.0
+
+
+# regions_unexplored
+[[grassland]]
+id = "regions_unexplored:alpha_plains"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:cold_river"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:corrupted_holt"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:fen"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:flooded_plains"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:gravel_beach"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:mauve_hills"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:muddy_river"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:pine_slopes"
+weight = 1.0
+
+[[grassland]]
+id = "regions_unexplored:redstone_hell"
+weight = 1.0
+
+
+# terralith
+[[grassland]]
+id = "terralith:skylands"
+weight = 0.7
+
+[[grassland]]
+id = "terralith:skylands_spring"
+weight = 0.7
+
+[[grassland]]
+id = "terralith:skylands_summer"
+weight = 0.7
+
+[[grassland]]
+id = "terralith:warm_river"
+weight = 1.0
+
+# ── cold_steppe (9) ──
+
+# biomesoplenty
+[[cold_steppe]]
+id = "biomesoplenty:rocky_shrubland"
+weight = 1.0
+
+[[cold_steppe]]
+id = "biomesoplenty:shrubland"
+weight = 1.0
+
+
+# regions_unexplored
+[[cold_steppe]]
+id = "regions_unexplored:shrubland"
+weight = 1.0
+
+[[cold_steppe]]
+id = "regions_unexplored:steppe"
+weight = 1.0
+
+
+# terralith
+[[cold_steppe]]
+id = "terralith:cold_shrubland"
+weight = 1.0
+
+[[cold_steppe]]
+id = "terralith:hot_shrubland"
+weight = 1.0
 
 [[cold_steppe]]
 id = "terralith:rocky_shrubland"
 weight = 1.0
 
+[[cold_steppe]]
+id = "terralith:shrubland"
+weight = 1.0
+
+[[cold_steppe]]
+id = "terralith:steppe"
+weight = 1.0
+
+# ── steppe (27) ──
+
+# biomesoplenty
 [[steppe]]
-id = "terralith:fractured_savanna"
-weight = 0.8
+id = "biomesoplenty:clover_patch"
+weight = 1.0
+
+[[steppe]]
+id = "biomesoplenty:field"
+weight = 1.0
+
+[[steppe]]
+id = "biomesoplenty:floodplain"
+weight = 1.0
+
+[[steppe]]
+id = "biomesoplenty:grassland"
+weight = 1.0
+
+[[steppe]]
+id = "biomesoplenty:origin_valley"
+weight = 1.0
+
+[[steppe]]
+id = "biomesoplenty:pasture"
+weight = 1.0
+
+[[steppe]]
+id = "biomesoplenty:prairie"
+weight = 1.0
+
+
+# byg
+[[steppe]]
+id = "byg:allium_fields"
+weight = 1.0
+
+[[steppe]]
+id = "byg:amaranth_fields"
+weight = 1.0
+
+[[steppe]]
+id = "byg:coconino_meadow"
+weight = 1.0
+
+[[steppe]]
+id = "byg:ivis_fields"
+weight = 1.0
+
+[[steppe]]
+id = "byg:prairie"
+weight = 1.0
+
+[[steppe]]
+id = "byg:red_rock_valley"
+weight = 1.0
+
+[[steppe]]
+id = "byg:rose_fields"
+weight = 1.0
+
+[[steppe]]
+id = "byg:twilight_meadow"
+weight = 1.0
+
+
+# regions_unexplored
+[[steppe]]
+id = "regions_unexplored:barley_fields"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:blackstone_basin"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:glistering_meadow"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:grassland"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:grassy_beach"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:lupine_plains"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:meadow"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:poppy_fields"
+weight = 1.0
+
+[[steppe]]
+id = "regions_unexplored:prairie"
+weight = 1.0
+
+
+# terralith
+[[steppe]]
+id = "terralith:blooming_valley"
+weight = 1.0
+
+[[steppe]]
+id = "terralith:valley_clearing"
+weight = 1.0
+
+[[steppe]]
+id = "terralith:yellowstone"
+weight = 1.0
+
+# ── alpine (30) ──
+
+# biomesoplenty
+[[alpine]]
+id = "biomesoplenty:crag"
+weight = 1.0
+
+[[alpine]]
+id = "biomesoplenty:highland"
+weight = 1.0
+
+[[alpine]]
+id = "biomesoplenty:highland_moor"
+weight = 1.0
+
+[[alpine]]
+id = "biomesoplenty:jade_cliffs"
+weight = 1.0
+
+[[alpine]]
+id = "biomesoplenty:volcanic_plains"
+weight = 0.7
+
+[[alpine]]
+id = "biomesoplenty:volcano"
+weight = 1.0
+
+
+# byg
+[[alpine]]
+id = "byg:crag_gardens"
+weight = 1.0
+
+[[alpine]]
+id = "byg:howling_peaks"
+weight = 1.0
+
+[[alpine]]
+id = "byg:sythian_torrids"
+weight = 1.0
+
+
+# regions_unexplored
+[[alpine]]
+id = "regions_unexplored:chalk_cliffs"
+weight = 1.0
+
+[[alpine]]
+id = "regions_unexplored:highland_fields"
+weight = 1.0
+
+[[alpine]]
+id = "regions_unexplored:mountains"
+weight = 1.0
+
+[[alpine]]
+id = "regions_unexplored:spires"
+weight = 0.7
+
+[[alpine]]
+id = "regions_unexplored:towering_cliffs"
+weight = 1.0
+
+
+# terralith
+[[alpine]]
+id = "terralith:basalt_cliffs"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:blooming_plateau"
+weight = 1.0
 
 [[alpine]]
 id = "terralith:emerald_peaks"
 weight = 1.0
 
 [[alpine]]
+id = "terralith:granite_cliffs"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:haze_mountain"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:mountain_steppe"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:painted_mountains"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:rocky_mountains"
+weight = 1.0
+
+[[alpine]]
 id = "terralith:scarlet_mountains"
-weight = 0.9
+weight = 1.0
+
+[[alpine]]
+id = "terralith:stony_spires"
+weight = 0.7
+
+[[alpine]]
+id = "terralith:volcanic_crater"
+weight = 0.7
+
+[[alpine]]
+id = "terralith:volcanic_peaks"
+weight = 0.7
+
+[[alpine]]
+id = "terralith:white_cliffs"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:windswept_spires"
+weight = 0.7
+
+[[alpine]]
+id = "terralith:yosemite_cliffs"
+weight = 1.0
+
+[[alpine]]
+id = "terralith:yosemite_lowlands"
+weight = 1.0

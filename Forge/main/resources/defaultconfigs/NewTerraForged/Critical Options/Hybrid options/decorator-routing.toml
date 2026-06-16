@@ -1,0 +1,41 @@
+# NewTerraForged — hybrid decorator routing (Critical Options)
+# Requires cave-biomes.toml → [decoration] use_per_biome_decorators = true
+#
+# Priority:
+#   1) [[decorator_routing.override]] exact biome id
+#   2) [[decorator_routing.rule]] first matching path pattern (top → bottom)
+#   3) decorator_routing.default
+#
+# decorator values: official | vanilla | legacy | compromise
+# pattern tokens: substring of biome path (e.g. "fungal"), full id, or @minecraft_cave
+
+[decorator_routing]
+default = "compromise"
+
+# Exact overrides — wins over all pattern rules below.
+# [[decorator_routing.override]]
+# id = "regions_unexplored:prismachasm"
+# decorator = "official"
+
+[[decorator_routing.rule]]
+decorator = "official"
+patterns = [
+    "scorching", "mantle", "magma",
+    "dripstone", "karst", "limestone", "tuff_cave", "tuff_caves",
+    "icicle", "stalactite", "fungal", "mycotoxic", "prismachasm",
+    "deepslate", "basalt", "blackstone",
+    "@minecraft_cave",
+]
+
+# Brimstone: official TF decorator handles it poorly — use compromise instead.
+[[decorator_routing.rule]]
+decorator = "compromise"
+patterns = ["brimstone"]
+
+[[decorator_routing.rule]]
+decorator = "vanilla"
+patterns = ["glowing_grotto", "undergarden", "frostfire"]
+
+[[decorator_routing.rule]]
+decorator = "legacy"
+patterns = ["bioshroom", "glowshroom", "mushroom_cave", "mushroom_caves"]

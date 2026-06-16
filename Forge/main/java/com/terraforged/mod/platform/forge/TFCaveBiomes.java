@@ -14,6 +14,7 @@ public final class TFCaveBiomes {
     public static final RegistryObject<Biome> THERMAL_SPRINGS = REGISTER.register("cave_thermal_springs", ModCaveBiomeFactories::thermalSprings);
     public static final RegistryObject<Biome> UNDERGROUND_JUNGLE = REGISTER.register("cave_underground_jungle", ModCaveBiomeFactories::undergroundJungle);
     public static final RegistryObject<Biome> STEAMING_JUNGLE = REGISTER.register("cave_steaming_jungle", ModCaveBiomeFactories::steamingJungle);
+    public static final RegistryObject<Biome> SULFUR_RIVER = REGISTER.register("cave_sulfur_river", ModCaveBiomeFactories::sulfurRiver);
 
     private TFCaveBiomes() {
     }
