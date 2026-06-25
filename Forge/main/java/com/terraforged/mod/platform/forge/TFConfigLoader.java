@@ -16,6 +16,12 @@ import net.minecraftforge.fml.loading.FMLPaths;
 
 final class TFConfigLoader {
     private static final int MIN_VALID_BYTES = 16;
+    private static final java.util.Map<String, String> FLAT_LAYOUT_MIGRATIONS = java.util.Map.of(
+            "NewTerraForged/Cave_configs/caves.toml", "NewTerraForged/caves.toml",
+            "NewTerraForged/Cave_configs/cave-biomes.toml", "NewTerraForged/cave-biomes.toml",
+            "NewTerraForged/Terrain/surface-biomes.toml", "NewTerraForged/surface-biomes.toml",
+            "NewTerraForged/Terrain/biome-terrain-integration.toml", "NewTerraForged/biome-terrain-integration.toml"
+    );
 
     private TFConfigLoader() {
     }
@@ -41,6 +47,15 @@ final class TFConfigLoader {
             }
             if (Files.exists(target, new LinkOption[0]) && Files.size(target) >= 16L) {
                 return;
+            }
+            String flatLegacy = TFConfigLoader.FLAT_LAYOUT_MIGRATIONS.get(relativePath);
+            if (flatLegacy != null) {
+                Path flatLegacyTarget = FMLPaths.CONFIGDIR.get().resolve(flatLegacy);
+                if (Files.exists(flatLegacyTarget, new LinkOption[0]) && Files.size(flatLegacyTarget) >= 16L) {
+                    Files.copy(flatLegacyTarget, target, StandardCopyOption.REPLACE_EXISTING);
+                    TerraForged.LOG.info("[TFConfig] Migrated {} -> {}", flatLegacy, relativePath);
+                    return;
+                }
             }
             String legacyRelative = relativePath.replace("NewTerraForged/", "NewTerraforged/");
             if (!legacyRelative.equals(relativePath) && Files.exists(legacyTarget = FMLPaths.CONFIGDIR.get().resolve(legacyRelative), new LinkOption[0]) && Files.size(legacyTarget) >= 16L) {

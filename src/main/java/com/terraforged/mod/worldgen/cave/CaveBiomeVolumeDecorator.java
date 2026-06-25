@@ -18,7 +18,7 @@ import net.minecraft.world.level.levelgen.RandomSource;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 
 public final class CaveBiomeVolumeDecorator {
-    private static final int MEGA_GIGA_ANCHOR_GRID = 6;
+    private static final int MEGA_GIGA_ANCHOR_GRID = 8;
     private static final int PAINTED_BIOME_PROBE_STRIDE = 4;
 
     private CaveBiomeVolumeDecorator() {

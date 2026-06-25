@@ -513,7 +513,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("bioshroom") || path.contains("fungal") || path.contains("mycotoxic") || path.contains("crystal") || path.contains("prismachasm") || path.contains("scorching") || path.contains("glowshroom");
+        return path.contains("bioshroom") || path.contains("fungal") || path.contains("mycotoxic") || path.contains("crystal") || path.contains("prismachasm") || path.contains("scorching") || path.contains("glowshroom") || path.contains("glowing_grotto") || path.contains("frostfire") || path.contains("redstone_caves");
     }
 
     public static boolean isEmburBogBiome(Holder<Biome> biome) {

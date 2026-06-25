@@ -361,40 +361,54 @@ final class CarverColumnCache {
         }
     }
 
-    /** When chunk has mega/giga, land columns participate — border corridors stay open for synapse links. */
+    /** Fill isolated columns adjacent to mega/giga so chunk interiors carve cohesively (v0.4.3 model). */
     private void ensureMegaGigaFullChunkCarve() {
         if (!this.megaPresent && !this.gigaPresent) {
             return;
         }
-        for (int i = 0; i < 256; ++i) {
-            if (this.oceanBlocked[i]) {
-                continue;
-            }
-            int dx = i & 0xF;
-            int dz = i >> 4;
-            if (this.preserveSynapseCorridor(dx, dz)) {
-                this.zone[i] = ZONE_NONE;
-                continue;
-            }
-            byte flags = this.zone[i];
-            if (this.gigaPresent) {
-                flags = (byte)(flags | ZONE_GIGA);
-            }
-            if (this.megaPresent) {
+        for (int pass = 0; pass < 3; ++pass) {
+            boolean expanded = false;
+            for (int i = 0; i < 256; ++i) {
+                if (this.zone[i] != ZONE_NONE || this.oceanBlocked[i]) {
+                    continue;
+                }
+                int dx = i & 0xF;
+                int dz = i >> 4;
+                if (!this.hasMegaGigaNeighbor(dx, dz)) {
+                    continue;
+                }
+                byte flags = this.zone[i];
+                if (this.gigaPresent) {
+                    flags = (byte)(flags | ZONE_GIGA);
+                }
                 flags = (byte)(flags | ZONE_MEGA);
+                this.zone[i] = flags;
+                this.megaPresent = true;
+                expanded = true;
             }
-            this.zone[i] = flags;
+            if (!expanded) {
+                break;
+            }
         }
     }
 
-    private boolean preserveSynapseCorridor(int dx, int dz) {
-        if (!this.isChunkBorder(dx, dz)) {
-            return false;
+    private boolean hasMegaGigaNeighbor(int dx, int dz) {
+        for (int ox = -1; ox <= 1; ++ox) {
+            for (int oz = -1; oz <= 1; ++oz) {
+                if (ox == 0 && oz == 0) {
+                    continue;
+                }
+                int px = dx + ox;
+                int pz = dz + oz;
+                if (px < 0 || px > 15 || pz < 0 || pz > 15) {
+                    continue;
+                }
+                if (this.zone[this.index(px, pz)] != ZONE_NONE) {
+                    return true;
+                }
+            }
         }
-        int x = this.cachedStartX + dx;
-        int z = this.cachedStartZ + dz;
-        float pick = (com.terraforged.noise.util.NoiseUtil.valCoord2D(this.cachedStartX ^ 0x5A7E31, x, z) + 1.0f) * 0.5f;
-        return pick < 0.32f;
+        return false;
     }
 
     private boolean isChunkBorder(int dx, int dz) {

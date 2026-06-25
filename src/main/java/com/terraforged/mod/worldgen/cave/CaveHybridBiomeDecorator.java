@@ -64,11 +64,16 @@ public final class CaveHybridBiomeDecorator {
     }
 
     private static void decorateBiomeEntry(CaveDecoratorKind kind, ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome, BlockPos seed, int chunkX, int chunkZ, int minY, int maxY, boolean megaGigaChunk, WorldgenRandom random) {
-        switch (kind) {
-            case VANILLA -> CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, seed);
-            case LEGACY -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, seed, true, random, true);
-            default -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, seed, megaGigaChunk, random, CaveBiomeIds.isCoverDenseCaveBiome(biome));
+        if (kind == CaveDecoratorKind.LEGACY || kind == CaveDecoratorKind.VANILLA) {
+            kind = CaveDecoratorKind.COMPROMISE;
         }
+        if (kind == CaveDecoratorKind.OFFICIAL) {
+            TerraForgedOfficialCaveDecorator.decorateBiome(
+                    CaveHybridBiomeDecorator.collectOriginsForBiome(chunk, carver, generator, biome, seed, chunkX, chunkZ, minY, maxY, 4),
+                    chunk, carver, region, generator, biome);
+            return;
+        }
+        CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, seed, megaGigaChunk, random, CaveBiomeIds.isCoverDenseCaveBiome(biome));
     }
 
     public static void decorateEntrances(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator) {

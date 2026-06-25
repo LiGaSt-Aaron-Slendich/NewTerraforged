@@ -1,0 +1,312 @@
+# NewTerraForged — biome ↔ terrain integration
+# Restrict which surface biomes may spawn on each landform terrain.
+#
+# Terrains: steppe, plains, hills_1, hills_2, dales, plateau, badlands, torridonian,
+#           mountains_1, mountains_2, mountains_3, dolomites, mountains_ridge_1, mountains_ridge_2
+#
+# whitelist — if non-empty, ONLY these biomes may appear on this terrain (from the climate pool).
+# blacklist — these biomes never appear on this terrain.
+#
+# Badlands / mesa biomes belong on the badlands terrain only — they paint terracotta bands on slopes elsewhere.
+
+[steppe]
+blacklist = [
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[plains]
+blacklist = [
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[hills_1]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[hills_2]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[dales]
+blacklist = [
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[dolomites]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[mountains_1]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[mountains_2]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[mountains_3]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[mountains_ridge_1]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[mountains_ridge_2]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "terralith:frozen_tundra",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[plateau]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[torridonian]
+blacklist = [
+  "minecraft:swamp",
+  "minecraft:mangrove_swamp",
+  "terralith:ice_marsh",
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "byg:sierra_badlands",
+  "regions_unexplored:outback",
+  "minecraft:beach",
+  "minecraft:stony_shore",
+  "minecraft:snowy_beach",
+  "minecraft:jungle",
+  "minecraft:sparse_jungle",
+  "minecraft:bamboo_jungle",
+]
+
+[badlands]
+whitelist = [
+  "minecraft:badlands",
+  "minecraft:wooded_badlands",
+  "minecraft:eroded_badlands",
+  "terralith:savanna_badlands",
+  "terralith:snowy_badlands",
+  "terralith:warped_mesa",
+  "terralith:white_mesa",
+  "terralith:red_oasis",
+  "terralith:desert_canyon",
+  "terralith:painted_mountains",
+  "byg:sierra_badlands",
+  "byg:atacama_outback",
+  "regions_unexplored:outback",
+  "regions_unexplored:arid_mountains",
+  "regions_unexplored:barley_fields",
+  "biomesoplenty:lush_desert",
+  "biomesoplenty:dryland",
+  "biomesoplenty:volcanic_plains",
+]

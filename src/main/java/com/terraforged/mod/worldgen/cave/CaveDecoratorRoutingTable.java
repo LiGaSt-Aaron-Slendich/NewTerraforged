@@ -62,10 +62,9 @@ public final class CaveDecoratorRoutingTable {
         rules.add(new PatternRule(CaveDecoratorKind.COMPROMISE, List.of(
                 "scorching", "mantle", "magma", "brimstone",
                 "dripstone",
-                "fungal", "mycotoxic", "frostfire"
+                "fungal", "mycotoxic", "bioshroom", "glowshroom", "frostfire",
+                "glowing_grotto", "undergarden", "prismachasm", "crystal", "redstone"
         )));
-        rules.add(new PatternRule(CaveDecoratorKind.VANILLA, List.of("glowing_grotto", "undergarden")));
-        rules.add(new PatternRule(CaveDecoratorKind.LEGACY, List.of("bioshroom", "glowshroom")));
         return new CaveDecoratorRoutingTable(overrides, rules, CaveDecoratorKind.COMPROMISE);
     }
 

@@ -19,7 +19,7 @@ public final class TFSurfaceBiomeConfig {
     private final Map<BiomeType, List<Entry>> climates = new EnumMap<BiomeType, List<Entry>>(BiomeType.class);
 
     public static void load() {
-        CommentedFileConfig cfg = TFConfigLoader.open("NewTerraForged/surface-biomes.toml");
+        CommentedFileConfig cfg = TFConfigLoader.open(TFConfigPaths.SURFACE_BIOMES);
         INSTANCE = new TFSurfaceBiomeConfig();
         INSTANCE.read(cfg);
         cfg.close();

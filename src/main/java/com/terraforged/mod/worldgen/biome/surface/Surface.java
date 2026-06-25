@@ -7,7 +7,9 @@ import com.terraforged.mod.worldgen.cave.CaveOpenAirCheck;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -251,6 +253,9 @@ public class Surface {
             }
             int ny = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, nx, nz);
             BlockState neighbor = chunk.getBlockState(new BlockPos(nx, ny, nz));
+            if (Surface.isBandPaletteBlock(neighbor)) {
+                continue;
+            }
             if (Surface.isErodible(neighbor) || neighbor.is(Blocks.GRASS_BLOCK) || neighbor.is(Blocks.PODZOL) || neighbor.is(Blocks.MYCELIUM)) {
                 return neighbor;
             }
@@ -284,6 +289,18 @@ public class Surface {
         return pos.getX() >> 4 == chunk.x && pos.getZ() >> 4 == chunk.z;
     }
 
+    private static boolean isBandPaletteBlock(BlockState state) {
+        if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath();
+        return path.contains("terracotta") || path.contains("concrete_powder") || path.contains("glazed_terracotta");
+    }
+
     protected static BlockState resolveCliffFill(BlockPos.MutableBlockPos pos, ChunkAccess chunk, BlockState solidBelow) {
         BlockState topState = chunk.getBlockState((BlockPos)pos);
         if (Surface.isErodible(topState)) {
@@ -294,6 +311,9 @@ public class Surface {
         }
         for (int dy = 1; dy <= 6; ++dy) {
             BlockState above = chunk.getBlockState((BlockPos)pos.setY(pos.getY() + dy));
+            if (Surface.isBandPaletteBlock(above)) {
+                break;
+            }
             if (Surface.isErodible(above)) {
                 return above;
             }

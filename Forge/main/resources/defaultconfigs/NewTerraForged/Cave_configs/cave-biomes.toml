@@ -49,6 +49,8 @@ vanilla_ceiling_pass = true
 
 # Hybrid decorator routing lives in:
 #   NewTerraForged/Critical Options/Hybrid options/decorator-routing.toml
+# Cave system density: NewTerraForged/Cave_configs/caves.toml
+# Surface climate weights: NewTerraForged/Terrain/surface-biomes.toml
 
 blacklist = [
     "minecraft:lush_caves",

@@ -16,7 +16,7 @@ public final class TFBiomeTerrainIntegrationConfig {
     private final Map<String, TerrainRules> terrains = new HashMap<>();
 
     public static void load() {
-        CommentedFileConfig cfg = TFConfigLoader.open("NewTerraForged/biome-terrain-integration.toml");
+        CommentedFileConfig cfg = TFConfigLoader.open(TFConfigPaths.BIOME_TERRAIN_INTEGRATION);
         INSTANCE = new TFBiomeTerrainIntegrationConfig();
         INSTANCE.read(cfg);
         cfg.close();

@@ -27,7 +27,7 @@ public final class TFCaveSystemConfig {
     public CaveDensitySettings caveDensity = CaveDensitySettings.DEFAULT;
 
     public static void load() {
-        CommentedFileConfig cfg = TFConfigLoader.open("NewTerraForged/caves.toml");
+        CommentedFileConfig cfg = TFConfigLoader.open(TFConfigPaths.CAVES);
         INSTANCE = new TFCaveSystemConfig();
         INSTANCE.read(cfg);
         cfg.close();

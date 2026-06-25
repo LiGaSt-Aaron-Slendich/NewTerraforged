@@ -15,6 +15,12 @@ public final class CaveFeatureIntegrityPass {
         if (chunk == null || carver == null || !carver.isColumnCacheReady()) {
             return;
         }
+        if (CaveHeatBlockSanitizer.chunkMayNeedSanitize(chunk, carver, generator)) {
+            int heatRemoved = CaveHeatBlockSanitizer.sanitize(chunk, carver, generator);
+            if (heatRemoved > 0) {
+                TerraForged.LOG.debug("[FeatureIntegrity] stripped {} heat-incompatible blocks in chunk {}", heatRemoved, chunk.getPos());
+            }
+        }
         CarverColumnCache columns = carver.columnCache();
         if (columns.anyMegaGiga() || !columns.anySynapseEligible()) {
             return;

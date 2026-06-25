@@ -11,7 +11,7 @@ import java.util.Locale;
 import net.minecraft.resources.ResourceLocation;
 
 final class CaveDecoratorRoutingLoader {
-    static final String ROUTING_CONFIG = "NewTerraForged/Critical Options/Hybrid options/decorator-routing.toml";
+    static final String ROUTING_CONFIG = TFConfigPaths.DECORATOR_ROUTING;
 
     private CaveDecoratorRoutingLoader() {
     }

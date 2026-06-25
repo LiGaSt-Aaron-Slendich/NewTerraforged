@@ -31,7 +31,16 @@ public final class BiomeTerrainIntegration {
             ResourceLocation biomeId = BiomeTerrainIntegration.biomeId(b);
             return biomeId != null && rules.isAllowed(biomeId);
         });
-        return fallback != null ? fallback : candidate;
+        if (fallback != null) {
+            return fallback;
+        }
+        for (Holder<Biome> option : climatePool.getValues()) {
+            ResourceLocation biomeId = BiomeTerrainIntegration.biomeId(option);
+            if (biomeId != null && rules.isAllowed(biomeId)) {
+                return option;
+            }
+        }
+        return candidate;
     }
 
     private static ResourceLocation biomeId(Holder<Biome> biome) {

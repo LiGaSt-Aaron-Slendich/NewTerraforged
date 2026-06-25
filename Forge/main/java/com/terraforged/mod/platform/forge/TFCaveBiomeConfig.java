@@ -46,7 +46,7 @@ public final class TFCaveBiomeConfig {
     public CaveDecoratorRoutingTable decoratorRouting = CaveDecoratorRoutingTable.defaults();
 
     public static void load() {
-        CommentedFileConfig cfg = TFConfigLoader.open("NewTerraForged/cave-biomes.toml");
+        CommentedFileConfig cfg = TFConfigLoader.open(TFConfigPaths.CAVE_BIOMES);
         INSTANCE = new TFCaveBiomeConfig();
         INSTANCE.read(cfg);
         cfg.close();

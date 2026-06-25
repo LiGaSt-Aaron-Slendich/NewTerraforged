@@ -7,15 +7,11 @@
 #   3) decorator_routing.default
 #
 # decorator values: official | vanilla | legacy | compromise
+# legacy/vanilla are remapped to compromise at runtime (too slow).
 # pattern tokens: substring of biome path (e.g. "fungal"), full id, or @minecraft_cave
 
 [decorator_routing]
 default = "compromise"
-
-# Exact overrides — wins over all pattern rules below.
-# [[decorator_routing.override]]
-# id = "regions_unexplored:prismachasm"
-# decorator = "official"
 
 [[decorator_routing.rule]]
 decorator = "official"
@@ -26,20 +22,11 @@ patterns = [
     "@minecraft_cave",
 ]
 
-# Cover + scatter — dripstone uses bounded compromise (official TF runs every feature at one origin).
 [[decorator_routing.rule]]
 decorator = "compromise"
 patterns = [
     "scorching", "mantle", "magma", "brimstone",
     "dripstone",
-    "fungal", "mycotoxic", "bioshroom", "prismachasm",
-    "frostfire",
+    "fungal", "mycotoxic", "bioshroom", "glowshroom", "prismachasm",
+    "frostfire", "glowing_grotto", "undergarden", "crystal", "redstone",
 ]
-
-[[decorator_routing.rule]]
-decorator = "vanilla"
-patterns = ["glowing_grotto", "undergarden"]
-
-[[decorator_routing.rule]]
-decorator = "legacy"
-patterns = ["bioshroom", "glowshroom", "mushroom_cave", "mushroom_caves"]

@@ -32,6 +32,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 public final class CaveBiomeFeatureRunner {
     private static final int MAX_SCATTER_ATTEMPTS = 28;
+    private static final int MEGA_GIGA_SCATTER_ATTEMPTS = 14;
 
     private CaveBiomeFeatureRunner() {
     }
@@ -225,7 +226,17 @@ public final class CaveBiomeFeatureRunner {
         if (path.contains("vent") || path.contains("geyser") || path.contains("geode")) {
             return false;
         }
-        return path.contains("scorch") || path.contains("ash") || path.contains("charred") || path.contains("basalt_strip") || path.contains("magma_strip") || path.contains("frostfire_patch") || path.contains("yellowstone") && (path.contains("floor") || path.contains("cover") || path.contains("patch") || path.contains("spread")) || path.contains("cover") || path.contains("carpet") || path.contains("floor") || path.contains("spread") || path.contains("replacer") || path.contains("tiles");
+        boolean heatThemed = path.contains("scorch") || path.contains("ash") || path.contains("charred")
+                || path.contains("basalt_strip") || path.contains("magma_strip") || path.contains("brimstone")
+                || path.contains("volcanic") || path.contains("frostfire_patch") || path.contains("yellowstone");
+        if (!heatThemed) {
+            return false;
+        }
+        return path.contains("scorch") || path.contains("ash") || path.contains("charred")
+                || path.contains("basalt_strip") || path.contains("magma_strip") || path.contains("frostfire_patch")
+                || path.contains("yellowstone") && (path.contains("floor") || path.contains("cover") || path.contains("patch") || path.contains("spread"))
+                || path.contains("cover") || path.contains("carpet") || path.contains("floor") || path.contains("spread")
+                || path.contains("replacer") || path.contains("tiles");
     }
 
     private static boolean isPrismachasmCoverFeature(Holder<PlacedFeature> placed) {
@@ -358,7 +369,9 @@ public final class CaveBiomeFeatureRunner {
         WorldGenLevel placement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, biome, carver);
         BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
         CaveFeaturePlan.Cache planCache = new CaveFeaturePlan.Cache();
-        CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, -1, MAX_SCATTER_ATTEMPTS);
+        boolean megaGiga = MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, floorAnchor.getX(), floorAnchor.getY(), floorAnchor.getZ());
+        int scatterAttempts = megaGiga ? MEGA_GIGA_SCATTER_ATTEMPTS : MAX_SCATTER_ATTEMPTS;
+        CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, -1, scatterAttempts);
         CaveBiomeFeatureRunner.decoratePlannedFeatures(floorAnchor, false, chunk, region, placement, generator, biome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 12 : 10);
         // No surface-style trees underground — only scatter / cover features.
         if ((CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) && !MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, floorAnchor.getX(), floorAnchor.getY(), floorAnchor.getZ())) {
@@ -374,7 +387,7 @@ public final class CaveBiomeFeatureRunner {
             if (ceilBiome != null) {
                 WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
                 BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
-                CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, -1, MAX_SCATTER_ATTEMPTS);
+                CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, -1, scatterAttempts);
                 CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 14 : 11);
             }
         }
@@ -698,7 +711,7 @@ public final class CaveBiomeFeatureRunner {
                 for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
                     Holder placedFeature = stage.get(featureIndex);
                     ResourceLocation id = FeatureMassClassifier.featurePath((Holder<PlacedFeature>)placedFeature);
-                    if (id == null || !CaveBiomeFeatureRunner.isVolcanicVentFeature(id.getPath()) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placedFeature, biome) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placedFeature, biome)) continue;
+                    if (id == null || !CaveBiomeFeatureRunner.isVolcanicVentFeature(id.getPath(), biome) || !CaveFeatureFilters.isModCaveFeatureAllowed((Holder<PlacedFeature>)placedFeature, biome) || !CaveFeatureFilters.belongsToModCaveBiome((Holder<PlacedFeature>)placedFeature, biome)) continue;
                     random.setFeatureSeed(baseSeed, featureIndex + 500 + attempt * 17, stageIndex);
                     if (!FeaturePlacement.place((Holder<PlacedFeature>)placedFeature, placement, (ChunkGenerator)generator, (Random)random, placePos, true)) continue;
                     continue block0;
@@ -727,9 +740,18 @@ public final class CaveBiomeFeatureRunner {
         return state.is(net.minecraft.tags.BlockTags.BASE_STONE_OVERWORLD);
     }
 
-    private static boolean isVolcanicVentFeature(String path) {
+    private static boolean isVolcanicVentFeature(String path, Holder<Biome> biome) {
         String lower = path.toLowerCase();
-        return lower.contains("ash_vent") || lower.contains("/vents") || lower.contains("geyser");
+        if (!lower.contains("ash_vent") && !lower.contains("/vents") && !lower.contains("geyser")) {
+            return false;
+        }
+        if (lower.contains("ash_vent") && !CaveFeatureFilters.isScorchingCaveVentFeature(lower)) {
+            return false;
+        }
+        if (CaveBiomeIds.isScorchingCaveBiome(biome)) {
+            return CaveFeatureFilters.isScorchingCaveVentFeature(lower);
+        }
+        return true;
     }
 
     private static void decorateTrees(BlockPos anchor, ChunkAccess chunk, WorldGenLevel region, Generator generator, Holder<Biome> biome, BiomeGenerationSettings settings, WorldgenRandom random) {
@@ -786,7 +808,7 @@ public final class CaveBiomeFeatureRunner {
         ResourceLocation scatterId = FeatureMassClassifier.featurePath(placed);
         if (scatterId != null) {
             String scatterPath = scatterId.getPath().toLowerCase();
-            if (CaveBiomeFeatureRunner.isVolcanicVentFeature(scatterPath) || scatterPath.contains("geyser")) {
+            if (CaveBiomeFeatureRunner.isVolcanicVentFeature(scatterPath, biome) || scatterPath.contains("geyser")) {
                 return false;
             }
             if (FeatureMassClassifier.isCaveFloorLarge(placed) || scatterPath.contains("huge") || scatterPath.contains("mega_") || scatterPath.contains("colony")) {
