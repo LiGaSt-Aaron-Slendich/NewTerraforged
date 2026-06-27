@@ -1,12 +1,17 @@
 package com.terraforged.mod.worldgen.cave;
 
+import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.mod.worldgen.Generator;
+import com.terraforged.mod.worldgen.terrain.TerrainData;
+import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import com.terraforged.mod.worldgen.util.ChunkUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -19,13 +24,50 @@ public final class CaveChunkSurfaceRepair {
     }
 
     public static int[][] readGroundHeights(ChunkAccess chunk, CarverChunk carver) {
+        return CaveChunkSurfaceRepair.readGroundHeights(chunk, carver, null, null);
+    }
+
+    public static int[][] readGroundHeights(ChunkAccess chunk, CarverChunk carver, TerrainData terrain, Generator generator) {
         int[][] heights = new int[16][16];
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
-                heights[lx][lz] = CaveChunkSurfaceRepair.findGroundHeight(chunk, lx, lz);
+                heights[lx][lz] = CaveChunkSurfaceRepair.resolveRepairHeight(chunk, carver, terrain, generator, lx, lz);
             }
         }
         return heights;
+    }
+
+    static boolean isRiverBedColumn(TerrainData terrain, int lx, int lz) {
+        Terrain type = terrain.getTerrain().get(lx, lz);
+        return (type.isRiver() || type.isLake()) && terrain.getRiver().get(lx, lz) == 0.0f;
+    }
+
+    private static int resolveRepairHeight(ChunkAccess chunk, CarverChunk carver, TerrainData terrain, Generator generator, int lx, int lz) {
+        if (terrain != null && CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+            return CaveChunkSurfaceRepair.landReferenceHeight(terrain, lx, lz, generator != null ? generator.getSeaLevel() : 62);
+        }
+        return CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
+    }
+
+    private static int landReferenceHeight(TerrainData terrain, int lx, int lz, int sea) {
+        int best = Integer.MIN_VALUE;
+        for (int dz = -2; dz <= 2; ++dz) {
+            for (int dx = -2; dx <= 2; ++dx) {
+                int nx = lx + dx;
+                int nz = lz + dz;
+                if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16) {
+                    continue;
+                }
+                if (CaveChunkSurfaceRepair.isRiverBedColumn(terrain, nx, nz)) {
+                    continue;
+                }
+                best = Math.max(best, terrain.getHeight(nx, nz));
+            }
+        }
+        if (best == Integer.MIN_VALUE) {
+            best = Math.max(terrain.getHeight(lx, lz), terrain.getBaseHeight(lx, lz));
+        }
+        return Math.max(best, sea);
     }
 
     /** Top solid block within the surface shell band only — never scans into cave volumes. */
@@ -53,20 +95,87 @@ public final class CaveChunkSurfaceRepair {
     }
 
     public static void repairNoiseSurface(ChunkAccess chunk, CarverChunk carver, Generator generator, WorldGenLevel region, boolean aggressive) {
+        CaveChunkSurfaceRepair.repairNoiseSurface(chunk, carver, generator, region, null, aggressive);
+    }
+
+    public static void repairNoiseSurface(ChunkAccess chunk, CarverChunk carver, Generator generator, WorldGenLevel region, TerrainData terrain, boolean aggressive) {
         CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver);
         ChunkUtil.refreshHeightmaps(chunk);
-        int[][] heights = CaveChunkSurfaceRepair.readGroundHeights(chunk, carver);
-        int[][] target = CaveChunkSurfaceRepair.computeTargetHeights(chunk, carver, region, heights, aggressive);
-        CaveChunkSurfaceRepair.applyTargetHeights(chunk, carver, generator, heights, target);
+        int[][] heights = CaveChunkSurfaceRepair.readGroundHeights(chunk, carver, terrain, generator);
+        int[][] target = CaveChunkSurfaceRepair.computeTargetHeights(chunk, carver, region, terrain, generator, heights, aggressive);
+        CaveChunkSurfaceRepair.applyTargetHeights(chunk, carver, generator, terrain, heights, target);
         CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver);
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
-    public static void stripSurfacePillars(ChunkAccess chunk, CarverChunk carver) {
+    /** Carve river/lake beds from terrain data after flat surface repair — keeps channels from leaking. */
+    public static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
+        if (terrain == null) {
+            return;
+        }
+        int sea = generator.getSeaLevel();
+        BlockState water = Blocks.WATER.defaultBlockState();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
-                if (carver.isEntranceColumn(lx, lz)) {
+                if (carver != null && carver.isEntranceColumn(lx, lz)) {
+                    continue;
+                }
+                if (!CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+                    continue;
+                }
+                int bedY = terrain.getHeight(lx, lz);
+                int waterY = TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
+                int topY = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
+                int carveTop = Math.max(topY, waterY);
+                for (int y = carveTop; y > bedY; --y) {
+                    if (!CaveChunkSurfaceRepair.mayModifyRiver(chunk, carver, lx, y, lz)) {
+                        continue;
+                    }
+                    pos.set(lx, y, lz);
+                    BlockState state = chunk.getBlockState(pos);
+                    if (state.isAir()) {
+                        continue;
+                    }
+                    chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
+                }
+                for (int y = bedY + 1; y <= waterY; ++y) {
+                    if (!CaveChunkSurfaceRepair.mayModifyRiver(chunk, carver, lx, y, lz)) {
+                        continue;
+                    }
+                    pos.set(lx, y, lz);
+                    BlockState fill = y == waterY ? (BlockState)water.setValue((Property)LiquidBlock.LEVEL, 0) : water;
+                    chunk.setBlockState(pos, fill, false);
+                }
+            }
+        }
+        ChunkUtil.refreshHeightmaps(chunk);
+    }
+
+    private static boolean mayModifyRiver(ChunkAccess chunk, CarverChunk carver, int lx, int y, int lz) {
+        if (carver != null && carver.isEntranceColumn(lx, lz)) {
+            return false;
+        }
+        int surface = CaveChunkSurfaceBounds.surfaceY(chunk, lx, lz);
+        return y >= surface - CaveChunkSurfaceBounds.SURFACE_CRUST && y <= surface + CaveChunkSurfaceBounds.SURFACE_LIFT;
+    }
+
+    public static void stripSurfacePillars(ChunkAccess chunk, CarverChunk carver) {
+        CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver, false);
+    }
+
+    public static void stripRiskSurfacePillars(ChunkAccess chunk, CarverChunk carver) {
+        CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver, true);
+    }
+
+    private static void stripSurfacePillars(ChunkAccess chunk, CarverChunk carver, boolean riskOnly) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (carver != null && carver.isEntranceColumn(lx, lz)) {
+                    continue;
+                }
+                if (riskOnly && (carver == null || !carver.isSurfaceRiskColumn(lx, lz))) {
                     continue;
                 }
                 int shell = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
@@ -139,14 +248,19 @@ public final class CaveChunkSurfaceRepair {
         }
     }
 
-    private static int[][] computeTargetHeights(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, int[][] heights, boolean aggressive) {
+    private static int[][] computeTargetHeights(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, TerrainData terrain, Generator generator, int[][] heights, boolean aggressive) {
         int[][] target = new int[16][16];
         boolean chessboard = CaveChunkCorruptionChecker.detectChessboardNoise(heights, carver);
         int chunkAverage = CaveChunkSurfaceRepair.averageGroundHeight(heights, carver);
+        int sea = generator != null ? generator.getSeaLevel() : 62;
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
                 if (carver.isEntranceColumn(lx, lz)) {
                     target[lx][lz] = heights[lx][lz];
+                    continue;
+                }
+                if (terrain != null && CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+                    target[lx][lz] = CaveChunkSurfaceRepair.landReferenceHeight(terrain, lx, lz, sea);
                     continue;
                 }
                 if (aggressive && chessboard) {
@@ -221,7 +335,7 @@ public final class CaveChunkSurfaceRepair {
         return CaveChunkSurfaceRepair.findSurfaceShellTop(neighbor, wx & 0xF, wz & 0xF);
     }
 
-    private static void applyTargetHeights(ChunkAccess chunk, CarverChunk carver, Generator generator, int[][] from, int[][] to) {
+    private static void applyTargetHeights(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain, int[][] from, int[][] to) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int sea = generator.getSeaLevel();
         for (int lx = 0; lx < 16; ++lx) {

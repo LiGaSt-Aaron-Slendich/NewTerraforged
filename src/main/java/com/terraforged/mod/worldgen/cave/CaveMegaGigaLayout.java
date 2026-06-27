@@ -25,8 +25,8 @@ import net.minecraft.resources.ResourceLocation;
 public final class CaveMegaGigaLayout {
     private static final int MIN_UNIQUE_REGIONS = 7;
     private static final float MAX_BIOME_SECTOR_FRACTION = 0.16f;
-    private static final float MAX_BIOME_CELL_FRACTION = 0.28f;
-    private static final float MAX_HEAT_SHELL_CELL_FRACTION = 0.015f;
+    private static final float MAX_BIOME_CELL_FRACTION = 0.14f;
+    private static final float MAX_HEAT_SHELL_CELL_FRACTION = 0.03f;
 
     static float conditionRelax() {
         com.terraforged.mod.platform.forge.TFCaveBiomeConfig cfg = com.terraforged.mod.platform.forge.TFCaveBiomeConfig.INSTANCE;
@@ -190,15 +190,15 @@ public final class CaveMegaGigaLayout {
                 continue;
             }
             if (!CaveBiomeClimateAffinity.isHeatGenerator(genId)) continue;
-            float heatRadius = this.blurRadius * 1.55f;
+            float heatRadius = this.blurRadius * 2.4f;
             factor = CaveMegaGigaLayout.smoothFalloff(gDist, heatRadius);
             if (this.isCentralOpenHall(x, z)) {
-                factor *= 0.2f;
+                factor *= 0.35f;
             }
             factor *= factor;
             stats = stats.add(genStats.local().scale(factor));
             CaveStatVector heat = genStats.globalForClimate(this.climateType);
-            float tempBoost = Math.max(heat.temperature(), 4.0f) * factor * 1.05f;
+            float tempBoost = Math.max(heat.temperature(), 4.0f) * factor * 1.8f;
             stats = stats.add(new CaveStatVector(heat.moisture() * factor * 0.6f, tempBoost, heat.fertility() * factor * 0.5f));
         }
         return stats.clamped();
@@ -215,7 +215,7 @@ public final class CaveMegaGigaLayout {
         }
         if (CaveBiomeClimateAffinity.isHeatGenerator(genId)) {
             CaveStatVector heat = genStats.globalForClimate(this.climateType);
-            float tempBoost = Math.max(heat.temperature(), 4.0f) * 1.05f;
+            float tempBoost = Math.max(heat.temperature(), 4.0f) * 1.8f;
             CaveStatVector pulse = new CaveStatVector(heat.moisture() * 0.6f, tempBoost, heat.fertility() * 0.5f);
             if (this.climateType == CaveClimateType.FROST) {
                 pulse = pulse.add(new CaveStatVector(4.0f, 3.0f, 1.0f));
@@ -246,12 +246,11 @@ public final class CaveMegaGigaLayout {
         });
     }
 
-    private void balanceRegionGrid(int seed, CaveBiomeRegistry registry) {
+    private void balanceRegionGrid(int seed) {
         if (this.regionGrid == null) {
             return;
         }
         this.regionGrid.balanceBiomeFootprint(seed, MAX_BIOME_CELL_FRACTION, MAX_HEAT_SHELL_CELL_FRACTION, (x, z, excluded) -> this.pickBiomeForPositionExcluding(x, z, this.statsAt(x, z), false, excluded));
-        this.regionGrid.reinforceAggressiveTransitionRing(registry, seed);
     }
 
     private CaveBiomeEntry pickBiomeForPositionExcluding(int x, int z, CaveStatVector stats, boolean thermalOasis, Set<ResourceLocation> excluded) {
@@ -265,10 +264,7 @@ public final class CaveMegaGigaLayout {
                 w *= 0.22f;
             }
             if (CaveBiomeIds.isHeatShellCaveBiome(entry.biome())) {
-                w *= 0.18f;
-            }
-            if (CaveBiomeIds.isScorchingCaveBiome(entry.biome())) {
-                w *= 0.12f;
+                w *= 0.35f;
             }
             if (this.isCentralOpenHall(x, z)) {
                 if (CaveBiomeIds.isScorchingCaveBiome(entry.biome()) || CaveBiomeIds.isVolcanicCaveBiome(entry.biome())) {
@@ -318,7 +314,7 @@ public final class CaveMegaGigaLayout {
     private float generatorCoreRadius(GeneratorNode generator) {
         ResourceLocation genId = generator.biome().biome();
         if (CaveBiomeClimateAffinity.isHeatGenerator(genId) || CaveBiomeClimateAffinity.isWarmOasisGenerator(genId)) {
-            return Math.max(12.0f, this.blurRadius * 0.1f);
+            return Math.max(16.0f, this.blurRadius * 0.16f);
         }
         if (CaveBiomeClimateAffinity.isColdGenerator(genId)) {
             return Math.max(22.0f, this.blurRadius * 0.28f);
@@ -368,7 +364,7 @@ public final class CaveMegaGigaLayout {
         List<Sector> sectors = CaveMegaGigaLayout.buildUniqueRegions(seed, radius, shellPool, poolStats, climate, generators, regionCount, blur, registry, config);
         CaveMegaGigaLayout layout = new CaveMegaGigaLayout(centerX, centerZ, blur, poolStats.clamped(), climate, generators, sectors, shellPool, seed, null);
         layout.regionGrid = CaveLayoutRegionGrid.build(centerX, centerZ, radius, isMega, seed, poolStats.clamped(), layout::resolveRegionalBiome, generators, layout::generatorStatSource);
-        layout.balanceRegionGrid(seed, registry);
+        layout.balanceRegionGrid(seed);
         layout.refreshWarmOasisBiomes();
         return layout;
     }
@@ -483,7 +479,7 @@ public final class CaveMegaGigaLayout {
                 continue;
             }
             CaveBiomeEntry transition = registry.findTransitionBetween(sector.biome().caveTemperature(), next.biome().caveTemperature(), sector.biome().biome(), next.biome().biome());
-            if (transition == null || CaveBiomeIds.isBlockedCaveBiome(transition.biome()) || CaveBiomeIds.isSulfurRiverBiome(transition.biome())) {
+            if (transition == null || CaveBiomeIds.isBlockedCaveBiome(transition.biome())) {
                 continue;
             }
             float wobble = angularWidth * (0.75f + CaveMegaGigaLayout.noise01(seed, i + 900) * 0.5f);

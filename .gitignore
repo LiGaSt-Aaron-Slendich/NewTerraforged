@@ -46,7 +46,6 @@ compile-errors.txt
 compile_errors.txt
 jar-output.txt
 build-output.txt
-build-out.txt
 tmp_decompile/
 
 # Stray config copies at repo root (real ones live in Forge/main/resources)

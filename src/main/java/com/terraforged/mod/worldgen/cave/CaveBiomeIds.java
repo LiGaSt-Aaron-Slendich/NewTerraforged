@@ -194,18 +194,7 @@ public final class CaveBiomeIds {
             return true;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("underground_jungle") || path.contains("steaming_jungle") || path.contains("cave_underground_jungle") || path.contains("cave_steaming_jungle") || CaveBiomeIds.isSulfurRiverBiome(id);
-    }
-
-    /** Anchor / scatter guard: same biome or shared cave theme (fungal↔mycotoxic, etc.). */
-    public static boolean matchesDecorAnchor(Holder<Biome> expected, Holder<Biome> resolved) {
-        if (expected == null || resolved == null) {
-            return false;
-        }
-        if (CaveBiomeIds.sameBiomeKey(expected, resolved)) {
-            return true;
-        }
-        return CaveBiomeIds.sharesCaveTheme(expected, resolved);
+        return path.contains("underground_jungle") || path.contains("steaming_jungle") || path.contains("cave_underground_jungle") || path.contains("cave_steaming_jungle");
     }
 
     public static boolean isBlockedCaveBiome(Holder<Biome> biome) {
@@ -447,42 +436,6 @@ public final class CaveBiomeIds {
         return id.getPath().toLowerCase().contains("redstone_caves");
     }
 
-    public static boolean isRedstoneCaveBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.isGenericRedstoneTransition(key.location())).orElse(false);
-    }
-
-    public static boolean isFrostfireCaveBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.isFrostfireCaveBiome(key.location())).orElse(false);
-    }
-
-    public static boolean isFrostfireCaveBiome(ResourceLocation id) {
-        return id != null && id.getPath().toLowerCase().contains("frostfire");
-    }
-
-    /** Biomes that register ceiling scatter (fungal/crystal/redstone). Heat-shell and stone caves do not. */
-    public static boolean supportsCeilingDecoration(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.supportsCeilingDecoration(key.location())).orElse(false);
-    }
-
-    public static boolean supportsCeilingDecoration(ResourceLocation id) {
-        if (id == null || CaveBiomeIds.isHeatShellCaveBiome(id) || CaveBiomeIds.isEmptyStoneCave(id)) {
-            return false;
-        }
-        if (CaveBiomeIds.isSparseCaveBiome(id) && !CaveBiomeIds.isGenericRedstoneTransition(id)) {
-            return false;
-        }
-        String path = id.getPath().toLowerCase();
-        return CaveBiomeIds.isFungalCaveBiome(id) || CaveBiomeIds.isCrystalCaveBiome(id)
-                || CaveBiomeIds.isPrismachasmBiome(id) || CaveBiomeIds.isSkyrisCaveBiome(id)
-                || CaveBiomeIds.isGenericRedstoneTransition(id) || CaveBiomeIds.isUndergroundJungleBiome(id)
-                || path.contains("ice_caves") || path.contains("icicle") || path.contains("frostfire");
-    }
-
-    public static boolean isMantleScorchingPair(ResourceLocation a, ResourceLocation b) {
-        return CaveBiomeIds.pathContains(a, "mantle") && CaveBiomeIds.pathContains(b, "scorching")
-                || CaveBiomeIds.pathContains(b, "mantle") && CaveBiomeIds.pathContains(a, "scorching");
-    }
-
     public static boolean isPatchPaintedBiome(Holder<Biome> biome) {
         return biome.unwrapKey().map(key -> CaveBiomeIds.isPatchPaintedBiome(key.location())).orElse(false);
     }
@@ -513,7 +466,7 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("bioshroom") || path.contains("fungal") || path.contains("mycotoxic") || path.contains("crystal") || path.contains("prismachasm") || path.contains("scorching") || path.contains("glowshroom") || path.contains("glowing_grotto") || path.contains("frostfire") || path.contains("redstone_caves");
+        return path.contains("bioshroom") || path.contains("fungal") || path.contains("mycotoxic") || path.contains("crystal") || path.contains("prismachasm") || path.contains("scorching") || path.contains("glowshroom");
     }
 
     public static boolean isEmburBogBiome(Holder<Biome> biome) {
@@ -580,47 +533,5 @@ public final class CaveBiomeIds {
 
     public static boolean isThermalThemedBiome(Holder<Biome> biome) {
         return biome.unwrapKey().map(key -> CaveBiomeIds.isThermalThemedBiome(key.location())).orElse(false);
-    }
-
-    /** Mantle / scorching / brimstone heat-shell biomes that should not border vegetation directly. */
-    public static boolean isAggressiveCaveBiome(ResourceLocation id) {
-        return CaveBiomeIds.isHeatShellCaveBiome(id);
-    }
-
-    public static boolean isAggressiveCaveBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.isAggressiveCaveBiome(key.location())).orElse(false);
-    }
-
-    /** Dense vegetation cave biomes (fungal, jungle, mossy, etc.). */
-    public static boolean isVegetationDenseCaveBiome(ResourceLocation id) {
-        if (id == null) {
-            return false;
-        }
-        String path = id.getPath().toLowerCase();
-        return path.contains("fungal") || path.contains("mycotoxic") || path.contains("bioshroom") || path.contains("glowshroom") || path.contains("mossy") || path.contains("underground_jungle") || path.contains("steaming_jungle") || path.contains("jungle") && path.contains("cave") || path.contains("nightshade") || path.contains("crimson_gardens");
-    }
-
-    public static boolean isVegetationDenseCaveBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.isVegetationDenseCaveBiome(key.location())).orElse(false);
-    }
-
-    public static boolean isSulfurRiverBiome(ResourceLocation id) {
-        if (id == null) {
-            return false;
-        }
-        String path = id.getPath().toLowerCase();
-        return path.contains("sulfur") && (path.contains("river") || path.contains("cave_sulfur"));
-    }
-
-    public static boolean isSulfurRiverBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> CaveBiomeIds.isSulfurRiverBiome(key.location())).orElse(false);
-    }
-
-    public static boolean isTransitionTaggedCaveBiome(CaveBiomeEntry entry) {
-        return entry != null && entry.category() == CaveBiomeCategory.TRANSITION || entry != null && CaveBiomeIds.isSulfurRiverBiome(entry.biome());
-    }
-
-    public static boolean isAggressiveVegetationPair(ResourceLocation a, ResourceLocation b) {
-        return CaveBiomeIds.isAggressiveCaveBiome(a) && CaveBiomeIds.isVegetationDenseCaveBiome(b) || CaveBiomeIds.isAggressiveCaveBiome(b) && CaveBiomeIds.isVegetationDenseCaveBiome(a);
     }
 }

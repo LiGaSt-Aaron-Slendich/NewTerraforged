@@ -53,10 +53,6 @@ public final class CaveLayoutRegionGrid {
         if (this.biomes.isEmpty()) {
             return null;
         }
-        CaveBiomeEntry owned = this.biomes.get(this.keyAt(x, z));
-        if (owned != null) {
-            return owned;
-        }
         int baseIx = this.regionIndexX(x);
         int baseIz = this.regionIndexZ(z);
         CaveBiomeEntry best = null;
@@ -188,39 +184,7 @@ public final class CaveLayoutRegionGrid {
             this.biomes.put(key, replacement);
             counts.merge(replacement.biome(), 1, Integer::sum);
         }
-    }
-
-    /**
-     * Inserts one-cell transition biomes between aggressive heat-shell regions and dense vegetation cells.
-     */
-    public void reinforceAggressiveTransitionRing(CaveBiomeRegistry registry, int seed) {
-        if (this.biomes.isEmpty() || registry == null) {
-            return;
-        }
-        HashMap<Long, CaveBiomeEntry> pending = new HashMap<Long, CaveBiomeEntry>();
-        for (Long key : this.biomes.keySet()) {
-            CaveBiomeEntry entry = this.biomes.get(key);
-            if (entry == null || !CaveBiomeIds.isAggressiveCaveBiome(entry.biome())) {
-                continue;
-            }
-            int ix = (int)(key >> 32);
-            int iz = (int)(long)key;
-            for (int[] dir : NEIGHBORS) {
-                CaveBiomeEntry neighbor = this.biomes.get(CaveLayoutRegionGrid.pack(ix + dir[0], iz + dir[1]));
-                if (neighbor == null || !CaveBiomeIds.isModCaveBiome(neighbor.biome())
-                        || CaveBiomeIds.isAggressiveCaveBiome(neighbor.biome())
-                        || CaveBiomeIds.isTransitionTaggedCaveBiome(neighbor)) {
-                    continue;
-                }
-                CaveBiomeEntry transition = registry.findTransitionBetween(entry.caveTemperature(), neighbor.caveTemperature(), entry.biome(), neighbor.biome());
-                if (transition == null || transition.biome().equals(entry.biome()) || CaveBiomeIds.isAggressiveCaveBiome(transition.biome()) || CaveBiomeIds.isSulfurRiverBiome(transition.biome())) {
-                    continue;
-                }
-                pending.put(key, transition);
-                break;
-            }
-        }
-        pending.forEach(this.biomes::put);
+        this.breakAdjacentDuplicateBiomes(seed, replacer);
     }
 
     private void breakAdjacentDuplicateBiomes(int seed, CellBiomeReplacer replacer) {

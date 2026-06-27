@@ -13,9 +13,7 @@ python _recovery/sync_jar_resources.py   # optional: refresh png/json/toml from 
 .\gradlew.bat jar reobfJar -x test
 ```
 
-Output: `build/libs/NewTerraForged-1.18.2-0.4.3.jar`
-
-Release notes: [CHANGELOG.md](CHANGELOG.md)
+Output: `build/libs/NewTerraForged-1.18.2-0.4.0-alpha-1.jar`
 
 ## License
 

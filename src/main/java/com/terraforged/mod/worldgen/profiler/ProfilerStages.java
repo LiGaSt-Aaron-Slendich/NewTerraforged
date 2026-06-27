@@ -8,13 +8,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ProfilerStages {
-    public final GenStage starts = new GenStage("Starts:    structures");
-    public final GenStage refs = new GenStage("Refs:      struct refs");
-    public final GenStage biomes = new GenStage("Biomes:    assignment");
-    public final GenStage noise = new GenStage("Noise:     terrain cols");
-    public final GenStage carve = new GenStage("Carvers:   cave carve");
-    public final GenStage surface = new GenStage("Surface:   surf decor");
-    public final GenStage decoration = new GenStage("Features:  feat decor");
+    public final GenStage starts = new GenStage("Starts:    ");
+    public final GenStage refs = new GenStage("Refs:      ");
+    public final GenStage biomes = new GenStage("Biomes:    ");
+    public final GenStage noise = new GenStage("Noise:     ");
+    public final GenStage carve = new GenStage("Carvers: ");
+    public final GenStage surface = new GenStage("Surface: ");
+    public final GenStage decoration = new GenStage("Features:");
     private final long start = System.currentTimeMillis() + 10000L;
     private final AtomicInteger chunkCount = new AtomicInteger();
     private final AtomicLong timestamp = new AtomicLong(0L);
@@ -57,15 +57,15 @@ public class ProfilerStages {
         if (now > time && this.timestamp.compareAndSet(time, now + interval)) {
             lines.clear();
             lines.add("");
-            lines.add("[World-Gen Performance] avg ms per chunk stage (5s window)");
+            lines.add("[World-Gen Performance]");
             double sumAverage = 0.0;
             for (GenStage stage : this.stages) {
                 double average = stage.getAverageMS();
                 sumAverage += average;
                 lines.add(String.format("%s %.2fms", stage.name(), average));
             }
-            lines.add(String.format("Total/chunk:   %.2fms", sumAverage));
-            lines.add(String.format("Chunks seen:   %s", this.chunkCount.get()));
+            lines.add(String.format("Chunk Average: %.2fms", sumAverage));
+            lines.add(String.format("Chunk Count:   %s", this.chunkCount.get()));
             lines.add("");
         }
     }

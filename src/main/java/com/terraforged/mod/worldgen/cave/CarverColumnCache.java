@@ -2,6 +2,7 @@ package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
+import com.terraforged.noise.Module;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -45,6 +46,7 @@ final class CarverColumnCache {
     private boolean chunkInland;
     private boolean chunkMassif;
     private boolean chunkGigaRelief;
+    private boolean decorationFlagsBuilt;
     private int cachedStartX;
     private int cachedStartZ;
     private Generator cachedGenerator;
@@ -61,6 +63,7 @@ final class CarverColumnCache {
         this.synapseEligibleBuilt = false;
         this.anySynapseEligible = false;
         this.envelopeBuilt = false;
+        this.decorationFlagsBuilt = false;
         int startX = chunk.getPos().getMinBlockX();
         int startZ = chunk.getPos().getMinBlockZ();
         this.cachedStartX = startX;
@@ -90,15 +93,15 @@ final class CarverColumnCache {
             this.surfaceY[i] = surface;
             byte flags = ZONE_NONE;
             if (carver.megaModifier != null) {
-                float mega = CaveNoise.sample(carver.megaModifier, seed, x, z);
+                float mega = CaveNoise.sampleMerged(carver.megaModifier, seed, x, z);
                 if (mega > MEGA_THRESHOLD) {
                     flags = (byte)(flags | ZONE_MEGA);
                     this.megaPresent = true;
                 }
             }
             if (carver.gigaModifier != null) {
-                float giga = CaveNoise.sample(carver.gigaModifier, seed, x, z);
-                if (giga > GIGA_THRESHOLD && CaveReliefFilter.qualifiesGigaColumn(generator, x, z, this.gradient(dx, dz), this.chunkGigaRelief)) {
+                float giga = CaveNoise.sampleMerged(carver.gigaModifier, seed, x, z);
+                if (giga > GIGA_THRESHOLD) {
                     flags = (byte)(flags | ZONE_GIGA);
                     this.gigaPresent = true;
                 }
@@ -115,6 +118,8 @@ final class CarverColumnCache {
         if (!this.megaPresent && !this.gigaPresent) {
             this.ensureMegaGigaCoverageAggressive(seed, carver, generator);
         }
+        this.ensureBorderConnectivity(seed, carver, generator, startX, startZ);
+        this.ensureFootprintSystemEligibility(seed, carver, generator, startX, startZ);
         this.ensureMegaGigaFullChunkCarve();
         this.computeMegaGigaCenterDrops();
         if (this.megaPresent || this.gigaPresent) {
@@ -137,7 +142,7 @@ final class CarverColumnCache {
             int z = this.cachedStartZ + dz;
             byte flags = this.zone[i];
             if (!this.megaPresent && carver.megaModifier != null && (flags & ZONE_MEGA) == 0) {
-                float mega = CaveNoise.sample(carver.megaModifier, seed, x, z);
+                float mega = CaveNoise.sampleMerged(carver.megaModifier, seed, x, z);
                 if (mega > MEGA_RELAX_THRESHOLD) {
                     flags = (byte)(flags | ZONE_MEGA);
                     this.zone[i] = flags;
@@ -150,8 +155,8 @@ final class CarverColumnCache {
                 }
             }
             if (!this.gigaPresent && carver.gigaModifier != null && (this.zone[i] & ZONE_GIGA) == 0) {
-                float giga = CaveNoise.sample(carver.gigaModifier, seed, x, z);
-                if (giga > GIGA_RELAX_THRESHOLD && CaveReliefFilter.qualifiesGigaColumn(generator, x, z, this.gradient(dx, dz), this.chunkGigaRelief)) {
+                float giga = CaveNoise.sampleMerged(carver.gigaModifier, seed, x, z);
+                if (giga > GIGA_RELAX_THRESHOLD) {
                     this.zone[i] = (byte)(this.zone[i] | ZONE_GIGA);
                     this.gigaPresent = true;
                 }
@@ -175,12 +180,96 @@ final class CarverColumnCache {
             int dz = i >> 4;
             int x = this.cachedStartX + dx;
             int z = this.cachedStartZ + dz;
-            float mega = CaveNoise.sample(carver.megaModifier, seed, x, z);
+            float mega = CaveNoise.sampleMerged(carver.megaModifier, seed, x, z);
             if (mega > MEGA_RELAX_THRESHOLD) {
                 this.zone[i] = (byte)(this.zone[i] | ZONE_MEGA);
                 this.megaPresent = true;
             }
         }
+    }
+
+    /** Sample just outside chunk borders so a carved neighbor activates this chunk. */
+    private void ensureBorderConnectivity(int seed, CarverChunk carver, Generator generator, int startX, int startZ) {
+        if (this.megaPresent && this.gigaPresent) {
+            return;
+        }
+        for (int d = 0; d < 16; ++d) {
+            this.probeBorderColumn(seed, carver, generator, startX - 1, startZ + d);
+            this.probeBorderColumn(seed, carver, generator, startX + 16, startZ + d);
+            this.probeBorderColumn(seed, carver, generator, startX + d, startZ - 1);
+            this.probeBorderColumn(seed, carver, generator, startX + d, startZ + 16);
+        }
+        this.probeBorderColumn(seed, carver, generator, startX - 1, startZ - 1);
+        this.probeBorderColumn(seed, carver, generator, startX + 16, startZ - 1);
+        this.probeBorderColumn(seed, carver, generator, startX - 1, startZ + 16);
+        this.probeBorderColumn(seed, carver, generator, startX + 16, startZ + 16);
+    }
+
+    private void probeBorderColumn(int seed, CarverChunk carver, Generator generator, int x, int z) {
+        if (!this.megaPresent && carver.megaModifier != null) {
+            if (CaveNoise.sampleMerged(carver.megaModifier, seed, x, z) > MEGA_RELAX_THRESHOLD) {
+                this.megaPresent = true;
+            }
+        }
+        if (!this.gigaPresent && carver.gigaModifier != null) {
+            if (CaveNoise.sampleMerged(carver.gigaModifier, seed, x, z) > GIGA_RELAX_THRESHOLD) {
+                this.gigaPresent = true;
+            }
+        }
+    }
+
+    /** Activate chunk when it sits inside an active mega/giga system cell (footprint), not only on local noise peaks. */
+    private void ensureFootprintSystemEligibility(int seed, CarverChunk carver, Generator generator, int startX, int startZ) {
+        if (!this.megaPresent) {
+            this.tryFootprintActivation(seed, carver, generator, startX, startZ, CaveType.MEGA, carver.megaModifier);
+        }
+        if (!this.gigaPresent) {
+            this.tryFootprintActivation(seed, carver, generator, startX, startZ, CaveType.GIGA, carver.gigaModifier);
+        }
+    }
+
+    private void tryFootprintActivation(int seed, CarverChunk carver, Generator generator, int startX, int startZ, CaveType type, Module modifier) {
+        if (modifier == null || !this.chunkOverlapsFootprint(startX, startZ, type)) {
+            return;
+        }
+        int cx = startX + 8;
+        int cz = startZ + 8;
+        int snapCx = CaveSystemBounds.snapCenter(cx, type);
+        int snapCz = CaveSystemBounds.snapCenter(cz, type);
+        if (!CaveSystemBounds.hasCarveInfluence(seed, snapCx, snapCz, type) && !this.chunkHasMergedActivity(seed, modifier, generator, startX, startZ, type)) {
+            return;
+        }
+        if (type == CaveType.MEGA) {
+            this.megaPresent = true;
+        } else {
+            this.gigaPresent = true;
+        }
+    }
+
+    private boolean chunkOverlapsFootprint(int startX, int startZ, CaveType type) {
+        int[][] probes = new int[][]{{0, 0}, {15, 0}, {0, 15}, {15, 15}, {8, 8}, {0, 8}, {8, 0}, {15, 8}, {8, 15}};
+        for (int[] probe : probes) {
+            if (CaveSystemBounds.isWithinFootprint(startX + probe[0], startZ + probe[1], type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean chunkHasMergedActivity(int seed, Module modifier, Generator generator, int startX, int startZ, CaveType type) {
+        for (int i = 0; i < 256; i += 4) {
+            int dx = i & 0xF;
+            int dz = i >> 4;
+            int x = startX + dx;
+            int z = startZ + dz;
+            if (!CaveSystemBounds.isWithinFootprint(x, z, type)) {
+                continue;
+            }
+            if (CaveNoise.sampleMerged(modifier, seed, x, z) > MEGA_RELAX_THRESHOLD) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Lower cavern-size bar when a thinned chunk would otherwise carve nothing. */
@@ -203,44 +292,53 @@ final class CarverColumnCache {
         }
     }
 
-    /** Full-column synapse scan — avoids missing connectivity when sparse probe skips eligible columns. */
+    /** Full-column synapse scan — sparse chunk gate + border columns only in mega/giga chunks. */
     void ensureSynapseEligibility(com.terraforged.mod.worldgen.asset.NoiseCave synapse, int seed) {
         if (this.synapseEligibleBuilt || synapse == null) {
             return;
         }
         this.synapseEligibleBuilt = true;
         this.anySynapseEligible = false;
-        for (int i = 0; i < 256; ++i) {
-            if (this.zone[i] != ZONE_NONE) {
-                continue;
-            }
-            int dx = i & 0xF;
-            int dz = i >> 4;
-            int x = this.cachedStartX + dx;
-            int z = this.cachedStartZ + dz;
-            if (synapse.getCavernSize(seed, x, z, 1.0f) >= MIN_SYNAPSE_CAVERN) {
-                this.synapseEligible[i] = true;
-                this.anySynapseEligible = true;
+        for (int i = 0; i < 256; i += 4) {
+            if (this.probeSynapseColumn(synapse, seed, i)) {
+                break;
             }
         }
-        if (!this.anySynapseEligible && (this.megaPresent || this.gigaPresent)) {
+        if (!this.anySynapseEligible) {
             for (int i = 0; i < 256; ++i) {
-                if (this.zone[i] != ZONE_NONE) {
-                    continue;
-                }
-                int dx = i & 0xF;
-                int dz = i >> 4;
-                int x = this.cachedStartX + dx;
-                int z = this.cachedStartZ + dz;
-                if (synapse.getCavernSize(seed, x, z, 1.0f) >= MIN_SYNAPSE_CAVERN) {
-                    this.synapseEligible[i] = true;
-                    this.anySynapseEligible = true;
+                if ((i & 3) != 0 && this.probeSynapseColumn(synapse, seed, i)) {
+                    break;
                 }
             }
         }
         if (!this.anySynapseEligible) {
             this.relaxSynapseEligibility(synapse, seed);
         }
+    }
+
+    void invalidateDecorationFlags() {
+        this.decorationFlagsBuilt = false;
+    }
+
+    /** Cheap slope estimate from cached heightmap — avoids terrain gradient sampling per column. */
+    boolean localSurfaceSlope(int dx, int dz, int minDelta) {
+        int center = this.surfaceY[this.index(dx, dz)];
+        for (int ox = -2; ox <= 2; ++ox) {
+            for (int oz = -2; oz <= 2; ++oz) {
+                if (ox == 0 && oz == 0) {
+                    continue;
+                }
+                int px = dx + ox;
+                int pz = dz + oz;
+                if (px < 0 || px > 15 || pz < 0 || pz > 15) {
+                    continue;
+                }
+                if (Math.abs(center - this.surfaceY[this.index(px, pz)]) >= minDelta) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void ensureMegaGigaCoverageAggressive(int seed, CarverChunk carver, Generator generator) {
@@ -255,7 +353,7 @@ final class CarverColumnCache {
             int dz = i >> 4;
             int x = this.cachedStartX + dx;
             int z = this.cachedStartZ + dz;
-            float mega = CaveNoise.sample(carver.megaModifier, seed, x, z);
+            float mega = CaveNoise.sampleMerged(carver.megaModifier, seed, x, z);
             if (mega > MEGA_RELAX_THRESHOLD) {
                 this.zone[i] = (byte)(this.zone[i] | ZONE_MEGA);
                 this.megaPresent = true;
@@ -263,12 +361,12 @@ final class CarverColumnCache {
         }
     }
 
-    /** Expand carve zone to immediate mega/giga neighbors — bridges pillars without carving whole chunks. */
+    /** Fill isolated columns adjacent to mega/giga so chunk interiors carve cohesively (v0.4.3 model). */
     private void ensureMegaGigaFullChunkCarve() {
         if (!this.megaPresent && !this.gigaPresent) {
             return;
         }
-        for (int pass = 0; pass < 1; ++pass) {
+        for (int pass = 0; pass < 3; ++pass) {
             boolean expanded = false;
             for (int i = 0; i < 256; ++i) {
                 if (this.zone[i] != ZONE_NONE || this.oceanBlocked[i]) {
@@ -279,7 +377,12 @@ final class CarverColumnCache {
                 if (!this.hasMegaGigaNeighbor(dx, dz)) {
                     continue;
                 }
-                this.zone[i] = (byte)(this.zone[i] | ZONE_MEGA);
+                byte flags = this.zone[i];
+                if (this.gigaPresent) {
+                    flags = (byte)(flags | ZONE_GIGA);
+                }
+                flags = (byte)(flags | ZONE_MEGA);
+                this.zone[i] = flags;
                 this.megaPresent = true;
                 expanded = true;
             }
@@ -308,40 +411,15 @@ final class CarverColumnCache {
         return false;
     }
 
+    private boolean isChunkBorder(int dx, int dz) {
+        return dx == 0 || dx == 15 || dz == 0 || dz == 15;
+    }
+
     /**
      * Lower noise center only under river columns so carve shifts down instead of clipping the ceiling.
-     * Terrain dips (non-river) use aggressive surface breach in {@link NoiseCaveCarver} instead.
+     * Disabled while per-column carve is preferred over landscape fitting.
      */
     private void computeMegaGigaCenterDrops() {
-        if (!this.megaPresent && !this.gigaPresent || !this.chunkMayHaveRiver) {
-            return;
-        }
-        for (int i = 0; i < 256; ++i) {
-            if (this.zone[i] == ZONE_NONE || this.oceanBlocked[i]) {
-                continue;
-            }
-            int dx = i & 0xF;
-            int dz = i >> 4;
-            if (!this.nearRiver(dx, dz)) {
-                continue;
-            }
-            int surface = this.surfaceY[i];
-            int neighborMax = surface;
-            for (int ox = -3; ox <= 3; ++ox) {
-                for (int oz = -3; oz <= 3; ++oz) {
-                    int px = dx + ox;
-                    int pz = dz + oz;
-                    if (px < 0 || px > 15 || pz < 0 || pz > 15) {
-                        continue;
-                    }
-                    neighborMax = Math.max(neighborMax, this.surfaceY[this.index(px, pz)]);
-                }
-            }
-            int dip = neighborMax - surface;
-            if (dip > 0) {
-                this.setExtraCenterDrop(dx, dz, dip);
-            }
-        }
     }
 
     /**
@@ -369,16 +447,17 @@ final class CarverColumnCache {
     }
 
     private boolean probeSynapseColumn(com.terraforged.mod.worldgen.asset.NoiseCave synapse, int seed, int i) {
-        if (this.zone[i] != ZONE_NONE) {
-            return false;
-        }
         int dx = i & 0xF;
         int dz = i >> 4;
+        if (this.zone[i] != ZONE_NONE && (this.megaPresent || this.gigaPresent) && !this.isChunkBorder(dx, dz)) {
+            return false;
+        }
         int x = this.cachedStartX + dx;
         int z = this.cachedStartZ + dz;
         if (synapse.getCavernSize(seed, x, z, 1.0f) < MIN_SYNAPSE_CAVERN) {
             return false;
         }
+        this.synapseEligible[i] = this.isChunkBorder(dx, dz) && (this.megaPresent || this.gigaPresent);
         this.anySynapseEligible = true;
         return true;
     }
@@ -392,6 +471,9 @@ final class CarverColumnCache {
     }
 
     void buildDecorationFlags(CarverChunk carver, ChunkAccess chunk) {
+        if (this.decorationFlagsBuilt) {
+            return;
+        }
         boolean anyMegaGiga = this.anyMegaGiga();
         for (int i = 0; i < 256; ++i) {
             int dx = i & 0xF;
@@ -412,11 +494,18 @@ final class CarverColumnCache {
                     flags = (byte)(flags | FLAG_SKIP_TREE);
                 }
             }
-            if (carver.isEntranceColumn(dx, dz)) {
+            if (carver.isEntranceColumn(dx, dz) && !megaGiga) {
                 flags = (byte)(flags & ~FLAG_SKIP_TREE);
+            }
+            if ((flags & FLAG_SKIP_TREE) == 0) {
+                int floor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                if (floor < surface - 6 && CaveOpenAirCheck.isOpenAir(chunk, dx, floor, dz)) {
+                    flags = (byte)(flags | FLAG_SKIP_TREE);
+                }
             }
             this.decorationFlags[i] = flags;
         }
+        this.decorationFlagsBuilt = true;
     }
 
     private static boolean hasOpenCaveAir(ChunkAccess chunk, int lx, int lz) {
@@ -535,7 +624,8 @@ final class CarverColumnCache {
 
     boolean matches(CaveType type, int dx, int dz) {
         if (type == CaveType.GLOBAL) {
-            return this.zone(dx, dz) == ZONE_NONE;
+            int i = this.index(dx, dz);
+            return this.zone(dx, dz) == ZONE_NONE || this.synapseEligible[i];
         }
         byte flags = this.zone(dx, dz);
         return switch (type) {
@@ -555,6 +645,15 @@ final class CarverColumnCache {
 
     boolean skipTree(int dx, int dz) {
         return (this.decorationFlags[this.index(dx, dz)] & FLAG_SKIP_TREE) != 0;
+    }
+
+    boolean anySkipTreeColumn() {
+        for (byte flags : this.decorationFlags) {
+            if ((flags & FLAG_SKIP_TREE) != 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     byte megaGigaFlag(int dx, int dz) {

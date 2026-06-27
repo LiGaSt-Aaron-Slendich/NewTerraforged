@@ -41,4 +41,20 @@ public final class CaveColumnScan {
         }
         return -1;
     }
+
+    /** Full air-pocket height at lx/lz containing block y (for chamber-fit checks). */
+    public static int measureAirColumnSpan(ChunkAccess chunk, int lx, int y, int lz, int minY, int maxY) {
+        if (!chunk.getBlockState(new BlockPos(lx, y, lz)).isAir()) {
+            return 0;
+        }
+        int bottom = y;
+        while (bottom > minY && chunk.getBlockState(new BlockPos(lx, bottom - 1, lz)).isAir()) {
+            --bottom;
+        }
+        int top = y;
+        while (top < maxY && chunk.getBlockState(new BlockPos(lx, top + 1, lz)).isAir()) {
+            ++top;
+        }
+        return top - bottom + 1;
+    }
 }

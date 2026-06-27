@@ -94,7 +94,7 @@ public class CaveBiomeRegistry {
             out.add(entry);
         }
         for (CaveBiomeEntry entry : this.transition) {
-            if (entry.statGenerator() || CaveBiomeIds.isMegaGigaExcluded(entry.biome()) || CaveBiomeIds.isNetherThemedBiome(entry.biome()) || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || CaveBiomeIds.isSulfurRiverBiome(entry.biome()) || !seen.add(entry.biome())) continue;
+            if (entry.statGenerator() || CaveBiomeIds.isMegaGigaExcluded(entry.biome()) || CaveBiomeIds.isNetherThemedBiome(entry.biome()) || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || !seen.add(entry.biome())) continue;
             out.add(entry);
         }
         return List.copyOf(out);
@@ -134,20 +134,8 @@ public class CaveBiomeRegistry {
         if (CaveBiomeIds.isFungalJunglePair(a, b)) {
             return this.findEntryByPath("mycotoxic");
         }
-        if (CaveBiomeIds.isMantleThermalPair(a, b) || CaveBiomeIds.isMantleScorchingPair(a, b)) {
+        if (CaveBiomeIds.isMantleThermalPair(a, b)) {
             return this.findEntryByPath("quartz_desert");
-        }
-        if (CaveBiomeIds.isHeatShellCaveBiome(a) && CaveBiomeIds.isHeatShellCaveBiome(b) && !a.equals(b)) {
-            CaveBiomeEntry buffer = this.findEntryByPath("scorching");
-            if (buffer != null) {
-                return buffer;
-            }
-        }
-        if (CaveBiomeIds.isAggressiveVegetationPair(a, b)) {
-            CaveBiomeEntry buffer = this.findEntryByPath("quartz_desert");
-            if (buffer != null) {
-                return buffer;
-            }
         }
         if (CaveBiomeIds.isFrostWarmPair(a, b)) {
             return this.findEntryByPath("shattered_glacier");
@@ -174,7 +162,7 @@ public class CaveBiomeRegistry {
         float fallbackDist = Float.MAX_VALUE;
         float span = tMax - tMin;
         for (CaveBiomeEntry entry : this.transition) {
-            if (CaveBiomeIds.isEmptyStoneCave(entry.biome()) || CaveBiomeIds.isSulfurRiverBiome(entry.biome()) || featureRichOnly && !CaveBiomeIds.isFeatureRichTransition(entry.biome()) || CaveBiomeIds.isGenericRedstoneTransition(entry.biome()) && span > 0.22f) continue;
+            if (CaveBiomeIds.isEmptyStoneCave(entry.biome()) || featureRichOnly && !CaveBiomeIds.isFeatureRichTransition(entry.biome()) || CaveBiomeIds.isGenericRedstoneTransition(entry.biome()) && span > 0.22f) continue;
             float temp = entry.caveTemperature();
             float d = Math.abs(temp - mid);
             if (d < fallbackDist) {
