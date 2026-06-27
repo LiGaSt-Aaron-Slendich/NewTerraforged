@@ -161,7 +161,7 @@ public class NoiseCaveCarver {
             int verticalSpan = top - bottom + 1;
             int midY = bottom + top >> 1;
             Holder<Biome> biome = megaGiga
-                    ? carver.getChamberBiome(x, z, midY, config, generator, verticalSpan)
+                    ? carver.getChamberBiome(x, z, midY, config, generator, verticalSpan, chunk, bottom, top)
                     : carver.getBiome(x, z, midY, config, generator);
             if (biome == null || !carve) {
                 continue;

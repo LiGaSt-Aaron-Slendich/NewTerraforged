@@ -390,15 +390,13 @@ public class CarverChunk {
         };
     }
 
-    /** Layout biome adjusted for carved chamber height — narrow slits fall back to surface biome. */
-    public Holder<Biome> getChamberBiome(int x, int z, int blockY, NoiseCave config, Generator generator, int verticalSpan) {
+    /** Layout biome adjusted for carved chamber height — narrow slits inherit a fitting cave biome. */
+    public Holder<Biome> getChamberBiome(int x, int z, int blockY, NoiseCave config, Generator generator, int verticalSpan, ChunkAccess chunk, int bottom, int top) {
         Holder<Biome> layout = this.getBiome(x, z, blockY, config, generator);
         if (!config.getType().isMegaOrGiga() || verticalSpan <= 0) {
             return layout;
         }
-        int surfaceY = this.getSurfaceY(x, z);
-        Holder<Biome> surface = this.getSurfaceBiome(x, z, surfaceY, generator);
-        return CaveBiomeVerticalFit.resolve(layout, surface, verticalSpan);
+        return CaveBiomeVerticalFit.resolve(layout, verticalSpan, this, chunk, generator, config, x, z, bottom, top);
     }
 
     public float getCarvingMask(int seed, int x, int z) {
