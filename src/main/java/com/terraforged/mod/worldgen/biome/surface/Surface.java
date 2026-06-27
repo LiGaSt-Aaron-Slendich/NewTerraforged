@@ -7,9 +7,7 @@ import com.terraforged.mod.worldgen.cave.CaveOpenAirCheck;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
-import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -174,9 +172,6 @@ public class Surface {
     }
 
     public static void repairExposedCover(ChunkAccess chunk, WorldGenLevel region, Generator generator, TerrainData terrainData, CarverChunk carver) {
-        if (carver != null && carver.anyMegaGiga() && !carver.hasSurfaceRisk()) {
-            return;
-        }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int dz = 0; dz < 16; ++dz) {
             for (int dx = 0; dx < 16; ++dx) {
@@ -189,12 +184,6 @@ public class Surface {
                 }
                 pos.set(dx, y, dz);
                 BlockState top = chunk.getBlockState((BlockPos)pos);
-                if (chunk.getBlockState((BlockPos)pos.setY(y + 1)).isAir()) {
-                    if (Surface.needsGrassRestore(top)) {
-                        chunk.setBlockState((BlockPos)pos.setY(y), Blocks.GRASS_BLOCK.defaultBlockState(), false);
-                        continue;
-                    }
-                }
                 if (!Surface.needsSurfaceCover(top)) {
                     continue;
                 }
@@ -253,18 +242,11 @@ public class Surface {
             }
             int ny = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, nx, nz);
             BlockState neighbor = chunk.getBlockState(new BlockPos(nx, ny, nz));
-            if (Surface.isBandPaletteBlock(neighbor)) {
-                continue;
-            }
             if (Surface.isErodible(neighbor) || neighbor.is(Blocks.GRASS_BLOCK) || neighbor.is(Blocks.PODZOL) || neighbor.is(Blocks.MYCELIUM)) {
                 return neighbor;
             }
         }
         return null;
-    }
-
-    private static boolean needsGrassRestore(BlockState state) {
-        return state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.ROOTED_DIRT) || state.is(Blocks.PODZOL) || state.is(Blocks.MYCELIUM);
     }
 
     private static boolean needsSurfaceCover(BlockState state) {
@@ -289,18 +271,6 @@ public class Surface {
         return pos.getX() >> 4 == chunk.x && pos.getZ() >> 4 == chunk.z;
     }
 
-    private static boolean isBandPaletteBlock(BlockState state) {
-        if (state.isAir() || !state.getFluidState().isEmpty()) {
-            return false;
-        }
-        ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
-        if (id == null) {
-            return false;
-        }
-        String path = id.getPath();
-        return path.contains("terracotta") || path.contains("concrete_powder") || path.contains("glazed_terracotta");
-    }
-
     protected static BlockState resolveCliffFill(BlockPos.MutableBlockPos pos, ChunkAccess chunk, BlockState solidBelow) {
         BlockState topState = chunk.getBlockState((BlockPos)pos);
         if (Surface.isErodible(topState)) {
@@ -311,9 +281,6 @@ public class Surface {
         }
         for (int dy = 1; dy <= 6; ++dy) {
             BlockState above = chunk.getBlockState((BlockPos)pos.setY(pos.getY() + dy));
-            if (Surface.isBandPaletteBlock(above)) {
-                break;
-            }
             if (Surface.isErodible(above)) {
                 return above;
             }

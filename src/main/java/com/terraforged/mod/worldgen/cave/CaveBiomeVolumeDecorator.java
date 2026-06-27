@@ -18,8 +18,7 @@ import net.minecraft.world.level.levelgen.RandomSource;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 
 public final class CaveBiomeVolumeDecorator {
-    private static final int MEGA_GIGA_ANCHOR_GRID = 8;
-    private static final int PAINTED_BIOME_PROBE_STRIDE = 4;
+    private static final int MEGA_GIGA_ANCHOR_GRID = 6;
 
     private CaveBiomeVolumeDecorator() {
     }
@@ -142,7 +141,7 @@ public final class CaveBiomeVolumeDecorator {
                 BlockPos pos;
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.matchesDecorAnchor(target, resolved = carver.resolveBiome(chunk, lx, floorY, lz)) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }
@@ -162,8 +161,8 @@ public final class CaveBiomeVolumeDecorator {
         int maxY = chunk.getHighestSectionPosition() + 15;
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
-        for (int lx = 0; lx < 16; lx += PAINTED_BIOME_PROBE_STRIDE) {
-            for (int lz = 0; lz < 16; lz += PAINTED_BIOME_PROBE_STRIDE) {
+        for (int lx = 0; lx < 16; lx += 4) {
+            for (int lz = 0; lz < 16; lz += 4) {
                 Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, null, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
                 if (floorY < 0 || !CaveBiomeIds.isModCaveBiome(resolved = carver.resolveBiome(chunk, lx, floorY, lz)) || CaveBiomeIds.isBlockedCaveBiome(resolved)) continue;
@@ -178,12 +177,15 @@ public final class CaveBiomeVolumeDecorator {
         HashSet<Long> seen = new HashSet<Long>();
         seen.add(seedAnchor.asLong());
         anchors.add(seedAnchor);
-        boolean dense = CaveBiomeIds.isCoverDenseCaveBiome(target);
         int grid = CaveBiomeVolumeDecorator.anchorGridFor(target, megaGigaChunk);
-        int maxAnchors = dense ? 16 : 12;
-        CaveBiomeVolumeDecorator.collectAnchorsOnGrid(anchors, seen, chunk, carver, target, chunkX, chunkZ, minY, maxY, generator, grid, maxAnchors, 0, 0);
-        if (dense && grid > 2) {
-            CaveBiomeVolumeDecorator.collectAnchorsOnGrid(anchors, seen, chunk, carver, target, chunkX, chunkZ, minY, maxY, generator, grid, maxAnchors, grid / 2, grid / 2);
+        for (int lx = 0; lx < 16; lx += grid) {
+            for (int lz = 0; lz < 16; lz += grid) {
+                BlockPos pos;
+                Holder<Biome> resolved;
+                int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
+                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                anchors.add(pos);
+            }
         }
         return anchors;
     }
@@ -227,11 +229,11 @@ public final class CaveBiomeVolumeDecorator {
         if (CaveBiomeIds.isFungalCaveBiome(biome) && megaGigaChunk) {
             return MEGA_GIGA_ANCHOR_GRID;
         }
-        if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
-            return 2;
-        }
         if (CaveBiomeIds.isModJunglePresetBiome(biome) || CaveBiomeIds.isUndergroundJungleBiome(biome) || CaveBiomeIds.isModThermalPresetBiome(biome)) {
             return 3;
+        }
+        if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
+            return 2;
         }
         if (megaGigaChunk) {
             return MEGA_GIGA_ANCHOR_GRID;

@@ -4,19 +4,6 @@ import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureMassClassifier;
-import com.terraforged.mod.worldgen.cave.CarverChunk;
-import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
-import com.terraforged.mod.worldgen.cave.CaveDecorationSettings;
-import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
-import com.terraforged.mod.worldgen.cave.CaveFeatureFilters;
-import com.terraforged.mod.worldgen.cave.CaveFeaturePlacement;
-import com.terraforged.mod.worldgen.cave.CaveOceanFilter;
-import com.terraforged.mod.worldgen.cave.CaveOpenAirCheck;
-import com.terraforged.mod.worldgen.cave.CaveSystemGrid;
-import com.terraforged.mod.worldgen.cave.CaveTunnelRiverDecorator;
-import com.terraforged.mod.worldgen.cave.CaveType;
-import com.terraforged.mod.worldgen.cave.CaveUndergroundGuard;
-import com.terraforged.mod.worldgen.cave.MegaCaveStructureFilter;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.core.BlockPos;
@@ -24,19 +11,24 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeGenerationSettings;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
+/**
+ * Post-gen feature diagnostics aligned with the real decor pipeline (not sampler-only shortcuts).
+ */
 public final class CaveFeatureDiagnostics {
+    private static final int MEGA_GIGA_SURFACE_BIOME_SKIP = 10;
+    private static final int SYNAPSE_SURFACE_BIOME_SKIP = 8;
+
     private CaveFeatureDiagnostics() {
     }
 
     public static void append(Generator generator, LevelReader level, BlockPos pos, List<String> lines) {
-        Object blockReason;
-        boolean canFeatures;
         int x = pos.getX();
         int y = pos.getY();
         int z = pos.getZ();
@@ -45,71 +37,152 @@ public final class CaveFeatureDiagnostics {
         ChunkAccess chunk = level.getChunk(x >> 4, z >> 4);
         Source source = generator.getBiomeSource();
         int seed = Seeds.get(generator.getSeed());
-        int surfaceY = generator.getOceanFloorHeight(x, z);
+        int oceanFloorY = generator.getOceanFloorHeight(x, z);
         int localSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
         Holder<Biome> surfaceBiome = source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
         String caveSystem = CaveDebugInfo.resolveCaveSystem(generator, x, y, z);
         boolean megaGiga = MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, x, y, z);
         Holder<Biome> f3Biome = chunk.getNoiseBiome(lx >> 2, y >> 2, lz >> 2);
-        Holder<Biome> painted = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
-        if (painted == null) {
-            painted = source.getUnderGroundBiome(seed, x, z, CaveType.GLOBAL, surfaceBiome, y, surfaceY, x, z, 256);
-        }
+        Holder<Biome> quartPainted = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
+        Holder<Biome> samplerBiome = source.getUnderGroundBiome(seed, x, z, CaveType.GLOBAL, surfaceBiome, y, oceanFloorY, x, z, 256);
+        CarverChunk carver = generator.peekCaveCarver(chunk.getPos());
+        boolean entranceColumn = carver != null && carver.isEntranceColumn(lx, lz);
+        int carveSkipBand = megaGiga ? MEGA_GIGA_SURFACE_BIOME_SKIP : SYNAPSE_SURFACE_BIOME_SKIP;
+        int carveSkipFromY = localSurface - carveSkipBand;
+        boolean carveWouldSkipPaint = y >= carveSkipFromY;
         lines.add("");
-        lines.add("[Biome column]");
+        lines.add("[Biome column — decor pipeline]");
         f3Biome.unwrapKey().ifPresent(key -> lines.add("F3 biome (quart): " + key.location()));
-        painted.unwrapKey().ifPresent(key -> lines.add("Painted/sampler cave biome: " + key.location()));
-        lines.add(String.format(Locale.ROOT, "Local surface Y=%d, depth below surface=%d, forbidden band=%d (mega/giga=%s)", localSurface, localSurface - y, megaGiga ? 4 : 12, megaGiga));
-        if (!CaveBiomeIds.isUndergroundBiome(painted)) {
-            canFeatures = false;
-            blockReason = "not an underground/cave biome at this column";
-        } else if (CaveBiomeIds.isBlockedCaveBiome(painted)) {
-            canFeatures = false;
-            blockReason = "biome is blocked for decoration";
-        } else if (CaveBiomeIds.isNetherThemedBiome(painted)) {
-            canFeatures = false;
-            blockReason = "nether-themed biome blocked in overworld caves";
-        } else if (CaveBiomeIds.isDedicatedDecoratedCaveBiome(painted)) {
-            canFeatures = true;
-            blockReason = "uses dedicated decorator (not volume scatter)";
-        } else if (CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, y, lz, megaGiga)) {
-            canFeatures = false;
-            blockReason = "surface-forbidden zone (open sky / too close to local surface)";
-        } else if (!CaveUndergroundGuard.mayPlaceAnchor(chunk, lx, y, lz, megaGiga)) {
-            canFeatures = false;
-            blockReason = "above anchor depth (need deeper than surface - " + (megaGiga ? 6 : 16) + " blocks)";
-        } else if (!chunk.getBlockState(new BlockPos(lx, y, lz)).isAir()) {
-            canFeatures = false;
-            blockReason = "anchor column is not air";
-        } else if (!CaveFeaturePlacement.hasSolidFloorBelow(chunk, pos)) {
-            canFeatures = false;
-            blockReason = "no solid floor under anchor";
+        if (quartPainted != null) {
+            quartPainted.unwrapKey().ifPresent(key -> lines.add("Painted cave biome (quart): " + key.location()));
         } else {
-            canFeatures = true;
-            blockReason = switch (CaveDecorationSettings.activeModeLabel()) {
-                case "hybrid" -> "hybrid decorator (" + CaveBiomeDecoratorRouter.resolve(painted).name().toLowerCase() + " for this biome)";
-                case "official" -> "official TF decorator eligible (chunk corner origin per cave config)";
-                case "compromise" -> "compromise decorator eligible (cover + scatter anchors)";
-                case "vanilla" -> "vanilla pass eligible (chunk origins)";
-                case "legacy" -> "volume/accent decorators eligible";
-                default -> "no decoration mode enabled";
-            };
+            lines.add("Painted cave biome (quart): (none)");
+            samplerBiome.unwrapKey().ifPresent(key -> lines.add("Sampler only (debug reference, decor ignores): " + key.location()));
         }
+        lines.add(String.format(Locale.ROOT, "Local heightmap surface Y=%d, ocean floor Y=%d, depth below heightmap=%d",
+                localSurface, oceanFloorY, localSurface - y));
+        lines.add(String.format(Locale.ROOT, "Carve paint skip band: y>=%d (mega/giga skip=%d)", carveSkipFromY, carveSkipBand));
+        if (carveWouldSkipPaint && quartPainted == null) {
+            lines.add("Likely paint gap: floor inside surfaceBiomeSkip — decor needs quart paint, not sampler");
+        }
+        if (carver == null) {
+            lines.add("Carver cache: expired (normal after chunk gen) — anchor/write guards are partial");
+        } else {
+            lines.add("Carver cache: active for this chunk");
+        }
+        Holder<Biome> decorBiome = quartPainted != null ? quartPainted : samplerBiome;
+        String blockReason = CaveFeatureDiagnostics.evaluateDecorBlockReason(chunk, level, pos, carver, decorBiome, quartPainted, megaGiga, entranceColumn, lx, lz, y);
+        boolean canFeatures = blockReason.startsWith("ok:");
         lines.add("");
-        lines.add(String.format(Locale.ROOT, "Features: %s due to '%s'", canFeatures ? "true" : "false", blockReason));
-        CaveFeatureDiagnostics.appendBiomeFeatureVerdict(painted, lines);
+        lines.add(String.format(Locale.ROOT, "Decor at feet: %s due to '%s'", canFeatures ? "eligible" : "blocked", canFeatures ? blockReason.substring(3) : blockReason));
+        CaveFeatureDiagnostics.appendAnchorGridDiagnostics(generator, chunk, carver, decorBiome, quartPainted, megaGiga, entranceColumn, x, z, y, lines);
+        if (quartPainted != null) {
+            CaveFeatureDiagnostics.appendBiomeFeatureVerdict(quartPainted, lines);
+        }
         if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
             CaveFeatureDiagnostics.appendTunnelDiagnostics(generator, seed, x, z, caveSystem, lines);
         }
     }
 
-    private static void appendBiomeFeatureVerdict(Holder<Biome> biome, List<String> lines) {
-        if (!CaveBiomeIds.isUndergroundBiome(biome)) {
-            lines.add("Features: false due to 'surface/non-cave biome'");
+    private static String evaluateDecorBlockReason(ChunkAccess chunk, LevelReader level, BlockPos pos, CarverChunk carver, Holder<Biome> decorBiome, Holder<Biome> quartPainted, boolean megaGiga, boolean entranceColumn, int lx, int lz, int y) {
+        if (quartPainted == null) {
+            return "no painted cave biome at floor (quart empty)";
+        }
+        if (!CaveBiomeIds.isUndergroundBiome(quartPainted)) {
+            return "painted quart is not an underground/cave biome";
+        }
+        if (CaveBiomeIds.isBlockedCaveBiome(quartPainted)) {
+            return "biome is blocked for decoration";
+        }
+        if (CaveBiomeIds.isNetherThemedBiome(quartPainted)) {
+            return "nether-themed biome blocked in overworld caves";
+        }
+        if (CaveBiomeIds.isDedicatedDecoratedCaveBiome(quartPainted)) {
+            return "dedicated decorator path is not wired (no runtime decorator call)";
+        }
+        if (carver != null && !CaveUndergroundGuard.mayPlaceAnchorForBiome(chunk, carver, lx, y, lz, quartPainted, megaGiga, entranceColumn)) {
+            return "mayPlaceAnchorForBiome failed (quart/biome mismatch vs decor expected biome)";
+        }
+        if (CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, y, lz, megaGiga)) {
+            return "surface-forbidden zone";
+        }
+        if (!CaveUndergroundGuard.mayPlaceAnchor(chunk, lx, y, lz, megaGiga)) {
+            int depth = megaGiga ? CaveUndergroundGuard.MEGA_GIGA_ANCHOR_DEPTH : CaveUndergroundGuard.MIN_ANCHOR_DEPTH;
+            return "above anchor depth (need y < heightmap surface - " + depth + ")";
+        }
+        if (!chunk.getBlockState(new BlockPos(lx, y, lz)).isAir()) {
+            return "feet column is not air";
+        }
+        if (!CaveFeaturePlacement.hasSolidFloorBelow(chunk, pos)) {
+            return "no solid floor under feet";
+        }
+        if (carver != null && carver.isColumnCacheReady() && carver.columnCache().forbidsUndergroundWrite(lx, y, lz, chunk, entranceColumn)) {
+            return "forbidsUndergroundWrite (open-air column band)";
+        }
+        if (carver != null && level instanceof WorldGenLevel worldGen && !CaveUndergroundGuard.mayWriteBlockForBiome(worldGen, chunk, pos, quartPainted, carver)) {
+            return "mayWriteBlockForBiome failed (placement write guard)";
+        }
+        return "ok:" + switch (CaveDecorationSettings.activeModeLabel()) {
+            case "hybrid" -> "hybrid/" + CaveBiomeDecoratorRouter.resolve(decorBiome).name().toLowerCase();
+            case "official" -> "official TF decorator";
+            case "compromise" -> "compromise decorator";
+            case "vanilla" -> "vanilla pass";
+            case "legacy" -> "legacy volume decorator";
+            default -> "no decoration mode enabled";
+        };
+    }
+
+    private static void appendAnchorGridDiagnostics(Generator generator, ChunkAccess chunk, CarverChunk carver, Holder<Biome> decorBiome, Holder<Biome> quartPainted, boolean megaGiga, boolean entranceColumn, int x, int z, int y, List<String> lines) {
+        if (carver == null || quartPainted == null) {
             return;
         }
-        if (CaveBiomeIds.isDedicatedDecoratedCaveBiome(biome)) {
-            lines.add("Features: true due to 'dedicated cave decorator path'");
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
+        int minY = chunk.getMinBuildHeight();
+        int maxY = chunk.getHighestSectionPosition() + 15;
+        int bestDist = Integer.MAX_VALUE;
+        int bestFloorY = -1;
+        int bestLx = -1;
+        int bestLz = -1;
+        int grid = megaGiga ? 8 : 4;
+        for (int glx = 0; glx < 16; glx += grid) {
+            for (int glz = 0; glz < 16; glz += grid) {
+                int floorY = CaveBiomeVolumeDecorator.findFloorAirPublic(chunk, carver, decorBiome, glx, glz, minY, maxY, generator, chunkX + glx, chunkZ + glz);
+                if (floorY < 0) {
+                    continue;
+                }
+                int dist = Math.abs(glx - (x & 0xF)) + Math.abs(glz - (z & 0xF));
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestFloorY = floorY;
+                    bestLx = glx;
+                    bestLz = glz;
+                }
+            }
+        }
+        lines.add("");
+        lines.add("[Decor anchor grid]");
+        lines.add(String.format(Locale.ROOT, "Probe grid step=%d (mega/giga decor uses grid anchors, not every block)", grid));
+        if (bestFloorY < 0) {
+            lines.add("Nearest grid anchor: none in chunk (findFloorAir failed for all probe columns)");
+            return;
+        }
+        boolean anchorOk = CaveUndergroundGuard.mayPlaceAnchorForBiome(chunk, carver, bestLx, bestFloorY, bestLz, quartPainted, megaGiga, carver.isEntranceColumn(bestLx, bestLz));
+        lines.add(String.format(Locale.ROOT, "Nearest grid anchor: local (%d, %d, %d), dist=%d blocks", bestLx, bestFloorY, bestLz, bestDist));
+        lines.add(String.format(Locale.ROOT, "Anchor mayPlaceAnchorForBiome: %s", anchorOk ? "pass" : "FAIL"));
+        if (!anchorOk) {
+            Holder<Biome> resolved = carver.resolveBiome(chunk, bestLx, bestFloorY, bestLz);
+            resolved.unwrapKey().ifPresent(key -> lines.add("Anchor resolved biome: " + key.location()));
+        }
+        if (bestDist > 0) {
+            lines.add("Note: you are not on a decor grid column — empty patches between anchors are expected");
+        }
+    }
+
+    private static void appendBiomeFeatureVerdict(Holder<Biome> biome, List<String> lines) {
+        if (!CaveBiomeIds.isUndergroundBiome(biome)) {
+            lines.add("Feature pool: none (surface/non-cave biome)");
+            return;
         }
         biome.unwrapKey().ifPresent(key -> {
             lines.add("Feature biome: " + key.location());

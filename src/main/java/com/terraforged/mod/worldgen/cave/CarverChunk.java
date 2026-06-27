@@ -45,9 +45,7 @@ public class CarverChunk {
     private final boolean[] entranceColumns = new boolean[256];
     private final boolean[] coastalEntranceColumns = new boolean[256];
     private final boolean[] biomeRestoreColumns = new boolean[256];
-    private final boolean[] surfaceRiskColumns = new boolean[256];
     private boolean hasEntranceColumns;
-    private boolean hasSurfaceRiskColumns;
     private int tunnelMouthX;
     private int tunnelMouthZ;
     private int tunnelExitX;
@@ -90,9 +88,7 @@ public class CarverChunk {
         Arrays.fill(this.entranceColumns, false);
         Arrays.fill(this.coastalEntranceColumns, false);
         Arrays.fill(this.biomeRestoreColumns, false);
-        Arrays.fill(this.surfaceRiskColumns, false);
         this.hasEntranceColumns = false;
-        this.hasSurfaceRiskColumns = false;
         this.tunnelMouthX = 0;
         this.tunnelMouthZ = 0;
         this.tunnelExitX = 0;
@@ -135,16 +131,6 @@ public class CarverChunk {
 
     public int cachedSurface(int dx, int dz) {
         return this.columns.surfaceY(dx, dz);
-    }
-
-    public void refreshDecorationFlags(ChunkAccess chunk) {
-        if (this.columnsReady) {
-            this.columns.buildDecorationFlags(this, chunk);
-        }
-    }
-
-    public boolean anyMegaGiga() {
-        return this.columnsReady && this.columns.anyMegaGiga();
     }
 
     public void noteTunnelRiver(int mouthWx, int mouthWz, int chamberWx, int chamberWz, CaveType type) {
@@ -211,27 +197,7 @@ public class CarverChunk {
         if (dx >= 0 && dx < 16 && dz >= 0 && dz < 16) {
             this.entranceColumns[dz << 4 | dx] = true;
             this.hasEntranceColumns = true;
-            this.markSurfaceRiskColumn(dx, dz);
         }
-    }
-
-    /** Column where carving breached or thinned the surface crust — needs targeted surface guard. */
-    public void markSurfaceRiskColumn(int dx, int dz) {
-        if (dx >= 0 && dx < 16 && dz >= 0 && dz < 16) {
-            this.surfaceRiskColumns[dz << 4 | dx] = true;
-            this.hasSurfaceRiskColumns = true;
-        }
-    }
-
-    public boolean hasSurfaceRisk() {
-        return this.hasSurfaceRiskColumns;
-    }
-
-    public boolean isSurfaceRiskColumn(int dx, int dz) {
-        if (dx < 0 || dx > 15 || dz < 0 || dz > 15) {
-            return false;
-        }
-        return this.surfaceRiskColumns[dz << 4 | dx];
     }
 
     public boolean hasAnyEntranceColumn() {
@@ -309,7 +275,6 @@ public class CarverChunk {
                     for (int oz = -radius; oz <= radius; ++oz) {
                         if (ox * ox + oz * oz > radius * radius) continue;
                         this.markEntranceColumn(dx + ox, dz + oz);
-                        this.markSurfaceRiskColumn(dx + ox, dz + oz);
                     }
                 }
             }

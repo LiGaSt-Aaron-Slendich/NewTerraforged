@@ -164,6 +164,7 @@ public final class CaveDebugCommand {
             lines.add("");
             CaveDebugCommand.appendRegistrySummary(source, lines);
             lines.add("");
+            lines.add("Tip: [Biome column — decor pipeline] mirrors the real decor guards (quart paint, not sampler).");
             try {
                 CaveFeatureDiagnostics.append(generator, (LevelReader)level, pos, lines);
             }

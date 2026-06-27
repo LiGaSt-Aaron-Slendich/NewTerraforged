@@ -22,7 +22,7 @@ public final class CaveFloorCover {
     }
 
     public static boolean appliesTo(Holder<Biome> biome) {
-        return CaveBiomeIds.isModCaveBiome(biome) || CaveBiomeIds.isCoverDenseCaveBiome(biome) && !CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome) || CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome) || CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isFrostfireCaveBiome(biome) || CaveBiomeIds.isRedstoneCaveBiome(biome);
+        return CaveBiomeIds.isModCaveBiome(biome) || CaveBiomeIds.isCoverDenseCaveBiome(biome) && !CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome) || CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome) || CaveBiomeIds.isFungalCaveBiome(biome);
     }
 
     /** Normalizes floor height, paints themed cover, returns air anchor for feature placement. */
@@ -87,8 +87,7 @@ public final class CaveFloorCover {
             return false;
         }
         int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-        int margin = carver != null && carver.isColumnCacheReady() && carver.columnCache().isMegaGigaZone(lx, lz) ? 2 : 4;
-        if (solidY >= surface - margin) {
+        if (solidY >= surface - 4) {
             return false;
         }
         if (carver != null && carver.isColumnCacheReady()) {
@@ -118,23 +117,9 @@ public final class CaveFloorCover {
     private static BlockState coverBlock(Holder<Biome> biome) {
         String path = biome.unwrapKey().map(key -> key.location().getPath().toLowerCase()).orElse("");
         String ns = biome.unwrapKey().map(key -> key.location().getNamespace()).orElse("minecraft");
-        if (path.contains("mycotoxic") || path.contains("fungal") || path.contains("bioshroom") || path.contains("glowshroom") || path.contains("glowing_grotto")) {
+        if (path.contains("mycotoxic") || path.contains("fungal") || path.contains("bioshroom") || path.contains("glowshroom")) {
             Block fungal = CaveFloorCover.firstBlock(ns, "mycelium", "fungal_moss", "glow_mycelium", "bioshroom_block");
             return fungal != null ? fungal.defaultBlockState() : Blocks.MYCELIUM.defaultBlockState();
-        }
-        if (path.contains("frostfire") || path.contains("icicle") || path.contains("ice_caves")) {
-            Block frost = CaveFloorCover.firstBlock("terralith", "frostfire_moss", "frost_moss");
-            if (frost == null) {
-                frost = CaveFloorCover.firstBlock(ns, "frost_moss", "powder_snow");
-            }
-            return frost != null ? frost.defaultBlockState() : Blocks.SNOW_BLOCK.defaultBlockState();
-        }
-        if (path.contains("redstone_caves") || path.contains("redstone")) {
-            Block red = CaveFloorCover.firstBlock("regions_unexplored", "redstone_bulb", "redstone_leaves", "scorched_grass");
-            if (red == null) {
-                red = CaveFloorCover.firstBlock("terralith", "redstone_moss");
-            }
-            return red != null ? red.defaultBlockState() : Blocks.MOSS_BLOCK.defaultBlockState();
         }
         if (path.contains("scorching") || path.contains("brimstone") || path.contains("volcanic") || path.contains("mantle")) {
             Block scorch = CaveFloorCover.firstBlock("regions_unexplored", "scorched_grass", "scorched_dirt", "charred_grass");

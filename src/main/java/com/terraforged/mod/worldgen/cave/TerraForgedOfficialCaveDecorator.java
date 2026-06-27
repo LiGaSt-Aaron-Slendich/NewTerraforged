@@ -36,6 +36,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeGenerationSettings;
@@ -113,7 +114,24 @@ public final class TerraForgedOfficialCaveDecorator {
         if (y < chunk.getMinBuildHeight() + 4 || y >= surface - 2) {
             return null;
         }
-        return new BlockPos(x, y, z);
+        int snapped = TerraForgedOfficialCaveDecorator.snapToFloorAir(chunk, lx, lz, y, chunk.getMinBuildHeight() + 4);
+        if (snapped < 0 || snapped >= surface - 2) {
+            return null;
+        }
+        return new BlockPos(x, snapped, z);
+    }
+
+    private static int snapToFloorAir(ChunkAccess chunk, int lx, int lz, int startY, int minY) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int y = startY; y >= minY; --y) {
+            if (!chunk.getBlockState(pos.set(lx, y, lz)).isAir()) {
+                continue;
+            }
+            if (FeaturePlacement.hasStableGround((BlockGetter)chunk, lx, y, lz, 2)) {
+                return y;
+            }
+        }
+        return -1;
     }
 
     private static void decorate(BlockPos airAnchor, ChunkAccess chunk, WorldGenLevel region, Generator generator, BiomeGenerationSettings settings, WorldgenRandom random) {
@@ -134,6 +152,12 @@ public final class TerraForgedOfficialCaveDecorator {
                     continue;
                 }
                 BlockPos placePos = airAnchor;
+                if (FeatureMassClassifier.isTree(placed)) {
+                    if (!FeaturePlacement.hasStableGround((BlockGetter)chunk, airAnchor, 3)) {
+                        continue;
+                    }
+                    placePos = CaveFeaturePlacement.resolveWorldPos(airAnchor, CaveFeatureRules.Anchor.FLOOR, false);
+                }
                 random.setFeatureSeed(baseSeed, featureIndex, stageIndex);
                 FeaturePlacement.place(placed, region, (ChunkGenerator)generator, (Random)random, placePos, true);
             }
@@ -142,17 +166,11 @@ public final class TerraForgedOfficialCaveDecorator {
 
     /** Skip full geode shells and other features that pierce the surface from a single origin. */
     private static boolean shouldSkipFeature(Holder<PlacedFeature> placed) {
-        if (FeatureMassClassifier.isTree(placed)) {
-            return true;
-        }
         return placed.unwrapKey().map(key -> TerraForgedOfficialCaveDecorator.isBlockedFeaturePath(key.location().getPath())).orElse(false);
     }
 
     private static boolean isBlockedFeaturePath(String path) {
         String lower = path.toLowerCase();
-        if (CaveFeatureFilters.isHeavyDripstoneFeature(lower)) {
-            return true;
-        }
         return lower.contains("geode") || lower.contains("mega_geode") || lower.contains("crystal_geode")
                 || lower.contains("monster_room") || lower.contains("fossil")
                 || lower.startsWith("ore_") || lower.contains("/ore_")
