@@ -191,10 +191,17 @@ public class NoiseCaveCarver {
         }
     }
 
-    /** Mega/giga: every column in an active chunk — original TF per-column model. */
+    /** Mega/giga: each config only owns its zone columns — giga wins over mega where both flags are set. */
     private static boolean shouldCarveColumn(CarverColumnCache columns, CaveType configType, int dx, int dz) {
-        if (configType.isMegaOrGiga() && columns.anyMegaGiga()) {
-            return !columns.oceanBlocked(dx, dz);
+        if (columns.oceanBlocked(dx, dz)) {
+            return false;
+        }
+        if (configType == CaveType.GIGA) {
+            return (columns.zone(dx, dz) & CarverColumnCache.ZONE_GIGA) != 0;
+        }
+        if (configType == CaveType.MEGA) {
+            byte flags = columns.zone(dx, dz);
+            return (flags & CarverColumnCache.ZONE_MEGA) != 0 && (flags & CarverColumnCache.ZONE_GIGA) == 0;
         }
         return columns.matches(configType, dx, dz);
     }

@@ -76,7 +76,7 @@ public final class TerraForgedOfficialCaveDecorator {
                 int lx = pos.getX() & 0xF;
                 int lz = pos.getZ() & 0xF;
                 int chamberSpan = CaveColumnScan.measureAirColumnSpan(chunk, lx, pos.getY(), lz, minY, maxY);
-                TerraForgedOfficialCaveDecorator.decorateFloor(pos, guarded, generator, settings, random, chunk, biome, chamberSpan);
+                TerraForgedOfficialCaveDecorator.decorateFloor(pos, guarded, generator, carver, settings, random, chunk, biome, chamberSpan);
             }
             List<BlockPos> ceilingOrigins = TerraForgedOfficialCaveDecorator.collectCeilingOrigins(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, grid);
             for (BlockPos origin : ceilingOrigins) {
@@ -108,7 +108,7 @@ public final class TerraForgedOfficialCaveDecorator {
                 int lz = floor.getZ() & 0xF;
                 int minY = chunk.getMinBuildHeight();
                 int chamberSpan = CaveColumnScan.measureAirColumnSpan(chunk, lx, floor.getY(), lz, minY, maxY);
-                TerraForgedOfficialCaveDecorator.decorateFloor(floor, guarded, generator, settings, random, chunk, biome, chamberSpan);
+                TerraForgedOfficialCaveDecorator.decorateFloor(floor, guarded, generator, carver, settings, random, chunk, biome, chamberSpan);
             }
             int ceilY = TerraForgedOfficialCaveDecorator.resolveCeilingAir(chunk, origin.getX() & 0xF, origin.getZ() & 0xF, origin.getY(), maxY);
             if (ceilY >= 0) {
@@ -141,7 +141,7 @@ public final class TerraForgedOfficialCaveDecorator {
             int minY = chunk.getMinBuildHeight();
             int maxY = chunk.getHighestSectionPosition() + 15;
             int chamberSpan = CaveColumnScan.measureAirColumnSpan(chunk, lx, pos.getY(), lz, minY, maxY);
-            TerraForgedOfficialCaveDecorator.decorateFloor(pos, guarded, generator, ((Biome)biome.value()).getGenerationSettings(), random, chunk, biome, chamberSpan);
+            TerraForgedOfficialCaveDecorator.decorateFloor(pos, guarded, generator, carver, ((Biome)biome.value()).getGenerationSettings(), random, chunk, biome, chamberSpan);
         }
     }
 
@@ -169,7 +169,33 @@ public final class TerraForgedOfficialCaveDecorator {
                 result.putIfAbsent(resolved, new BlockPos(chunkX + lx, floorY, chunkZ + lz));
             }
         }
-        return result;
+        return TerraForgedOfficialCaveDecorator.filterByPaintedVolume(chunk, result);
+    }
+
+    /** Drop patch-painted sliver biomes that only occupy a few quarts — they break feature passes. */
+    private static Map<Holder<Biome>, BlockPos> filterByPaintedVolume(ChunkAccess chunk, Map<Holder<Biome>, BlockPos> painted) {
+        IdentityHashMap<Holder<Biome>, Integer> quartCounts = new IdentityHashMap<>();
+        int minY = chunk.getMinBuildHeight();
+        int maxY = chunk.getHighestSectionPosition() + 15;
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                for (int y = minY; y <= maxY; y += 4) {
+                    Holder<Biome> biome = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
+                    if (biome == null || !CaveBiomeIds.isModCaveBiome(biome)) {
+                        continue;
+                    }
+                    quartCounts.merge(biome, 1, Integer::sum);
+                }
+            }
+        }
+        IdentityHashMap<Holder<Biome>, BlockPos> filtered = new IdentityHashMap<>();
+        for (Map.Entry<Holder<Biome>, BlockPos> entry : painted.entrySet()) {
+            int count = quartCounts.getOrDefault(entry.getKey(), 0);
+            if (count >= 3) {
+                filtered.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return filtered.isEmpty() ? painted : filtered;
     }
 
     private static List<BlockPos> collectFloorOrigins(ChunkAccess chunk, CarverChunk carver, Generator generator, Holder<Biome> target, BlockPos seed, int chunkX, int chunkZ, int minY, int maxY, int grid) {
@@ -275,11 +301,12 @@ public final class TerraForgedOfficialCaveDecorator {
     }
 
     /** Original TF 0.3.x floor decorate — all cave stages except surface hazards. */
-    private static void decorateFloor(BlockPos pos, WorldGenLevel region, Generator generator, BiomeGenerationSettings settings, WorldgenRandom random, ChunkAccess chunk, Holder<Biome> biome, int chamberSpan) {
+    private static void decorateFloor(BlockPos pos, WorldGenLevel region, Generator generator, CarverChunk carver, BiomeGenerationSettings settings, WorldgenRandom random, ChunkAccess chunk, Holder<Biome> biome, int chamberSpan) {
         var features = settings.features();
         if (features.isEmpty()) {
             return;
         }
+        pos = CaveFloorCover.prepare(chunk, carver, biome, pos);
         int lx = pos.getX() & 0xF;
         int lz = pos.getZ() & 0xF;
         boolean megaGigaSurface = CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, pos.getY(), lz, true);
@@ -363,22 +390,26 @@ public final class TerraForgedOfficialCaveDecorator {
                 || FeatureMassClassifier.isTree(lower);
     }
 
-    /** Skip cover/replacer/tiles when the chamber is too shallow or too close to the surface crust. */
+    /** Skip tall scatter in shallow chambers; allow low cover/replacer when span >= 4. */
     private static boolean shouldSkipChamberFeature(Holder<PlacedFeature> placed, Holder<Biome> biome, int chamberSpan, boolean nearSurfaceCrust) {
         ResourceLocation id = FeatureMassClassifier.featurePath(placed);
         if (id == null) {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        if (!CaveFeatureFilters.isCoverFeaturePath(path) && !path.contains("fuck_art") && !path.contains("tiles")
-                && !path.contains("replacer") && !path.contains("yellowstone") && !path.contains("frostfire_patch")
-                && !path.contains("column")) {
+        boolean cover = CaveFeatureFilters.isCoverFeaturePath(path) || path.contains("replacer") || path.contains("frostfire_patch");
+        boolean tall = path.contains("fuck_art") || path.contains("tiles") || path.contains("column")
+                || path.contains("yellowstone") && !cover;
+        if (!cover && !tall) {
             return false;
         }
         if (nearSurfaceCrust) {
             return true;
         }
-        if (chamberSpan > 0 && !CaveBiomeVerticalFit.fits(biome, chamberSpan)) {
+        if (chamberSpan > 0 && chamberSpan < 4) {
+            return true;
+        }
+        if (tall && chamberSpan > 0 && !CaveBiomeVerticalFit.fits(biome, chamberSpan)) {
             return true;
         }
         return false;

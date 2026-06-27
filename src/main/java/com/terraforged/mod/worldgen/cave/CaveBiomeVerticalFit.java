@@ -69,7 +69,8 @@ public final class CaveBiomeVerticalFit {
         int y = fromY;
         while (step > 0 ? y <= toY : y >= toY) {
             Holder<Biome> painted = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
-            if (CaveBiomeVerticalFit.isUsableFallback(painted, null, verticalSpan)) {
+            if (painted != null && CaveBiomeVerticalFit.fits(painted, verticalSpan)
+                    && (CaveBiomeIds.isModCaveBiome(painted) || CaveBiomeIds.isUndergroundBiome(painted))) {
                 return painted;
             }
             y += step;

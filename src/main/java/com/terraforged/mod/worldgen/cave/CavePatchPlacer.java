@@ -14,6 +14,10 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 
 public final class CavePatchPlacer {
     private static final int GRID_BLOCKS = 80;
+    /** Minimum full-chamber height before island/ceiling patch biomes may paint vertical bands. */
+    private static final int MIN_CAVE_HEIGHT_FOR_PATCH = 22;
+    /** Minimum air gap between floor island band and ceiling patch band. */
+    private static final int MIN_BAND_GAP = 10;
 
     private CavePatchPlacer() {
     }
@@ -45,8 +49,11 @@ public final class CavePatchPlacer {
                 int ceilY = CavePatchPlacer.findCeilingAir(chunk, lx, lz, floorY, maxY);
                 if (ceilY <= floorY + 2) continue;
                 int caveHeight = ceilY - floorY;
-                CavePatchPlacer.applyIsland(seed, chunk, carver, registry, islandSpecials, lx, lz, wx, wz, floorY, ceilY, pos);
-                CavePatchPlacer.applyCeiling(seed, chunk, carver, registry, ceilingSpecials, lx, lz, wx, wz, floorY, ceilY, caveHeight, pos);
+                if (caveHeight < MIN_CAVE_HEIGHT_FOR_PATCH) {
+                    continue;
+                }
+                int islandTop = CavePatchPlacer.applyIsland(seed, chunk, carver, registry, islandSpecials, lx, lz, wx, wz, floorY, ceilY, pos);
+                CavePatchPlacer.applyCeiling(seed, chunk, carver, registry, ceilingSpecials, lx, lz, wx, wz, floorY, ceilY, caveHeight, islandTop, pos);
             }
         }
     }
@@ -70,24 +77,30 @@ public final class CavePatchPlacer {
         return hit.entry();
     }
 
-    private static void applyIsland(int seed, ChunkAccess chunk, CarverChunk carver, CaveBiomeRegistry registry, List<CaveBiomeEntry> islandSpecials, int lx, int lz, int wx, int wz, int floorY, int ceilY, BlockPos.MutableBlockPos pos) {
+    /** @return top Y of island band, or -1 if skipped */
+    private static int applyIsland(int seed, ChunkAccess chunk, CarverChunk carver, CaveBiomeRegistry registry, List<CaveBiomeEntry> islandSpecials, int lx, int lz, int wx, int wz, int floorY, int ceilY, BlockPos.MutableBlockPos pos) {
         Holder<Biome> holder;
         if (islandSpecials.isEmpty()) {
-            return;
+            return -1;
         }
         PatchHit hit = CavePatchPlacer.findPatch(seed, wx, wz, islandSpecials, CavePatchPlacer.totalWeight(islandSpecials));
         if (hit == null || (holder = registry.getHolder(hit.entry()).orElse(null)) == null) {
-            return;
+            return -1;
         }
         int radius = NoiseCave.calcIslandRadius(hit.entry().islandMaxRadius());
         if (hit.distance() > (float)radius) {
-            return;
+            return -1;
         }
         int islandTop = Math.min(ceilY, floorY + NoiseCave.calcIslandHeight(radius));
+        int bandHeight = islandTop - floorY + 1;
+        if (bandHeight < CaveBiomeVerticalFit.minChamberHeight(holder)) {
+            return -1;
+        }
         CavePatchPlacer.paintColumn(chunk, carver, lx, lz, floorY, islandTop, holder, pos);
+        return islandTop;
     }
 
-    private static void applyCeiling(int seed, ChunkAccess chunk, CarverChunk carver, CaveBiomeRegistry registry, List<CaveBiomeEntry> ceilingSpecials, int lx, int lz, int wx, int wz, int floorY, int ceilY, int caveHeight, BlockPos.MutableBlockPos pos) {
+    private static void applyCeiling(int seed, ChunkAccess chunk, CarverChunk carver, CaveBiomeRegistry registry, List<CaveBiomeEntry> ceilingSpecials, int lx, int lz, int wx, int wz, int floorY, int ceilY, int caveHeight, int islandTop, BlockPos.MutableBlockPos pos) {
         Holder<Biome> holder;
         if (ceilingSpecials.isEmpty()) {
             return;
@@ -104,6 +117,13 @@ public final class CavePatchPlacer {
         float factor = NoiseUtil.clamp((NoiseUtil.valCoord2D(seed, wx, wz) + 1.0f) * 0.5f, 0.0f, 1.0f);
         int band = NoiseCave.calcCeilingPatchHeight(caveHeight, patch.ceilingPatchMin(), patch.ceilingPatchMax(), factor);
         int bandBottom = Math.max(floorY + 2, ceilY - band);
+        int bandHeight = ceilY - bandBottom + 1;
+        if (bandHeight < CaveBiomeVerticalFit.minChamberHeight(holder)) {
+            return;
+        }
+        if (islandTop >= 0 && bandBottom <= islandTop + MIN_BAND_GAP) {
+            return;
+        }
         CavePatchPlacer.paintColumn(chunk, carver, lx, lz, bandBottom, ceilY, holder, pos);
     }
 
