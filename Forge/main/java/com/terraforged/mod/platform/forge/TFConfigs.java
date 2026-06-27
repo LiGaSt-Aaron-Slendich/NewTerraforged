@@ -11,6 +11,7 @@ public final class TFConfigs {
     }
 
     public static void register() {
+        TFConfigLoader.ensureNestedLayout();
         TFCaveSystemConfig.load();
         TFCaveBiomeConfig.load();
         TFSurfaceBiomeConfig.load();

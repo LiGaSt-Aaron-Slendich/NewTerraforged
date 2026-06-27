@@ -12,6 +12,7 @@ import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.command.Arg;
+import com.terraforged.mod.command.BackgroundSearchTasks;
 import com.terraforged.mod.command.CaveDebugCommand;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.GeneratorPreset;
@@ -45,9 +46,13 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.loading.FMLLoader;
 
 public class TFCommands {
+    public static final int DEFAULT_TERRAIN_SEARCH_RADIUS = 8000;
+    public static final int MAX_TERRAIN_SEARCH_RADIUS = 100000;
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(TFCommands.getLocateTerrainCommand());
         dispatcher.register(TFCommands.getLocateCaveCommand());
+        dispatcher.register(TFCommands.getStopProcessCommand());
         dispatcher.register(TFCommands.getTFCommand());
         dispatcher.register(CaveDebugCommand.register());
     }
@@ -57,7 +62,20 @@ public class TFCommands {
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> getLocateTerrainCommand() {
-        return (LiteralArgumentBuilder)TFCommands.root("locateterrain").then(((RequiredArgumentBuilder)Arg.terrainType().then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)1)).executes(c -> TFCommands.locate((CommandContext<CommandSourceStack>)c, true)))).executes(c -> TFCommands.locate((CommandContext<CommandSourceStack>)c, false)));
+        return (LiteralArgumentBuilder)TFCommands.root("locateterrain").then(((RequiredArgumentBuilder)Arg.terrainType().then(Commands.argument((String)"radius", (ArgumentType)IntegerArgumentType.integer((int)64, (int)MAX_TERRAIN_SEARCH_RADIUS)).executes(c -> TFCommands.locate((CommandContext<CommandSourceStack>)c, true)))).executes(c -> TFCommands.locate((CommandContext<CommandSourceStack>)c, false)));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> getStopProcessCommand() {
+        return (LiteralArgumentBuilder)TFCommands.root("stopprocess").executes(TFCommands::stopProcess);
+    }
+
+    private static int stopProcess(CommandContext<CommandSourceStack> context) {
+        if (!BackgroundSearchTasks.requestCancel()) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("No background search is running.").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        ((CommandSourceStack)context.getSource()).sendSuccess((Component)TFCommands.text("Cancelling background search...").withStyle(ChatFormatting.YELLOW), false);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> getLocateCaveCommand() {
@@ -103,6 +121,7 @@ public class TFCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> getTFCommand() {
         LiteralArgumentBuilder<CommandSourceStack> root = TFCommands.root("tf");
         root.then(Commands.literal("locate").then(Commands.literal("cave").then(TFCommands.locateCaveTypeBranch())));
+        root.then(Commands.literal("stopprocess").executes(TFCommands::stopProcess));
         root.then(Commands.literal("export").then(Commands.literal("structures").executes(TFCommands::export)));
         root.then(Commands.literal("regen").then(Commands.argument("radius", IntegerArgumentType.integer(1)).executes(TFCommands::regen)));
         root.then(Commands.literal("preview").executes(TFCommands::openPreview));
@@ -142,32 +161,60 @@ public class TFCommands {
     }
 
     private static int locate(CommandContext<CommandSourceStack> context, boolean withRadius) throws CommandSyntaxException {
-        Component result;
         Generator generator = GeneratorPreset.getGenerator(((CommandSourceStack)context.getSource()).getLevel());
         if (generator == null) {
-            return 1;
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            return 0;
         }
         String name = StringArgumentType.getString(context, (String)"terrain");
         Terrain terrain = TerrainType.get(name);
-        int radius = withRadius ? IntegerArgumentType.getInteger(context, (String)"radius") : 1;
+        int searchRadius = withRadius ? IntegerArgumentType.getInteger(context, (String)"radius") : DEFAULT_TERRAIN_SEARCH_RADIUS;
+        searchRadius = Math.min(Math.max(searchRadius, 64), MAX_TERRAIN_SEARCH_RADIUS);
         ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
         BlockPos at = player.blockPosition();
         int seed = Seeds.get(player.getLevel().getSeed());
+        UUID playerId = player.getUUID();
+        MinecraftServer server = player.getServer();
         if (terrain == null) {
-            result = TFCommands.text("Invalid terrain: " + name).withStyle(ChatFormatting.RED);
-        } else {
-            int maxRadius = Math.min(100, radius + 50);
-            long pos = generator.getNoiseGenerator().find(seed, at.getX(), at.getZ(), radius, maxRadius, terrain);
-            if (pos == 0L) {
-                result = TFCommands.text("Unable to locate terrain: " + name).withStyle(ChatFormatting.RED);
-            } else {
+            player.sendMessage((Component)TFCommands.text("Invalid terrain: " + name).withStyle(ChatFormatting.RED), playerId);
+            return 0;
+        }
+        final int finalRadius = searchRadius;
+        final Terrain finalTerrain = terrain;
+        player.sendMessage((Component)TFCommands.text("Searching nearest " + name + " within " + finalRadius + " blocks (background)... Use /stopprocess to cancel.").withStyle(ChatFormatting.GRAY), playerId);
+        BackgroundSearchTasks.beginSearch();
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                if (BackgroundSearchTasks.isCancelRequested()) {
+                    return null;
+                }
+                long pos = generator.getNoiseGenerator().find(seed, at.getX(), at.getZ(), 0, finalRadius, finalTerrain);
+                if (pos == 0L || BackgroundSearchTasks.isCancelRequested()) {
+                    return null;
+                }
                 int x = PosUtil.unpackLeft(pos);
                 int z = PosUtil.unpackRight(pos);
                 int y = generator.getBaseHeight(x, z, Heightmap.Types.MOTION_BLOCKING, (LevelHeightAccessor)player.level);
-                result = TFCommands.createTerrainTeleportMessage(at, x, y, z, terrain);
+                return new int[]{x, y, z};
             }
-        }
-        player.sendMessage((Component)result, player.getUUID());
+            finally {
+                BackgroundSearchTasks.endSearch();
+            }
+        }, Util.backgroundExecutor()).thenAccept(result -> server.execute(() -> {
+            ServerPlayer online = server.getPlayerList().getPlayer(playerId);
+            if (online == null) {
+                return;
+            }
+            Component message;
+            if (BackgroundSearchTasks.isCancelRequested()) {
+                message = TFCommands.text("Terrain search cancelled.").withStyle(ChatFormatting.YELLOW);
+            } else if (result == null) {
+                message = TFCommands.text("Unable to locate terrain: " + name + " within " + finalRadius + " blocks.").withStyle(ChatFormatting.RED);
+            } else {
+                message = TFCommands.createTerrainTeleportMessage(at, result[0], result[1], result[2], finalTerrain);
+            }
+            online.sendMessage((Component)message, playerId);
+        }));
         return 1;
     }
 
@@ -214,19 +261,27 @@ public class TFCommands {
         String modeText = mode == CaveLocator.LocateMode.ENTRANCE ? " entrance" : "";
         String subtypeText = subtype != CaveSubtype.ANY ? " " + subtype.getName() : "";
         String targetLabel = grotto ? "grotto" : finalType.getName() + modeText + subtypeText;
-        player.sendMessage((Component)TFCommands.text("Searching nearest " + targetLabel + " within " + finalRadius + " blocks (background)...").withStyle(ChatFormatting.GRAY), playerId);
+        player.sendMessage((Component)TFCommands.text("Searching nearest " + targetLabel + " within " + finalRadius + " blocks (background)... Use /stopprocess to cancel.").withStyle(ChatFormatting.GRAY), playerId);
+        BackgroundSearchTasks.beginSearch();
         CompletableFuture.supplyAsync(() -> {
-            if (grotto) {
-                return CaveLocator.findGrotto(generator, at.getX(), at.getZ(), finalRadius);
+            try {
+                if (grotto) {
+                    return CaveLocator.findGrotto(generator, at.getX(), at.getZ(), finalRadius);
+                }
+                return CaveLocator.find(generator, finalType, subtype, mode, at.getX(), at.getZ(), finalRadius);
             }
-            return CaveLocator.find(generator, finalType, subtype, mode, at.getX(), at.getZ(), finalRadius);
+            finally {
+                BackgroundSearchTasks.endSearch();
+            }
         }, Util.backgroundExecutor()).thenAccept(result -> server.execute(() -> {
             ServerPlayer online = server.getPlayerList().getPlayer(playerId);
             if (online == null) {
                 return;
             }
             MutableComponent message;
-            if (result == null) {
+            if (BackgroundSearchTasks.isCancelRequested()) {
+                message = TFCommands.text("Cave search cancelled.").withStyle(ChatFormatting.YELLOW);
+            } else if (result == null) {
                 String failMode = mode == CaveLocator.LocateMode.ENTRANCE ? " entrance" : "";
                 String failSubtype = subtype != CaveSubtype.ANY ? " " + subtype.getName() : "";
                 if (grotto) {

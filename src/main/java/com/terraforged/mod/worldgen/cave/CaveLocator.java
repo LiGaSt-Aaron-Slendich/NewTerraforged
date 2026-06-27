@@ -1,6 +1,7 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.TerraForged;
+import com.terraforged.mod.command.BackgroundSearchTasks;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
@@ -89,6 +90,9 @@ public final class CaveLocator {
         long radiusSq = (long)radius * radius;
         int ringsChecked = 0;
         for (int ring = 0; ring <= radius; ring += ringStep) {
+            if (BackgroundSearchTasks.isCancelRequested()) {
+                return null;
+            }
             if (++ringsChecked > MAX_GROTTO_COARSE_RINGS) {
                 break;
             }
@@ -187,7 +191,11 @@ public final class CaveLocator {
         int step = CaveLocator.searchStep(type, radius);
         int coarseStep = step * 2;
         List<Candidate> candidates = new ArrayList<Candidate>(MAX_CANDIDATES);
+        int iterations = 0;
         for (int dx = -radius; dx <= radius; dx += coarseStep) {
+            if (BackgroundSearchTasks.pollCancel(++iterations, 8)) {
+                return null;
+            }
             for (int dz = -radius; dz <= radius; dz += coarseStep) {
                 int x = originX + dx;
                 int z = originZ + dz;
@@ -251,6 +259,9 @@ public final class CaveLocator {
         cells.sort(Comparator.comparingDouble(c -> c.distSq));
         int checked = 0;
         for (CellCandidate cellCenter : cells) {
+            if (BackgroundSearchTasks.isCancelRequested()) {
+                return null;
+            }
             if (++checked > MAX_ENTRANCE_CELL_CHECKS) {
                 break;
             }

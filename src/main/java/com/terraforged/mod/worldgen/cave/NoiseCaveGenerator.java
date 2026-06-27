@@ -80,10 +80,7 @@ public class NoiseCaveGenerator {
         if (CaveDecorationSettings.usePerBiomeDecorators()) {
             CaveHybridBiomeDecorator.decorateVolume(chunk, carver, guarded, generator);
         } else if (CaveDecorationSettings.useOfficialTfDecorator()) {
-            for (NoiseCave config : this.caves) {
-                if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
-                TerraForgedOfficialCaveDecorator.decorate(chunk, carver, guarded, generator, config);
-            }
+            TerraForgedOfficialCaveDecorator.decorateVolume(chunk, carver, guarded, generator);
         } else if (CaveDecorationSettings.useLegacyDecorators()) {
             CaveBiomeVolumeDecorator.decorateChunk(chunk, carver, guarded, generator);
             if (megaGiga) {
@@ -100,6 +97,9 @@ public class NoiseCaveGenerator {
             if (megaGiga && carver.hasTunnelRiver()) {
                 CaveTunnelRiverDecorator.decorate(chunk, carver, guarded, generator);
             }
+        }
+        if (megaGiga) {
+            CaveFloatingCrustStrip.stripMegaGigaChunk(chunk, columns);
         }
     }
 
@@ -278,8 +278,20 @@ public class NoiseCaveGenerator {
     }
 
     private void replayCarveForBiomes(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator) {
+        CarverColumnCache columns = carver.columnCache();
+        boolean megaGiga = columns.anyMegaGiga();
         for (NoiseCave config : this.carveOrderCaves) {
             if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
+            CaveType type = config.getType();
+            if (megaGiga && type == CaveType.GLOBAL) {
+                continue;
+            }
+            if (!megaGiga && type.isMegaOrGiga()) {
+                continue;
+            }
+            if (type == CaveType.GLOBAL && !columns.anySynapseEligible()) {
+                continue;
+            }
             carver.beginCavePass(config);
             carver.modifier = this.getModifier(config);
             NoiseCaveCarver.carve(seed, chunk, carver, generator, config, false);

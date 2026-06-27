@@ -42,14 +42,16 @@ public final class CaveDensityConfigLoader {
             return (Boolean)value ? 1 : null;
         }
         if (value instanceof Number) {
-            return Math.max(0, ((Number)value).intValue());
+            int limit = ((Number)value).intValue();
+            return limit <= 0 ? null : limit;
         }
         String text = String.valueOf(value).trim();
         if (text.isEmpty() || "false".equalsIgnoreCase(text) || "null".equalsIgnoreCase(text) || "none".equalsIgnoreCase(text)) {
             return null;
         }
         try {
-            return Math.max(0, Integer.parseInt(text));
+            int limit = Integer.parseInt(text);
+            return limit <= 0 ? null : limit;
         }
         catch (NumberFormatException ignored) {
             return null;

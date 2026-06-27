@@ -13,6 +13,7 @@ import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseData;
 import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
+import com.terraforged.mod.command.BackgroundSearchTasks;
 import com.terraforged.mod.worldgen.noise.continent.ContinentNoise;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
@@ -89,8 +90,15 @@ implements INoiseGenerator {
         float nx = this.getNoiseCoord(x);
         float nz = this.getNoiseCoord(z);
         SpiralIterator.PositionFinder finder = this.land.findNearest(seed, nx, nz, minRadius, maxRadius, terrain);
+        if (finder == null) {
+            return 0L;
+        }
         NoiseSample sample = this.localSample.get().reset();
+        int iterations = 0;
         while (finder.hasNext()) {
+            if (BackgroundSearchTasks.pollCancel(++iterations, 32)) {
+                return 0L;
+            }
             long pos = finder.next();
             if (pos == 0L) continue;
             float px = PosUtil.unpackLeftf(pos) / this.levels.noiseLevels.frequency;

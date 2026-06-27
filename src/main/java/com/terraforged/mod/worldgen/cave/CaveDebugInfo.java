@@ -4,10 +4,7 @@ import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
-import com.terraforged.mod.worldgen.cave.CaveModifiers;
-import com.terraforged.mod.worldgen.cave.CaveNoise;
 import com.terraforged.mod.worldgen.cave.CaveType;
-import com.terraforged.mod.worldgen.cave.MegaCaveStructureFilter;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.core.BlockPos;
@@ -16,7 +13,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 public final class CaveDebugInfo {
-    private static final float GIGA_CAVE = 0.1f;
     private static final int SURFACE_SHELL = 14;
 
     private CaveDebugInfo() {
@@ -56,23 +52,19 @@ public final class CaveDebugInfo {
 
     public static String resolveCaveSystem(Generator generator, int x, int y, int z) {
         int surface = generator.getOceanFloorHeight(x, z);
-        if (y >= surface - 14) {
-            return "Surface";
-        }
-        if (MegaCaveStructureFilter.isInMegaOrGigaCaveAt(generator, x, y, z)) {
-            int seed = Seeds.get(generator.getSeed());
-            float giga = CaveNoise.sample(CaveModifiers.giga(), seed, x, z);
-            if (giga > 0.1f) {
-                return "Giga";
+        byte zone = MegaGigaZoneProbe.classifyWithCarverCache(generator, x, z);
+        if (zone != MegaGigaZoneProbe.NONE) {
+            if (y <= surface - SURFACE_SHELL) {
+                return zone == MegaGigaZoneProbe.GIGA ? "Giga" : "Mega";
             }
-            return "Mega";
+            return "Mega Shell";
+        }
+        if (y >= surface - SURFACE_SHELL) {
+            return "Surface";
         }
         Holder<Biome> caveBiome = CaveDebugInfo.sampleCaveBiome(generator, x, y, z);
         if (CaveBiomeIds.isUndergroundBiome(caveBiome)) {
             return y < 48 ? "Normal" : "Synapse";
-        }
-        if (MegaCaveStructureFilter.isInMegaOrGigaCave(generator, x, z)) {
-            return "Mega Shell";
         }
         return "Surface";
     }

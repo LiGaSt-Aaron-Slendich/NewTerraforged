@@ -26,6 +26,48 @@ final class TFConfigLoader {
     private TFConfigLoader() {
     }
 
+    static void ensureNestedLayout() {
+        for (java.util.Map.Entry<String, String> entry : TFConfigLoader.FLAT_LAYOUT_MIGRATIONS.entrySet()) {
+            TFConfigLoader.migrateFlatToNested(entry.getKey(), entry.getValue());
+        }
+    }
+
+    static void reinstallBundledDefault(String relativePath) {
+        try {
+            Path target = FMLPaths.CONFIGDIR.get().resolve(relativePath);
+            if (target.getParent() != null) {
+                Files.createDirectories(target.getParent());
+            }
+            TFConfigLoader.copyBundledDefault(relativePath, target, "empty or corrupt config");
+        }
+        catch (Exception e) {
+            TerraForged.LOG.error("[TFConfig] Could not reinstall bundled default for {}", relativePath, e);
+        }
+    }
+
+    private static void migrateFlatToNested(String nestedRelative, String flatRelative) {
+        try {
+            Path nested = FMLPaths.CONFIGDIR.get().resolve(nestedRelative);
+            Path flat = FMLPaths.CONFIGDIR.get().resolve(flatRelative);
+            if (nested.getParent() != null) {
+                Files.createDirectories(nested.getParent());
+            }
+            boolean nestedValid = Files.exists(nested) && Files.size(nested) >= MIN_VALID_BYTES;
+            boolean flatValid = Files.exists(flat) && Files.size(flat) >= MIN_VALID_BYTES;
+            if (!nestedValid && flatValid) {
+                Files.copy(flat, nested, StandardCopyOption.REPLACE_EXISTING);
+                TerraForged.LOG.info("[TFConfig] Migrated legacy flat config {} -> {}", flatRelative, nestedRelative);
+                return;
+            }
+            if (nestedValid && flatValid) {
+                TerraForged.LOG.info("[TFConfig] Using {} (legacy {} is ignored — delete it to avoid confusion)", nestedRelative, flatRelative);
+            }
+        }
+        catch (Exception e) {
+            TerraForged.LOG.warn("[TFConfig] Could not migrate {} from {}", nestedRelative, flatRelative, e);
+        }
+    }
+
     static CommentedFileConfig open(String relativePath) {
         Path path = FMLPaths.CONFIGDIR.get().resolve(relativePath);
         TFConfigLoader.ensureDefaultIfMissingOrTooSmall(relativePath, path);

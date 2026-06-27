@@ -44,10 +44,18 @@ public final class TFCaveBiomeConfig {
     public final List<String> blacklist = new ArrayList<String>();
 
     public static void load() {
-        CommentedFileConfig cfg = TFConfigLoader.open("NewTerraForged/cave-biomes.toml");
+        CommentedFileConfig cfg = TFConfigLoader.open(TFConfigPaths.CAVE_BIOMES);
         INSTANCE = new TFCaveBiomeConfig();
         INSTANCE.read(cfg);
         cfg.close();
+        if (INSTANCE.primary.isEmpty() && INSTANCE.transition.isEmpty() && INSTANCE.special.isEmpty() && INSTANCE.coastal.isEmpty()) {
+            TerraForged.LOG.warn("[TFConfig] {} has no biome entries — reinstalling bundled default", TFConfigPaths.CAVE_BIOMES);
+            TFConfigLoader.reinstallBundledDefault(TFConfigPaths.CAVE_BIOMES);
+            cfg = TFConfigLoader.open(TFConfigPaths.CAVE_BIOMES);
+            INSTANCE = new TFCaveBiomeConfig();
+            INSTANCE.read(cfg);
+            cfg.close();
+        }
     }
 
     private void read(CommentedFileConfig root) {

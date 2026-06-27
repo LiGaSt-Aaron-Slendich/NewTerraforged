@@ -6,11 +6,9 @@ import com.terraforged.noise.Module;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 final class MegaGigaChunkCache {
-    static final byte NONE = 0;
-    static final byte MEGA = 1;
-    static final byte GIGA = 2;
-    private static final float MEGA_THRESHOLD = 0.22f;
-    private static final float GIGA_THRESHOLD = 0.1f;
+    static final byte NONE = MegaGigaZoneProbe.NONE;
+    static final byte MEGA = MegaGigaZoneProbe.MEGA;
+    static final byte GIGA = MegaGigaZoneProbe.GIGA;
     private static final ThreadLocal<MegaGigaChunkCache> ACTIVE = ThreadLocal.withInitial(MegaGigaChunkCache::new);
     private int minX = Integer.MIN_VALUE;
     private int minZ = Integer.MIN_VALUE;
@@ -45,20 +43,11 @@ final class MegaGigaChunkCache {
         if (flag != null) {
             return flag != NONE;
         }
-        return MegaGigaChunkCache.sampleMegaOrGiga(generator, x, z) != NONE;
+        return MegaGigaZoneProbe.classifyWithCarverCache(generator, x, z) != MegaGigaZoneProbe.NONE;
     }
 
     static boolean isInMegaOrGigaAt(Generator generator, int x, int y, int z) {
-        MegaGigaChunkCache cache = ACTIVE.get();
-        cache.ensurePopulated(generator);
-        Byte flag = cache.resolveFlag(x, z);
-        if (flag == null) {
-            flag = MegaGigaChunkCache.sampleMegaOrGiga(generator, x, z);
-        }
-        if (flag == NONE) {
-            return false;
-        }
-        return y < generator.getOceanFloorHeight(x, z) - 6;
+        return MegaGigaZoneProbe.classifyAt(generator, x, y, z) != MegaGigaZoneProbe.NONE;
     }
 
     private void prepareBounds(Generator generator, ChunkAccess chunk, int padding, CarverColumnCache columnCache) {
@@ -165,12 +154,6 @@ final class MegaGigaChunkCache {
     }
 
     private static byte classify(Generator generator, int seed, Module mega, Module giga, int x, int z) {
-        if (CaveNoise.sample(giga, seed, x, z) > GIGA_THRESHOLD && CaveReliefFilter.qualifiesGigaTerrain(generator, x, z)) {
-            return GIGA;
-        }
-        if (CaveNoise.sample(mega, seed, x, z) > MEGA_THRESHOLD) {
-            return MEGA;
-        }
-        return NONE;
+        return MegaGigaZoneProbe.classify(generator, x, z);
     }
 }

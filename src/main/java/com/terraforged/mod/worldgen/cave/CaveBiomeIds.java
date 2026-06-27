@@ -232,6 +232,21 @@ public final class CaveBiomeIds {
         return biome.unwrapKey().map(key -> CaveBiomeIds.isMegaGigaExcluded(key.location())).orElse(false);
     }
 
+    /** Hot vent / scorch biomes are too dense for small synapse columns. */
+    public static boolean isSynapseExcluded(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("scorching") || path.contains("scorched") || path.contains("infernal")
+                || path.contains("fire_cave") || path.contains("fire_caves") || path.contains("burning")
+                || path.contains("ash_cave") || path.contains("ash_vent") || path.contains("mantle_cave");
+    }
+
+    public static boolean isSynapseExcluded(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isSynapseExcluded(key.location())).orElse(false);
+    }
+
     public static boolean isEmptyStoneCave(ResourceLocation id) {
         if (id == null) {
             return false;

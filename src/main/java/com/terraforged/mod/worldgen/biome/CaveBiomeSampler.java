@@ -192,19 +192,19 @@ public class CaveBiomeSampler {
         CaveBiomeEntry best = null;
         float bestDist = Float.MAX_VALUE;
         for (CaveBiomeEntry entry : this.caveBiomeRegistry.getPrimary()) {
-            if (CaveBiomeIds.isBlockedCaveBiome(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || !((d = Math.abs(entry.caveTemperature() - caveTemp)) < bestDist)) continue;
+            if (CaveBiomeIds.isBlockedCaveBiome(entry.biome()) || CaveBiomeIds.isSynapseExcluded(entry.biome()) || CaveBiomeIds.isSparseCaveBiome(entry.biome()) || !((d = Math.abs(entry.caveTemperature() - caveTemp)) < bestDist)) continue;
             bestDist = d;
             best = entry;
         }
         if (best == null) {
             for (CaveBiomeEntry entry : this.caveBiomeRegistry.getPrimary()) {
-                if (CaveBiomeIds.isBlockedCaveBiome(entry.biome()) || !((d = Math.abs(entry.caveTemperature() - caveTemp)) < bestDist)) continue;
+                if (CaveBiomeIds.isBlockedCaveBiome(entry.biome()) || CaveBiomeIds.isSynapseExcluded(entry.biome()) || !((d = Math.abs(entry.caveTemperature() - caveTemp)) < bestDist)) continue;
                 bestDist = d;
                 best = entry;
             }
         }
         for (CaveBiomeEntry entry : this.caveBiomeRegistry.getTransition()) {
-            if (CaveBiomeIds.isBlockedCaveBiome(entry.biome()) || !((d = Math.abs(entry.caveTemperature() - caveTemp)) < bestDist)) continue;
+            if (CaveBiomeIds.isBlockedCaveBiome(entry.biome()) || CaveBiomeIds.isSynapseExcluded(entry.biome()) || !((d = Math.abs(entry.caveTemperature() - caveTemp)) < bestDist)) continue;
             bestDist = d;
             best = entry;
         }

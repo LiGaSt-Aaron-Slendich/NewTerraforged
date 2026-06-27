@@ -1,6 +1,7 @@
 # NewTerraForged — underground cave biomes (Forge registry IDs)
+# Path: config/NewTerraForged/Cave_configs/cave-biomes.toml
 # config_version: bundled default revision (informational — user edits are kept unless the file is empty/corrupt).
-config_version = 2
+config_version = 3
 
 # CaveBiomeIds resolves terralith:X -> terralith:cave/X. Missing biomes are skipped with a warning.
 #
@@ -28,7 +29,7 @@ config_version = 2
 # Decoration & auto-registration
 # ══════════════════════════════════════════════════════════════════════════════
 # use_per_biome_decorators — hybrid routing (official / vanilla / legacy / compromise per biome).
-# use_official_tf_decorator — single backend for every painted biome (0.3.x TF style).
+# use_official_tf_decorator — unified official TF per painted cave biome (floor + ceiling anchors from quart paint).
 # use_compromise_decorator — themed cover + scatter anchors + mega accents.
 # use_vanilla_pass — TerraLith-style placeWithBiomeCheck once per feature per chunk (fast, sparse cover).
 # use_legacy_decorators — full old anchor/scatter + noise-cave decorator loop (slowest, kept for rollback).
@@ -36,8 +37,8 @@ config_version = 2
 # blacklist — biomes that must NEVER generate in mega/giga (jungle presets use dedicated stream decorators).
 
 [decoration]
-use_per_biome_decorators = true
-use_official_tf_decorator = false
+use_per_biome_decorators = false
+use_official_tf_decorator = true
 use_compromise_decorator = false
 use_vanilla_pass = false
 use_legacy_decorators = false
@@ -47,10 +48,9 @@ vanilla_origin_grid = 2
 vanilla_origins_per_biome = 8
 vanilla_ceiling_pass = true
 
-# Hybrid decorator routing lives in:
-#   NewTerraForged/Critical Options/Hybrid options/decorator-routing.toml
 # Cave system density: NewTerraForged/Cave_configs/caves.toml
 # Surface climate weights: NewTerraForged/Terrain/surface-biomes.toml
+# Terrain↔biome rules: NewTerraForged/Terrain/biome-terrain-integration.toml
 
 blacklist = [
     "minecraft:lush_caves",
@@ -65,6 +65,7 @@ blacklist = [
     "byg:embur_bog",
     "terralith:cave/underground_jungle",
     "terralith:cave/steaming_jungle",
+    "regions_unexplored:scorching_caves",
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -611,26 +612,6 @@ falloff_per_hop = 1.0
 # ══════════════════════════════════════════════════════════════════════════════
 # Regions Unexplored
 # ══════════════════════════════════════════════════════════════════════════════
-
-[[transition]]
-id = "regions_unexplored:scorching_caves"
-temperature = 0.78
-vegetation_density = 0.10
-weight = 0.48
-placement_type = "full_region"
-
-[transition.stats.conditions]
-temperature = -2
-
-[transition.stats.global]
-moisture = 1
-temperature = -4
-fertility = -1
-
-[transition.stats.local]
-moisture = 1
-temperature = -2
-falloff_per_hop = 1.0
 
 [[transition]]
 id = "regions_unexplored:bioshroom_caves"
