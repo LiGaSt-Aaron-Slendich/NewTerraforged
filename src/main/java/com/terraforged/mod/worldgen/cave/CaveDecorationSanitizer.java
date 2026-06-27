@@ -129,6 +129,9 @@ public final class CaveDecorationSanitizer {
         if (state.is(BlockTags.LEAVES) || state.is(BlockTags.LOGS) || state.is(BlockTags.FLOWERS)) {
             return true;
         }
+        if (CaveDecorationSanitizer.isTerracottaBlock(state)) {
+            return true;
+        }
         ResourceLocation id = ForgeRegistries.BLOCKS.getKey(state.getBlock());
         if (id == null) {
             return false;
@@ -157,6 +160,13 @@ public final class CaveDecorationSanitizer {
                 || path.contains("mycel") || path.contains("bioshroom") || path.contains("glowshroom")
                 || path.contains("fungal") || path.contains("shroom") || path.contains("mushroom")
                 || path.contains("cobweb") || path.contains("lichen") || path.contains("vine")
-                || path.contains("crystal") || path.contains("geode") || path.contains("basalt") && !path.contains("pillar");
+                || path.contains("crystal") || path.contains("geode") || path.contains("basalt") && !path.contains("pillar")
+                || path.contains("terracotta") || path.contains("yellowstone") || path.contains("frostfire");
+    }
+
+    static boolean isTerracottaBlock(BlockState state) {
+        return state.is(Blocks.TERRACOTTA) || state.is(Blocks.WHITE_TERRACOTTA) || state.is(Blocks.ORANGE_TERRACOTTA)
+                || state.is(Blocks.YELLOW_TERRACOTTA) || state.is(Blocks.BROWN_TERRACOTTA) || state.is(Blocks.RED_TERRACOTTA)
+                || state.is(Blocks.GRAY_TERRACOTTA) || state.is(Blocks.LIGHT_GRAY_TERRACOTTA);
     }
 }
