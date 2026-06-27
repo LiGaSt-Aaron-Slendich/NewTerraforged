@@ -215,6 +215,7 @@ public class NoiseCaveGenerator {
             NoiseCaveCarver.carve(seed, chunk, carver, generator, config, true);
             if (!type.isMegaOrGiga() || (registry = NoiseCaveGenerator.resolveRegistry(generator)) == null) continue;
             CavePatchPlacer.apply(seed, chunk, generator, config, carver, registry);
+            CaveBiomeColumnUnifier.unifyMegaGigaChunk(seed, chunk, carver, generator, config);
         }
         if (NoiseCaveGenerator.isSynapseEnabled()) {
             CaveGrottoCarver.tryCarveChunk(seed, chunk, carver, generator, NoiseCaveGenerator.findSynapseConfig(this.caves), generator.getCaveEntranceClaims());

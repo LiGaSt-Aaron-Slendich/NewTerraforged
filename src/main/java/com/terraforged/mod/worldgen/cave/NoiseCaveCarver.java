@@ -287,15 +287,21 @@ public class NoiseCaveCarver {
                 piercedSurface = true;
             }
             chunk.setBlockState((BlockPos)pos, AIR, false);
-            if (cy >> 2 >= maxBiomeY || cy >= surface - surfaceBiomeSkip) continue;
-            Holder<Biome> biome = defaultBiome;
-            if (patchPlacement) {
-                boolean topSection = config.getPlacementType() == CavePlacementType.CEILING_PATCH ? cy >= topThird : cy < topThird;
-                if (topSection) {
-                    biome = patchBiome;
+            if (megaGiga) {
+                NoiseCaveCarver.setBiomeQuart(chunk, carver, dx, cy, dz, defaultBiome);
+            } else {
+                if (cy >> 2 >= maxBiomeY || cy >= surface - surfaceBiomeSkip) {
+                    continue;
                 }
+                Holder<Biome> biome = defaultBiome;
+                if (patchPlacement) {
+                    boolean topSection = config.getPlacementType() == CavePlacementType.CEILING_PATCH ? cy >= topThird : cy < topThird;
+                    if (topSection) {
+                        biome = patchBiome;
+                    }
+                }
+                NoiseCaveCarver.setBiomeQuart(chunk, carver, dx, cy, dz, biome);
             }
-            NoiseCaveCarver.setBiomeQuart(chunk, carver, dx, cy, dz, biome);
         }
         carver.noteDecorateAnchor(defaultBiome, new BlockPos(x, bottom, z));
         if (patchPlacement && patchBiome != defaultBiome) {
@@ -559,7 +565,8 @@ public class NoiseCaveCarver {
             return false;
         }
         int midY = bottom + top >> 1;
-        Holder<Biome> biome = carver.getBiome(x, z, midY, config, generator);
+        int verticalSpan = top - bottom + 1;
+        Holder<Biome> biome = carver.getChamberBiome(x, z, midY, config, generator, verticalSpan, chunk, bottom, top);
         if (biome == null) {
             return false;
         }

@@ -52,6 +52,9 @@ public final class CavePatchPlacer {
                 if (caveHeight < MIN_CAVE_HEIGHT_FOR_PATCH) {
                     continue;
                 }
+                if (CaveBiomeColumnUnifier.isOpenChamber(floorY, ceilY)) {
+                    continue;
+                }
                 int islandTop = CavePatchPlacer.applyIsland(seed, chunk, carver, registry, islandSpecials, lx, lz, wx, wz, floorY, ceilY, pos);
                 CavePatchPlacer.applyCeiling(seed, chunk, carver, registry, ceilingSpecials, lx, lz, wx, wz, floorY, ceilY, caveHeight, islandTop, pos);
             }
