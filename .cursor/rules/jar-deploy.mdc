@@ -1,0 +1,29 @@
+---
+description: Safe JAR deploy — never delete, rename previous to .disabled
+alwaysApply: true
+---
+
+# JAR deploy (TerraforgedTest / mods)
+
+When copying a built mod JAR into a Minecraft instance `mods` folder:
+
+1. **Never delete** the existing JAR of the same name.
+2. **Rename** the current file to `{originalName}.disabled` before copying the new build.
+   - Example: `NewTerraForged-1.18.2-0.4.3.jar` → `NewTerraForged-1.18.2-0.4.3.jar.disabled`
+3. If `{name}.disabled` already exists, rename to `{name}.disabled-{yyyyMMdd-HHmm}` (keep all versions).
+4. After copy, log **SHA1** and **file size** of both the disabled backup and the new JAR.
+5. Only one active JAR per mod id in `mods` (the non-`.disabled` file).
+
+PowerShell pattern:
+
+```powershell
+$dest = "C:\curseforge\minecraft\Instances\TerraforgedTest\mods\NewTerraForged-1.18.2-0.4.3.jar"
+if (Test-Path $dest) {
+  $bak = "$dest.disabled"
+  if (Test-Path $bak) { $bak = "$dest.disabled-$(Get-Date -Format 'yyyyMMdd-HHmm')" }
+  Rename-Item $dest $bak
+}
+Copy-Item $builtJar $dest -Force
+```
+
+Do not use `.bak-*` ad-hoc names as the primary backup scheme — `.disabled` is the standard.

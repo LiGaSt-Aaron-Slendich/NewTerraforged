@@ -1,0 +1,27 @@
+---
+description: Commit immediately after every code change (overrides wait-for-ask)
+alwaysApply: true
+---
+
+# Commit after every change
+
+For this repository, **commit after each logical change** — even small fixes, hotfixes, config tweaks, or rule updates. Do not batch unrelated work into one commit.
+
+## When to commit
+
+- After finishing any edit that builds or affects runtime behavior
+- After deploy-related script/rule changes
+- One commit per focused change (not one giant end-of-session dump)
+
+## How to commit
+
+Follow git safety protocol:
+
+- Run `git status`, `git diff`, `git log -1` before committing
+- Never skip hooks, never amend unless protocol allows
+- Use a clear 1–2 sentence message focused on **why**
+- Do **not** push unless the user asks
+
+## Scope note
+
+This project rule **overrides** “only commit when explicitly asked” for NewTerraforged work.
