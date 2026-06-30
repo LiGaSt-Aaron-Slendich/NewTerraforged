@@ -5,20 +5,21 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * Removes surface vegetation and tree parts inside mega/giga cave volumes after decoration.
- * Trees span multiple columns — purge uses a horizontal radius, not single-column strips.
+ * Removes surface-imported trees and soil inside mega/giga cave volumes after decoration.
+ * Does not target cave biome decor (giant mushrooms, bioshrooms, etc.).
  */
 public final class CaveFloatingCrustStrip {
     private static final int MIN_CAVE_AIR_RUN = 3;
     private static final int TREE_PURGE_RADIUS = 6;
+    private static final int SURFACE_LEAK_BAND = 28;
+    private static final int STONE_SUPPORT_SCAN = 8;
 
     private CaveFloatingCrustStrip() {
     }
 
-    public static void stripMegaGigaChunk(ChunkAccess chunk, CarverColumnCache columns) {
+    public static void stripMegaGigaChunk(ChunkAccess chunk, CarverChunk carver, CarverColumnCache columns) {
         if (columns == null || !columns.anyMegaGiga()) {
             return;
         }
@@ -31,19 +32,71 @@ public final class CaveFloatingCrustStrip {
                 if (!caveAir[lx][lz]) {
                     continue;
                 }
-                int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-                for (int y = Math.min(maxY, surface - 1); y >= minY; --y) {
-                    if (!CaveFloatingCrustStrip.touchesCaveAir(caveAir, lx, lz, y)) {
+                int surface = carver != null ? carver.cachedSurface(lx, lz) : maxY;
+                int stripTop = Math.min(maxY, surface + 2);
+                int stripBottom = Math.max(minY, surface - SURFACE_LEAK_BAND);
+                for (int y = stripTop; y >= stripBottom; --y) {
+                    if (!CaveFloatingCrustStrip.touchesCaveAir(caveAir, lx, y, lz)) {
                         continue;
                     }
                     pos.set(lx, y, lz);
                     BlockState state = chunk.getBlockState(pos);
-                    if (CaveFloatingCrustStrip.isCaveVegetationBlock(state)) {
+                    if (CaveFloatingCrustStrip.shouldStrip(state, chunk, lx, y, lz)) {
                         chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
                     }
                 }
             }
         }
+    }
+
+    private static boolean shouldStrip(BlockState state, ChunkAccess chunk, int lx, int y, int lz) {
+        if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        if (CaveFloatingCrustStrip.isSurfaceSoil(state)) {
+            return true;
+        }
+        if (!CaveFloatingCrustStrip.isSurfaceTreeBlock(state)) {
+            return false;
+        }
+        return !CaveFloatingCrustStrip.hasStoneSupport(chunk, lx, y, lz);
+    }
+
+    private static boolean isSurfaceSoil(BlockState state) {
+        return state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.PODZOL)
+                || state.is(Blocks.MYCELIUM) || state.is(Blocks.ROOTED_DIRT);
+    }
+
+    private static boolean isSurfaceTreeBlock(BlockState state) {
+        return state.is(BlockTags.LEAVES) || state.is(BlockTags.LOGS) || state.is(BlockTags.SAPLINGS)
+                || state.is(BlockTags.FLOWERS) || state.is(Blocks.VINE) || state.is(Blocks.COCOA)
+                || state.is(Blocks.BAMBOO) || state.is(Blocks.BAMBOO_SAPLING);
+    }
+
+    private static boolean hasStoneSupport(ChunkAccess chunk, int lx, int y, int lz) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int dy = 1; dy <= STONE_SUPPORT_SCAN; ++dy) {
+            int below = y - dy;
+            if (below < chunk.getMinBuildHeight()) {
+                return false;
+            }
+            pos.set(lx, below, lz);
+            BlockState state = chunk.getBlockState(pos);
+            if (state.isAir() || !state.getFluidState().isEmpty()) {
+                continue;
+            }
+            if (state.is(Blocks.STONE) || state.is(Blocks.DEEPSLATE) || state.is(Blocks.TUFF) || state.is(Blocks.GRANITE)
+                    || state.is(Blocks.DIORITE) || state.is(Blocks.ANDESITE) || state.is(Blocks.CALCITE)
+                    || state.is(Blocks.BASALT) || state.is(Blocks.BLACKSTONE) || state.is(Blocks.NETHERRACK)
+                    || state.is(BlockTags.BASE_STONE_OVERWORLD)) {
+                return true;
+            }
+            if (CaveFloatingCrustStrip.isSurfaceSoil(state) || CaveFloatingCrustStrip.isSurfaceTreeBlock(state)) {
+                continue;
+            }
+            return true;
+        }
+        return false;
     }
 
     private static boolean[][] buildCaveAirMask(ChunkAccess chunk, CarverColumnCache columns, int minY, int scanTop) {
@@ -87,15 +140,5 @@ public final class CaveFloatingCrustStrip {
             }
         }
         return false;
-    }
-
-    private static boolean isCaveVegetationBlock(BlockState state) {
-        if (state.isAir() || !state.getFluidState().isEmpty()) {
-            return false;
-        }
-        return state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.PODZOL) || state.is(Blocks.MYCELIUM) || state.is(Blocks.ROOTED_DIRT)
-                || state.is(BlockTags.LEAVES) || state.is(BlockTags.LOGS) || state.is(BlockTags.FLOWERS) || state.is(BlockTags.SAPLINGS)
-                || state.is(Blocks.VINE) || state.is(Blocks.COCOA) || state.is(Blocks.BAMBOO) || state.is(Blocks.BAMBOO_SAPLING)
-                || state.is(Blocks.MUSHROOM_STEM) || state.is(Blocks.BROWN_MUSHROOM_BLOCK) || state.is(Blocks.RED_MUSHROOM_BLOCK);
     }
 }

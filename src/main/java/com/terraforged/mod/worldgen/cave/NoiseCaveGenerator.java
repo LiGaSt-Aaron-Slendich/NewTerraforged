@@ -99,7 +99,7 @@ public class NoiseCaveGenerator {
             }
         }
         if (megaGiga) {
-            CaveFloatingCrustStrip.stripMegaGigaChunk(chunk, columns);
+            CaveFloatingCrustStrip.stripMegaGigaChunk(chunk, carver, columns);
         }
     }
 
@@ -140,13 +140,6 @@ public class NoiseCaveGenerator {
     }
 
     public void finishDecorate(ChunkAccess chunk, Generator generator) {
-        CarverChunk carver = this.cache.get(chunk.getPos());
-        if (carver != null && carver.isColumnCacheReady()) {
-            CarverColumnCache columns = carver.columnCache();
-            if (columns.anyMegaGiga()) {
-                CaveFloatingCrustStrip.stripMegaGigaChunk(chunk, columns);
-            }
-        }
         this.finishDecorate(chunk);
     }
 

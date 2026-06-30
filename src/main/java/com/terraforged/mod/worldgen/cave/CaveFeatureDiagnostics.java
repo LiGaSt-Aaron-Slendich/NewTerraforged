@@ -244,10 +244,10 @@ public final class CaveFeatureDiagnostics {
             return TerraForgedOfficialCaveDecorator.decorFeatureVerdict(placed, biome, chamberSpan, nearSurfaceCrust);
         }
         if (CaveDecorationSettings.useCompromiseDecorator()) {
-            return "allowed — compromise pass (cover/scatter at floor anchors)";
+            return "allowed - compromise pass (cover/scatter at floor anchors)";
         }
         if (CaveDecorationSettings.useVanillaPass()) {
-            return "allowed — vanilla pass (predicates decide placement)";
+            return "allowed - vanilla pass (predicates decide placement)";
         }
         if (!CaveFeatureFilters.isModCaveFeatureAllowed(placed, biome)) {
             return "filtered by cave feature rules";
@@ -258,7 +258,7 @@ public final class CaveFeatureDiagnostics {
         if (CaveFeatureFilters.isAnchorOnlyFeature(placed)) {
             return "anchor-only (needs legacy volume pass)";
         }
-        return "allowed — may place when anchor/budget pass";
+        return "allowed - may place when anchor/budget pass";
     }
 
     private static void appendTunnelDiagnostics(Generator generator, int seed, int x, int z, String caveSystem, List<String> lines) {

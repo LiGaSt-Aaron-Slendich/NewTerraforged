@@ -81,7 +81,7 @@ public final class TerraForgedOfficialCaveDecorator {
             List<BlockPos> ceilingOrigins = TerraForgedOfficialCaveDecorator.collectCeilingOrigins(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, grid);
             for (BlockPos origin : ceilingOrigins) {
                 random.setDecorationSeed(region.getSeed(), origin.getX(), origin.getZ());
-                TerraForgedOfficialCaveDecorator.decorateCeiling(origin, guarded, generator, settings, random, chunk);
+                TerraForgedOfficialCaveDecorator.decorateCeiling(origin, guarded, generator, settings, random, chunk, biome);
             }
         }
         if (megaGiga) {
@@ -114,7 +114,7 @@ public final class TerraForgedOfficialCaveDecorator {
             if (ceilY >= 0) {
                 BlockPos ceil = new BlockPos(origin.getX(), ceilY, origin.getZ());
                 random.setDecorationSeed(region.getSeed(), ceil.getX(), ceil.getZ());
-                TerraForgedOfficialCaveDecorator.decorateCeiling(ceil, guarded, generator, settings, random, chunk);
+                TerraForgedOfficialCaveDecorator.decorateCeiling(ceil, guarded, generator, settings, random, chunk, biome);
             }
         }
     }
@@ -322,6 +322,9 @@ public final class TerraForgedOfficialCaveDecorator {
                 if (TerraForgedOfficialCaveDecorator.shouldSkipFeature(placed)) {
                     continue;
                 }
+                if (TerraForgedOfficialCaveDecorator.shouldSkipForeignFeature(placed, biome)) {
+                    continue;
+                }
                 if (TerraForgedOfficialCaveDecorator.shouldSkipChamberFeature(placed, biome, chamberSpan, megaGigaSurface)) {
                     continue;
                 }
@@ -332,7 +335,7 @@ public final class TerraForgedOfficialCaveDecorator {
     }
 
     /** Ceiling-only features at stable ceiling air — avoids stalactites in open sky but keeps floor decor dense. */
-    private static void decorateCeiling(BlockPos airPos, WorldGenLevel region, Generator generator, BiomeGenerationSettings settings, WorldgenRandom random, ChunkAccess chunk) {
+    private static void decorateCeiling(BlockPos airPos, WorldGenLevel region, Generator generator, BiomeGenerationSettings settings, WorldgenRandom random, ChunkAccess chunk, Holder<Biome> biome) {
         var features = settings.features();
         if (features.isEmpty()) {
             return;
@@ -353,6 +356,9 @@ public final class TerraForgedOfficialCaveDecorator {
             for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
                 Holder<PlacedFeature> placed = stage.get(featureIndex);
                 if (TerraForgedOfficialCaveDecorator.shouldSkipFeature(placed)) {
+                    continue;
+                }
+                if (TerraForgedOfficialCaveDecorator.shouldSkipForeignFeature(placed, biome)) {
                     continue;
                 }
                 if (!TerraForgedOfficialCaveDecorator.isCeilingFeature(placed)) {
@@ -385,14 +391,31 @@ public final class TerraForgedOfficialCaveDecorator {
         if (TerraForgedOfficialCaveDecorator.shouldSkipFeature(placed)) {
             return "blocked hazard/tree/ore (official skip list)";
         }
+        if (TerraForgedOfficialCaveDecorator.shouldSkipForeignFeature(placed, biome)) {
+            return "foreign/deferred feature (not for this cave biome)";
+        }
         if (TerraForgedOfficialCaveDecorator.shouldSkipChamberFeature(placed, biome, chamberSpan, nearSurfaceCrust)) {
-            return "skipped — shallow chamber or surface crust (official chamber guard)";
+            return "skipped - shallow chamber or surface crust (official chamber guard)";
         }
         ResourceLocation id = FeatureMassClassifier.featurePath(placed);
         if (id != null && TerraForgedOfficialCaveDecorator.isCeilingFeature(placed)) {
-            return "ceiling-only — floor anchor will not place this";
+            return "ceiling-only - floor anchor will not place this";
         }
-        return "allowed — official TF floor pass will attempt placement";
+        return "allowed - official TF floor pass will attempt placement";
+    }
+
+    /** Drop injected globals and features that belong to another mod cave theme. */
+    private static boolean shouldSkipForeignFeature(Holder<PlacedFeature> placed, Holder<Biome> biome) {
+        if (CaveFeatureFilters.isDeferredOrGlobalFeature(placed)) {
+            return true;
+        }
+        if (CaveFeatureFilters.isForbiddenForCaveBiome(placed, biome)) {
+            return true;
+        }
+        if (!CaveBiomeIds.isModCaveBiome(biome) && !CaveBiomeIds.isUndergroundBiome(biome)) {
+            return false;
+        }
+        return !CaveFeatureFilters.belongsToModCaveBiome(placed, biome);
     }
 
     private static boolean isBlockedFeaturePath(String path) {
@@ -422,7 +445,7 @@ public final class TerraForgedOfficialCaveDecorator {
         if (nearSurfaceCrust) {
             return true;
         }
-        if (chamberSpan > 0 && chamberSpan < 4) {
+        if (tall && chamberSpan > 0 && chamberSpan < 8) {
             return true;
         }
         if (tall && chamberSpan > 0 && !CaveBiomeVerticalFit.fits(biome, chamberSpan)) {
