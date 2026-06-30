@@ -180,10 +180,13 @@ public final class CaveFeatureFilters {
         if ((fPath.contains("lush") || fPath.contains("azalea") || fPath.contains("spore_blossom")) && !bPath.contains("lush")) {
             return true;
         }
-        if (fPath.contains("fungal") && !bPath.contains("fungal") && !bPath.contains("bioshroom")) {
+        if (fPath.contains("fungal") && !bPath.contains("fungal") && !bPath.contains("bioshroom") && !bPath.contains("mycotoxic")) {
             return true;
         }
-        if (fPath.contains("bioshroom") && !bPath.contains("bioshroom") && !bPath.contains("fungal")) {
+        if (fPath.contains("bioshroom") && !bPath.contains("bioshroom") && !bPath.contains("fungal") && !bPath.contains("mycotoxic")) {
+            return true;
+        }
+        if (fPath.contains("mycotoxic") && !bPath.contains("mycotoxic") && !bPath.contains("fungal") && !bPath.contains("bioshroom")) {
             return true;
         }
         if (fPath.contains("thermal") && !bPath.contains("thermal")) {

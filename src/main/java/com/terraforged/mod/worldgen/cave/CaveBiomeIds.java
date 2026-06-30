@@ -127,14 +127,10 @@ public final class CaveBiomeIds {
         if (CaveBiomeIds.sameBiomeKey(resolved, target)) {
             return true;
         }
-        if (CaveBiomeIds.isMycotoxicCaveBiome(resolved) || CaveBiomeIds.isMycotoxicCaveBiome(target)) {
+        if (CaveBiomeIds.isModCaveBiome(resolved) || CaveBiomeIds.isModCaveBiome(target)) {
             return false;
         }
         return CaveBiomeIds.sharesCaveTheme(resolved, target);
-    }
-
-    public static boolean isMycotoxicCaveBiome(Holder<Biome> biome) {
-        return biome.unwrapKey().map(key -> key.location().getPath().toLowerCase().contains("mycotoxic")).orElse(false);
     }
 
     private static String caveThemeSlug(String path) {

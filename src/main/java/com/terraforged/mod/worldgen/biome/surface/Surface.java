@@ -23,8 +23,10 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 public class Surface {
     protected static final TagKey<Block> ERODIBLE = BlockTags.DIRT;
-    private static final int MAX_CLIFF_FILL = 14;
-    private static final float CLIFF_GRADIENT_MIN = 0.52f;
+    private static final int MAX_CLIFF_FILL = 8;
+    private static final float CLIFF_GRADIENT_MIN = 0.62f;
+    private static final float TERRACE_GRADIENT_MIN = 0.28f;
+    private static final float TERRACE_GRADIENT_MAX = 0.58f;
 
     public static void apply(TerrainData terrainData, ChunkAccess chunk, ChunkGenerator generator) {
         float norm = 55.0f * ((float)generator.getGenDepth() / 255.0f);
@@ -113,7 +115,13 @@ public class Surface {
                 pos.set(x + dx, y, z + dz);
                 var world = Surface.sameChunk((BlockPos)pos, chunk.getPos()) ? chunk : region;
                 BlockState state = world.getBlockState((BlockPos)pos);
-                if (!state.isAir()) continue;
+                if (!state.isAir()) {
+                    continue;
+                }
+                BlockState below = world.getBlockState((BlockPos)pos.set(x + dx, y - 1, z + dz));
+                if (!below.is(Blocks.WATER)) {
+                    continue;
+                }
                 return true;
             }
         }
@@ -123,7 +131,14 @@ public class Surface {
     protected static boolean isSmoothable(int x, int z, TerrainData terrainData) {
         float river = terrainData.getRiver().get(x, z);
         Terrain terrain = terrainData.getTerrain().get(x, z);
-        return (terrain.isRiver() || terrain.isLake()) && river == 0.0f;
+        if (!terrain.isRiver() && !terrain.isLake()) {
+            return false;
+        }
+        if (river != 0.0f) {
+            return false;
+        }
+        float norm = 55.0f;
+        return terrainData.getGradient(x, z, norm) <= 0.32f;
     }
 
     protected static void smoothSnow(BlockPos.MutableBlockPos pos, BlockState state, ChunkAccess chunk, TerrainData terrain, ChunkGenerator generator) {
@@ -180,6 +195,10 @@ public class Surface {
                 }
                 int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
                 if (y <= generator.getSeaLevel()) {
+                    continue;
+                }
+                float gradient = terrainData.getGradient(dx, dz, 55.0f * ((float)generator.getGenDepth() / 255.0f));
+                if (gradient > TERRACE_GRADIENT_MIN && gradient < TERRACE_GRADIENT_MAX) {
                     continue;
                 }
                 pos.set(dx, y, dz);

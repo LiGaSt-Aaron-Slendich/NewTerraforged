@@ -184,6 +184,19 @@ public final class TerraForgedOfficialCaveDecorator {
                 result.putIfAbsent(resolved, new BlockPos(chunkX + lx, floorY, chunkZ + lz));
             }
         }
+        for (int lx = 1; lx < 16; lx += 2) {
+            for (int lz = 1; lz < 16; lz += 2) {
+                int floorY = TerraForgedOfficialCaveDecorator.findSimpleFloorAir(chunk, lx, lz, minY, maxY);
+                if (floorY < 0) {
+                    continue;
+                }
+                Holder<Biome> resolved = carver.resolveBiome(chunk, lx, floorY, lz);
+                if (resolved == null || !CaveBiomeIds.isUndergroundBiome(resolved) || CaveBiomeIds.isBlockedCaveBiome(resolved)) {
+                    continue;
+                }
+                result.putIfAbsent(resolved, new BlockPos(chunkX + lx, floorY, chunkZ + lz));
+            }
+        }
         return TerraForgedOfficialCaveDecorator.filterByPaintedVolume(chunk, result);
     }
 
@@ -532,11 +545,15 @@ public final class TerraForgedOfficialCaveDecorator {
         }
         String path = id.getPath().toLowerCase();
         boolean cover = CaveFeatureFilters.isCoverFeaturePath(path) || path.contains("replacer") || path.contains("frostfire_patch");
+        boolean giant = path.contains("giant") || path.contains("huge_") || FeatureMassClassifier.isCaveFloorLarge(placed);
         boolean tall = path.contains("fuck_art") || path.contains("tiles")
                 || path.contains("/columns") || path.contains("/column/")
                 || path.contains("yellowstone") && !cover;
         if (cover) {
             return nearSurfaceCrust && !CaveBiomeIds.isFungalCaveBiome(biome);
+        }
+        if (giant && CaveBiomeIds.isFungalCaveBiome(biome)) {
+            return nearSurfaceCrust || chamberSpan > 0 && chamberSpan < 5;
         }
         if (!tall) {
             return false;
