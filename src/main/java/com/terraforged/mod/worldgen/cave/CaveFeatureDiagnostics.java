@@ -128,7 +128,7 @@ public final class CaveFeatureDiagnostics {
         }
         return "ok:" + switch (CaveDecorationSettings.activeModeLabel()) {
             case "hybrid" -> "hybrid/" + CaveBiomeDecoratorRouter.resolve(decorBiome).name().toLowerCase();
-            case "official" -> "official/" + CaveBiomeDecoratorRouter.resolve(decorBiome).name().toLowerCase();
+            case "official" -> "official TF decorator";
             case "compromise" -> "compromise decorator";
             case "vanilla" -> "vanilla pass";
             case "legacy" -> "legacy volume decorator";
@@ -227,7 +227,7 @@ public final class CaveFeatureDiagnostics {
 
     private static String featurePoolLabel() {
         return switch (CaveDecorationSettings.activeModeLabel()) {
-            case "official" -> "official router rules; deferred/global skipped";
+            case "official" -> "official TF rules; deferred/global skipped";
             case "hybrid" -> "hybrid router rules; deferred/global skipped";
             case "compromise" -> "compromise pass rules; deferred/global skipped";
             case "vanilla" -> "vanilla pass rules; deferred/global skipped";
@@ -241,11 +241,7 @@ public final class CaveFeatureDiagnostics {
             return "forbidden for this cave biome";
         }
         if (CaveDecorationSettings.useOfficialTfDecorator()) {
-            return switch (CaveBiomeDecoratorRouter.resolve(biome)) {
-                case VANILLA -> "allowed - vanilla pass (predicates decide placement)";
-                case LEGACY, COMPROMISE -> CaveFeatureDiagnostics.classifyLegacyFeature(placed, biome);
-                default -> TerraForgedOfficialCaveDecorator.decorFeatureVerdict(placed, biome, chamberSpan, nearSurfaceCrust);
-            };
+            return TerraForgedOfficialCaveDecorator.decorFeatureVerdict(placed, biome, chamberSpan, nearSurfaceCrust);
         }
         if (CaveDecorationSettings.useCompromiseDecorator()) {
             return "allowed - compromise pass (cover/scatter at floor anchors)";
@@ -263,19 +259,6 @@ public final class CaveFeatureDiagnostics {
             return "anchor-only (needs legacy volume pass)";
         }
         return "allowed - may place when anchor/budget pass";
-    }
-
-    private static String classifyLegacyFeature(Holder<PlacedFeature> placed, Holder<Biome> biome) {
-        if (CaveFeatureFilters.isDeferredOrGlobalFeature(placed)) {
-            return "foreign/deferred feature (not for this cave biome)";
-        }
-        if (!CaveFeatureFilters.isModCaveFeatureAllowed(placed, biome)) {
-            return "filtered by cave feature rules";
-        }
-        if (!CaveFeatureFilters.belongsToModCaveBiome(placed, biome)) {
-            return "feature theme does not match biome (legacy filter)";
-        }
-        return "allowed - legacy scatter pass will attempt placement";
     }
 
     private static void appendTunnelDiagnostics(Generator generator, int seed, int x, int z, String caveSystem, List<String> lines) {

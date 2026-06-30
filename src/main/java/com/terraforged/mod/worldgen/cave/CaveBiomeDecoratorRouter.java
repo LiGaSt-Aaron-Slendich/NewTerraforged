@@ -20,10 +20,10 @@ public final class CaveBiomeDecoratorRouter {
         if (CaveBiomeDecoratorRouter.isOfficialBiome(path, id)) {
             return CaveDecoratorKind.OFFICIAL;
         }
-        if (CaveBiomeDecoratorRouter.isVanillaBiome(path, id)) {
+        if (CaveBiomeDecoratorRouter.isVanillaBiome(path)) {
             return CaveDecoratorKind.VANILLA;
         }
-        if (path.contains("fungal") || path.contains("mycotoxic") || path.contains("bioshroom") || path.contains("glowshroom") || path.contains("mushroom") && path.contains("cave")) {
+        if (path.contains("bioshroom") || path.contains("glowshroom") || path.contains("mushroom") && path.contains("cave")) {
             return CaveDecoratorKind.LEGACY;
         }
         return CaveDecoratorKind.COMPROMISE;
@@ -43,14 +43,14 @@ public final class CaveBiomeDecoratorRouter {
         if (path.contains("icicle") || path.contains("stalactite")) {
             return true;
         }
+        if (path.contains("fungal") || path.contains("mycotoxic")) {
+            return true;
+        }
         return CaveBiomeIds.isEmptyStoneCave(id) || "minecraft".equals(id.getNamespace()) && path.contains("cave");
     }
 
-    /** Glowing grotto, BOP caves, and similar — vanilla multi-origin pass. */
-    private static boolean isVanillaBiome(String path, ResourceLocation id) {
-        if (path.contains("glowing_grotto") || path.contains("undergarden") && !path.contains("fungal")) {
-            return true;
-        }
-        return "biomesoplenty".equals(id.getNamespace()) && (path.contains("grotto") || path.contains("cave") || path.contains("cavern"));
+    /** Glowing grotto and similar — vanilla multi-origin pass. */
+    private static boolean isVanillaBiome(String path) {
+        return path.contains("glowing_grotto") || path.contains("undergarden") && !path.contains("fungal");
     }
 }

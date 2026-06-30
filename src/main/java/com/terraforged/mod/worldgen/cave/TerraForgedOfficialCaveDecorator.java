@@ -41,7 +41,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
  * Ceiling pass adds stalactites/icicles at stable ceiling anchors only.
  */
 public final class TerraForgedOfficialCaveDecorator {
-    private static final int FIRST_STAGE = GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal();
+    private static final int DEFAULT_FIRST_STAGE = GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal();
 
     private TerraForgedOfficialCaveDecorator() {
     }
@@ -60,13 +60,7 @@ public final class TerraForgedOfficialCaveDecorator {
             if (CaveBiomeIds.isDedicatedDecoratedCaveBiome(biome) || !decorated.add(biome)) {
                 continue;
             }
-            CaveDecoratorKind kind = CaveBiomeDecoratorRouter.resolve(biome);
-            switch (kind) {
-                case VANILLA -> CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, entry.getValue());
-                case LEGACY -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGiga, random, true);
-                case COMPROMISE -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGiga, random, CaveBiomeIds.isCoverDenseCaveBiome(biome));
-                default -> TerraForgedOfficialCaveDecorator.decorateOfficialBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGiga, random);
-            }
+            TerraForgedOfficialCaveDecorator.decorateOfficialBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGiga, random);
         }
         if (megaGiga) {
             CaveMegaAccentDecorator.decorate(chunk, carver, region, generator);
@@ -381,7 +375,8 @@ public final class TerraForgedOfficialCaveDecorator {
         boolean megaGigaSurface = CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, pos.getY(), lz, true);
         long baseSeed = random.setDecorationSeed(region.getSeed(), pos.getX(), pos.getZ());
         int lastStage = Math.min(features.size() - 1, GenerationStep.Decoration.FLUID_SPRINGS.ordinal());
-        for (int stageIndex = FIRST_STAGE; stageIndex <= lastStage; ++stageIndex) {
+        int firstStage = TerraForgedOfficialCaveDecorator.firstStageFor(biome);
+        for (int stageIndex = firstStage; stageIndex <= lastStage; ++stageIndex) {
             HolderSet<PlacedFeature> stage = features.get(stageIndex);
             if (stage == null || stage.size() == 0) {
                 continue;
@@ -417,7 +412,8 @@ public final class TerraForgedOfficialCaveDecorator {
         BlockPos placePos = airPos.above();
         long baseSeed = random.setDecorationSeed(region.getSeed(), placePos.getX(), placePos.getZ());
         int lastStage = Math.min(features.size() - 1, GenerationStep.Decoration.FLUID_SPRINGS.ordinal());
-        for (int stageIndex = FIRST_STAGE; stageIndex <= lastStage; ++stageIndex) {
+        int firstStage = TerraForgedOfficialCaveDecorator.firstStageFor(biome);
+        for (int stageIndex = firstStage; stageIndex <= lastStage; ++stageIndex) {
             HolderSet<PlacedFeature> stage = features.get(stageIndex);
             if (stage == null || stage.size() == 0) {
                 continue;
@@ -448,7 +444,16 @@ public final class TerraForgedOfficialCaveDecorator {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("ceiling") || path.contains("hanging") || path.contains("icicle") || path.contains("stalactite");
+        return path.contains("ceiling") || path.contains("hanging") || path.contains("icicle") || path.contains("stalactite")
+                || path.contains("glow_lichen") || path.contains("lichen") && path.contains("cave")
+                || path.contains("vines") || path.contains("roots");
+    }
+
+    private static int firstStageFor(Holder<Biome> biome) {
+        if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isCoverDenseCaveBiome(biome) || CaveBiomeIds.isModCaveBiome(biome)) {
+            return GenerationStep.Decoration.RAW_GENERATION.ordinal();
+        }
+        return DEFAULT_FIRST_STAGE;
     }
 
     private static boolean shouldSkipFeature(Holder<PlacedFeature> placed) {
@@ -484,7 +489,29 @@ public final class TerraForgedOfficialCaveDecorator {
         if (!CaveBiomeIds.isModCaveBiome(biome) && !CaveBiomeIds.isUndergroundBiome(biome)) {
             return false;
         }
-        return !CaveFeatureFilters.belongsToModCaveBiome(placed, biome);
+        if (CaveFeatureFilters.belongsToModCaveBiome(placed, biome)) {
+            return false;
+        }
+        ResourceLocation featureId = FeatureMassClassifier.featurePath(placed);
+        ResourceLocation biomeId = biome.unwrapKey().map(key -> key.location()).orElse(null);
+        if (featureId == null || biomeId == null || !featureId.getNamespace().equals(biomeId.getNamespace())) {
+            return true;
+        }
+        return !TerraForgedOfficialCaveDecorator.isSameModCaveFeature(featureId.getPath().toLowerCase(), biomeId.getPath().toLowerCase());
+    }
+
+    /** Allow same-mod cave/grotto feature pools when theme slug matches loosely (BOP, Terralith). */
+    private static boolean isSameModCaveFeature(String fPath, String bPath) {
+        if (fPath.contains("deferred") || fPath.contains("/global/")) {
+            return false;
+        }
+        if (fPath.contains("cave") || fPath.contains("grotto") || fPath.contains("underground") || fPath.contains("undergarden")) {
+            return true;
+        }
+        int slash = bPath.lastIndexOf(47);
+        String leaf = slash >= 0 ? bPath.substring(slash + 1) : bPath;
+        String slug = leaf.replace("_caverns", "").replace("_caves", "").replace("_cave", "");
+        return slug.length() >= 3 && fPath.contains(slug);
     }
 
     private static boolean isBlockedFeaturePath(String path) {
@@ -508,11 +535,11 @@ public final class TerraForgedOfficialCaveDecorator {
         boolean tall = path.contains("fuck_art") || path.contains("tiles")
                 || path.contains("/columns") || path.contains("/column/")
                 || path.contains("yellowstone") && !cover;
-        if (!cover && !tall) {
-            return false;
+        if (cover) {
+            return nearSurfaceCrust && !CaveBiomeIds.isFungalCaveBiome(biome);
         }
-        if (nearSurfaceCrust) {
-            return true;
+        if (!tall) {
+            return false;
         }
         if (tall && chamberSpan > 0 && chamberSpan < (CaveBiomeIds.isFungalCaveBiome(biome) ? 5 : 8)) {
             return true;
