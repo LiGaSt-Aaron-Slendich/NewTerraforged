@@ -164,7 +164,7 @@ public final class CaveBiomeVanillaPass {
             return;
         }
         Holder<Biome> biome = carver.resolveBiome(chunk, lx, floorY, lz);
-        if (onlyBiome != null && !CaveBiomeIds.sharesCaveTheme(biome, onlyBiome)) {
+        if (onlyBiome != null && !CaveBiomeIds.matchesDecoratePaint(biome, onlyBiome)) {
             return;
         }
         int cap = CaveBiomeIds.isCoverDenseCaveBiome(biome) ? maxPerBiome + 4 : maxPerBiome;

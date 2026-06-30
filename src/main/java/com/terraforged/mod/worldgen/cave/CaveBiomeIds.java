@@ -122,6 +122,21 @@ public final class CaveBiomeIds {
         return themeA != null && themeA.equals(themeB);
     }
 
+    /** Whether a resolved paint column may receive decoration for the target biome. */
+    public static boolean matchesDecoratePaint(Holder<Biome> resolved, Holder<Biome> target) {
+        if (CaveBiomeIds.sameBiomeKey(resolved, target)) {
+            return true;
+        }
+        if (CaveBiomeIds.isMycotoxicCaveBiome(resolved) || CaveBiomeIds.isMycotoxicCaveBiome(target)) {
+            return false;
+        }
+        return CaveBiomeIds.sharesCaveTheme(resolved, target);
+    }
+
+    public static boolean isMycotoxicCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> key.location().getPath().toLowerCase().contains("mycotoxic")).orElse(false);
+    }
+
     private static String caveThemeSlug(String path) {
         if (path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom") || path.contains("bioshroom")) {
             return "fungal";

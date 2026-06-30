@@ -31,6 +31,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
+import net.minecraft.world.level.levelgen.RandomSource;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
@@ -52,36 +53,19 @@ public final class TerraForgedOfficialCaveDecorator {
         }
         CarverColumnCache columns = carver.columnCache();
         boolean megaGiga = columns.anyMegaGiga();
-        int chunkX = chunk.getPos().getMinBlockX();
-        int chunkZ = chunk.getPos().getMinBlockZ();
-        int minY = chunk.getMinBuildHeight();
-        int maxY = chunk.getHighestSectionPosition() + 15;
-        WorldgenRandom random = new WorldgenRandom(new LegacyRandomSource(region.getSeed()));
-        WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
+        WorldgenRandom random = new WorldgenRandom((RandomSource)new LegacyRandomSource(region.getSeed()));
         HashSet<Holder<Biome>> decorated = new HashSet<>();
         for (Map.Entry<Holder<Biome>, BlockPos> entry : painted.entrySet()) {
             Holder<Biome> biome = entry.getKey();
-            if (!decorated.add(biome)) {
+            if (CaveBiomeIds.isDedicatedDecoratedCaveBiome(biome) || !decorated.add(biome)) {
                 continue;
             }
-            int grid = megaGiga ? 4 : 3;
-            List<BlockPos> floorOrigins = TerraForgedOfficialCaveDecorator.collectFloorOrigins(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, grid);
-            BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
-            for (BlockPos origin : floorOrigins) {
-                BlockPos pos = TerraForgedOfficialCaveDecorator.resolveFloorOrigin(chunk, origin);
-                if (pos == null) {
-                    continue;
-                }
-                random.setDecorationSeed(region.getSeed(), pos.getX(), pos.getZ());
-                int lx = pos.getX() & 0xF;
-                int lz = pos.getZ() & 0xF;
-                int chamberSpan = CaveColumnScan.measureAirColumnSpan(chunk, lx, pos.getY(), lz, minY, maxY);
-                TerraForgedOfficialCaveDecorator.decorateFloor(pos, guarded, generator, carver, settings, random, chunk, biome, chamberSpan);
-            }
-            List<BlockPos> ceilingOrigins = TerraForgedOfficialCaveDecorator.collectCeilingOrigins(chunk, carver, generator, biome, entry.getValue(), chunkX, chunkZ, minY, maxY, grid);
-            for (BlockPos origin : ceilingOrigins) {
-                random.setDecorationSeed(region.getSeed(), origin.getX(), origin.getZ());
-                TerraForgedOfficialCaveDecorator.decorateCeiling(origin, guarded, generator, settings, random, chunk, biome);
+            CaveDecoratorKind kind = CaveBiomeDecoratorRouter.resolve(biome);
+            switch (kind) {
+                case VANILLA -> CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, entry.getValue());
+                case LEGACY -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGiga, random, true);
+                case COMPROMISE -> CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGiga, random, CaveBiomeIds.isCoverDenseCaveBiome(biome));
+                default -> TerraForgedOfficialCaveDecorator.decorateOfficialBiome(chunk, carver, region, generator, biome, entry.getValue(), megaGiga, random);
             }
         }
         if (megaGiga) {
@@ -90,6 +74,43 @@ public final class TerraForgedOfficialCaveDecorator {
                 CaveTunnelRiverDecorator.decorate(chunk, carver, region, generator);
             }
         }
+    }
+
+    private static void decorateOfficialBiome(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome, BlockPos seed, boolean megaGiga, WorldgenRandom random) {
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
+        int minY = chunk.getMinBuildHeight();
+        int maxY = chunk.getHighestSectionPosition() + 15;
+        int grid = TerraForgedOfficialCaveDecorator.originGridFor(biome, megaGiga);
+        List<BlockPos> floorOrigins = TerraForgedOfficialCaveDecorator.collectFloorOrigins(chunk, carver, generator, biome, seed, chunkX, chunkZ, minY, maxY, grid);
+        BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
+        WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
+        for (BlockPos origin : floorOrigins) {
+            BlockPos pos = TerraForgedOfficialCaveDecorator.resolveFloorOrigin(chunk, origin);
+            if (pos == null) {
+                continue;
+            }
+            random.setDecorationSeed(region.getSeed(), pos.getX(), pos.getZ());
+            int lx = pos.getX() & 0xF;
+            int lz = pos.getZ() & 0xF;
+            int chamberSpan = CaveColumnScan.measureAirColumnSpan(chunk, lx, pos.getY(), lz, minY, maxY);
+            TerraForgedOfficialCaveDecorator.decorateFloor(pos, guarded, generator, carver, settings, random, chunk, biome, chamberSpan);
+        }
+        List<BlockPos> ceilingOrigins = TerraForgedOfficialCaveDecorator.collectCeilingOrigins(chunk, carver, generator, biome, seed, chunkX, chunkZ, minY, maxY, grid);
+        for (BlockPos origin : ceilingOrigins) {
+            random.setDecorationSeed(region.getSeed(), origin.getX(), origin.getZ());
+            TerraForgedOfficialCaveDecorator.decorateCeiling(origin, guarded, generator, settings, random, chunk, biome);
+        }
+    }
+
+    private static int originGridFor(Holder<Biome> biome, boolean megaGiga) {
+        if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome)) {
+            return 2;
+        }
+        if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
+            return 2;
+        }
+        return megaGiga ? 3 : 2;
     }
 
     public static void decorateBiome(List<BlockPos> origins, ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome) {
@@ -191,11 +212,42 @@ public final class TerraForgedOfficialCaveDecorator {
         IdentityHashMap<Holder<Biome>, BlockPos> filtered = new IdentityHashMap<>();
         for (Map.Entry<Holder<Biome>, BlockPos> entry : painted.entrySet()) {
             int count = quartCounts.getOrDefault(entry.getKey(), 0);
-            if (count >= 3) {
+            if (count >= 1) {
                 filtered.put(entry.getKey(), entry.getValue());
             }
         }
+        for (Map.Entry<Holder<Biome>, Integer> entry : quartCounts.entrySet()) {
+            Holder<Biome> biome = entry.getKey();
+            if (entry.getValue() < 1 || filtered.containsKey(biome) || CaveBiomeIds.isBlockedCaveBiome(biome)) {
+                continue;
+            }
+            BlockPos seed = TerraForgedOfficialCaveDecorator.findPaintedSeed(chunk, biome, minY, maxY);
+            if (seed != null) {
+                filtered.put(biome, seed);
+            }
+        }
         return filtered.isEmpty() ? painted : filtered;
+    }
+
+    private static BlockPos findPaintedSeed(ChunkAccess chunk, Holder<Biome> biome, int minY, int maxY) {
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                for (int y = minY; y <= maxY; y += 4) {
+                    Holder<Biome> painted = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
+                    if (painted == null || !CaveBiomeIds.sameBiomeKey(painted, biome)) {
+                        continue;
+                    }
+                    int floorY = TerraForgedOfficialCaveDecorator.findSimpleFloorAir(chunk, lx, lz, minY, maxY);
+                    if (floorY >= 0) {
+                        return new BlockPos(chunkX + lx, floorY, chunkZ + lz);
+                    }
+                    return new BlockPos(chunkX + lx, y, chunkZ + lz);
+                }
+            }
+        }
+        return null;
     }
 
     private static List<BlockPos> collectFloorOrigins(ChunkAccess chunk, CarverChunk carver, Generator generator, Holder<Biome> target, BlockPos seed, int chunkX, int chunkZ, int minY, int maxY, int grid) {
@@ -213,12 +265,29 @@ public final class TerraForgedOfficialCaveDecorator {
                     continue;
                 }
                 Holder<Biome> resolved = carver.resolveBiome(chunk, lx, floorY, lz);
-                if (!CaveBiomeIds.sharesCaveTheme(resolved, target)) {
+                if (!CaveBiomeIds.matchesDecoratePaint(resolved, target)) {
                     continue;
                 }
                 BlockPos pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz);
                 if (seen.add(pos.asLong())) {
                     origins.add(pos);
+                }
+            }
+        }
+        if (grid >= 2) {
+            for (int lx = grid / 2; lx < 16; lx += grid) {
+                for (int lz = grid / 2; lz < 16; lz += grid) {
+                    int floorY = CaveBiomeVolumeDecorator.findFloorAirPublic(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
+                    if (floorY < 0) {
+                        floorY = TerraForgedOfficialCaveDecorator.findSimpleFloorAir(chunk, lx, lz, minY, maxY);
+                    }
+                    if (floorY < 0 || !CaveBiomeIds.matchesDecoratePaint(carver.resolveBiome(chunk, lx, floorY, lz), target)) {
+                        continue;
+                    }
+                    BlockPos pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz);
+                    if (seen.add(pos.asLong())) {
+                        origins.add(pos);
+                    }
                 }
             }
         }
@@ -242,7 +311,7 @@ public final class TerraForgedOfficialCaveDecorator {
                 if (floorY < 0) {
                     floorY = TerraForgedOfficialCaveDecorator.findSimpleFloorAir(chunk, lx, lz, minY, maxY);
                 }
-                if (floorY < 0 || !CaveBiomeIds.sharesCaveTheme(carver.resolveBiome(chunk, lx, floorY, lz), target)) {
+                if (floorY < 0 || !CaveBiomeIds.matchesDecoratePaint(carver.resolveBiome(chunk, lx, floorY, lz), target)) {
                     continue;
                 }
                 int ceilY = TerraForgedOfficialCaveDecorator.resolveCeilingAir(chunk, lx, lz, floorY, maxY);
@@ -445,7 +514,7 @@ public final class TerraForgedOfficialCaveDecorator {
         if (nearSurfaceCrust) {
             return true;
         }
-        if (tall && chamberSpan > 0 && chamberSpan < 8) {
+        if (tall && chamberSpan > 0 && chamberSpan < (CaveBiomeIds.isFungalCaveBiome(biome) ? 5 : 8)) {
             return true;
         }
         if (tall && chamberSpan > 0 && !CaveBiomeVerticalFit.fits(biome, chamberSpan)) {
