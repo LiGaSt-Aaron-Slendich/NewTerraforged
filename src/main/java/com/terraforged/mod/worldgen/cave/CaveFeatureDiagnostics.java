@@ -77,7 +77,11 @@ public final class CaveFeatureDiagnostics {
         lines.add(String.format(Locale.ROOT, "Decor at feet: %s due to '%s'", canFeatures ? "eligible" : "blocked", canFeatures ? blockReason.substring(3) : blockReason));
         CaveFeatureDiagnostics.appendAnchorGridDiagnostics(generator, chunk, carver, decorBiome, quartPainted, megaGiga, entranceColumn, x, z, y, lines);
         if (quartPainted != null) {
-            CaveFeatureDiagnostics.appendBiomeFeatureVerdict(quartPainted, lines);
+            int maxY = chunk.getHighestSectionPosition() + 15;
+            int minY = chunk.getMinBuildHeight();
+            int chamberSpan = CaveColumnScan.measureAirColumnSpan(chunk, lx, y, lz, minY, maxY);
+            boolean nearSurfaceCrust = CaveOpenAirCheck.isInUndergroundSurfaceForbiddenZone(chunk, lx, y, lz, megaGiga);
+            CaveFeatureDiagnostics.appendBiomeFeatureVerdict(quartPainted, chamberSpan, nearSurfaceCrust, lines);
         }
         if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
             CaveFeatureDiagnostics.appendTunnelDiagnostics(generator, seed, x, z, caveSystem, lines);
@@ -179,18 +183,18 @@ public final class CaveFeatureDiagnostics {
         }
     }
 
-    private static void appendBiomeFeatureVerdict(Holder<Biome> biome, List<String> lines) {
+    private static void appendBiomeFeatureVerdict(Holder<Biome> biome, int chamberSpan, boolean nearSurfaceCrust, List<String> lines) {
         if (!CaveBiomeIds.isUndergroundBiome(biome)) {
             lines.add("Feature pool: none (surface/non-cave biome)");
             return;
         }
         biome.unwrapKey().ifPresent(key -> {
             lines.add("Feature biome: " + key.location());
-            CaveFeatureDiagnostics.appendSampleFeatures(biome, lines);
+            CaveFeatureDiagnostics.appendSampleFeatures(biome, chamberSpan, nearSurfaceCrust, lines);
         });
     }
 
-    private static void appendSampleFeatures(Holder<Biome> biome, List<String> lines) {
+    private static void appendSampleFeatures(Holder<Biome> biome, int chamberSpan, boolean nearSurfaceCrust, List<String> lines) {
         BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
         List stages = settings.features();
         int shown = 0;
@@ -203,7 +207,7 @@ public final class CaveFeatureDiagnostics {
                 Holder placed = stage.get(i);
                 ResourceLocation id = FeatureMassClassifier.featurePath((Holder<PlacedFeature>)placed);
                 if (id == null || CaveFeatureFilters.isDeferredOrGlobalFeature((Holder<PlacedFeature>)placed)) continue;
-                String verdict = CaveFeatureDiagnostics.classifyFeature((Holder<PlacedFeature>)placed, biome);
+                String verdict = CaveFeatureDiagnostics.classifyFeature((Holder<PlacedFeature>)placed, biome, chamberSpan, nearSurfaceCrust);
                 if (verdict.startsWith("allowed")) {
                     ++allowed;
                 } else {
@@ -214,15 +218,30 @@ public final class CaveFeatureDiagnostics {
                 ++shown;
             }
         }
-        lines.add(String.format(Locale.ROOT, "Feature candidates: %d allowed, %d rejected (deferred/global skipped)", allowed, rejected));
+        lines.add(String.format(Locale.ROOT, "Feature candidates: %d allowed, %d rejected (%s)",
+                allowed, rejected, CaveFeatureDiagnostics.featurePoolLabel()));
         if (shown == 0) {
             lines.add("Feature type: (none) due to \"no biome-native decoration stages\"");
         }
     }
 
-    private static String classifyFeature(Holder<PlacedFeature> placed, Holder<Biome> biome) {
+    private static String featurePoolLabel() {
+        return switch (CaveDecorationSettings.activeModeLabel()) {
+            case "official" -> "official TF rules; deferred/global skipped";
+            case "hybrid" -> "hybrid router rules; deferred/global skipped";
+            case "compromise" -> "compromise pass rules; deferred/global skipped";
+            case "vanilla" -> "vanilla pass rules; deferred/global skipped";
+            case "legacy" -> "legacy filter rules; deferred/global skipped";
+            default -> "deferred/global skipped";
+        };
+    }
+
+    private static String classifyFeature(Holder<PlacedFeature> placed, Holder<Biome> biome, int chamberSpan, boolean nearSurfaceCrust) {
         if (CaveFeatureFilters.isForbiddenForCaveBiome(placed, biome)) {
             return "forbidden for this cave biome";
+        }
+        if (CaveDecorationSettings.useOfficialTfDecorator()) {
+            return TerraForgedOfficialCaveDecorator.decorFeatureVerdict(placed, biome, chamberSpan, nearSurfaceCrust);
         }
         if (CaveDecorationSettings.useCompromiseDecorator()) {
             return "allowed — compromise pass (cover/scatter at floor anchors)";

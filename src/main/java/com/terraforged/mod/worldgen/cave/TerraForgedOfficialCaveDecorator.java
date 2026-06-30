@@ -380,6 +380,21 @@ public final class TerraForgedOfficialCaveDecorator {
         return placed.unwrapKey().map(key -> TerraForgedOfficialCaveDecorator.isBlockedFeaturePath(key.location().getPath())).orElse(false);
     }
 
+    /** Verdict for cave debug — mirrors the active decor backend at the probe feet. */
+    public static String decorFeatureVerdict(Holder<PlacedFeature> placed, Holder<Biome> biome, int chamberSpan, boolean nearSurfaceCrust) {
+        if (TerraForgedOfficialCaveDecorator.shouldSkipFeature(placed)) {
+            return "blocked hazard/tree/ore (official skip list)";
+        }
+        if (TerraForgedOfficialCaveDecorator.shouldSkipChamberFeature(placed, biome, chamberSpan, nearSurfaceCrust)) {
+            return "skipped — shallow chamber or surface crust (official chamber guard)";
+        }
+        ResourceLocation id = FeatureMassClassifier.featurePath(placed);
+        if (id != null && TerraForgedOfficialCaveDecorator.isCeilingFeature(placed)) {
+            return "ceiling-only — floor anchor will not place this";
+        }
+        return "allowed — official TF floor pass will attempt placement";
+    }
+
     private static boolean isBlockedFeaturePath(String path) {
         String lower = path.toLowerCase();
         return lower.contains("geode") || lower.contains("mega_geode") || lower.contains("crystal_geode")
@@ -398,7 +413,8 @@ public final class TerraForgedOfficialCaveDecorator {
         }
         String path = id.getPath().toLowerCase();
         boolean cover = CaveFeatureFilters.isCoverFeaturePath(path) || path.contains("replacer") || path.contains("frostfire_patch");
-        boolean tall = path.contains("fuck_art") || path.contains("tiles") || path.contains("column")
+        boolean tall = path.contains("fuck_art") || path.contains("tiles")
+                || path.contains("/columns") || path.contains("/column/")
                 || path.contains("yellowstone") && !cover;
         if (!cover && !tall) {
             return false;

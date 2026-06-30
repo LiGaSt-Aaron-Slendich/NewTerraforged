@@ -169,7 +169,7 @@ public class NoiseCaveCarver {
             if (densityBudget != null && !megaGiga && !densityBudget.canCarveSecondary(verticalSpan)) {
                 continue;
             }
-            boolean piercedSurface = NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, roofBuffer, megaGiga, pos);
+            boolean piercedSurface = NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, roofBuffer, megaGiga, surfaceBreach, pos);
             NoiseCaveCarver.noteSurfaceRisk(carver, megaGiga, dx, dz, top, surface, roofBuffer, surfaceBreach, piercedSurface);
             if (densityBudget != null && !megaGiga && !columns.isMegaGigaZone(dx, dz)) {
                 densityBudget.consumeSecondary(verticalSpan);
@@ -252,7 +252,7 @@ public class NoiseCaveCarver {
         return new int[]{bottom, top, 0};
     }
 
-    private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int roofBuffer, boolean megaGiga, BlockPos.MutableBlockPos pos) {
+    private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int roofBuffer, boolean megaGiga, boolean surfaceBreach, BlockPos.MutableBlockPos pos) {
         int maxBiomeY = config.getType() == CaveType.GLOBAL ? config.getMaxY() >> 2 : surface - 12 >> 2;
         int topThird = config.getMaxY() - (config.getMaxY() - config.getMinY()) / 3;
         boolean patchPlacement = config.getPlacementType() == CavePlacementType.CEILING_PATCH || config.getPlacementType() == CavePlacementType.ISLAND_PATCH;
@@ -278,34 +278,41 @@ public class NoiseCaveCarver {
             BlockState state = chunk.getBlockState((BlockPos)pos);
             boolean atOrAboveSurface = cy >= surface;
             if (!state.getFluidState().isEmpty()) {
-                continue;
+                if (!megaGiga || atOrAboveSurface) {
+                    continue;
+                }
             }
             if (state.isAir()) {
+                if (atOrAboveSurface && !surfaceBreach) {
+                    continue;
+                }
+                continue;
+            }
+            if (!megaGiga && cy >= surface - Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST) && !surfaceBreach) {
                 continue;
             }
             if (atOrAboveSurface || cy >= surface - 1 && cy <= surface + 1) {
                 piercedSurface = true;
             }
             chunk.setBlockState((BlockPos)pos, AIR, false);
-            if (megaGiga) {
-                NoiseCaveCarver.setBiomeQuart(chunk, carver, dx, cy, dz, defaultBiome);
-            } else {
-                if (cy >> 2 >= maxBiomeY || cy >= surface - surfaceBiomeSkip) {
-                    continue;
-                }
-                Holder<Biome> biome = defaultBiome;
-                if (patchPlacement) {
-                    boolean topSection = config.getPlacementType() == CavePlacementType.CEILING_PATCH ? cy >= topThird : cy < topThird;
-                    if (topSection) {
-                        biome = patchBiome;
-                    }
-                }
-                NoiseCaveCarver.setBiomeQuart(chunk, carver, dx, cy, dz, biome);
+            if (cy >> 2 >= maxBiomeY || cy >= surface - surfaceBiomeSkip) {
+                continue;
             }
+            Holder<Biome> biome = defaultBiome;
+            if (patchPlacement) {
+                boolean topSection = config.getPlacementType() == CavePlacementType.CEILING_PATCH ? cy >= topThird : cy < topThird;
+                if (topSection) {
+                    biome = patchBiome;
+                }
+            }
+            NoiseCaveCarver.setBiomeQuart(chunk, carver, dx, cy, dz, biome);
         }
         carver.noteDecorateAnchor(defaultBiome, new BlockPos(x, bottom, z));
         if (patchPlacement && patchBiome != defaultBiome) {
             carver.noteDecorateAnchor(patchBiome, new BlockPos(x, patchY, z));
+            if (megaGiga) {
+                NoiseCaveCarver.paintFloorHalo(chunk, carver, patchBiome, dx, dz, patchY, pos, x, z);
+            }
         } else if (megaGiga) {
             NoiseCaveCarver.paintFloorHalo(chunk, carver, defaultBiome, dx, dz, bottom, pos, x, z);
         }
@@ -571,7 +578,8 @@ public class NoiseCaveCarver {
             return false;
         }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, roofBuffer, true, pos);
+        boolean surfaceBreach = bounds != null && bounds[2] != 0;
+        NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, roofBuffer, true, surfaceBreach, pos);
         return true;
     }
 }
