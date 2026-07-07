@@ -139,7 +139,7 @@ public class NoiseCaveCarver {
             int top;
             boolean surfaceBreach;
             if (megaGiga) {
-                int[] bounds = NoiseCaveCarver.computeMegaGigaBounds(y, cavern, surface, roofBuffer, minY, breachMask, columns, dx, dz);
+                int[] bounds = NoiseCaveCarver.computeMegaGigaBounds(y, cavern, surface, roofBuffer, minY, breachMask, columns, dx, dz, config.getType() == CaveType.GIGA);
                 if (bounds == null) {
                     continue;
                 }
@@ -229,11 +229,17 @@ public class NoiseCaveCarver {
         }
     }
 
-    private static int[] computeMegaGigaBounds(int centerY, int cavern, int surface, int roofBuffer, int minY, float breachMask, CarverColumnCache columns, int dx, int dz) {
+    private static int[] computeMegaGigaBounds(int centerY, int cavern, int surface, int roofBuffer, int minY, float breachMask, CarverColumnCache columns, int dx, int dz, boolean isGiga) {
         boolean reservedEntrance = columns.reserveEntrance(dx, dz);
         int vertRadius = Math.max(MIN_MEGA_GIGA_CAVERN, cavern);
+        if (isGiga) {
+            vertRadius = Math.min(vertRadius, 22);
+        }
         int ceiling = NoiseCaveCarver.resolveCeilingY(surface, roofBuffer);
         int top = roofBuffer <= 0 ? centerY + vertRadius : Math.min(centerY + vertRadius, ceiling);
+        if (isGiga && roofBuffer > 0) {
+            top = Math.min(top, surface - Math.max(roofBuffer + 10, 18));
+        }
         int bottom = Math.max(centerY - vertRadius, minY);
         if (top - bottom < 3) {
             top = roofBuffer <= 0 ? Math.max(minY + 3, bottom + 3) : Math.min(ceiling, Math.max(minY + 3, bottom + 3));
@@ -257,7 +263,8 @@ public class NoiseCaveCarver {
         int topThird = config.getMaxY() - (config.getMaxY() - config.getMinY()) / 3;
         boolean patchPlacement = config.getPlacementType() == CavePlacementType.CEILING_PATCH || config.getPlacementType() == CavePlacementType.ISLAND_PATCH;
         boolean global = config.getType() == CaveType.GLOBAL;
-        int surfaceBiomeSkip = global ? 3 : (megaGiga ? 10 : 8);
+        boolean isGiga = config.getType() == CaveType.GIGA;
+        int surfaceBiomeSkip = global ? 3 : (isGiga ? 14 : (megaGiga ? 10 : 8));
         Holder<Biome> patchBiome = defaultBiome;
         int patchY = bottom;
         if (patchPlacement) {
@@ -311,10 +318,10 @@ public class NoiseCaveCarver {
         if (patchPlacement && patchBiome != defaultBiome) {
             carver.noteDecorateAnchor(patchBiome, new BlockPos(x, patchY, z));
             if (megaGiga) {
-                NoiseCaveCarver.paintFloorHalo(chunk, carver, patchBiome, dx, dz, patchY, pos, x, z);
+                NoiseCaveCarver.paintFloorAtCarve(chunk, carver, patchBiome, dx, dz, patchY, pos);
             }
-        } else if (megaGiga) {
-            NoiseCaveCarver.paintFloorHalo(chunk, carver, defaultBiome, dx, dz, bottom, pos, x, z);
+        } else {
+            NoiseCaveCarver.paintFloorAtCarve(chunk, carver, defaultBiome, dx, dz, bottom, pos);
         }
         return piercedSurface;
     }
@@ -328,7 +335,8 @@ public class NoiseCaveCarver {
                     continue;
                 }
                 int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-                int yStart = Math.max(minY, surface - 18);
+                int crustBand = columns.hasGiga() ? 26 : 18;
+                int yStart = Math.max(minY, surface - crustBand);
                 for (int y = surface; y >= yStart; --y) {
                     pos.set(lx, y, lz);
                     BlockState state = chunk.getBlockState(pos);
@@ -360,6 +368,11 @@ public class NoiseCaveCarver {
 
     private static int permutedColumnIndex(int seed, ChunkPos chunkPos, int sequence) {
         return NoiseUtil.hash2D(seed ^ 0xC01A0505, chunkPos.x * 31 + sequence, chunkPos.z * 17 + sequence) & 0xFF;
+    }
+
+    static void paintFloorAtCarve(ChunkAccess chunk, CarverChunk carver, Holder<Biome> biome, int dx, int dz, int floorY, BlockPos.MutableBlockPos pos) {
+        NoiseCaveCarver.setBiomeQuart(chunk, carver, dx, floorY, dz, biome);
+        NoiseCaveCarver.paintFloorHalo(chunk, carver, biome, dx, dz, floorY, pos, 0, 0);
     }
 
     private static void paintFloorHalo(ChunkAccess chunk, CarverChunk carver, Holder<Biome> biome, int dx, int dz, int cy, BlockPos.MutableBlockPos pos, int worldX, int worldZ) {
@@ -554,7 +567,7 @@ public class NoiseCaveCarver {
         int surface = NoiseCaveCarver.resolveMegaGigaSurface(carver.cachedSurface(dx, dz), dx, dz, chunk, carver, seed, sampleX, sampleZ, sea);
         float breachMask = carver.getCarvingMask(seed, sampleX, sampleZ, true);
         int roofBuffer = NoiseCaveCarver.resolveRoofBuffer(breachMask, sampleX, sampleZ, chunk, generator, config, false, seed, columns, dx, dz);
-        int[] bounds = NoiseCaveCarver.computeMegaGigaBounds(y, cavern, surface, roofBuffer, minY, breachMask, columns, dx, dz);
+        int[] bounds = NoiseCaveCarver.computeMegaGigaBounds(y, cavern, surface, roofBuffer, minY, breachMask, columns, dx, dz, config.getType() == CaveType.GIGA);
         int bottom;
         int top;
         if (bounds == null) {

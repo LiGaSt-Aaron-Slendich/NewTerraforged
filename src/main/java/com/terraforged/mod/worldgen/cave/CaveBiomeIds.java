@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 public final class CaveBiomeIds {
-    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(Map.entry("regions_unexplored:ancient_delta_caves", "regions_unexplored:ancient_delta"), Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"), Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:mycotoxic_undergrowth"), Map.entry("byg:crimson_gardens_caves", "byg:crimson_gardens"), Map.entry("byg:shattered_glacier_caves", "byg:shattered_glacier"), Map.entry("byg:nightshade_redwoods_caves", "byg:nightshade_redwoods"), Map.entry("byg:quartz_desert_caves", "byg:quartz_desert"), Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"), Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves"));
+    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(Map.entry("regions_unexplored:ancient_delta_caves", "regions_unexplored:ancient_delta"), Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"), Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:bioshroom_caves"), Map.entry("byg:crimson_gardens_caves", "byg:crimson_gardens"), Map.entry("byg:shattered_glacier_caves", "byg:shattered_glacier"), Map.entry("byg:nightshade_redwoods_caves", "byg:nightshade_redwoods"), Map.entry("byg:quartz_desert_caves", "byg:quartz_desert"), Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"), Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves"));
 
     private CaveBiomeIds() {
     }
@@ -109,6 +109,26 @@ public final class CaveBiomeIds {
         Optional ka = a.unwrapKey();
         Optional kb = b.unwrapKey();
         return ka.isPresent() && kb.isPresent() && (ka.get()).equals(kb.get());
+    }
+
+    /** Resolve painted/sampler biome keys to registry holders that own cave feature pools. */
+    public static Holder<Biome> holderForDecoration(Holder<Biome> biome, Registry<Biome> registry) {
+        Optional<ResourceKey<Biome>> key = biome.unwrapKey();
+        if (key.isEmpty()) {
+            return biome;
+        }
+        ResourceLocation loc = key.get().location();
+        if (!loc.getPath().startsWith("cave/")) {
+            ResourceLocation cavePath = new ResourceLocation(loc.getNamespace(), "cave/" + loc.getPath());
+            if (registry.containsKey(cavePath)) {
+                return registry.getHolderOrThrow(ResourceKey.create(Registry.BIOME_REGISTRY, cavePath));
+            }
+        }
+        ResourceLocation resolved = CaveBiomeIds.resolve(loc.toString(), registry);
+        if (resolved != null && !resolved.equals(loc) && registry.containsKey(resolved)) {
+            return registry.getHolderOrThrow(ResourceKey.create(Registry.BIOME_REGISTRY, resolved));
+        }
+        return biome;
     }
 
     public static boolean sharesCaveTheme(Holder<Biome> a, Holder<Biome> b) {
@@ -216,6 +236,9 @@ public final class CaveBiomeIds {
     public static boolean isNetherThemedBiome(Holder<Biome> biome) {
         if (biome.unwrapKey().map(key -> CaveBiomeIds.isNetherThemedBiome(key.location())).orElse(false)) {
             return true;
+        }
+        if (CaveBiomeIds.isUndergroundBiome(biome)) {
+            return false;
         }
         return Biome.getBiomeCategory(biome) == Biome.BiomeCategory.NETHER;
     }
@@ -337,6 +360,19 @@ public final class CaveBiomeIds {
 
     public static boolean isCoastalGrottoBiome(Holder<Biome> biome) {
         return biome.unwrapKey().map(key -> CaveBiomeIds.isCoastalGrottoBiome(key.location())).orElse(false);
+    }
+
+    public static boolean isDripstoneCaveBiome(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("dripstone") || path.contains("karst") || path.contains("limestone")
+                || path.contains("icicle") || path.contains("stalactite") || path.contains("tuff_caves") || path.contains("tuff_cave");
+    }
+
+    public static boolean isDripstoneCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isDripstoneCaveBiome(key.location())).orElse(false);
     }
 
     public static boolean isFeatureRichTransition(ResourceLocation id) {

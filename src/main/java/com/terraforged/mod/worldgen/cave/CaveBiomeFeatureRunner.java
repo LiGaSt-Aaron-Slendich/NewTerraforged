@@ -72,6 +72,9 @@ public final class CaveBiomeFeatureRunner {
     }
 
     private static void decorateThemedCover(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome, BlockPos floorAnchor, WorldgenRandom random, java.util.function.Predicate<Holder<PlacedFeature>> matcher, int seedSalt) {
+        int plx = floorAnchor.getX() & 0xF;
+        int plz = floorAnchor.getZ() & 0xF;
+        CaveDecoratePaint.ensureFloorPaint(chunk, carver, biome, plx, floorAnchor.getY(), plz);
         floorAnchor = CaveFloorCover.prepare(chunk, carver, biome, floorAnchor);
         if (!CaveFeaturePlacement.hasSolidFloorBelow(chunk, floorAnchor)) {
             return;
@@ -361,8 +364,14 @@ public final class CaveBiomeFeatureRunner {
         WorldGenLevel placement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, biome, carver);
         BiomeGenerationSettings settings = ((Biome)biome.value()).getGenerationSettings();
         CaveFeaturePlan.Cache planCache = new CaveFeaturePlan.Cache();
-        CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, 6, 28);
-        CaveBiomeFeatureRunner.decoratePlannedFeatures(floorAnchor, false, chunk, region, placement, generator, biome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 6 : 5);
+        int plannedCap = CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 6 : 5;
+        if (CaveBiomeIds.isFungalCaveBiome(biome)) {
+            CaveBiomeFeatureRunner.decoratePlannedFeatures(floorAnchor, false, chunk, region, placement, generator, biome, random, planCache, plannedCap);
+            CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, 6, 28);
+        } else {
+            CaveBiomeFeatureRunner.decorateScatter(floorAnchor, false, chunk, region, placement, generator, biome, settings, random, 6, 28);
+            CaveBiomeFeatureRunner.decoratePlannedFeatures(floorAnchor, false, chunk, region, placement, generator, biome, random, planCache, plannedCap);
+        }
         if (includeTrees) {
             CaveBiomeFeatureRunner.decorateTrees(floorAnchor, chunk, placement, generator, biome, settings, random);
         }
@@ -381,8 +390,13 @@ public final class CaveBiomeFeatureRunner {
             }
             WorldGenLevel ceilPlacement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, ceilBiome, carver);
             BiomeGenerationSettings ceilSettings = ((Biome)ceilBiome.value()).getGenerationSettings();
-            CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, 5, 22);
-            CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 7 : 6);
+            long ceilSeed = random.setDecorationSeed(region.getSeed(), ceilAnchor.getX(), ceilAnchor.getZ());
+            if ((ceilSeed & 3L) == 0L) {
+                int ceilScatter = CaveBiomeIds.isFungalCaveBiome(biome) ? 1 : 3;
+                int ceilPlanned = CaveBiomeIds.isFungalCaveBiome(biome) ? 1 : (CaveBiomeIds.isCoverDenseCaveBiome(biome) ? 3 : 2);
+                CaveBiomeFeatureRunner.decorateScatter(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, ceilSettings, random, ceilScatter, 12);
+                CaveBiomeFeatureRunner.decoratePlannedFeatures(ceilAnchor, true, chunk, region, ceilPlacement, generator, ceilBiome, random, planCache, ceilPlanned);
+            }
         }
     }
 
@@ -479,6 +493,9 @@ public final class CaveBiomeFeatureRunner {
                 random.setFeatureSeed(baseSeed, featureIndex, stageIndex);
                 CaveFeatureRules.Anchor kind = ceiling ? CaveFeatureRules.Anchor.CEILING : CaveFeatureRules.Anchor.FLOOR;
                 BlockPos placePos = CaveFeaturePlacement.resolveScatterPos(anchor, kind, baseSeed, featureIndex, stageIndex);
+                if (!ceiling && !CaveFeaturePlacement.isValidScatterFloor(chunk, placePos)) {
+                    continue;
+                }
                 if (++attempts > maxAttempts) {
                     return placedCount;
                 }
@@ -741,6 +758,12 @@ public final class CaveBiomeFeatureRunner {
                 return false;
             }
             return path.contains("mushroom") || path.contains("fungal") || path.contains("moss") || path.contains("patch") || path.contains("root") || path.contains("hanging");
+        }
+        if ((CaveBiomeIds.isCoverDenseCaveBiome(biome) || CaveBiomeIds.isUndergroundJungleBiome(biome)) && (id = FeatureMassClassifier.featurePath(placed)) != null) {
+            String lushPath = id.getPath().toLowerCase();
+            if (lushPath.contains("vine") || lushPath.contains("dripleaf") || lushPath.contains("azalea") || lushPath.contains("spore_blossom")) {
+                return true;
+            }
         }
         if (CaveBiomeFeatureRunner.isBiomeCoverFeature(placed, biome)) {
             return false;

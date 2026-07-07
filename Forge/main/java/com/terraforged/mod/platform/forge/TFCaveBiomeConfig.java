@@ -22,9 +22,9 @@ public final class TFCaveBiomeConfig {
     public final List<Entry> special = new ArrayList<Entry>();
     public final List<Entry> coastal = new ArrayList<Entry>();
     /** Original TerraForged 0.3.x NoiseCaveDecorator (github.com/TerraForged/TerraForged). */
-    public boolean useOfficialTfCaveDecorator = false;
+    public boolean useOfficialTfCaveDecorator = true;
     /** Route each painted cave biome to the best decorator backend (official / vanilla / legacy / compromise). */
-    public boolean usePerBiomeDecorators = true;
+    public boolean usePerBiomeDecorators = false;
     /** Lower minimum stat thresholds when picking shell biomes (0 = strict, 3 = much more variety). */
     public float conditionRelax = 3.0f;
     /** Compromise decorator: themed cover + bounded scatter + mega accents (default on). */
@@ -41,6 +41,10 @@ public final class TFCaveBiomeConfig {
     public int vanillaOriginsPerBiome = 6;
     /** Also run vanilla pass at ceiling anchor (stalactites, crystal down). */
     public boolean vanillaCeilingPass = true;
+    /** Re-scan corrupted surface chunks and run restore-order pass (can paint corrupted_chunks biome). */
+    public boolean enableChunkIntegrityRestorer = false;
+    /** World probe inspector (free cam + overlays) — off by default; see internal.probe package. */
+    public boolean enableInspector = false;
     public final List<String> blacklist = new ArrayList<String>();
 
     public static void load() {
@@ -70,6 +74,8 @@ public final class TFCaveBiomeConfig {
         this.vanillaOriginGrid = Math.max(2, Math.min(8, TFConfigLoader.getInt(decoration, "vanilla_origin_grid", this.vanillaOriginGrid)));
         this.vanillaOriginsPerBiome = Math.max(1, Math.min(8, TFConfigLoader.getInt(decoration, "vanilla_origins_per_biome", this.vanillaOriginsPerBiome)));
         this.vanillaCeilingPass = TFConfigLoader.getBool(decoration, "vanilla_ceiling_pass", this.vanillaCeilingPass);
+        this.enableChunkIntegrityRestorer = TFConfigLoader.getBool(decoration, "enable_chunk_integrity_restorer", this.enableChunkIntegrityRestorer);
+        this.enableInspector = TFConfigLoader.getBool(decoration, "enable_inspector", this.enableInspector);
         this.enforceExclusiveDecorationMode();
         Object rawBlacklist = root.get("blacklist");
         this.blacklist.clear();

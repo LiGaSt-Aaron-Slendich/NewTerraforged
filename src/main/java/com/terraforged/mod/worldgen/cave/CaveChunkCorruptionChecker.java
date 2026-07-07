@@ -1,27 +1,20 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
-import com.terraforged.mod.worldgen.Seeds;
-import com.terraforged.mod.worldgen.biome.Source;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class CaveChunkCorruptionChecker {
     private static final int SURFACE_LIFT = 12;
-    private static final int SURFACE_CRUST = 3;
     /** Fraction of interior columns that must match a chessboard/grid signature. */
     private static final float NOISE_RATIO_THRESHOLD = 0.42f;
     /** Minimum height delta between parity groups to count as carve grid noise. */
     private static final int CHESS_PARITY_DELTA = 5;
     /** Neighbor height jump that reads as a 1-block grid step. */
     private static final int GRID_STEP = 1;
-
-    /** Minimum surface columns with cave-painted leaks before a chunk is flagged. */
-    private static final int MIN_DEFECT_COLUMNS = 6;
 
     private CaveChunkCorruptionChecker() {
     }
@@ -47,66 +40,12 @@ public final class CaveChunkCorruptionChecker {
     }
 
     private static boolean scanUndergroundFeaturesOnSurface(ChunkAccess chunk, CarverChunk carver, Generator generator, boolean broadDetection) {
-        Source source = generator.getBiomeSource();
-        int climateSeed = Seeds.get((int)generator.getSeed());
-        int chunkX = chunk.getPos().getMinBlockX();
-        int chunkZ = chunk.getPos().getMinBlockZ();
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int defectColumns = 0;
-        for (int lx = 0; lx < 16; ++lx) {
-            for (int lz = 0; lz < 16; ++lz) {
-                if (carver != null && carver.isEntranceColumn(lx, lz)) {
-                    continue;
-                }
-                int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-                int wx = chunkX + lx;
-                int wz = chunkZ + lz;
-                Holder<Biome> surfaceBiome = CaveSurfaceBiomeRestorer.resolveSurfaceBiome(source, climateSeed, wx, wz, surface);
-                int yTop = CaveChunkCorruptionChecker.findSurfaceColumnTop(chunk, lx, lz, surface);
-                int yBottom = Math.max(surface, yTop - SURFACE_LIFT);
-                boolean columnDefect = false;
-                for (int y = yTop; y >= yBottom; --y) {
-                    pos.set(lx, y, lz);
-                    BlockState state = chunk.getBlockState(pos);
-                    if (state.isAir() || !state.getFluidState().isEmpty()) {
-                        continue;
-                    }
-                    if (broadDetection) {
-                        if (CaveDecorationSanitizer.isCorruptedSurfaceBlock(chunk, lx, y, lz, state, surfaceBiome)) {
-                            columnDefect = true;
-                            break;
-                        }
-                        continue;
-                    }
-                    if (CaveDecorationSanitizer.isUnresolvedSurfaceDefect(chunk, lx, y, lz, state)) {
-                        columnDefect = true;
-                        break;
-                    }
-                }
-                if (columnDefect) {
-                    ++defectColumns;
-                    if (!broadDetection || defectColumns >= MIN_DEFECT_COLUMNS) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
+        return LiGaStIntegrityScan.scanUndergroundFeaturesOnSurface(chunk, carver, generator, broadDetection);
     }
 
     /** @deprecated use {@link CaveDecorationSanitizer#isCorruptedSurfaceBlock} */
     static boolean isSurfaceLeak(ChunkAccess chunk, int lx, int y, int lz, BlockState state, Holder<Biome> surfaceBiome) {
         return CaveDecorationSanitizer.isCorruptedSurfaceBlock(chunk, lx, y, lz, state, surfaceBiome);
-    }
-
-    private static int findSurfaceColumnTop(ChunkAccess chunk, int lx, int lz, int surface) {
-        int maxY = Math.min(chunk.getMaxBuildHeight() - 1, surface + SURFACE_LIFT);
-        for (int y = maxY; y >= surface; --y) {
-            if (!chunk.getBlockState(new BlockPos(lx, y, lz)).isAir()) {
-                return y;
-            }
-        }
-        return surface;
     }
 
     static boolean scanSurfaceNoise(ChunkAccess chunk, CarverChunk carver) {

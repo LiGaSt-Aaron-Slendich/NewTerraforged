@@ -1,7 +1,7 @@
 # NewTerraForged — underground cave biomes (Forge registry IDs)
 # Path: config/NewTerraForged/Cave_configs/cave-biomes.toml
 # config_version: bundled default revision (informational — user edits are kept unless the file is empty/corrupt).
-config_version = 3
+config_version = 4
 
 # CaveBiomeIds resolves terralith:X -> terralith:cave/X. Missing biomes are skipped with a warning.
 #
@@ -44,9 +44,11 @@ use_vanilla_pass = false
 use_legacy_decorators = false
 auto_register_biomes = true
 condition_relax = 3.0
-vanilla_origin_grid = 2
-vanilla_origins_per_biome = 8
-vanilla_ceiling_pass = true
+vanilla_origin_grid = 3
+vanilla_origins_per_biome = 4
+vanilla_ceiling_pass = false
+enable_chunk_integrity_restorer = false
+enable_inspector = false
 
 # Cave system density: NewTerraForged/Cave_configs/caves.toml
 # Surface climate weights: NewTerraForged/Terrain/surface-biomes.toml

@@ -18,7 +18,15 @@ public final class CaveChunkIntegrityPass {
     private CaveChunkIntegrityPass() {
     }
 
+    public static boolean enabled() {
+        return com.terraforged.mod.platform.forge.TFCaveBiomeConfig.INSTANCE != null
+                && com.terraforged.mod.platform.forge.TFCaveBiomeConfig.INSTANCE.enableChunkIntegrityRestorer;
+    }
+
     public static void runOnce(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator, CarverChunk carver, FeatureDecorator featureDecorator, SurfaceDecorator surfaceDecorator, CompletableFuture<TerrainData> terrainFuture) {
+        if (!CaveChunkIntegrityPass.enabled()) {
+            return;
+        }
         if (chunk == null || carver == null) {
             return;
         }

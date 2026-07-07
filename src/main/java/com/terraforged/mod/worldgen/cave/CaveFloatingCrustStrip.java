@@ -14,7 +14,7 @@ public final class CaveFloatingCrustStrip {
     private static final int MIN_CAVE_AIR_RUN = 3;
     private static final int TREE_PURGE_RADIUS = 6;
     private static final int SURFACE_LEAK_BAND = 28;
-    private static final int STONE_SUPPORT_SCAN = 8;
+    private static final int STONE_SUPPORT_SCAN = 3;
 
     private CaveFloatingCrustStrip() {
     }
@@ -54,7 +54,7 @@ public final class CaveFloatingCrustStrip {
             return false;
         }
         if (CaveFloatingCrustStrip.isSurfaceSoil(state)) {
-            return true;
+            return !CaveFloatingCrustStrip.hasStoneSupport(chunk, lx, y, lz);
         }
         if (!CaveFloatingCrustStrip.isSurfaceTreeBlock(state)) {
             return false;

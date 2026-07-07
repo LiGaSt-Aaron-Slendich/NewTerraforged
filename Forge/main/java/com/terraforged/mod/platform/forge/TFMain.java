@@ -6,7 +6,11 @@ import com.terraforged.mod.Environment;
 import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.command.CaveDebugSession;
 import com.terraforged.mod.command.TFCommands;
+import com.terraforged.mod.internal.probe.InspectorCommands;
+import com.terraforged.mod.internal.probe.ProbeInspectorBootstrap;
 import com.terraforged.mod.lifecycle.CommonSetup;
+import com.terraforged.mod.platform.forge.CaveDebugNetwork;
+import com.terraforged.mod.platform.forge.ProbeNetwork;
 import com.terraforged.mod.platform.forge.TFCaveBiomes;
 import com.terraforged.mod.platform.forge.TFClient;
 import com.terraforged.mod.platform.forge.TFConfigs;
@@ -47,11 +51,17 @@ implements CommonAPI {
     }
 
     void onInit(FMLCommonSetupEvent event) {
-        event.enqueueWork(CommonSetup.STAGE::run);
+        event.enqueueWork(() -> {
+            CommonSetup.STAGE.run();
+            CaveDebugNetwork.register();
+            ProbeNetwork.register();
+            ProbeInspectorBootstrap.initCommon();
+        });
     }
 
     void onRegisterCommands(RegisterCommandsEvent event) {
         TFCommands.register((CommandDispatcher<CommandSourceStack>)event.getDispatcher());
+        InspectorCommands.register((CommandDispatcher<CommandSourceStack>)event.getDispatcher());
     }
 
     void onPresets(RegistryEvent.Register<ForgeWorldPreset> event) {

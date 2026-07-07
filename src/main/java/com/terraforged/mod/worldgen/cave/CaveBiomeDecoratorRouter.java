@@ -17,14 +17,14 @@ public final class CaveBiomeDecoratorRouter {
             return CaveDecoratorKind.COMPROMISE;
         }
         String path = id.getPath().toLowerCase();
+        if (CaveBiomeDecoratorRouter.isLegacyFungalBiome(path)) {
+            return CaveDecoratorKind.LEGACY;
+        }
         if (CaveBiomeDecoratorRouter.isOfficialBiome(path, id)) {
             return CaveDecoratorKind.OFFICIAL;
         }
         if (CaveBiomeDecoratorRouter.isVanillaBiome(path)) {
             return CaveDecoratorKind.VANILLA;
-        }
-        if (path.contains("bioshroom") || path.contains("glowshroom") || path.contains("mushroom") && path.contains("cave")) {
-            return CaveDecoratorKind.LEGACY;
         }
         return CaveDecoratorKind.COMPROMISE;
     }
@@ -43,10 +43,16 @@ public final class CaveBiomeDecoratorRouter {
         if (path.contains("icicle") || path.contains("stalactite")) {
             return true;
         }
-        if (path.contains("fungal") || path.contains("mycotoxic")) {
+        if (path.contains("fungal")) {
             return true;
         }
         return CaveBiomeIds.isEmptyStoneCave(id) || "minecraft".equals(id.getNamespace()) && path.contains("cave");
+    }
+
+    /** Bioshroom / mycotoxic / mushroom caves — legacy scatter with mushroom budgets. */
+    private static boolean isLegacyFungalBiome(String path) {
+        return path.contains("bioshroom") || path.contains("glowshroom") || path.contains("mycotoxic")
+                || path.contains("mushroom") && path.contains("cave");
     }
 
     /** Glowing grotto and similar — vanilla multi-origin pass. */

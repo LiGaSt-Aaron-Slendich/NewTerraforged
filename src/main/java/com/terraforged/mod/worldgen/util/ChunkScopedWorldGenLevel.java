@@ -50,6 +50,11 @@ import net.minecraft.world.ticks.TickPriority;
 
 public final class ChunkScopedWorldGenLevel
 implements WorldGenLevel {
+    /** Chunk radius for feature placement via WorldGenRegion. */
+    public static final int FEATURE_PLACEMENT_RADIUS = 3;
+    /** LiGaSt zone: direct ChunkAccess writes when region rejects far chunks (7×7). */
+    public static final int ZONE_WRITE_RADIUS = 3;
+
     private final WorldGenLevel delegate;
     private final int chunkX;
     private final int chunkZ;
@@ -81,11 +86,11 @@ implements WorldGenLevel {
     }
 
     public static WorldGenLevel wrapWithUndergroundGuard(WorldGenLevel level, ChunkAccess chunk, CarverChunk carver) {
-        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, chunk, null, carver);
+        return ChunkScopedWorldGenLevel.wrap(level, chunk, FEATURE_PLACEMENT_RADIUS, chunk, null, carver);
     }
 
     public static WorldGenLevel wrapWithBiomeGuard(WorldGenLevel level, ChunkAccess chunk, Holder<Biome> boundBiome, CarverChunk carver) {
-        return ChunkScopedWorldGenLevel.wrap(level, chunk, 1, null, boundBiome, carver);
+        return ChunkScopedWorldGenLevel.wrap(level, chunk, FEATURE_PLACEMENT_RADIUS, null, boundBiome, carver);
     }
 
     private static WorldGenLevel wrap(WorldGenLevel level, ChunkAccess chunk, int radius, ChunkAccess undergroundGuardChunk, Holder<Biome> boundBiome, CarverChunk biomeGuardCarver) {
@@ -124,13 +129,38 @@ implements WorldGenLevel {
     }
 
     private boolean inRange(BlockPos pos) {
+        return this.inChunkRadius(pos, this.radius);
+    }
+
+    private boolean inZone(BlockPos pos) {
+        return this.inChunkRadius(pos, Math.max(this.radius, ZONE_WRITE_RADIUS));
+    }
+
+    private boolean inChunkRadius(BlockPos pos, int chunkRadius) {
         int cx = pos.getX() >> 4;
         int cz = pos.getZ() >> 4;
-        return Math.abs(cx - this.chunkX) <= this.radius && Math.abs(cz - this.chunkZ) <= this.radius;
+        return Math.abs(cx - this.chunkX) <= chunkRadius && Math.abs(cz - this.chunkZ) <= chunkRadius;
+    }
+
+    private boolean zoneSetBlock(BlockPos pos, BlockState state, int flags) {
+        if (!this.inZone(pos) || !this.passesUndergroundGuard(pos)) {
+            return false;
+        }
+        if (this.delegate.ensureCanWrite(pos)) {
+            return this.delegate.setBlock(pos, state, flags);
+        }
+        int cx = pos.getX() >> 4;
+        int cz = pos.getZ() >> 4;
+        ChunkAccess target = this.delegate.getChunk(cx, cz);
+        if (target == null) {
+            return false;
+        }
+        target.setBlockState(new BlockPos(pos.getX() & 15, pos.getY(), pos.getZ() & 15), state, false);
+        return true;
     }
 
     public boolean ensureCanWrite(BlockPos pos) {
-        return this.inRange(pos) && this.delegate.ensureCanWrite(pos);
+        return this.inZone(pos) && (this.delegate.ensureCanWrite(pos) || this.inChunkRadius(pos, ZONE_WRITE_RADIUS));
     }
 
     public void setCurrentlyGenerating(Supplier<String> name) {
@@ -262,17 +292,11 @@ implements WorldGenLevel {
     }
 
     public boolean setBlock(BlockPos pos, BlockState state, int flags) {
-        if (!this.inRange(pos) || !this.passesUndergroundGuard(pos)) {
-            return false;
-        }
-        return this.delegate.setBlock(pos, state, flags);
+        return this.zoneSetBlock(pos, state, flags);
     }
 
     public boolean setBlock(BlockPos pos, BlockState state, int flags, int recursionLeft) {
-        if (!this.inRange(pos) || !this.passesUndergroundGuard(pos)) {
-            return false;
-        }
-        return this.delegate.setBlock(pos, state, flags, recursionLeft);
+        return this.zoneSetBlock(pos, state, flags);
     }
 
     public boolean removeBlock(BlockPos pos, boolean isMoving) {

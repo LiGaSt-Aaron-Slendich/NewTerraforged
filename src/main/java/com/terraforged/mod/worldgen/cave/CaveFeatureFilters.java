@@ -111,7 +111,7 @@ public final class CaveFeatureFilters {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("deferred_feature") || path.contains("/global/") || path.contains("global/raw");
+        return path.contains("deferred_feature") || path.startsWith("global/") || path.contains("/global/") || path.contains("global/raw");
     }
 
     private static String biomeFeatureSlug(String biomePath) {

@@ -7,7 +7,11 @@ import com.terraforged.mod.worldgen.cave.CaveFeatureRules;
 import com.terraforged.noise.util.NoiseUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
@@ -69,6 +73,31 @@ public final class CaveFeaturePlacement {
             }
         }
         return false;
+    }
+
+    /** Reject mushroom caps/stems and other feature blocks as scatter floors. */
+    public static boolean isValidScatterFloor(ChunkAccess chunk, BlockPos floorPos) {
+        BlockState floor = chunk.getBlockState(floorPos);
+        if (floor.isAir() || !floor.canOcclude()) {
+            return false;
+        }
+        if (CaveFeaturePlacement.isMushroomOrFeatureStructureBlock(floor)) {
+            return false;
+        }
+        BlockPos above = floorPos.above();
+        if (!chunk.getBlockState(above).isAir()) {
+            return false;
+        }
+        return FeaturePlacement.hasStableGround((BlockGetter)chunk, floorPos.getX() & 0xF, above.getY(), floorPos.getZ() & 0xF, 1);
+    }
+
+    public static boolean isMushroomOrFeatureStructureBlock(BlockState state) {
+        if (state.is(BlockTags.LEAVES) || state.is(Blocks.RED_MUSHROOM_BLOCK) || state.is(Blocks.BROWN_MUSHROOM_BLOCK) || state.is(Blocks.MUSHROOM_STEM)) {
+            return true;
+        }
+        Block block = state.getBlock();
+        String name = block.getDescriptionId().toLowerCase();
+        return name.contains("mushroom") || name.contains("shroom") || name.contains("fungus") && name.contains("block");
     }
 
     public static int massPriority(FeatureMass mass) {

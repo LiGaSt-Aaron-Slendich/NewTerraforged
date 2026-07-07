@@ -251,9 +251,6 @@ public class NoiseCaveGenerator {
         boolean[] savedEntrances = this.entranceSnapshots.get(chunk.getPos());
         if (savedEntrances != null) {
             carver.restoreEntranceColumns(savedEntrances);
-            if (CaveDecorationSettings.useOfficialTfDecorator()) {
-                this.replayCarveForBiomes(seed, chunk, carver, generator);
-            }
             carver.columnCache().buildDecorationFlags(carver, chunk);
             return carver;
         }

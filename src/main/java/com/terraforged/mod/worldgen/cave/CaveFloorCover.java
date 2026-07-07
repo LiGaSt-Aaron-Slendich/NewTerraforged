@@ -22,7 +22,30 @@ public final class CaveFloorCover {
     }
 
     public static boolean appliesTo(Holder<Biome> biome) {
+        if (CaveFloorCover.isVanillaUndergroundCave(biome)) {
+            return true;
+        }
         return CaveBiomeIds.isModCaveBiome(biome) || CaveBiomeIds.isCoverDenseCaveBiome(biome) && !CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome) || CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome) || CaveBiomeIds.isFungalCaveBiome(biome);
+    }
+
+    public static String describeCover(Holder<Biome> biome) {
+        if (!CaveFloorCover.appliesTo(biome)) {
+            return "skipped (biome not in cover list)";
+        }
+        BlockState cover = CaveFloorCover.coverBlock(biome);
+        return cover.getBlock().getDescriptionId();
+    }
+
+    public static boolean wouldPaintAt(ChunkAccess chunk, CarverChunk carver, int lx, int airY, int lz) {
+        int solidY = airY - 1;
+        if (solidY < chunk.getMinBuildHeight()) {
+            return false;
+        }
+        return CaveFloorCover.shouldPaint(chunk, carver, lx, solidY, lz);
+    }
+
+    private static boolean isVanillaUndergroundCave(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> "minecraft".equals(key.location().getNamespace()) && CaveBiomeIds.isUndergroundBiome(biome)).orElse(false);
     }
 
     /** Normalizes floor height, paints themed cover, returns air anchor for feature placement. */
@@ -117,6 +140,12 @@ public final class CaveFloorCover {
     private static BlockState coverBlock(Holder<Biome> biome) {
         String path = biome.unwrapKey().map(key -> key.location().getPath().toLowerCase()).orElse("");
         String ns = biome.unwrapKey().map(key -> key.location().getNamespace()).orElse("minecraft");
+        if (path.contains("dripstone")) {
+            return Blocks.DRIPSTONE_BLOCK.defaultBlockState();
+        }
+        if (path.contains("lush")) {
+            return Blocks.MOSS_BLOCK.defaultBlockState();
+        }
         if (path.contains("mycotoxic") || path.contains("fungal") || path.contains("bioshroom") || path.contains("glowshroom")) {
             Block fungal = CaveFloorCover.firstBlock(ns, "mycelium", "fungal_moss", "glow_mycelium", "bioshroom_block");
             return fungal != null ? fungal.defaultBlockState() : Blocks.MYCELIUM.defaultBlockState();

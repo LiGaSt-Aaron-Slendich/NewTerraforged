@@ -97,10 +97,20 @@ public class StructureTerrain {
         BoundingBox bounds = piece.getBoundingBox();
         int minY = StructureTerrain.getPieceY(piece);
         int maxY = bounds.maxY();
-        for (int py = minY; py <= maxY; ++py) {
+        int span = maxY - minY;
+        if (span > 32 || bounds.getXSpan() > 24 || bounds.getZSpan() > 24) {
+            return false;
+        }
+        int localSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int carveTop = Math.min(maxY, localSurface);
+        if (minY > carveTop) {
+            return false;
+        }
+        int foundationTop = Math.min(carveTop, minY + 12);
+        for (int py = minY; py <= foundationTop; ++py) {
             chunk.setBlockState((BlockPos)this.pos.set(x, py, z), this.air, false);
         }
-        return true;
+        return foundationTop >= minY;
     }
 
     protected void reset() {

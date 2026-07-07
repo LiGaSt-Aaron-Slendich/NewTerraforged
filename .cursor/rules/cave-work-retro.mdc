@@ -1,0 +1,35 @@
+---
+description: Cave decor lessons from Jun 2026 retro — paint/anchor/debug/deploy
+alwaysApply: true
+---
+
+# Cave work — condensed lessons (retro 2026-07-03)
+
+Full write-up: `docs/retro-sessions/2026-07-03-cave-decor.md`
+
+## Truth chain (debug in this order)
+1. **Quart paint** at floor (not sampler/F3 alone)
+2. **Carve** / surfaceBiomeSkip / column air + solid floor
+3. **Decor grid anchor** (step 2–3; gaps between anchors are normal)
+4. **Filter allowed** (rules only)
+5. **Actual place** (chunk-gen decor at anchors)
+
+## Never assume
+- `allowed` in debug ⇒ feature at player feet
+- More sanitizers/restorers ⇒ safer (Concept_20 deleted ~2.5k LOC for a reason)
+- Old chunks valid after carve/decor changes
+
+## Prefer
+- **`db28035` quart paint** semantics as baseline; diff before big decor refactors
+- **Unified fix** (paint/grid/carve) over per-symptom patches
+- `/newtf debug cave save` or `menu` — read **At feet | At anchor**
+- JAR deploy: rename old to `.disabled` first (see `jar-deploy.mdc`)
+- `compileJava` + `reobfJar` if tests fail
+
+## Avoid
+- Splitting decor paths without playtest (Concept_14 → reverted Concept_15)
+- Stacking integrity/sanitizer passes without measuring root cause
+- Half-wired debug (register network + command + diagnostics together)
+
+## Periodic retro
+After major cave arc: add `docs/retro-sessions/YYYY-MM-DD-<topic>.md`; refresh this rule if lessons change.

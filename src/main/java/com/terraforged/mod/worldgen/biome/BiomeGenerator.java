@@ -68,7 +68,7 @@ public class BiomeGenerator {
             terrain = terrainFuture.join();
         }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
-        this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, 1), structures, terrainFuture, generator);
+        this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, ChunkScopedWorldGenLevel.FEATURE_PLACEMENT_RADIUS), structures, terrainFuture, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);

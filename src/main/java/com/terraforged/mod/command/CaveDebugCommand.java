@@ -15,7 +15,9 @@ import com.terraforged.mod.worldgen.cave.CavePlacementType;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
 import com.terraforged.mod.worldgen.cave.CaveCartography;
+import com.terraforged.mod.platform.forge.CaveDebugNetwork;
 import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
+import com.terraforged.mod.worldgen.cave.CaveDebugReport;
 import com.terraforged.mod.worldgen.cave.CaveFeatureDiagnostics;
 import com.terraforged.mod.worldgen.cave.CaveLayoutRegionGrid;
 import com.terraforged.mod.worldgen.cave.CaveMegaGigaLayout;
@@ -26,6 +28,8 @@ import com.terraforged.mod.worldgen.cave.CaveType;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import com.terraforged.noise.util.NoiseUtil;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -47,7 +51,7 @@ public final class CaveDebugCommand {
     }
 
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
-        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"newtf").requires(source -> source.hasPermission(0))).then(Commands.literal((String)"debug").then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"cave").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.FULL))).then(Commands.literal((String)"start").executes(ctx -> CaveDebugCommand.executeStart((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"stop").executes(ctx -> CaveDebugCommand.executeStop((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"map").executes(ctx -> CaveDebugCommand.executeMap((CommandContext<CommandSourceStack>)ctx)))).then(((LiteralArgumentBuilder)Commands.literal((String)"stats").then(Commands.literal((String)"local").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.LOCAL)))).then(Commands.literal((String)"global").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.GLOBAL))))));
+        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"newtf").requires(source -> source.hasPermission(0))).then(Commands.literal((String)"debug").then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"cave").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.FULL))).then(Commands.literal((String)"start").executes(ctx -> CaveDebugCommand.executeStart((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"stop").executes(ctx -> CaveDebugCommand.executeStop((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"map").executes(ctx -> CaveDebugCommand.executeMap((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"save").executes(ctx -> CaveDebugCommand.executeSave((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"menu").executes(ctx -> CaveDebugCommand.executeMenu((CommandContext<CommandSourceStack>)ctx)))).then(((LiteralArgumentBuilder)Commands.literal((String)"stats").then(Commands.literal((String)"local").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.LOCAL)))).then(Commands.literal((String)"global").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.GLOBAL))))));
     }
 
     private static int execute(CommandContext<CommandSourceStack> context, Mode mode) throws CommandSyntaxException {
@@ -107,7 +111,73 @@ public final class CaveDebugCommand {
         return 1;
     }
 
+    private static int executeSave(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerLevel level = player.getLevel();
+        Generator generator = GeneratorPreset.getGenerator(level);
+        if (generator == null) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        BlockPos pos = player.blockPosition();
+        try {
+            CaveDebugReport report = CaveDebugCommand.collectReport(generator, level, pos, Mode.FULL);
+            Path path = CaveDebugReport.save(level, pos, report);
+            player.sendMessage((Component)new TextComponent("Cave debug saved: " + path).withStyle(ChatFormatting.GREEN), player.getUUID());
+            player.sendMessage((Component)new TextComponent("HTML copy: " + path.getParent().resolve(path.getFileName().toString().replace(".txt", ".html"))).withStyle(ChatFormatting.GRAY), player.getUUID());
+        }
+        catch (Throwable t) {
+            String message = t instanceof IOException ? "Save failed: " + t.getMessage() : "Save failed: " + t.getClass().getSimpleName() + ": " + t.getMessage();
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent(message).withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        return 1;
+    }
+
+    private static int executeMenu(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerLevel level = player.getLevel();
+        Generator generator = GeneratorPreset.getGenerator(level);
+        if (generator == null) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        BlockPos pos = player.blockPosition();
+        try {
+            CaveDebugReport report = CaveDebugCommand.collectReport(generator, level, pos, Mode.FULL);
+            CaveDebugNetwork.openMenu(player, report.lines());
+            player.sendMessage((Component)new TextComponent("Opened cave debug menu (scroll with mouse wheel)").withStyle(ChatFormatting.GREEN), player.getUUID());
+        }
+        catch (Throwable t) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Menu failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        return 1;
+    }
+
+    public static CaveDebugReport collectReport(Generator generator, ServerLevel level, BlockPos pos, Mode mode) {
+        CaveDebugReport report = new CaveDebugReport();
+        CaveDebugCommand.appendReportHeader(generator, level, pos, mode, report);
+        if (mode == Mode.FULL) {
+            report.add("");
+            report.add("Tip: [Biome column — decor pipeline] mirrors real decor guards (quart paint, not sampler).");
+            report.add("Tip: filter 'allowed' ≠ placed at your feet — decor runs at grid anchors during chunk gen.");
+            try {
+                CaveFeatureDiagnostics.append(generator, (LevelReader)level, pos, report);
+            }
+            catch (Throwable t) {
+                report.add("Feature diagnostics failed: " + t.getClass().getSimpleName() + ": " + t.getMessage());
+            }
+        }
+        report.appendFeatureTable();
+        return report;
+    }
+
     static List<String> collectLines(Generator generator, ServerLevel level, BlockPos pos, Mode mode) {
+        return CaveDebugCommand.collectReport(generator, level, pos, mode).lines();
+    }
+
+    private static void appendReportHeader(Generator generator, ServerLevel level, BlockPos pos, Mode mode, CaveDebugReport report) {
         int x = pos.getX();
         int y = pos.getY();
         int z = pos.getZ();
@@ -121,58 +191,72 @@ public final class CaveDebugCommand {
         int surfaceY = generator.getOceanFloorHeight(x, z);
         Holder<Biome> surfaceBiome = source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
         String caveSystem = CaveDebugInfo.resolveCaveSystem(generator, x, y, z);
-        ArrayList<String> lines = new ArrayList<String>();
-        lines.add("=== NewTerraForged Cave Debug ===");
+        ArrayList<String> lineBuffer = new ArrayList<String>();
+        lineBuffer.add("=== NewTerraForged Cave Debug ===");
         if (mode == Mode.FULL) {
-            lines.add(String.format("Position: %d %d %d (surface Y=%d)", x, y, z, surfaceY));
-            lines.add("");
-            lines.add("[Cave]");
-            lines.add("System: " + caveSystem);
-            CaveDebugCommand.appendCaveSubtype(generator, seed, x, z, caveSystem, lines);
-            CaveDebugCommand.appendRegionBiome(source, seed, x, y, z, surfaceY, caveSystem, lines);
-            CaveDebugCommand.appendPaintedBiome(source, seed, x, y, z, surfaceBiome, surfaceY, caveSystem, lines);
-            lines.add("");
-            lines.add("[Surface]");
-            lines.add("Terrain: " + climateSample.terrainType.getName());
-            lines.add("Climate: " + climateSample.climateType.name());
-            lines.add(String.format("Ocean proximity: %.3f", Float.valueOf(1.0f - climateSample.continentNoise)));
-            lines.add(String.format("River proximity: %.3f (noise=%.3f)", Float.valueOf(1.0f - climateSample.riverNoise), Float.valueOf(climateSample.riverNoise)));
-            lines.add("");
+            lineBuffer.add(String.format("Position: %d %d %d (surface Y=%d)", x, y, z, surfaceY));
+            lineBuffer.add("");
+            lineBuffer.add("[Cave]");
+            lineBuffer.add("System: " + caveSystem);
+            CaveDebugCommand.appendCaveSubtype(generator, seed, x, z, caveSystem, lineBuffer);
+            CaveDebugCommand.appendRegionBiome(source, seed, x, y, z, surfaceY, caveSystem, lineBuffer);
+            CaveDebugCommand.appendPaintedBiome(source, seed, x, y, z, surfaceBiome, surfaceY, caveSystem, lineBuffer);
+            lineBuffer.add("");
+            lineBuffer.add("[Surface]");
+            lineBuffer.add("Terrain: " + climateSample.terrainType.getName());
+            lineBuffer.add("Climate: " + climateSample.climateType.name());
+            lineBuffer.add(String.format("Ocean proximity: %.3f", Float.valueOf(1.0f - climateSample.continentNoise)));
+            lineBuffer.add(String.format("River proximity: %.3f (noise=%.3f)", Float.valueOf(1.0f - climateSample.riverNoise), Float.valueOf(climateSample.riverNoise)));
+            CaveDebugCommand.appendWaterBiomeDiagnostics(source, seed, x, z, climateSample, lineBuffer);
+            lineBuffer.add("");
         }
         if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
             CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
             CaveMegaGigaLayout layout = CaveDebugCommand.resolveLayout(source, seed, x, y, z, type, surfaceBiome, surfaceY);
             if (layout != null) {
-                CaveDebugCommand.appendMegaGigaStats(layout, x, z, mode, lines);
+                CaveDebugCommand.appendMegaGigaStats(layout, x, z, mode, lineBuffer);
                 if (mode == Mode.FULL) {
-                    CaveDebugCommand.appendLayoutDetails(layout, x, z, lines);
+                    CaveDebugCommand.appendLayoutDetails(layout, x, z, lineBuffer);
                 }
             } else {
-                lines.add("Layout: unavailable");
+                lineBuffer.add("Layout: unavailable");
             }
         } else if (mode != Mode.FULL) {
-            lines.add("Local/global stats apply only inside Mega or Giga caves.");
+            lineBuffer.add("Local/global stats apply only inside Mega or Giga caves.");
         } else {
-            lines.add("[Stats]");
-            lines.add("Mega/Giga stat pools are not active here (system: " + caveSystem + ").");
+            lineBuffer.add("[Stats]");
+            lineBuffer.add("Mega/Giga stat pools are not active here (system: " + caveSystem + ").");
         }
         if (mode == Mode.FULL || mode == Mode.LOCAL || mode == Mode.GLOBAL) {
-            lines.add("");
-            CaveDebugCommand.appendStatEffects(lines);
+            lineBuffer.add("");
+            CaveDebugCommand.appendStatEffects(lineBuffer);
         }
         if (mode == Mode.FULL) {
-            lines.add("");
-            CaveDebugCommand.appendRegistrySummary(source, lines);
-            lines.add("");
-            lines.add("Tip: [Biome column — decor pipeline] mirrors the real decor guards (quart paint, not sampler).");
-            try {
-                CaveFeatureDiagnostics.append(generator, (LevelReader)level, pos, lines);
-            }
-            catch (Throwable t) {
-                lines.add("Feature diagnostics failed: " + t.getClass().getSimpleName() + ": " + t.getMessage());
-            }
+            lineBuffer.add("");
+            CaveDebugCommand.appendRegistrySummary(source, lineBuffer);
         }
-        return lines;
+        for (String line : lineBuffer) {
+            report.add(line);
+        }
+    }
+
+    private static void appendWaterBiomeDiagnostics(Source source, int seed, int x, int z, ClimateSample climateSample, List<String> lines) {
+        if (!climateSample.terrainType.isRiver() && !climateSample.terrainType.isLake()) {
+            return;
+        }
+        Holder<Biome> sampled = source.getBiomeSampler().sampleBiome(seed, x, z);
+        Holder<Biome> noiseBiome = source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
+        lines.add("[Water biome check]");
+        sampled.unwrapKey().ifPresent(key -> lines.add("Sampler biome @ block: " + key.location()));
+        noiseBiome.unwrapKey().ifPresent(key -> lines.add("Climate noise biome (F3 surface): " + key.location()));
+        if (climateSample.riverNoise != 0.0f) {
+            lines.add(String.format(Locale.ROOT, "River noise != 0 (%.4f) — vanilla RIVER override in BiomeSampler may NOT apply; climate biome bleeds to shores", climateSample.riverNoise));
+        } else {
+            lines.add("River noise == 0 — BiomeSampler should force minecraft:river / frozen_river here");
+        }
+        if (sampled.unwrapKey().map(key -> key.location().getPath().contains("plains")).orElse(false)) {
+            lines.add("WARNING: plains at water terrain — check BiomeTerrainIntegration rules or CaveSurfaceBiomeRestorer PLAINS fallback");
+        }
     }
 
     private static void appendCaveSubtype(Generator generator, int seed, int x, int z, String caveSystem, List<String> lines) {

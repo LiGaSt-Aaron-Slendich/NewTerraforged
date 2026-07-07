@@ -46,6 +46,7 @@ public final class CaveBiomeVolumeDecorator {
             for (BlockPos anchor : coverAnchors) {
                 if (carver.isEntranceColumn(anchor.getX() & 0xF, anchor.getZ() & 0xF)) continue;
                 random.setDecorationSeed(region.getSeed(), anchor.getX(), anchor.getZ());
+                CaveDecoratePaint.ensureFloorPaint(chunk, carver, biome, anchor.getX() & 0xF, anchor.getY(), anchor.getZ() & 0xF);
                 CaveBiomeFeatureRunner.decorateBiomeCover(chunk, carver, region, generator, biome, anchor, random);
             }
             if (megaGigaChunk) {
@@ -78,6 +79,7 @@ public final class CaveBiomeVolumeDecorator {
     }
 
     public static void decorateSingleBiome(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome, BlockPos seedAnchor, boolean megaGigaChunk, WorldgenRandom random, boolean denseLegacy) {
+        Holder<Biome> decorBiome = CaveBiomeIds.holderForDecoration(biome, generator.getBiomeSource().getRegistry());
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
         int minY = chunk.getMinBuildHeight();
@@ -86,6 +88,7 @@ public final class CaveBiomeVolumeDecorator {
         for (BlockPos anchor : coverAnchors) {
             if (carver.isEntranceColumn(anchor.getX() & 0xF, anchor.getZ() & 0xF)) continue;
             random.setDecorationSeed(region.getSeed(), anchor.getX(), anchor.getZ());
+            CaveDecoratePaint.ensureFloorPaint(chunk, carver, biome, anchor.getX() & 0xF, anchor.getY(), anchor.getZ() & 0xF);
             CaveBiomeFeatureRunner.decorateBiomeCover(chunk, carver, region, generator, biome, anchor, random);
         }
         boolean fullScatter = megaGigaChunk || denseLegacy;
@@ -95,15 +98,15 @@ public final class CaveBiomeVolumeDecorator {
                 DynamicTreesCompat.decorateFungalCave(chunk, carver, region, generator, biome, anchor, random);
             }
             if (fullScatter) {
-                if (CaveBiomeIds.isCoverDenseCaveBiome(biome)) {
-                    CaveBiomeFeatureRunner.decorateFloorAndCeiling(chunk, carver, region, generator, biome, anchor, random, CaveBiomeIds.isFungalCaveBiome(biome));
-                } else {
-                    CaveBiomeFeatureRunner.decorateFloorAndCeiling(chunk, carver, region, generator, biome, anchor, random, denseLegacy && CaveBiomeIds.isFungalCaveBiome(biome));
-                }
+                    if (CaveBiomeIds.isCoverDenseCaveBiome(biome)) {
+                        CaveBiomeFeatureRunner.decorateFloorAndCeiling(chunk, carver, region, generator, decorBiome, anchor, random, CaveBiomeIds.isFungalCaveBiome(biome));
+                    } else {
+                        CaveBiomeFeatureRunner.decorateFloorAndCeiling(chunk, carver, region, generator, decorBiome, anchor, random, denseLegacy && CaveBiomeIds.isFungalCaveBiome(biome));
+                    }
             } else if (CaveBiomeIds.isCoverDenseCaveBiome(biome)) {
-                CaveBiomeFeatureRunner.decorateFloorAndCeiling(chunk, carver, region, generator, biome, anchor, random, false);
+                CaveBiomeFeatureRunner.decorateFloorAndCeiling(chunk, carver, region, generator, decorBiome, anchor, random, false);
             } else {
-                CaveBiomeFeatureRunner.decorateLightFloorAndCeiling(chunk, carver, region, generator, biome, anchor, random);
+                CaveBiomeFeatureRunner.decorateLightFloorAndCeiling(chunk, carver, region, generator, decorBiome, anchor, random);
             }
         }
     }
@@ -139,9 +142,9 @@ public final class CaveBiomeVolumeDecorator {
         for (int lx = offsetX; lx < 16 && anchors.size() < maxAnchors; lx += grid) {
             for (int lz = offsetZ; lz < 16 && anchors.size() < maxAnchors; lz += grid) {
                 BlockPos pos;
-                Holder<Biome> resolved;
                 int floorY = CaveBiomeVolumeDecorator.findFloorAir(chunk, carver, target, lx, lz, minY, maxY, generator, chunkX + lx, chunkZ + lz);
-                if (floorY < 0 || !CaveBiomeIds.matchesDecoratePaint(resolved = carver.resolveBiome(chunk, lx, floorY, lz), target) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
+                boolean megaGiga = carver.isColumnCacheReady() && carver.columnCache().anyMegaGiga();
+                if (floorY < 0 || !CaveDecoratePaint.mayDecorateAt(chunk, carver, lx, floorY, lz, target, megaGiga) || !seen.add((pos = new BlockPos(chunkX + lx, floorY, chunkZ + lz)).asLong())) continue;
                 anchors.add(pos);
             }
         }
@@ -192,8 +195,9 @@ public final class CaveBiomeVolumeDecorator {
         }
         int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
         int minDepth = columnMegaGiga ? CaveUndergroundGuard.MEGA_GIGA_ANCHOR_DEPTH : CaveUndergroundGuard.MIN_ANCHOR_DEPTH;
+        int scanDepth = columnMegaGiga ? 220 : 72;
         int scanTop = Math.min(maxY, surface - minDepth);
-        int scanBottom = Math.max(minY, surface - 72);
+        int scanBottom = Math.max(minY, surface - scanDepth);
         boolean entrance = carver.isEntranceColumn(lx, lz);
         for (int y = scanTop; y >= scanBottom; --y) {
             if (!CaveBiomeVolumeDecorator.isAirFloor(chunk, lx, lz, y, minY)) continue;

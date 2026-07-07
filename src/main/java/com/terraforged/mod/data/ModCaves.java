@@ -17,7 +17,7 @@ public interface ModCaves {
         TerraForged.register(TerraForged.CAVES, "synapse_low", Factory.synapse(seed.next(), 1.2f, -32, 128));
         TerraForged.register(TerraForged.CAVES, "mega", Factory.mega(seed.next(), 1.0f, -32, 96));
         TerraForged.register(TerraForged.CAVES, "mega_deep", Factory.mega(seed.next(), 1.2f, -48, 80));
-        TerraForged.register(TerraForged.CAVES, "giga", Factory.giga(seed.next(), 1.0f, -40, 112));
+        TerraForged.register(TerraForged.CAVES, "giga", Factory.giga(seed.next(), 1.0f, -48, 84));
     }
 
     public static class Factory {
@@ -62,7 +62,7 @@ public interface ModCaves {
 
         static NoiseCave[] getDefaults() {
             RandSeed seed = new RandSeed(901246L, 500000);
-            return new NoiseCave[]{Factory.synapse(seed.next(), 0.75f, 96, 384), Factory.synapse(seed.next(), 1.0f, 0, 256), Factory.synapse(seed.next(), 1.2f, -32, 128), Factory.mega(seed.next(), 1.0f, -32, 96), Factory.mega(seed.next(), 1.2f, -48, 80), Factory.giga(seed.next(), 1.0f, -40, 112)};
+            return new NoiseCave[]{Factory.synapse(seed.next(), 0.75f, 96, 384), Factory.synapse(seed.next(), 1.0f, 0, 256), Factory.synapse(seed.next(), 1.2f, -32, 128), Factory.mega(seed.next(), 1.0f, -32, 96), Factory.mega(seed.next(), 1.2f, -48, 80), Factory.giga(seed.next(), 1.0f, -48, 84)};
         }
     }
 }
