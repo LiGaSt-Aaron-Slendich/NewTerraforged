@@ -158,6 +158,9 @@ public final class CaveEntranceCarver {
         if (generator.getOceanFloorHeight(x, z) <= sea + 4) {
             return false;
         }
+        if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+            return false;
+        }
         if (breachMask < 0.3f) {
             return false;
         }

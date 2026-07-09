@@ -81,10 +81,6 @@ public final class TerraForgedOfficialCaveDecorator {
     }
 
     private static void decorateOfficialBiome(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator, Holder<Biome> biome, BlockPos seed, boolean megaGiga, WorldgenRandom random) {
-        if (CaveBiomeDecoratorRouter.resolve(biome) == CaveDecoratorKind.LEGACY) {
-            CaveBiomeVolumeDecorator.decorateSingleBiome(chunk, carver, region, generator, biome, seed, megaGiga, random, true);
-            return;
-        }
         Holder<Biome> decorBiome = CaveBiomeIds.holderForDecoration(biome, generator.getBiomeSource().getRegistry());
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
