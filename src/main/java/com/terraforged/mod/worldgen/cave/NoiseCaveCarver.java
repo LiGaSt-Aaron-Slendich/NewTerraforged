@@ -107,6 +107,12 @@ public class NoiseCaveCarver {
                     surface = NoiseCaveCarver.resolveColumnSurface(dx, dz, chunk, generator, carver, config, seed, x, z);
                 } else {
                     surface = carver.cachedSurface(dx, dz);
+                    // terrainData.getHeight can return hillside values for river/lake columns,
+                    // inflating carveCap above the actual water bed. Cap to ocean floor.
+                    if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+                        int riverBed = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                        surface = Math.min(surface, riverBed);
+                    }
                     float mask = carver.getCarvingMask(seed, sampleX, sampleZ, false);
                     if (surface > sea || surface < sea - 16) {
                         surface += 9;
