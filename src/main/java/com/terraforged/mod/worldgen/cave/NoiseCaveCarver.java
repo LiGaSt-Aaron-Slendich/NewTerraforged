@@ -116,16 +116,6 @@ public class NoiseCaveCarver {
                         surface += 9;
                     }
                     surface -= NoiseUtil.floor(16.0f * mask);
-                    // For shallow water columns (rivers, ponds): cachedSurface inflates to the
-                    // neighbouring hillside height via terrainData.getHeight(), pushing carveCap
-                    // ~80 blocks above the real stone bed and carving through it.
-                    // Cap surface at the stone bed so solidCap stays below the river floor.
-                    int stoneFloor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz) - 1;
-                    int blockTop  = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz) - 1;
-                    boolean shallowWater = stoneFloor < blockTop && stoneFloor >= sea - 4;
-                    if (shallowWater) {
-                        surface = Math.min(surface, stoneFloor);
-                    }
                 }
             }
             if (megaGiga && columns.oceanBlocked(dx, dz)) {
@@ -182,7 +172,18 @@ public class NoiseCaveCarver {
             if (densityBudget != null && !megaGiga && !densityBudget.canCarveSecondary(verticalSpan)) {
                 continue;
             }
-            boolean piercedSurface = NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, roofBuffer, megaGiga, surfaceBreach, cavern, pos);
+            // For shallow water synapse columns: use the actual stone bed as the carve ceiling
+            // guard instead of the noise-inflated cachedSurface. This prevents carving through
+            // river/pond floors while keeping bounds (and cave depth) unchanged.
+            int floorBed = surface;
+            if (!megaGiga) {
+                int stoneFloor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz) - 1;
+                int blockTop   = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz) - 1;
+                if (stoneFloor < blockTop && stoneFloor >= sea - 4) {
+                    floorBed = Math.min(surface, stoneFloor);
+                }
+            }
+            boolean piercedSurface = NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, floorBed, roofBuffer, megaGiga, surfaceBreach, cavern, pos);
             if (densityBudget != null) {
                 if (megaGiga) {
                     densityBudget.consumeMegaGiga(1, verticalSpan);
@@ -320,7 +321,7 @@ public class NoiseCaveCarver {
         return new int[]{bottom, top, surfaceBreach ? 1 : 0};
     }
 
-    private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int roofBuffer, boolean megaGiga, boolean surfaceBreach, int cavern, BlockPos.MutableBlockPos pos) {
+    private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int floorBed, int roofBuffer, boolean megaGiga, boolean surfaceBreach, int cavern, BlockPos.MutableBlockPos pos) {
         if (megaGiga) {
             return NoiseCaveCarver.carveMegaGigaSphere(chunk, carver, config, generator, defaultBiome, x, z, dx, dz, bottom, top, surface, roofBuffer, surfaceBreach, cavern, pos);
         }
@@ -338,7 +339,9 @@ public class NoiseCaveCarver {
                 patchBiome = defaultBiome;
             }
         }
-        int solidCap = surface - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
+        // floorBed = min(surface, stoneFloor) for shallow water columns so solidCap sits below
+        // the river/pond bed; equals surface for all dry-land columns (no change in behavior).
+        int solidCap = floorBed - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
         int carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
         boolean piercedSurface = false;
         for (int cy = bottom; cy <= top; ++cy) {
