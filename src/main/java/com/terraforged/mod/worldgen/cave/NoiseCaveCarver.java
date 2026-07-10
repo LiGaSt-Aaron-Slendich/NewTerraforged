@@ -116,6 +116,16 @@ public class NoiseCaveCarver {
                         surface += 9;
                     }
                     surface -= NoiseUtil.floor(16.0f * mask);
+                    // For shallow water columns (rivers, ponds): cachedSurface inflates to the
+                    // neighbouring hillside height via terrainData.getHeight(), pushing carveCap
+                    // ~80 blocks above the real stone bed and carving through it.
+                    // Cap surface at the stone bed so solidCap stays below the river floor.
+                    int stoneFloor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz) - 1;
+                    int blockTop  = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz) - 1;
+                    boolean shallowWater = stoneFloor < blockTop && stoneFloor >= sea - 4;
+                    if (shallowWater) {
+                        surface = Math.min(surface, stoneFloor);
+                    }
                 }
             }
             if (megaGiga && columns.oceanBlocked(dx, dz)) {
