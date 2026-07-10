@@ -20,12 +20,6 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 public class NoiseCaveCarver {
     private static final int MIN_GLOBAL_CAVERN = 1;
-    /**
-     * Maximum tolerated excess of terrain-data surface over actual heightmap before we clamp it.
-     * Normal hillside smoothing creates at most ~12 blocks of discrepancy; river-bank inflation
-     * can reach 25-35 blocks, which is what we want to suppress.
-     */
-    private static final int MAX_TERRAIN_INFLATION = 12;
     /** Aligns with {@link CaveBreaches} — breach thins roof, does not pierce surface in column carve. */
     private static final float NATURAL_BREACH_THRESHOLD = 0.7f;
     /** Underground mega/giga: surface crust kept unless roof buffer is 0 or breach thins roof. */
@@ -112,21 +106,14 @@ public class NoiseCaveCarver {
                 if (NoiseCaveCarver.isUnderwaterOcean(chunk, dx, dz, sea)) {
                     surface = NoiseCaveCarver.resolveColumnSurface(dx, dz, chunk, generator, carver, config, seed, x, z);
                 } else {
-                    surface = carver.cachedSurface(dx, dz);
-                    // cachedSurface = max(MOTION_BLOCKING, terrain.getHeight()). For river banks,
-                    // terrain noise reports the neighbouring hillside height (e.g. y=90) while the
-                    // actual bank is at y=65 — a 25-block inflation that pushes carveCap above
-                    // the real surface. Cap the inflation to MAX_TERRAIN_INFLATION blocks so normal
-                    // hillside smoothing (typically ≤12 blocks) is preserved.
-                    int actualSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
-                    if (surface > actualSurface + MAX_TERRAIN_INFLATION) {
-                        surface = actualSurface + MAX_TERRAIN_INFLATION;
-                    }
-                    // For actual river/lake columns MOTION_BLOCKING returns the water surface, so
-                    // cap further to the stone bed to prevent carving into the water body.
-                    if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
-                        surface = Math.min(surface, chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz));
-                    }
+                    // Use OCEAN_FLOOR_WG like original TerraForged 0.3.x getSurface().
+                    // OCEAN_FLOOR_WG is the highest non-fluid solid block: for land it equals the
+                    // actual terrain surface; for river/lake columns it is the stone bed, NOT the
+                    // water surface. This naturally prevents terrain-data inflation (cachedSurface
+                    // used max(MOTION_BLOCKING, terrain.getHeight()) which reported neighbouring
+                    // hillside heights for river-bank columns, pushing carveCap 25-35 blocks above
+                    // the real surface and allowing caves to carve through bank cover and soil).
+                    surface = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz) - 1;
                     float mask = carver.getCarvingMask(seed, sampleX, sampleZ, false);
                     if (surface > sea || surface < sea - 16) {
                         surface += 9;
