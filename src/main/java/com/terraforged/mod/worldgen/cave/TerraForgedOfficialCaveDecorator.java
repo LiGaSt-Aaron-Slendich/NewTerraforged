@@ -586,11 +586,8 @@ public final class TerraForgedOfficialCaveDecorator {
     }
 
     private static int firstStageFor(Holder<Biome> biome) {
-        if (CaveBiomeIds.isModCaveBiome(biome)) {
-            return GenerationStep.Decoration.SURFACE_STRUCTURES.ordinal();
-        }
-        if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isCoverDenseCaveBiome(biome)) {
-            return GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal();
+        if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isCoverDenseCaveBiome(biome) || CaveBiomeIds.isModCaveBiome(biome)) {
+            return GenerationStep.Decoration.RAW_GENERATION.ordinal();
         }
         return DEFAULT_FIRST_STAGE;
     }
