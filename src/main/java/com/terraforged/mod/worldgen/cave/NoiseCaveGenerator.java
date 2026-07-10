@@ -77,9 +77,7 @@ public class NoiseCaveGenerator {
         CarverColumnCache columns = carver.columnCache();
         boolean megaGiga = columns.anyMegaGiga();
         WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
-        if (CaveDecorationSettings.usePerBiomeDecorators()) {
-            CaveHybridBiomeDecorator.decorateVolume(chunk, carver, guarded, generator);
-        } else if (CaveDecorationSettings.useOfficialTfDecorator()) {
+        if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
             TerraForgedOfficialCaveDecorator.decorateVolume(chunk, carver, guarded, generator);
         } else if (CaveDecorationSettings.useLegacyDecorators()) {
             CaveBiomeVolumeDecorator.decorateChunk(chunk, carver, guarded, generator);
@@ -113,8 +111,11 @@ public class NoiseCaveGenerator {
         HashSet<Long> decoratedColumns = new HashSet<Long>(128);
         CaveFeaturePlan.Cache planCache = new CaveFeaturePlan.Cache();
         WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
-        if (CaveDecorationSettings.usePerBiomeDecorators()) {
-            CaveHybridBiomeDecorator.decorateEntrances(chunk, carver, guarded, generator);
+        if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
+            if (carver.hasAnyEntranceColumn()) {
+                CaveEntranceSurfaceDecorator.decorate(chunk, carver, guarded, generator);
+                CaveEntranceVanillaDecorator.decorate(chunk, carver, guarded, generator);
+            }
         } else if (CaveDecorationSettings.useLegacyDecorators()) {
             if (carver.hasAnyEntranceColumn()) {
                 CaveEntranceSurfaceDecorator.decorate(chunk, carver, guarded, generator);
@@ -260,7 +261,7 @@ public class NoiseCaveGenerator {
             carver.modifier = this.getModifier(envelopeConfig);
             CaveParallelExposureFilter.build(columns, seed, chunk, carver, generator, envelopeConfig);
         }
-        if (CaveDecorationSettings.useOfficialTfDecorator()) {
+        if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators()) {
             this.replayCarveForBiomes(seed, chunk, carver, generator);
         } else {
             for (NoiseCave config : this.carveOrderCaves) {

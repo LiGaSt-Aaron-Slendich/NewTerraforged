@@ -424,7 +424,7 @@ public final class CaveFeatureDiagnostics {
 
     private static String chamberStatusFor(Holder<PlacedFeature> placed, Holder<Biome> biome, int chamberSpan, boolean nearSurfaceCrust) {
         CaveDecoratorKind kind = CaveBiomeDecoratorRouter.resolve(biome);
-        if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators() && kind == CaveDecoratorKind.OFFICIAL) {
+        if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators()) {
             return TerraForgedOfficialCaveDecorator.chamberGuardVerdict(placed, biome, chamberSpan, nearSurfaceCrust);
         }
         if (kind == CaveDecoratorKind.LEGACY && TerraForgedOfficialCaveDecorator.isFungalLargeFloorFeature(placed)) {
@@ -494,7 +494,7 @@ public final class CaveFeatureDiagnostics {
             return "forbidden for this cave biome";
         }
         CaveDecoratorKind kind = CaveBiomeDecoratorRouter.resolve(biome);
-        if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators() && kind == CaveDecoratorKind.OFFICIAL) {
+        if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators()) {
             return TerraForgedOfficialCaveDecorator.decorFeatureVerdict(placed, biome, chamberSpan, nearSurfaceCrust);
         }
         if (CaveDecorationSettings.useCompromiseDecorator()) {

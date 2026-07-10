@@ -44,10 +44,7 @@ public final class CaveDecorationSettings {
     }
 
     public static String activeModeLabel() {
-        if (CaveDecorationSettings.usePerBiomeDecorators()) {
-            return "hybrid";
-        }
-        if (CaveDecorationSettings.useOfficialTfDecorator()) {
+        if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
             return "official";
         }
         if (CaveDecorationSettings.useLegacyDecorators()) {
