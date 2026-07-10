@@ -106,12 +106,15 @@ public class NoiseCaveCarver {
                 if (NoiseCaveCarver.isUnderwaterOcean(chunk, dx, dz, sea)) {
                     surface = NoiseCaveCarver.resolveColumnSurface(dx, dz, chunk, generator, carver, config, seed, x, z);
                 } else {
-                    surface = carver.cachedSurface(dx, dz);
-                    // terrainData.getHeight can return hillside values for river/lake columns,
-                    // inflating carveCap above the actual water bed. Cap to ocean floor.
+                    // Use actual block heightmap rather than terrain-data-inflated cachedSurface.
+                    // cachedSurface = max(MOTION_BLOCKING, terrain.getHeight()) — terrain noise can
+                    // report hillside values for river-bank columns, pushing carveCap far above the
+                    // real surface and causing carving to breach banks and cut surface cover.
+                    surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+                    // For river/lake columns cap further to stone bed — MOTION_BLOCKING includes
+                    // water blocks, so without this the cave could still carve into the water body.
                     if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
-                        int riverBed = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
-                        surface = Math.min(surface, riverBed);
+                        surface = Math.min(surface, chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz));
                     }
                     float mask = carver.getCarvingMask(seed, sampleX, sampleZ, false);
                     if (surface > sea || surface < sea - 16) {
