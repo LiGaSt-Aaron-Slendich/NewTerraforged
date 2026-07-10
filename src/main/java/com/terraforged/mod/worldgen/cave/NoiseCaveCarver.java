@@ -315,7 +315,13 @@ public class NoiseCaveCarver {
     }
 
     private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int roofBuffer, boolean megaGiga, boolean surfaceBreach, BlockPos.MutableBlockPos pos) {
-        int maxBiomeY = config.getType() == CaveType.GLOBAL ? config.getMaxY() >> 2 : surface - 12 >> 2;
+        // Use the raw terrain height (cachedSurface) for biome-painting decisions.
+        // 'surface' is the noise-adjusted carving surface (OCEAN_FLOOR_WG - 1 + offsets) which
+        // can be much lower than the actual terrain in valleys beside tall mountains. Using it
+        // for the skip band would prevent cave biome painting in deep mountain caves (e.g.
+        // cachedSurface=141 but surface=86 → skip band y>=83 instead of y>=138).
+        int terrainSurface = carver.cachedSurface(dx, dz);
+        int maxBiomeY = config.getType() == CaveType.GLOBAL ? config.getMaxY() >> 2 : terrainSurface - 12 >> 2;
         int topThird = config.getMaxY() - (config.getMaxY() - config.getMinY()) / 3;
         boolean patchPlacement = config.getPlacementType() == CavePlacementType.CEILING_PATCH || config.getPlacementType() == CavePlacementType.ISLAND_PATCH;
         boolean global = config.getType() == CaveType.GLOBAL;
@@ -330,9 +336,11 @@ public class NoiseCaveCarver {
                 patchBiome = defaultBiome;
             }
         }
-        // When a surface breach is active the cave may open to sky; raise carveCap accordingly.
+        // carveCap uses AGGRESSIVE_SURFACE_CRUST (2 blocks) to match computeGlobalBounds which
+        // uses roofCap=4 (relaxed). Using the full roofBuffer=22 here would cut cave ceilings at
+        // surface-22 even though bounds computed top = surface-4, causing a visible flat ceiling.
         int carveCap = roofBuffer <= 0 ? UNLIMITED_CEILING
-                : (surfaceBreach ? surface + ENTRANCE_AIR_LIFT : surface - roofBuffer);
+                : (surfaceBreach ? surface + ENTRANCE_AIR_LIFT : surface - AGGRESSIVE_SURFACE_CRUST);
         boolean piercedSurface = false;
         for (int cy = bottom; cy <= top; ++cy) {
             if (cy > carveCap) {
@@ -359,7 +367,7 @@ public class NoiseCaveCarver {
                 piercedSurface = true;
             }
             chunk.setBlockState((BlockPos)pos, AIR, false);
-            if (cy >> 2 >= maxBiomeY || cy >= surface - surfaceBiomeSkip) {
+            if (cy >> 2 >= maxBiomeY || cy >= terrainSurface - surfaceBiomeSkip) {
                 continue;
             }
             Holder<Biome> biome = defaultBiome;
