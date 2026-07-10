@@ -22,16 +22,6 @@ public class NoiseCaveCarver {
     private static final int MIN_GLOBAL_CAVERN = 1;
     /** Breach mask at/above this: no roof cap for mega/giga — noise carve may open to sky. */
     private static final float NATURAL_BREACH_THRESHOLD = 0.7f;
-    /**
-     * Synapse-only: when breachMask >= this, reduce roofCap to min(roofBuffer,4) in computeGlobalBounds.
-     * Allows synapse cave tops to reach near the surface at high-energy noise columns without
-     * changing the mega/giga breach logic that uses NATURAL_BREACH_THRESHOLD.
-     */
-    private static final float SYNAPSE_ROOF_RELAX_THRESHOLD = 0.25f;
-    /** Breach strong enough to pierce solid rock at the surface and form a decorated entrance. */
-    private static final float SURFACE_PIERCE_BREACH = 0.35f;
-    /** Air volume above surface when a breach entrance opens (grotto lip / adit mouth). */
-    private static final int ENTRANCE_AIR_LIFT = 4;
     /** Underground mega/giga: surface crust kept unless roof buffer is 0 or breach thins roof. */
     private static final int AGGRESSIVE_SURFACE_CRUST = 2;
     private static final int UNLIMITED_CEILING = Integer.MAX_VALUE / 4;
@@ -266,60 +256,21 @@ public class NoiseCaveCarver {
         return new int[]{bottom, top, markEntrance ? 1 : 0};
     }
 
-    /**
-     * When local headroom is smaller than the cave radius, shift the column center down instead
-     * of clipping the ceiling — avoids the sharp flat-cut "U" shape under river beds / near hills.
-     */
-    private static int shiftCenterForHeadroom(int centerY, int radius, int minY, int surface, int roofBuffer) {
-        int ceiling = surface - roofBuffer;
-        int headroom = ceiling - centerY;
-        if (headroom >= radius) {
-            return centerY;
-        }
-        int shifted = centerY - (radius - headroom);
-        return Math.max(minY + radius, Math.min(centerY, shifted));
-    }
-
     private static int[] computeGlobalBounds(int centerY, int cavern, int floor, int surface, int roofBuffer, int minY, float breachMask) {
-        // Reduce roof cap near high-energy noise (natural entrances / near-surface columns).
-        int roofCap = breachMask >= SYNAPSE_ROOF_RELAX_THRESHOLD ? Math.min(roofBuffer, 4) : roofBuffer;
-        // Shift center down if headroom is insufficient — prevents flat-cut ceiling.
-        int shiftedY = NoiseCaveCarver.shiftCenterForHeadroom(centerY, cavern, minY, surface, roofCap);
-        int ceiling = surface - roofCap;
-        int top = Math.min(shiftedY + cavern, ceiling);
-        int bottom = Math.max(shiftedY - floor, minY);
-        // First fallback: halve the roof cap so more headroom is available.
-        if (top - bottom < 3) {
-            shiftedY = NoiseCaveCarver.shiftCenterForHeadroom(centerY, cavern, minY, surface, Math.max(2, roofCap / 2));
-            top = Math.min(shiftedY + cavern, ceiling);
-            bottom = Math.max(shiftedY - floor, minY);
-        }
-        // Second fallback: use half cavern radius.
-        if (top - bottom < 3) {
-            top = Math.min(ceiling, bottom + Math.max(3, cavern / 2));
-            bottom = Math.max(minY, top - Math.max(3, cavern / 2));
-        }
-        // Final fallback: guarantee a 3-block minimum.
+        int bottom = Math.max(centerY - floor, minY);
+        int top = roofBuffer <= 0 ? centerY + cavern : Math.min(centerY + cavern, surface - roofBuffer);
         if (top - bottom < 3) {
             bottom = Math.max(minY, top - 3);
         }
-        // Surface breach: very high noise can open the cave to the sky.
-        boolean surfaceBreach = breachMask >= SURFACE_PIERCE_BREACH && top >= surface - 2;
-        if (surfaceBreach) {
-            top = Math.max(top, Math.min(shiftedY + cavern, surface + ENTRANCE_AIR_LIFT));
-            if (top - bottom < 3) {
-                bottom = Math.max(minY, top - 3);
-            }
-        }
-        return new int[]{bottom, top, surfaceBreach ? 1 : 0};
+        return new int[]{bottom, top, 0};
     }
 
     private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int roofBuffer, boolean megaGiga, boolean surfaceBreach, BlockPos.MutableBlockPos pos) {
         // Use the raw terrain height (cachedSurface) for biome-painting decisions.
-        // 'surface' is the noise-adjusted carving surface (OCEAN_FLOOR_WG - 1 + offsets) which
-        // can be much lower than the actual terrain in valleys beside tall mountains. Using it
-        // for the skip band would prevent cave biome painting in deep mountain caves (e.g.
-        // cachedSurface=141 but surface=86 → skip band y>=83 instead of y>=138).
+        // 'surface' is the OCEAN_FLOOR_WG-based carving surface which can be much lower than the
+        // actual terrain in valleys beside tall mountains. Using it for the skip band would prevent
+        // cave biome painting in deep mountain caves (cachedSurface=141 but surface=86 →
+        // skip band y>=83 instead of y>=138).
         int terrainSurface = carver.cachedSurface(dx, dz);
         int maxBiomeY = config.getType() == CaveType.GLOBAL ? config.getMaxY() >> 2 : terrainSurface - 12 >> 2;
         int topThird = config.getMaxY() - (config.getMaxY() - config.getMinY()) / 3;
@@ -336,11 +287,9 @@ public class NoiseCaveCarver {
                 patchBiome = defaultBiome;
             }
         }
-        // carveCap uses AGGRESSIVE_SURFACE_CRUST (2 blocks) to match computeGlobalBounds which
-        // uses roofCap=4 (relaxed). Using the full roofBuffer=22 here would cut cave ceilings at
-        // surface-22 even though bounds computed top = surface-4, causing a visible flat ceiling.
-        int carveCap = roofBuffer <= 0 ? UNLIMITED_CEILING
-                : (surfaceBreach ? surface + ENTRANCE_AIR_LIFT : surface - AGGRESSIVE_SURFACE_CRUST);
+        // With configuredSynapseRoof()=0, roofBuffer=0 → carveCap=UNLIMITED (GitHub behavior).
+        // For non-zero roofBuffer (mega/giga), carveCap uses the full roofBuffer as in GitHub.
+        int carveCap = roofBuffer <= 0 ? UNLIMITED_CEILING : surface - roofBuffer;
         boolean piercedSurface = false;
         for (int cy = bottom; cy <= top; ++cy) {
             if (cy > carveCap) {
@@ -522,7 +471,7 @@ public class NoiseCaveCarver {
     }
 
     private static int configuredSynapseRoof() {
-        return TFCaveSystemConfig.INSTANCE != null ? TFCaveSystemConfig.INSTANCE.surfaceRoofBufferSynapse : 22;
+        return TFCaveSystemConfig.INSTANCE != null ? TFCaveSystemConfig.INSTANCE.surfaceRoofBufferSynapse : 0;
     }
 
     private static int resolveRoofBuffer(float breachMask, int worldX, int worldZ, ChunkAccess chunk, Generator generator, NoiseCave config, boolean underwaterOcean, int seed, CarverColumnCache columns, int dx, int dz) {
