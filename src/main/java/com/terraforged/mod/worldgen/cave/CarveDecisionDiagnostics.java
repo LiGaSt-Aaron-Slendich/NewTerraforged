@@ -391,8 +391,21 @@ public final class CarveDecisionDiagnostics {
         }
         if (airUnderWater) {
             report.add(String.format(Locale.ROOT,
-                    "Post-carve repair: restoreRiverDepressions may run refillWaterOnly (waterY=%d bed~%d) — water refill without stone, void can remain",
+                    "Post-carve repair: restoreRiverDepressions skips columns with cave air (waterY=%d bed~%d) — was partial carve/refillWaterOnly",
                     waterY, bedY));
+        }
+        TerrainData terrain = generator.getChunkDataIfReady(chunk.getPos());
+        if (terrain != null && CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+            int bedYTerrain = terrain.getHeight(lx, lz);
+            int waterYTerrain = com.terraforged.mod.worldgen.terrain.TerrainLevels.getWaterLevel(lx, lz, generator.getSeaLevel(), terrain);
+            if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedYTerrain, waterYTerrain)) {
+                report.add(String.format(Locale.ROOT,
+                        "River bed column: restoreRiverDepressions SKIPPED (cave air bed~%d..%d) — avoids eroded partial carve",
+                        bedYTerrain, waterYTerrain));
+            }
+        }
+        if (carver.hasTunnelRiver()) {
+            report.add("Tunnel river: CaveTunnelRiverDecorator may carve punch/channel along massif tunnel axis (separate from restoreRiverDepressions)");
         }
     }
 

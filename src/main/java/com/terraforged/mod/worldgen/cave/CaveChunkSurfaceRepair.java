@@ -108,6 +108,14 @@ public final class CaveChunkSurfaceRepair {
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
+    /** True when mega/synapse air under a river bed column — {@link #restoreRiverDepressions} must not partial-carve. */
+    public static boolean riverDepressionSkippedDueToCaveAir(ChunkAccess chunk, int lx, int lz, int bedY, int waterY) {
+        int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
+        int carveTop = Math.min(waterY, shellTop);
+        return CaveChunkSurfaceRepair.hasCaveChamberBelow(chunk, lx, lz, waterY)
+                || CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, carveTop, bedY);
+    }
+
     /** Carve river/lake beds from terrain data after flat surface repair — keeps channels from leaking. */
     public static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
         if (terrain == null) {
@@ -128,9 +136,13 @@ public final class CaveChunkSurfaceRepair {
                 int waterY = TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
                 int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
                 int carveTop = Math.min(waterY, shellTop);
-                if (CaveChunkSurfaceRepair.hasCaveChamberBelow(chunk, lx, lz, waterY)
-                        || CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, carveTop, bedY)
-                        || shellTop <= waterY + 1) {
+                if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedY, waterY)) {
+                    // Mega/synapse already opened this column. Partial depression carve stops at the
+                    // first air pocket and varies per column — the jagged "dynamite erosion" under rivers.
+                    // refillWaterOnly also leaves void under the bed; leave geometry to the carver.
+                    continue;
+                }
+                if (shellTop <= waterY + 1) {
                     CaveChunkSurfaceRepair.refillWaterOnly(chunk, carver, lx, lz, bedY, waterY, water, pos);
                     continue;
                 }
