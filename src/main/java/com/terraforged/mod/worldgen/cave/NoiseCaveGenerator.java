@@ -239,7 +239,6 @@ public class NoiseCaveGenerator {
             CaveBiomeRegistry registry;
             if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
             CaveType type = config.getType();
-            if (type == CaveType.GLOBAL && !columns.anySynapseEligible()) continue;
             carver.beginCavePass(config);
             carver.modifier = this.getModifier(config);
             NoiseCaveCarver.carve(seed, chunk, carver, generator, config, true);
@@ -322,9 +321,6 @@ public class NoiseCaveGenerator {
                 continue;
             }
             if (!megaGiga && type.isMegaOrGiga()) {
-                continue;
-            }
-            if (type == CaveType.GLOBAL && !columns.anySynapseEligible()) {
                 continue;
             }
             carver.beginCavePass(config);

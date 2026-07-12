@@ -58,23 +58,13 @@ public class NoiseCaveCarver {
                 carver.restoreTunnel(axis);
             }
         }
-        if (configType == CaveType.GLOBAL && !columns.anySynapseEligible()) {
-            return;
-        }
         CaveDensityBudget densityBudget = carver.densityBudget();
         CaveDensitySettings densitySettings = NoiseCaveCarver.resolveDensitySettings();
-        if (!megaGigaConfig && !columns.anySynapseEligible() && !densitySettings.regionPassesSpatialThinning(seed, chunk.getPos().x, chunk.getPos().z)) {
+        if (!megaGigaConfig && !densitySettings.regionPassesSpatialThinning(seed, chunk.getPos().x, chunk.getPos().z)) {
             return;
         }
         int sea = generator.getSeaLevel();
         ChunkPos chunkPos = chunk.getPos();
-        int[][] smoothedCenterY = null;
-        int[][] smoothedCavern = null;
-        if (megaGigaConfig) {
-            smoothedCenterY = new int[16][16];
-            smoothedCavern = new int[16][16];
-            NoiseCaveCarver.prepareSmoothedMegaGigaColumns(seed, config, carver, columns, configType, startX, startZ, smoothedCenterY, smoothedCavern);
-        }
         for (int n = 0; n < 256; ++n) {
             int i = densityBudget != null ? NoiseCaveCarver.permutedColumnIndex(seed, chunkPos, n) : n;
             int dx = i & 0xF;
@@ -99,12 +89,13 @@ public class NoiseCaveCarver {
                     continue;
                 }
                 surface = carver.cachedSurface(dx, dz);
-                if (smoothedCavern[dx][dz] <= 0) {
-                    continue;
+                int actualSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+                if (surface > actualSurface + MAX_TERRAIN_INFLATION) {
+                    surface = actualSurface + MAX_TERRAIN_INFLATION;
                 }
-                y = smoothedCenterY[dx][dz];
-                cavern = smoothedCavern[dx][dz];
                 value = CaveNoise.sampleMerged(carver.modifier, seed, sampleX, sampleZ);
+                cavern = config.getCavernSize(seed, sampleX, sampleZ, value);
+                y = config.getHeight(seed, sampleX, sampleZ) - columns.extraCenterDrop(dx, dz);
             } else {
                 if (densityBudget != null && densityBudget.xyRemaining() <= 0) {
                     continue;
@@ -201,7 +192,7 @@ public class NoiseCaveCarver {
                     floorBed = Math.min(surface, stoneFloor);
                 }
             }
-            boolean piercedSurface = NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, floorBed, roofBuffer, megaGiga, surfaceBreach, cavern, pos);
+            boolean piercedSurface = NoiseCaveCarver.carveColumn(chunk, carver, config, generator, biome, x, z, dx, dz, bottom, top, surface, floorBed, roofBuffer, megaGiga, surfaceBreach, cavern, columns, pos);
             if (densityBudget != null) {
                 if (megaGiga) {
                     densityBudget.consumeMegaGiga(1, verticalSpan);
@@ -339,15 +330,12 @@ public class NoiseCaveCarver {
         return new int[]{bottom, top, surfaceBreach ? 1 : 0};
     }
 
-    private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int floorBed, int roofBuffer, boolean megaGiga, boolean surfaceBreach, int cavern, BlockPos.MutableBlockPos pos) {
-        if (megaGiga) {
-            return NoiseCaveCarver.carveMegaGigaSphere(chunk, carver, config, generator, defaultBiome, x, z, dx, dz, bottom, top, surface, roofBuffer, surfaceBreach, cavern, pos);
-        }
+    private static boolean carveColumn(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int floorBed, int roofBuffer, boolean megaGiga, boolean surfaceBreach, int cavern, CarverColumnCache columns, BlockPos.MutableBlockPos pos) {
         int maxBiomeY = config.getType() == CaveType.GLOBAL ? config.getMaxY() >> 2 : surface - 12 >> 2;
         int topThird = config.getMaxY() - (config.getMaxY() - config.getMinY()) / 3;
         boolean patchPlacement = config.getPlacementType() == CavePlacementType.CEILING_PATCH || config.getPlacementType() == CavePlacementType.ISLAND_PATCH;
         boolean global = config.getType() == CaveType.GLOBAL;
-        int surfaceBiomeSkip = global ? 3 : 8;
+        int surfaceBiomeSkip = global ? 3 : (megaGiga ? 10 : 8);
         Holder<Biome> patchBiome = defaultBiome;
         int patchY = bottom;
         if (patchPlacement) {
@@ -357,10 +345,21 @@ public class NoiseCaveCarver {
                 patchBiome = defaultBiome;
             }
         }
-        // floorBed = min(surface, stoneFloor) for shallow water columns so solidCap sits below
-        // the river/pond bed; equals surface for all dry-land columns (no change in behavior).
-        int solidCap = floorBed - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
-        int carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
+        int actualSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+        int solidCap;
+        int carveCap;
+        if (megaGiga) {
+            solidCap = surface - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
+            carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
+        } else {
+            solidCap = floorBed - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
+            carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
+        }
+        if (!surfaceBreach) {
+            int heightCap = actualSurface - Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST);
+            solidCap = Math.min(solidCap, heightCap);
+            carveCap = Math.min(carveCap, heightCap);
+        }
         boolean piercedSurface = false;
         for (int cy = bottom; cy <= top; ++cy) {
             if (cy > carveCap) {
@@ -368,9 +367,11 @@ public class NoiseCaveCarver {
             }
             pos.set(dx, cy, dz);
             BlockState state = chunk.getBlockState((BlockPos)pos);
-            boolean atOrAboveSurface = cy >= surface;
+            boolean atOrAboveSurface = cy >= actualSurface;
             if (!state.getFluidState().isEmpty()) {
-                continue;
+                if (!megaGiga || atOrAboveSurface) {
+                    continue;
+                }
             }
             if (state.isAir()) {
                 if (atOrAboveSurface && !surfaceBreach) {
@@ -378,14 +379,19 @@ public class NoiseCaveCarver {
                 }
                 continue;
             }
-            if (cy >= solidCap && !surfaceBreach) {
+            if (!megaGiga && cy >= solidCap && !surfaceBreach) {
                 continue;
             }
-            if (atOrAboveSurface || cy >= surface - 1 && cy <= surface + 1) {
+            if (megaGiga && cy >= solidCap && !surfaceBreach) {
+                continue;
+            }
+            if (atOrAboveSurface || cy >= actualSurface - 1 && cy <= actualSurface + 1) {
                 piercedSurface = true;
             }
             chunk.setBlockState((BlockPos)pos, AIR, false);
-            if (cy >> 2 >= maxBiomeY || cy >= surface - surfaceBiomeSkip) continue;
+            if (cy >> 2 >= maxBiomeY || cy >= actualSurface - surfaceBiomeSkip) {
+                continue;
+            }
             Holder<Biome> biome = defaultBiome;
             if (patchPlacement) {
                 boolean topSection = config.getPlacementType() == CavePlacementType.CEILING_PATCH ? cy >= topThird : cy < topThird;
@@ -398,72 +404,12 @@ public class NoiseCaveCarver {
         carver.noteDecorateAnchor(defaultBiome, new BlockPos(x, bottom, z));
         if (patchPlacement && patchBiome != defaultBiome) {
             carver.noteDecorateAnchor(patchBiome, new BlockPos(x, patchY, z));
-        }
-        return piercedSurface;
-    }
-
-    /** Rounded mega/giga volume тАФ avoids cubic column stacks and flat terrace ceilings. */
-    private static boolean carveMegaGigaSphere(ChunkAccess chunk, CarverChunk carver, NoiseCave config, Generator generator, Holder<Biome> defaultBiome, int x, int z, int dx, int dz, int bottom, int top, int surface, int roofBuffer, boolean surfaceBreach, int cavern, BlockPos.MutableBlockPos pos) {
-        int centerY = bottom + top >> 1;
-        int radius = Math.max(MIN_MEGA_GIGA_CAVERN, cavern);
-        int radiusSq = radius * radius + radius / 2;
-        int minY = chunk.getMinBuildHeight();
-        int maxY = chunk.getHighestSectionPosition() + 15;
-        int yMin = Math.max(minY, centerY - radius);
-        int yMax = Math.min(maxY, centerY + radius);
-        int pxMin = Math.max(0, dx - radius);
-        int pxMax = Math.min(15, dx + radius);
-        int pzMin = Math.max(0, dz - radius);
-        int pzMax = Math.min(15, dz + radius);
-        int maxBiomeY = surface - 12 >> 2;
-        int surfaceBiomeSkip = 10;
-        boolean piercedSurface = false;
-        for (int px = pxMin; px <= pxMax; ++px) {
-            for (int pz = pzMin; pz <= pzMax; ++pz) {
-                int ox = px - dx;
-                int oz = pz - dz;
-                if (ox * ox + oz * oz > radiusSq) {
-                    continue;
-                }
-                if (carver.isColumnCacheReady() && carver.columnCache().riverCarveBlocked(px, pz)) {
-                    continue;
-                }
-                if (carver.isColumnCacheReady() && carver.columnCache().riverSurfaceSuppressed(px, pz)) {
-                    continue;
-                }
-                int localSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, px, pz);
-                int localSolidCap = localSurface - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
-                int localCarveCap = surfaceBreach ? localSurface + ENTRANCE_AIR_LIFT : localSolidCap;
-                for (int cy = yMin; cy <= yMax; ++cy) {
-                    int oy = cy - centerY;
-                    if (ox * ox + oy * oy + oz * oz > radiusSq) {
-                        continue;
-                    }
-                    if (cy > localCarveCap) {
-                        continue;
-                    }
-                    pos.set(px, cy, pz);
-                    BlockState state = chunk.getBlockState((BlockPos)pos);
-                    boolean atOrAboveSurface = cy >= localSurface;
-                    if (!state.getFluidState().isEmpty()) {
-                        if (atOrAboveSurface) {
-                            continue;
-                        }
-                    }
-                    if (state.isAir()) {
-                        continue;
-                    }
-                    if (atOrAboveSurface || cy >= localSurface - 1 && cy <= localSurface + 1) {
-                        piercedSurface = true;
-                    }
-                    chunk.setBlockState((BlockPos)pos, AIR, false);
-                    if (cy >> 2 >= maxBiomeY || cy >= localSurface - surfaceBiomeSkip) continue;
-                    NoiseCaveCarver.setBiomeQuart(chunk, carver, px, cy, pz, defaultBiome);
-                }
+            if (megaGiga) {
+                NoiseCaveCarver.paintFloorHalo(chunk, carver, patchBiome, dx, dz, patchY, pos, x, z);
             }
+        } else if (megaGiga) {
+            NoiseCaveCarver.paintFloorHalo(chunk, carver, defaultBiome, dx, dz, bottom, pos, x, z);
         }
-        carver.noteDecorateAnchor(defaultBiome, new BlockPos(x, Math.max(bottom, centerY - radius), z));
-        NoiseCaveCarver.paintFloorHalo(chunk, carver, defaultBiome, dx, dz, Math.max(bottom, centerY - radius), pos, x, z);
         return piercedSurface;
     }
 
@@ -607,60 +553,6 @@ public class NoiseCaveCarver {
         return oceanFloor < seaLevel - 4;
     }
 
-    /** 3├Ч3 smooth on elevation + cavern radius тАФ stops per-column cubic stacks in mega/giga. */
-    private static void prepareSmoothedMegaGigaColumns(int seed, NoiseCave config, CarverChunk carver, CarverColumnCache columns, CaveType configType, int startX, int startZ, int[][] centerOut, int[][] cavernOut) {
-        int[][] rawCenter = new int[16][16];
-        int[][] rawCavern = new int[16][16];
-        for (int dx = 0; dx < 16; ++dx) {
-            for (int dz = 0; dz < 16; ++dz) {
-                if (!columns.matches(configType, dx, dz) || columns.oceanBlocked(dx, dz)) {
-                    continue;
-                }
-                int x = startX + dx;
-                int z = startZ + dz;
-                int sampleX = x + columns.sampleShiftX(dx, dz);
-                int sampleZ = z + columns.sampleShiftZ(dx, dz);
-                float value = CaveNoise.sampleMerged(carver.modifier, seed, sampleX, sampleZ);
-                int cavern = config.getCavernSize(seed, sampleX, sampleZ, value);
-                if (cavern < MIN_MEGA_GIGA_CAVERN) {
-                    cavern = MIN_MEGA_GIGA_CAVERN;
-                }
-                rawCenter[dx][dz] = config.getHeight(seed, sampleX, sampleZ) - columns.extraCenterDrop(dx, dz);
-                rawCavern[dx][dz] = cavern;
-            }
-        }
-        for (int dx = 0; dx < 16; ++dx) {
-            for (int dz = 0; dz < 16; ++dz) {
-                if (rawCavern[dx][dz] <= 0) {
-                    continue;
-                }
-                int sum = 0;
-                int count = 0;
-                int maxCavern = 0;
-                for (int ox = -1; ox <= 1; ++ox) {
-                    for (int oz = -1; oz <= 1; ++oz) {
-                        int px = dx + ox;
-                        int pz = dz + oz;
-                        if (px < 0 || px >= 16 || pz < 0 || pz >= 16 || rawCavern[px][pz] <= 0) {
-                            continue;
-                        }
-                        sum += rawCenter[px][pz];
-                        ++count;
-                        maxCavern = Math.max(maxCavern, rawCavern[px][pz]);
-                    }
-                }
-                if (count == 0) {
-                    centerOut[dx][dz] = rawCenter[dx][dz];
-                    cavernOut[dx][dz] = rawCavern[dx][dz];
-                    continue;
-                }
-                centerOut[dx][dz] = Math.round((float)sum / (float)count);
-                cavernOut[dx][dz] = maxCavern;
-            }
-        }
-    }
-
-
     public static final class ColumnProbeResult {
         private final boolean carvesAtProbe;
         private final String skipReason;
@@ -673,11 +565,9 @@ public class NoiseCaveCarver {
         private final int carveCap;
         private final float noiseValue;
         private final float breachMask;
-        private final boolean megaGigaSphere;
 
         private ColumnProbeResult(boolean carvesAtProbe, String skipReason, int bottom, int top, int surface,
-                int cavern, int centerY, int roofBuffer, int carveCap, float noiseValue, float breachMask,
-                boolean megaGigaSphere) {
+                int cavern, int centerY, int roofBuffer, int carveCap, float noiseValue, float breachMask) {
             this.carvesAtProbe = carvesAtProbe;
             this.skipReason = skipReason;
             this.bottom = bottom;
@@ -689,7 +579,6 @@ public class NoiseCaveCarver {
             this.carveCap = carveCap;
             this.noiseValue = noiseValue;
             this.breachMask = breachMask;
-            this.megaGigaSphere = megaGigaSphere;
         }
 
         public boolean carvesAtProbe() {
@@ -716,66 +605,20 @@ public class NoiseCaveCarver {
             return this.cavern;
         }
 
-        public boolean megaGigaSphere() {
-            return this.megaGigaSphere;
-        }
-
         public String detailLine() {
             return String.format(java.util.Locale.ROOT,
-                    "Y=%d..%d carveCap=%d centerY=%d cavern=%d surface=%d roofBuffer=%d noise=%.3f breach=%.3f%s",
+                    "Y=%d..%d carveCap=%d centerY=%d cavern=%d surface=%d roofBuffer=%d noise=%.3f breach=%.3f",
                     this.bottom, this.top, this.carveCap, this.centerY, this.cavern, this.surface, this.roofBuffer,
-                    this.noiseValue, this.breachMask, this.megaGigaSphere ? " mode=MEGA_GIGA_SPHERE" : " mode=COLUMN");
+                    this.noiseValue, this.breachMask);
         }
 
         private static ColumnProbeResult skip(String reason) {
-            return new ColumnProbeResult(false, reason, 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, false);
+            return new ColumnProbeResult(false, reason, 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f);
         }
-    }
-
-    public static void prepareSmoothedMegaGigaColumnsForProbe(int seed, NoiseCave config, CarverChunk carver,
-            CarverColumnCache columns, CaveType configType, int startX, int startZ, int[][] centerOut, int[][] cavernOut) {
-        NoiseCaveCarver.prepareSmoothedMegaGigaColumns(seed, config, carver, columns, configType, startX, startZ, centerOut, cavernOut);
-    }
-
-    /**
-     * True when a mega/giga sphere centered at {@code sourceDx/sourceDz} would set air at the probe voxel
-     * (horizontal bleed — explains air at columns whose own cavern probe is 0).
-     */
-    public static boolean megaGigaSphereCoversPoint(int seed, ChunkAccess sourceChunk, ChunkAccess probeChunk,
-            Generator generator, NoiseCave config, CarverColumnCache columns, int sourceDx, int sourceDz, int probeLx,
-            int probeLy, int probeLz, int[][] smoothedCenterY, int[][] smoothedCavern) {
-        CaveType configType = config.getType();
-        if (!configType.isMegaOrGiga() || columns.riverCarveBlocked(probeLx, probeLz)) {
-            return false;
-        }
-        if (!columns.matches(configType, sourceDx, sourceDz) || columns.oceanBlocked(sourceDx, sourceDz)) {
-            return false;
-        }
-        int sourceWx = sourceChunk.getPos().getMinBlockX() + sourceDx;
-        int sourceWz = sourceChunk.getPos().getMinBlockZ() + sourceDz;
-        if (CaveOceanFilter.isSurfaceWaterColumn(generator, sourceWx, sourceWz)) {
-            return false;
-        }
-        if (smoothedCavern == null || smoothedCavern[sourceDx][sourceDz] <= 0) {
-            return false;
-        }
-        int centerY = smoothedCenterY[sourceDx][sourceDz];
-        int cavern = Math.max(MIN_MEGA_GIGA_CAVERN, smoothedCavern[sourceDx][sourceDz]);
-        int radiusSq = cavern * cavern + cavern / 2;
-        int probeWx = probeChunk.getPos().getMinBlockX() + probeLx;
-        int probeWz = probeChunk.getPos().getMinBlockZ() + probeLz;
-        int ox = probeWx - sourceWx;
-        int oz = probeWz - sourceWz;
-        int oy = probeLy - centerY;
-        if (ox * ox + oy * oy + oz * oz > radiusSq) {
-            return false;
-        }
-        int localSurface = probeChunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, probeLx, probeLz);
-        return probeLy <= localSurface - AGGRESSIVE_SURFACE_CRUST;
     }
 
     public static ColumnProbeResult probeColumn(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator,
-            NoiseCave config, int dx, int dz, int probeY, int[][] smoothedCenterY, int[][] smoothedCavern) {
+            NoiseCave config, int dx, int dz, int probeY) {
         CaveType configType = config.getType();
         CarverColumnCache columns = carver.columnCache();
         if (!columns.matches(configType, dx, dz)) {
@@ -803,12 +646,16 @@ public class NoiseCaveCarver {
                 return ColumnProbeResult.skip("SKIP — mega/giga skips surface water column");
             }
             surface = carver.cachedSurface(dx, dz);
-            if (smoothedCavern == null || smoothedCavern[dx][dz] <= 0) {
-                return ColumnProbeResult.skip("SKIP — smoothed cavern radius <= 0 (mega/giga noise too weak here)");
+            int actualSurfaceClamp = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+            if (surface > actualSurfaceClamp + MAX_TERRAIN_INFLATION) {
+                surface = actualSurfaceClamp + MAX_TERRAIN_INFLATION;
             }
-            centerY = smoothedCenterY[dx][dz];
-            cavern = smoothedCavern[dx][dz];
             value = CaveNoise.sampleMerged(carver.modifier, seed, sampleX, sampleZ);
+            cavern = config.getCavernSize(seed, sampleX, sampleZ, value);
+            if (cavern < MIN_MEGA_GIGA_CAVERN) {
+                cavern = MIN_MEGA_GIGA_CAVERN;
+            }
+            centerY = config.getHeight(seed, sampleX, sampleZ) - columns.extraCenterDrop(dx, dz);
         } else {
             CarverColumnCache.SynapseSample synapseSample = columns.resolveSynapseSample(config, carver.modifier, seed, x, z, dx, dz);
             value = synapseSample.modifierValue;
@@ -895,19 +742,33 @@ public class NoiseCaveCarver {
                 floorBed = Math.min(surface, stoneFloor);
             }
         }
-        int solidCap = floorBed - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
-        int carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
+        int actualSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+        int solidCap;
+        int carveCap;
+        if (megaGiga) {
+            solidCap = surface - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
+            carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
+        } else {
+            solidCap = floorBed - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
+            carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
+        }
+        if (!surfaceBreach) {
+            int heightCap = actualSurface - Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST);
+            solidCap = Math.min(solidCap, heightCap);
+            carveCap = Math.min(carveCap, heightCap);
+        }
         if (probeY < bottom || probeY > top) {
             return ColumnProbeResult.skip(String.format(java.util.Locale.ROOT,
-                    "SKIP — probe Y=%d outside carve band Y=%d..%d (surface=%d)", probeY, bottom, top, surface));
+                    "SKIP — probe Y=%d outside carve band Y=%d..%d (surface=%d actual=%d)", probeY, bottom, top,
+                    surface, actualSurface));
         }
-        if (!megaGiga && probeY > carveCap) {
+        if (probeY > carveCap) {
             return ColumnProbeResult.skip(String.format(java.util.Locale.ROOT,
-                    "SKIP — probe Y=%d above carveCap=%d (surfaceBreach=%s surface=%d)", probeY, carveCap, surfaceBreach,
-                    surface));
+                    "SKIP — probe Y=%d above carveCap=%d (surfaceBreach=%s surface=%d actual=%d)", probeY, carveCap,
+                    surfaceBreach, surface, actualSurface));
         }
         return new ColumnProbeResult(true, null, bottom, top, surface, cavern, centerY, roofBuffer, carveCap, value,
-                breachMask, megaGiga);
+                breachMask);
     }
 
 }

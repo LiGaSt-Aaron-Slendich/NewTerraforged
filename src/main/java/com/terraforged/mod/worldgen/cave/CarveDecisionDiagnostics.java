@@ -18,7 +18,6 @@ import net.minecraft.world.level.levelgen.Heightmap;
  */
 public final class CarveDecisionDiagnostics {
     private static final int NEIGHBOR_SCAN_RADIUS = 7;
-    private static final int SPHERE_BLEED_SCAN_RADIUS = 16;
 
     private CarveDecisionDiagnostics() {
     }
@@ -85,7 +84,7 @@ public final class CarveDecisionDiagnostics {
             int lx, int lz, int x, int z, int seed, CaveDebugReport report) {
         NoiseCave synapse = CarveDecisionDiagnostics.primarySynapseConfig(generator);
         report.add("Chunk synapse gate: anySynapseEligible=" + columns.anySynapseEligible()
-                + " (GLOBAL pass skipped for entire chunk when false)");
+                + " (informational — GLOBAL pass no longer skipped when false)");
         if (synapse == null) {
             report.add("Synapse config: none/disabled");
             return;
@@ -111,7 +110,7 @@ public final class CarveDecisionDiagnostics {
                 "Synapse cavern probe (noise=1.0): max=%d at %d,%d (need >=1 for chunk gate)",
                 maxCavern, maxX, maxZ));
         if (!columns.anySynapseEligible()) {
-            report.add("Synapse border probe: no cavern>=1 inside or outside chunk — GLOBAL pass skipped (vertical wall)");
+            report.add("Synapse border probe: no cavern>=1 inside or outside chunk — per-column carve only (chunk gate removed)");
         } else if (maxCavern < 1) {
             report.add("Synapse border probe: gate OPEN via neighbor-outside cavern (local max=0 but border stitch active)");
         }
@@ -152,60 +151,7 @@ public final class CarveDecisionDiagnostics {
 
     private static void appendSphereBleedScan(Generator generator, LevelReader level, ChunkAccess chunk,
             CarverChunk carver, int lx, int y, int lz, int x, int z, int seed, CaveDebugReport report) {
-        List<String> hits = new ArrayList<>();
-        for (int ox = -SPHERE_BLEED_SCAN_RADIUS; ox <= SPHERE_BLEED_SCAN_RADIUS; ++ox) {
-            for (int oz = -SPHERE_BLEED_SCAN_RADIUS; oz <= SPHERE_BLEED_SCAN_RADIUS; ++oz) {
-                if (ox == 0 && oz == 0) {
-                    continue;
-                }
-                int wx = x + ox;
-                int wz = z + oz;
-                ChunkAccess sourceChunk = level.getChunk(wx >> 4, wz >> 4);
-                int sdx = wx & 0xF;
-                int sdz = wz & 0xF;
-                CarverChunk sourceCarver = generator.peekCaveCarver(sourceChunk.getPos());
-                if (sourceCarver == null || !sourceCarver.isColumnCacheReady()) {
-                    sourceCarver = generator.buildDiagnosticCarver(seed, sourceChunk);
-                }
-                if (sourceCarver == null || !sourceCarver.isColumnCacheReady()) {
-                    continue;
-                }
-                CarverColumnCache columns = sourceCarver.columnCache();
-                if (!columns.anyMegaGiga()) {
-                    continue;
-                }
-                for (NoiseCave config : generator.orderedCarveConfigs()) {
-                    if (!generator.isCarveConfigEnabled(config) || !config.getType().isMegaOrGiga()) {
-                        continue;
-                    }
-                    if (!columns.matches(config.getType(), sdx, sdz)) {
-                        continue;
-                    }
-                    sourceCarver.beginCavePass(config);
-                    sourceCarver.modifier = generator.carveModifierFor(config);
-                    int[][] centerY = new int[16][16];
-                    int[][] cavern = new int[16][16];
-                    NoiseCaveCarver.prepareSmoothedMegaGigaColumnsForProbe(seed, config, sourceCarver, columns,
-                            config.getType(), sourceChunk.getPos().getMinBlockX(), sourceChunk.getPos().getMinBlockZ(),
-                            centerY, cavern);
-                    if (!NoiseCaveCarver.megaGigaSphereCoversPoint(seed, sourceChunk, chunk, generator, config, columns,
-                            sdx, sdz, lx, y, lz, centerY, cavern)) {
-                        continue;
-                    }
-                    hits.add(String.format(Locale.ROOT,
-                            "MEGA/GIGA sphere bleed from world %d,%d (offset %+d,%+d) config=%s cavern=%d centerY=%d",
-                            wx, wz, ox, oz, config.getType().name(), cavern[sdx][sdz], centerY[sdx][sdz]));
-                }
-            }
-        }
-        if (hits.isEmpty()) {
-            report.add("Sphere bleed scan (radius " + SPHERE_BLEED_SCAN_RADIUS + "): no mega/giga sphere covers probe Y");
-            return;
-        }
-        report.add("Sphere bleed scan — air at probe likely from neighbor column sphere (not column-center carve):");
-        for (String hit : hits) {
-            report.add("  " + hit);
-        }
+        report.add("Mega/giga bleed scan: column carve only — no cross-column sphere bleed (use neighbor column scan)");
     }
 
     private static void appendEntranceCarverProbe(Generator generator, ChunkAccess chunk, CarverChunk carver,
@@ -295,33 +241,13 @@ public final class CarveDecisionDiagnostics {
             if (!columns.matches(type, sourceLx, sourceLz)) {
                 continue;
             }
-            if (type == CaveType.GLOBAL && !columns.anySynapseEligible()) {
-                continue;
-            }
             sourceCarver.beginCavePass(config);
             sourceCarver.modifier = generator.carveModifierFor(config);
-            int[][] smoothedCenterY = null;
-            int[][] smoothedCavern = null;
-            if (type.isMegaOrGiga()) {
-                smoothedCenterY = new int[16][16];
-                smoothedCavern = new int[16][16];
-                NoiseCaveCarver.prepareSmoothedMegaGigaColumnsForProbe(seed, config, sourceCarver, columns, type,
-                        sourceChunk.getPos().getMinBlockX(), sourceChunk.getPos().getMinBlockZ(), smoothedCenterY,
-                        smoothedCavern);
-                if (NoiseCaveCarver.megaGigaSphereCoversPoint(seed, sourceChunk, probeChunk, generator, config,
-                        columns, sourceLx, sourceLz, probeLx, probeLy, probeLz, smoothedCenterY, smoothedCavern)) {
-                    return String.format(Locale.ROOT,
-                            "offset (%+d,%+d) world %d,%d via %s SPHERE_BLEED — cavern=%d centerY=%d at source column",
-                            ox, oz, wx, wz, type.name(), smoothedCavern[sourceLx][sourceLz],
-                            smoothedCenterY[sourceLx][sourceLz]);
-                }
-                continue;
-            }
             if (ox != 0 || oz != 0) {
                 continue;
             }
             NoiseCaveCarver.ColumnProbeResult probe = NoiseCaveCarver.probeColumn(seed, sourceChunk, sourceCarver,
-                    generator, config, sourceLx, sourceLz, probeY, smoothedCenterY, smoothedCavern);
+                    generator, config, sourceLx, sourceLz, probeY);
             if (!probe.carvesAtProbe()) {
                 continue;
             }
@@ -484,26 +410,14 @@ public final class CarveDecisionDiagnostics {
                 lines.add(CarveDecisionDiagnostics.configLabel(config) + ": SKIPPED (zone mismatch at probe column)");
                 continue;
             }
-            if (type == CaveType.GLOBAL && !columns.anySynapseEligible()) {
-                lines.add(CarveDecisionDiagnostics.configLabel(config) + ": SKIPPED (chunk anySynapseEligible=false)");
-                continue;
-            }
             if (columns.riverCarveBlocked(lx, lz)) {
                 lines.add(CarveDecisionDiagnostics.configLabel(config) + ": SKIPPED (riverCarveBlocked at probe)");
                 continue;
             }
             carver.beginCavePass(config);
             carver.modifier = generator.carveModifierFor(config);
-            int[][] smoothedCenterY = null;
-            int[][] smoothedCavern = null;
-            if (type.isMegaOrGiga()) {
-                smoothedCenterY = new int[16][16];
-                smoothedCavern = new int[16][16];
-                NoiseCaveCarver.prepareSmoothedMegaGigaColumnsForProbe(seed, config, carver, columns, type,
-                        chunk.getPos().getMinBlockX(), chunk.getPos().getMinBlockZ(), smoothedCenterY, smoothedCavern);
-            }
             NoiseCaveCarver.ColumnProbeResult probe = NoiseCaveCarver.probeColumn(seed, chunk, carver, generator, config,
-                    lx, lz, y, smoothedCenterY, smoothedCavern);
+                    lx, lz, y);
             String label = CarveDecisionDiagnostics.configLabel(config);
             if (probe.carvesAtProbe()) {
                 anyCarve = true;
