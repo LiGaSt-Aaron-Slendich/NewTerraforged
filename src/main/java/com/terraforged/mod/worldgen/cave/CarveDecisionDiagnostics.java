@@ -380,6 +380,10 @@ public final class CarveDecisionDiagnostics {
         if (!CaveOceanFilter.isSurfaceWaterColumn(generator, x, z) && !carver.columnCache().nearRiver(lx, lz)) {
             return;
         }
+        if (!CaveChunkSurfaceRepair.isRiverDepressionRestoreEnabled()) {
+            report.add("Post-carve repair: restoreRiverDepressions DISABLED (riverDepressionRestoreEnabled=false)");
+            return;
+        }
         int waterY = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
         int bedY = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, lx, lz);
         boolean airUnderWater = false;

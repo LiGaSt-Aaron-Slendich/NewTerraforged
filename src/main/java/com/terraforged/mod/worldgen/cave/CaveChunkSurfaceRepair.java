@@ -19,8 +19,17 @@ public final class CaveChunkSurfaceRepair {
     private static final int SURFACE_LIFT = 16;
     /** Max height change per column during noise repair — avoids chunk-edge cliffs. */
     private static final int MAX_REPAIR_DELTA = 2;
+    /**
+     * A/B toggle: post-carve river/lake bed restore ({@link #restoreRiverDepressions}).
+     * Set {@code false} to test whether eroded surface tunnels near rivers come from this pass.
+     */
+    public static boolean riverDepressionRestoreEnabled = false;
 
     private CaveChunkSurfaceRepair() {
+    }
+
+    public static boolean isRiverDepressionRestoreEnabled() {
+        return CaveChunkSurfaceRepair.riverDepressionRestoreEnabled;
     }
 
     public static int[][] readGroundHeights(ChunkAccess chunk, CarverChunk carver) {
@@ -118,6 +127,9 @@ public final class CaveChunkSurfaceRepair {
 
     /** Carve river/lake beds from terrain data after flat surface repair — keeps channels from leaking. */
     public static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
+        if (!CaveChunkSurfaceRepair.riverDepressionRestoreEnabled) {
+            return;
+        }
         if (terrain == null) {
             return;
         }
