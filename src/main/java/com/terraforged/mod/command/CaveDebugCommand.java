@@ -97,7 +97,7 @@ public final class CaveDebugCommand {
             CaveDebugReport report = new CaveDebugReport();
             report.add("=== Carve decision replay ===");
             report.add(String.format(Locale.ROOT, "Position: %d %d %d", pos.getX(), pos.getY(), pos.getZ()));
-            CarveDecisionDiagnostics.append(generator, level.getChunk(pos), pos, report);
+            CarveDecisionDiagnostics.append(generator, level, pos, report);
             for (String line : report.lines()) {
                 player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
             }

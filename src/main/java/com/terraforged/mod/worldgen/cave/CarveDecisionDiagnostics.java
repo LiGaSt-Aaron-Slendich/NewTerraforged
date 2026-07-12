@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -17,13 +17,16 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * Replays {@link NoiseCaveCarver} column decisions at the probe position (post-gen safe).
  */
 public final class CarveDecisionDiagnostics {
+    private static final int NEIGHBOR_SCAN_RADIUS = 7;
+
     private CarveDecisionDiagnostics() {
     }
 
-    public static void append(Generator generator, ChunkAccess chunk, BlockPos pos, CaveDebugReport report) {
+    public static void append(Generator generator, LevelReader level, BlockPos pos, CaveDebugReport report) {
         int x = pos.getX();
         int y = pos.getY();
         int z = pos.getZ();
+        ChunkAccess chunk = level.getChunk(x >> 4, z >> 4);
         int lx = x & 0xF;
         int lz = z & 0xF;
         int seed = Seeds.get(generator.getSeed());
@@ -32,7 +35,7 @@ public final class CarveDecisionDiagnostics {
         CarverChunk live = generator.peekCaveCarver(chunk.getPos());
         if (live != null && live.isColumnCacheReady()) {
             report.add("Column cache source: live carver (chunk still in decorate pipeline)");
-            CarveDecisionDiagnostics.appendForCarver(generator, chunk, live, lx, y, lz, x, z, seed, report);
+            CarveDecisionDiagnostics.appendForCarver(generator, level, chunk, live, lx, y, lz, x, z, seed, report);
             return;
         }
         CarverChunk rebuilt = generator.buildDiagnosticCarver(seed, chunk);
@@ -41,24 +44,246 @@ public final class CarveDecisionDiagnostics {
             return;
         }
         report.add("Column cache source: rebuilt from seed + chunk terrain (live cache expired — normal after gen)");
-        CarveDecisionDiagnostics.appendForCarver(generator, chunk, rebuilt, lx, y, lz, x, z, seed, report);
+        CarveDecisionDiagnostics.appendForCarver(generator, level, chunk, rebuilt, lx, y, lz, x, z, seed, report);
     }
 
-    private static void appendForCarver(Generator generator, ChunkAccess chunk, CarverChunk carver, int lx, int y, int lz, int x, int z, int seed, CaveDebugReport report) {
+    private static void appendForCarver(Generator generator, LevelReader level, ChunkAccess chunk, CarverChunk carver,
+            int lx, int y, int lz, int x, int z, int seed, CaveDebugReport report) {
         CarverColumnCache columns = carver.columnCache();
         CarveDecisionDiagnostics.appendSurfaceBreakdown(generator, chunk, carver, lx, lz, x, z, report);
+        CarveDecisionDiagnostics.appendSynapseGateBreakdown(generator, chunk, columns, lx, lz, x, z, seed, report);
         CarveDecisionDiagnostics.appendColumnFlags(columns, lx, lz, report);
+        boolean airAtFeet = chunk.getBlockState(new BlockPos(lx, y, lz)).isAir();
         CarveDecisionDiagnostics.appendPostGenTruth(chunk, lx, y, lz, report);
+        if (airAtFeet) {
+            CarveDecisionDiagnostics.appendHorizontalAirLayer(chunk, lx, y, lz, report);
+        }
         CarveDecisionDiagnostics.appendPostProcessHint(generator, chunk, carver, lx, lz, y, report);
         List<String> carveLines = CarveDecisionDiagnostics.replayCarvePasses(generator, chunk, carver, lx, y, lz, seed);
         report.add("");
-        report.add("Per-pass carve replay at column (probe Y=" + y + "):");
+        report.add("Per-pass carve replay at THIS column (probe Y=" + y + "):");
         for (String line : carveLines) {
             report.add("  " + line);
         }
-        String summary = CarveDecisionDiagnostics.summarize(carveLines, y);
+        boolean localCarve = carveLines.stream().anyMatch(line -> line.contains(": CARVE at probe"));
+        if (airAtFeet && !localCarve) {
+            report.add("");
+            report.add("[Air origin — extended search]");
+            report.add("Local NoiseCaveCarver passes do not explain air — scanning neighbors / grotto / other chunks");
+            CarveDecisionDiagnostics.appendNeighborColumnCarveScan(generator, level, chunk, carver, lx, y, lz, x, z, seed, report);
+            CarveDecisionDiagnostics.appendGrottoProbe(generator, chunk, carver, lx, y, lz, x, z, seed, report);
+        }
+        String summary = CarveDecisionDiagnostics.summarize(carveLines, y, airAtFeet, localCarve);
         report.add("");
         report.add("Verdict: " + summary);
+    }
+
+    private static void appendSynapseGateBreakdown(Generator generator, ChunkAccess chunk, CarverColumnCache columns,
+            int lx, int lz, int x, int z, int seed, CaveDebugReport report) {
+        NoiseCave synapse = CarveDecisionDiagnostics.primarySynapseConfig(generator);
+        report.add("Chunk synapse gate: anySynapseEligible=" + columns.anySynapseEligible()
+                + " (GLOBAL pass skipped for entire chunk when false)");
+        if (synapse == null) {
+            report.add("Synapse config: none/disabled");
+            return;
+        }
+        int startX = chunk.getPos().getMinBlockX();
+        int startZ = chunk.getPos().getMinBlockZ();
+        int maxCavern = 0;
+        int maxX = 0;
+        int maxZ = 0;
+        for (int dx = 0; dx < 16; ++dx) {
+            for (int dz = 0; dz < 16; ++dz) {
+                int wx = startX + dx;
+                int wz = startZ + dz;
+                int cavern = synapse.getCavernSize(seed, wx, wz, 1.0f);
+                if (cavern > maxCavern) {
+                    maxCavern = cavern;
+                    maxX = wx;
+                    maxZ = wz;
+                }
+            }
+        }
+        report.add(String.format(Locale.ROOT,
+                "Synapse cavern probe (noise=1.0): max=%d at %d,%d (need >=1 for chunk gate)",
+                maxCavern, maxX, maxZ));
+        if (!columns.anySynapseEligible()) {
+            report.add("Synapse border probe: no cavern>=1 inside or outside chunk — GLOBAL pass skipped (vertical wall)");
+        } else if (maxCavern < 1) {
+            report.add("Synapse border probe: gate OPEN via neighbor-outside cavern (local max=0 but border stitch active)");
+        }
+        if (columns.isBorderColumn(lx, lz)) {
+            CarverColumnCache.SynapseSample stitch = columns.resolveSynapseSample(synapse,
+                    generator.carveModifierFor(synapse), seed, x, z, lx, lz);
+            if (stitch.stitchedFromNeighbor) {
+                report.add(String.format(Locale.ROOT,
+                        "Border stitch at probe: using neighbor sample (%d,%d) cavern=%d",
+                        stitch.sampleX, stitch.sampleZ, stitch.cavern));
+            }
+        }
+    }
+
+    private static void appendHorizontalAirLayer(ChunkAccess chunk, int lx, int y, int lz, CaveDebugReport report) {
+        int airCount = 1;
+        for (int ox = -NEIGHBOR_SCAN_RADIUS; ox <= NEIGHBOR_SCAN_RADIUS; ++ox) {
+            for (int oz = -NEIGHBOR_SCAN_RADIUS; oz <= NEIGHBOR_SCAN_RADIUS; ++oz) {
+                if (ox == 0 && oz == 0) {
+                    continue;
+                }
+                int px = lx + ox;
+                int pz = lz + oz;
+                if (px < 0 || px > 15 || pz < 0 || pz > 15) {
+                    continue;
+                }
+                if (chunk.getBlockState(new BlockPos(px, y, pz)).isAir()) {
+                    ++airCount;
+                }
+            }
+        }
+        report.add(String.format(Locale.ROOT,
+                "Horizontal air at Y=%d within chunk (radius %d): %d columns — %s",
+                y, NEIGHBOR_SCAN_RADIUS,
+                airCount,
+                airCount >= 5 ? "tunnel-like layer (likely carved horizontally, not single column)" : "isolated pocket"));
+    }
+
+    private static void appendNeighborColumnCarveScan(Generator generator, LevelReader level, ChunkAccess chunk,
+            CarverChunk carver, int lx, int y, int lz, int x, int z, int seed, CaveDebugReport report) {
+        List<String> hits = new ArrayList<>();
+        CarveDecisionDiagnostics.scanWorldColumns(generator, level, x, z, y, seed, NEIGHBOR_SCAN_RADIUS, hits, false);
+        if (hits.isEmpty()) {
+            report.add("Neighbor column carve scan (radius " + NEIGHBOR_SCAN_RADIUS + "): no NoiseCaveCarver pass covers probe Y");
+            return;
+        }
+        report.add("Neighbor column carve scan — these columns WOULD carve at probe Y (air may bleed from sphere/column):");
+        for (String hit : hits) {
+            report.add("  " + hit);
+        }
+    }
+
+    private static void scanWorldColumns(Generator generator, LevelReader level, int probeX, int probeZ, int probeY,
+            int seed, int radius, List<String> hits, boolean includeProbeColumn) {
+        for (int ox = -radius; ox <= radius; ++ox) {
+            for (int oz = -radius; oz <= radius; ++oz) {
+                if (!includeProbeColumn && ox == 0 && oz == 0) {
+                    continue;
+                }
+                int wx = probeX + ox;
+                int wz = probeZ + oz;
+                if (level.getChunk(wx >> 4, wz >> 4) == null) {
+                    continue;
+                }
+                ChunkAccess neighborChunk = level.getChunk(wx >> 4, wz >> 4);
+                int nlx = wx & 0xF;
+                int nlz = wz & 0xF;
+                CarverChunk neighborCarver = generator.peekCaveCarver(neighborChunk.getPos());
+                if (neighborCarver == null || !neighborCarver.isColumnCacheReady()) {
+                    neighborCarver = generator.buildDiagnosticCarver(seed, neighborChunk);
+                }
+                if (neighborCarver == null || !neighborCarver.isColumnCacheReady()) {
+                    continue;
+                }
+                String hit = CarveDecisionDiagnostics.findCarveHit(generator, neighborChunk, neighborCarver, nlx, nlz,
+                        probeY, wx, wz, seed, ox, oz);
+                if (hit != null) {
+                    hits.add(hit);
+                }
+            }
+        }
+    }
+
+    private static String findCarveHit(Generator generator, ChunkAccess chunk, CarverChunk carver, int lx, int lz,
+            int probeY, int wx, int wz, int seed, int ox, int oz) {
+        CarverColumnCache columns = carver.columnCache();
+        boolean megaGigaChunk = columns.anyMegaGiga();
+        for (NoiseCave config : generator.orderedCarveConfigs()) {
+            if (!generator.isCarveConfigEnabled(config)) {
+                continue;
+            }
+            CaveType type = config.getType();
+            if (megaGigaChunk && type == CaveType.GLOBAL) {
+                continue;
+            }
+            if (!megaGigaChunk && type.isMegaOrGiga()) {
+                continue;
+            }
+            if (type == CaveType.GLOBAL && !columns.anySynapseEligible()) {
+                continue;
+            }
+            carver.beginCavePass(config);
+            carver.modifier = generator.carveModifierFor(config);
+            int[][] smoothedCenterY = null;
+            int[][] smoothedCavern = null;
+            if (type.isMegaOrGiga()) {
+                smoothedCenterY = new int[16][16];
+                smoothedCavern = new int[16][16];
+                NoiseCaveCarver.prepareSmoothedMegaGigaColumnsForProbe(seed, config, carver, columns, type,
+                        chunk.getPos().getMinBlockX(), chunk.getPos().getMinBlockZ(), smoothedCenterY, smoothedCavern);
+            }
+            NoiseCaveCarver.ColumnProbeResult probe = NoiseCaveCarver.probeColumn(seed, chunk, carver, generator, config,
+                    lx, lz, probeY, smoothedCenterY, smoothedCavern);
+            if (!probe.carvesAtProbe()) {
+                continue;
+            }
+            int dist = Math.max(Math.abs(ox), Math.abs(oz));
+            String mode = probe.megaGigaSphere() ? "MEGA/GIGA sphere" : "column";
+            return String.format(Locale.ROOT,
+                    "offset (%+d,%+d) world %d,%d via %s %s — %s",
+                    ox, oz, wx, wz, type.name(), mode, probe.detailLine());
+        }
+        return null;
+    }
+
+    private static void appendGrottoProbe(Generator generator, ChunkAccess chunk, CarverChunk carver, int lx, int y,
+            int lz, int x, int z, int seed, CaveDebugReport report) {
+        CarverColumnCache columns = carver.columnCache();
+        if (!columns.nearSea() || !columns.mayHaveRiver()) {
+            report.add("Grotto carver: chunk not nearSea/mayHaveRiver — grotto entrance path unlikely");
+            return;
+        }
+        NoiseCave synapse = CarveDecisionDiagnostics.primarySynapseConfig(generator);
+        if (synapse == null) {
+            report.add("Grotto carver: synapse config disabled");
+            return;
+        }
+        List<String> candidates = new ArrayList<>();
+        int startX = chunk.getPos().getMinBlockX();
+        int startZ = chunk.getPos().getMinBlockZ();
+        int minY = generator.getMinY();
+        for (int dx = 0; dx < 16; dx += 4) {
+            for (int dz = 0; dz < 16; dz += 4) {
+                int gx = startX + dx;
+                int gz = startZ + dz;
+                if (!CaveGrottoCarver.isGrottoCandidate(generator, columns, seed, gx, gz, dx, dz)) {
+                    continue;
+                }
+                int surface = carver.cachedSurface(dx, dz);
+                int chamberY = Math.max(minY + 6, Math.min(surface - 14, surface - 10));
+                int dist = Math.max(Math.abs(gx - x), Math.abs(gz - z));
+                boolean yMatch = Math.abs(y - chamberY) <= 8;
+                candidates.add(String.format(Locale.ROOT,
+                        "grotto candidate at %d,%d chamberY~%d dist=%d Ymatch=%s",
+                        gx, gz, chamberY, dist, yMatch));
+            }
+        }
+        if (candidates.isEmpty()) {
+            report.add("Grotto carver: no hillside grotto candidates in chunk (CaveGrottoCarver — NOT in NoiseCaveCarver replay)");
+            return;
+        }
+        report.add("Grotto carver (separate from synapse pass — horizontal connectors at chamberY):");
+        for (String line : candidates) {
+            report.add("  " + line);
+        }
+        report.add("If Ymatch=true: air may be from carveSynapseConnector / carveRampBlob, not column carve replay");
+    }
+
+    private static NoiseCave primarySynapseConfig(Generator generator) {
+        for (NoiseCave config : generator.orderedCarveConfigs()) {
+            if (config.getType() == CaveType.GLOBAL && generator.isCarveConfigEnabled(config)) {
+                return config;
+            }
+        }
+        return null;
     }
 
     private static void appendSurfaceBreakdown(Generator generator, ChunkAccess chunk, CarverChunk carver, int lx, int lz, int x, int z, CaveDebugReport report) {
@@ -190,7 +415,7 @@ public final class CarveDecisionDiagnostics {
             }
         }
         if (!anyCarve) {
-            lines.add("(no pass would carve at probe Y — air below may be from neighbor chunk or post-process)");
+            lines.add("(no NoiseCaveCarver pass at THIS column — see [Air origin] if feet=AIR)");
         }
         return lines;
     }
@@ -199,23 +424,18 @@ public final class CarveDecisionDiagnostics {
         return config.getType().name() + "(y=" + config.getMinY() + ".." + config.getMaxY() + ",seed=" + config.getSeed() + ")";
     }
 
-    private static String summarize(List<String> lines, int probeY) {
-        List<String> carvers = new ArrayList<>();
-        for (String line : lines) {
-            if (line.contains(": CARVE at probe")) {
-                carvers.add(line.substring(0, line.indexOf(':')));
+    private static String summarize(List<String> lines, int probeY, boolean airAtFeet, boolean localCarve) {
+        if (localCarve) {
+            List<String> carvers = new ArrayList<>();
+            for (String line : lines) {
+                if (line.contains(": CARVE at probe")) {
+                    carvers.add(line.substring(0, line.indexOf(':')));
+                }
             }
+            return "NoiseCaveCarver explains Y=" + probeY + ": " + String.join(", ", carvers);
         }
-        if (!carvers.isEmpty()) {
-            return "carving at Y=" + probeY + " explained by: " + String.join(", ", carvers);
-        }
-        for (String line : lines) {
-            if (line.startsWith("  ")) {
-                line = line.trim();
-            }
-            if (line.contains("SKIPPED") || line.contains(": SKIP")) {
-                continue;
-            }
+        if (airAtFeet) {
+            return "AIR at Y=" + probeY + " but no local NoiseCaveCarver pass — check [Air origin] (neighbor column / grotto / cross-chunk)";
         }
         String lastSkip = null;
         for (String line : lines) {
@@ -224,7 +444,7 @@ public final class CarveDecisionDiagnostics {
             }
         }
         if (lastSkip != null) {
-            return "no carve at probe Y=" + probeY + "; last relevant pass: " + lastSkip;
+            return "solid/no local carve at Y=" + probeY + "; " + lastSkip;
         }
         return "no carve pass matched this column at Y=" + probeY;
     }

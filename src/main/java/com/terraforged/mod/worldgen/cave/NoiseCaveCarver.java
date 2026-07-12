@@ -106,8 +106,11 @@ public class NoiseCaveCarver {
                 if (densityBudget != null && densityBudget.xyRemaining() <= 0) {
                     continue;
                 }
-                value = CaveNoise.sample(carver.modifier, seed, sampleX, sampleZ);
-                cavern = config.getCavernSize(seed, sampleX, sampleZ, value);
+                CarverColumnCache.SynapseSample synapseSample = columns.resolveSynapseSample(config, carver.modifier, seed, x, z, dx, dz);
+                value = synapseSample.modifierValue;
+                cavern = synapseSample.cavern;
+                sampleX = synapseSample.sampleX;
+                sampleZ = synapseSample.sampleZ;
                 if (cavern < MIN_GLOBAL_CAVERN) {
                     continue;
                 }
@@ -688,6 +691,26 @@ public class NoiseCaveCarver {
             return this.skipReason;
         }
 
+        public int bottom() {
+            return this.bottom;
+        }
+
+        public int top() {
+            return this.top;
+        }
+
+        public int centerY() {
+            return this.centerY;
+        }
+
+        public int cavern() {
+            return this.cavern;
+        }
+
+        public boolean megaGigaSphere() {
+            return this.megaGigaSphere;
+        }
+
         public String detailLine() {
             return String.format(java.util.Locale.ROOT,
                     "Y=%d..%d carveCap=%d centerY=%d cavern=%d surface=%d roofBuffer=%d noise=%.3f breach=%.3f%s",
@@ -738,11 +761,15 @@ public class NoiseCaveCarver {
             cavern = smoothedCavern[dx][dz];
             value = CaveNoise.sampleMerged(carver.modifier, seed, sampleX, sampleZ);
         } else {
-            value = CaveNoise.sample(carver.modifier, seed, sampleX, sampleZ);
-            cavern = config.getCavernSize(seed, sampleX, sampleZ, value);
+            CarverColumnCache.SynapseSample synapseSample = columns.resolveSynapseSample(config, carver.modifier, seed, x, z, dx, dz);
+            value = synapseSample.modifierValue;
+            cavern = synapseSample.cavern;
+            sampleX = synapseSample.sampleX;
+            sampleZ = synapseSample.sampleZ;
             if (cavern < MIN_GLOBAL_CAVERN) {
+                String stitch = synapseSample.stitchedFromNeighbor ? " (border stitch tried)" : "";
                 return ColumnProbeResult.skip(String.format(java.util.Locale.ROOT,
-                        "SKIP — cavern=%d < min %d (noise=%.3f)", cavern, MIN_GLOBAL_CAVERN, value));
+                        "SKIP — cavern=%d < min %d (noise=%.3f)%s", cavern, MIN_GLOBAL_CAVERN, value, stitch));
             }
             centerY = config.getHeight(seed, sampleX, sampleZ) - columns.extraCenterDrop(dx, dz);
             if (NoiseCaveCarver.isUnderwaterOcean(chunk, dx, dz, sea)) {

@@ -1,6 +1,7 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
+import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.Module;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -21,6 +22,8 @@ final class CarverColumnCache {
     private static final float MEGA_RELAX_THRESHOLD = 0.05f;
     private static final float GIGA_RELAX_THRESHOLD = 0.05f;
     private static final int MIN_SYNAPSE_CAVERN = 1;
+    /** Max excess of terrain-data height over heightmap — river/lake banks inflate far higher. */
+    private static final int MAX_TERRAIN_INFLATION = 12;
     private final int[] surfaceY = new int[256];
     private final byte[] zone = new byte[256];
     private final boolean[] synapseEligible = new boolean[256];
@@ -88,7 +91,11 @@ final class CarverColumnCache {
             int z = startZ + dz;
             int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
             if (terrain != null) {
-                surface = Math.max(surface, terrain.getHeight(dx, dz));
+                int terrainH = terrain.getHeight(dx, dz);
+                surface = Math.max(surface, Math.min(terrainH, surface + MAX_TERRAIN_INFLATION));
+            }
+            if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+                surface = Math.min(surface, chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz));
             }
             this.surfaceY[i] = surface;
             byte flags = ZONE_NONE;
@@ -149,7 +156,8 @@ final class CarverColumnCache {
                     this.megaPresent = true;
                     int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
                     if (terrain != null) {
-                        surface = Math.max(surface, terrain.getHeight(dx, dz));
+                        int terrainH = terrain.getHeight(dx, dz);
+                        surface = Math.max(surface, Math.min(terrainH, surface + MAX_TERRAIN_INFLATION));
                     }
                     this.oceanBlocked[i] = surface <= sea;
                 }
@@ -273,7 +281,7 @@ final class CarverColumnCache {
     }
 
     /** Lower cavern-size bar when a thinned chunk would otherwise carve nothing. */
-    void relaxSynapseEligibility(com.terraforged.mod.worldgen.asset.NoiseCave synapse, int seed) {
+    void relaxSynapseEligibility(NoiseCave synapse, int seed) {
         if (this.anySynapseEligible || synapse == null || this.megaPresent || this.gigaPresent) {
             return;
         }
@@ -285,7 +293,7 @@ final class CarverColumnCache {
             int dz = i >> 4;
             int x = this.cachedStartX + dx;
             int z = this.cachedStartZ + dz;
-            if (synapse.getCavernSize(seed, x, z, 1.0f) >= 1) {
+            if (synapse.getCavernSize(seed, x, z, 1.0f) >= MIN_SYNAPSE_CAVERN) {
                 this.anySynapseEligible = true;
                 return;
             }
@@ -293,7 +301,7 @@ final class CarverColumnCache {
     }
 
     /** Full-column synapse scan — sparse chunk gate + border columns only in mega/giga chunks. */
-    void ensureSynapseEligibility(com.terraforged.mod.worldgen.asset.NoiseCave synapse, int seed) {
+    void ensureSynapseEligibility(NoiseCave synapse, int seed) {
         if (this.synapseEligibleBuilt || synapse == null) {
             return;
         }
@@ -313,6 +321,113 @@ final class CarverColumnCache {
         }
         if (!this.anySynapseEligible) {
             this.relaxSynapseEligibility(synapse, seed);
+        }
+        this.ensureSynapseBorderConnectivity(synapse, seed);
+    }
+
+    /**
+     * When synapse noise is weak inside a chunk but active just across the border, keep the GLOBAL pass
+     * and border columns eligible — prevents vertical chunk-face walls in continuous synapse networks.
+     */
+    private void ensureSynapseBorderConnectivity(NoiseCave synapse, int seed) {
+        int startX = this.cachedStartX;
+        int startZ = this.cachedStartZ;
+        for (int d = 0; d < 16; ++d) {
+            this.probeSynapseOutside(synapse, seed, startX - 1, startZ + d, 0, d);
+            this.probeSynapseOutside(synapse, seed, startX + 16, startZ + d, 15, d);
+            this.probeSynapseOutside(synapse, seed, startX + d, startZ - 1, d, 0);
+            this.probeSynapseOutside(synapse, seed, startX + d, startZ + 16, d, 15);
+        }
+        this.probeSynapseOutside(synapse, seed, startX - 1, startZ - 1, 0, 0);
+        this.probeSynapseOutside(synapse, seed, startX + 16, startZ - 1, 15, 0);
+        this.probeSynapseOutside(synapse, seed, startX - 1, startZ + 16, 0, 15);
+        this.probeSynapseOutside(synapse, seed, startX + 16, startZ + 16, 15, 15);
+    }
+
+    private void probeSynapseOutside(NoiseCave synapse, int seed, int wx, int wz, int borderDx, int borderDz) {
+        if (synapse.getCavernSize(seed, wx, wz, 1.0f) < MIN_SYNAPSE_CAVERN) {
+            return;
+        }
+        this.anySynapseEligible = true;
+        int i = this.index(borderDx, borderDz);
+        if (this.zone[i] != ZONE_NONE && (this.megaPresent || this.gigaPresent)) {
+            this.synapseEligible[i] = true;
+        }
+    }
+
+    /** Sample synapse cavern at this column, borrowing from just-outside chunk when on a border and local noise is dry. */
+    SynapseSample resolveSynapseSample(NoiseCave config, Module modifier, int seed, int wx, int wz, int dx, int dz) {
+        int sampleX = wx + this.sampleShiftX(dx, dz);
+        int sampleZ = wz + this.sampleShiftZ(dx, dz);
+        float value = CaveNoise.sample(modifier, seed, sampleX, sampleZ);
+        int cavern = config.getCavernSize(seed, sampleX, sampleZ, value);
+        if (cavern >= MIN_SYNAPSE_CAVERN || !this.isBorderColumn(dx, dz)) {
+            return new SynapseSample(sampleX, sampleZ, value, cavern, false);
+        }
+        int bestCavern = cavern;
+        int bestX = sampleX;
+        int bestZ = sampleZ;
+        float bestValue = value;
+        for (int[] step : this.outwardBorderSteps(dx, dz)) {
+            int nx = wx + step[0];
+            int nz = wz + step[1];
+            float neighborValue = CaveNoise.sample(modifier, seed, nx, nz);
+            int neighborCavern = config.getCavernSize(seed, nx, nz, neighborValue);
+            if (neighborCavern > bestCavern) {
+                bestCavern = neighborCavern;
+                bestX = nx;
+                bestZ = nz;
+                bestValue = neighborValue;
+            }
+        }
+        return new SynapseSample(bestX, bestZ, bestValue, bestCavern, bestCavern > cavern);
+    }
+
+    private int[][] outwardBorderSteps(int dx, int dz) {
+        if (dx == 0) {
+            if (dz == 0) {
+                return new int[][]{{-1, 0}, {0, -1}, {-1, -1}};
+            }
+            if (dz == 15) {
+                return new int[][]{{-1, 0}, {0, 1}, {-1, 1}};
+            }
+            return new int[][]{{-1, 0}, {-1, -1}, {-1, 1}};
+        }
+        if (dx == 15) {
+            if (dz == 0) {
+                return new int[][]{{1, 0}, {0, -1}, {1, -1}};
+            }
+            if (dz == 15) {
+                return new int[][]{{1, 0}, {0, 1}, {1, 1}};
+            }
+            return new int[][]{{1, 0}, {1, -1}, {1, 1}};
+        }
+        if (dz == 0) {
+            return new int[][]{{0, -1}, {-1, -1}, {1, -1}};
+        }
+        if (dz == 15) {
+            return new int[][]{{0, 1}, {-1, 1}, {1, 1}};
+        }
+        return new int[0][0];
+    }
+
+    boolean isBorderColumn(int dx, int dz) {
+        return this.isChunkBorder(dx, dz);
+    }
+
+    static final class SynapseSample {
+        final int sampleX;
+        final int sampleZ;
+        final float modifierValue;
+        final int cavern;
+        final boolean stitchedFromNeighbor;
+
+        SynapseSample(int sampleX, int sampleZ, float modifierValue, int cavern, boolean stitchedFromNeighbor) {
+            this.sampleX = sampleX;
+            this.sampleZ = sampleZ;
+            this.modifierValue = modifierValue;
+            this.cavern = cavern;
+            this.stitchedFromNeighbor = stitchedFromNeighbor;
         }
     }
 
@@ -425,7 +540,7 @@ final class CarverColumnCache {
     /**
      * Sparse probe — early exit on first eligible column; fills remaining columns only when probe misses.
      */
-    void probeSynapseEligibility(com.terraforged.mod.worldgen.asset.NoiseCave synapse, int seed) {
+    void probeSynapseEligibility(NoiseCave synapse, int seed) {
         if (this.synapseEligibleBuilt || synapse == null) {
             return;
         }
@@ -446,7 +561,7 @@ final class CarverColumnCache {
         }
     }
 
-    private boolean probeSynapseColumn(com.terraforged.mod.worldgen.asset.NoiseCave synapse, int seed, int i) {
+    private boolean probeSynapseColumn(NoiseCave synapse, int seed, int i) {
         int dx = i & 0xF;
         int dz = i >> 4;
         if (this.zone[i] != ZONE_NONE && (this.megaPresent || this.gigaPresent) && !this.isChunkBorder(dx, dz)) {
@@ -462,8 +577,9 @@ final class CarverColumnCache {
         return true;
     }
 
-    void buildSynapseEligibility(com.terraforged.mod.worldgen.asset.NoiseCave synapse, int seed) {
+    void buildSynapseEligibility(NoiseCave synapse, int seed) {
         this.probeSynapseEligibility(synapse, seed);
+        this.ensureSynapseBorderConnectivity(synapse, seed);
     }
 
     boolean anySynapseEligible() {

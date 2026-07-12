@@ -62,7 +62,7 @@ public final class CaveFeatureDiagnostics {
         boolean carveWouldSkipPaint = y >= carveSkipFromY;
         report.add("");
         report.add("[Carve / column]");
-        CarveDecisionDiagnostics.append(generator, chunk, pos, report);
+        CarveDecisionDiagnostics.append(generator, level, pos, report);
         CaveFeatureDiagnostics.appendCarveDiagnostics(generator, chunk, carver, lx, y, lz, x, z, localSurface, oceanFloorY, carveSkipFromY, carveSkipBand, megaGiga, caveSystem, quartPainted, report);
         report.add("");
         report.add("[Biome column — decor pipeline]");
