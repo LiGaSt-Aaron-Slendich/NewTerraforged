@@ -32,6 +32,8 @@ final class CarverColumnCache {
     private final boolean[] gradientReady = new boolean[256];
     private final boolean[] nearRiverReady = new boolean[256];
     private final boolean[] oceanBlocked = new boolean[256];
+    private final boolean[] riverCarveBlocked = new boolean[256];
+    private final boolean[] riverSurfaceSuppressed = new boolean[256];
     static final byte ENVELOPE_SUPPRESS_BREACH = 1;
     static final byte ENVELOPE_ENTRANCE = 2;
     private final byte[] sampleShiftX = new byte[256];
@@ -132,6 +134,64 @@ final class CarverColumnCache {
         if (this.megaPresent || this.gigaPresent) {
             this.chunkMassif = CaveMassifCache.qualifiesMountainMassif(generator, seed, centerX, centerZ);
         }
+        this.buildRiverGuards(chunk, sea);
+    }
+
+    /** Block synapse/mega/giga carve in river beds, narrow channels, and low-bank corridors. */
+    private void buildRiverGuards(ChunkAccess chunk, int sea) {
+        java.util.Arrays.fill(this.riverCarveBlocked, false);
+        java.util.Arrays.fill(this.riverSurfaceSuppressed, false);
+        for (int i = 0; i < 256; ++i) {
+            int dx = i & 0xF;
+            int dz = i >> 4;
+            if (!this.isRiverCorridorColumn(chunk, dx, dz, sea)) {
+                continue;
+            }
+            this.riverCarveBlocked[i] = true;
+            this.riverSurfaceSuppressed[i] = true;
+        }
+    }
+
+    private boolean isRiverCorridorColumn(ChunkAccess chunk, int dx, int dz, int sea) {
+        if (this.cachedTerrain != null && CaveChunkSurfaceRepair.isRiverBedColumn(this.cachedTerrain, dx, dz)) {
+            return true;
+        }
+        if (CaveOceanFilter.isSubmergedWaterColumn(chunk, dx, dz, sea)) {
+            return true;
+        }
+        if (CaveOceanFilter.hasSubmergedWaterNeighborInChunk(chunk, dx, dz, sea, 5)) {
+            return !this.riverHillside(dx, dz);
+        }
+        if (!this.chunkMayHaveRiver) {
+            return false;
+        }
+        int x = this.cachedStartX + dx;
+        int z = this.cachedStartZ + dz;
+        float river = this.cachedGenerator.getTerrainSample(x, z).riverNoise;
+        if (river >= 0.90f) {
+            return false;
+        }
+        if (river < 0.72f) {
+            return true;
+        }
+        return !this.riverHillside(dx, dz);
+    }
+
+    boolean riverCarveBlocked(int dx, int dz) {
+        return this.riverCarveBlocked[this.index(dx, dz)];
+    }
+
+    boolean riverSurfaceSuppressed(int dx, int dz) {
+        return this.riverSurfaceSuppressed[this.index(dx, dz)];
+    }
+
+    boolean anyRiverCarveBlocked() {
+        for (boolean blocked : this.riverCarveBlocked) {
+            if (blocked) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** When no column passed the primary threshold, probe corners so mega/giga caves do not leave solid chunk pillars. */

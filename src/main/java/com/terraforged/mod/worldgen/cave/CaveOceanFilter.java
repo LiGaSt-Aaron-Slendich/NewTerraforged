@@ -7,6 +7,11 @@ import com.terraforged.mod.worldgen.cave.CaveType;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class CaveOceanFilter {
     private static final float SHALLOW_OCEAN_CONTINENT = 0.25f;
@@ -62,6 +67,42 @@ public final class CaveOceanFilter {
     /** Column surface is at or below sea level (river/lake/ocean water). */
     public static boolean isSurfaceWaterColumn(Generator generator, int worldX, int worldZ) {
         return generator.getOceanFloorHeight(worldX, worldZ) <= generator.getSeaLevel();
+    }
+
+    /** Chunk column with water at/near the surface band (river/lake bed in generated chunk). */
+    public static boolean isSubmergedWaterColumn(ChunkAccess chunk, int lx, int lz, int sea) {
+        int top = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
+        if (top > sea + 1) {
+            return false;
+        }
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int y = top; y >= Math.max(chunk.getMinBuildHeight(), top - 3); --y) {
+            pos.set(lx, y, lz);
+            BlockState state = chunk.getBlockState(pos);
+            if (!state.getFluidState().isEmpty() || state.is(Blocks.WATER)) {
+                return true;
+            }
+            if (!state.isAir()) {
+                break;
+            }
+        }
+        return top <= sea;
+    }
+
+    public static boolean hasSubmergedWaterNeighborInChunk(ChunkAccess chunk, int lx, int lz, int sea, int radius) {
+        for (int ox = -radius; ox <= radius; ++ox) {
+            for (int oz = -radius; oz <= radius; ++oz) {
+                int px = lx + ox;
+                int pz = lz + oz;
+                if (px < 0 || px > 15 || pz < 0 || pz > 15) {
+                    continue;
+                }
+                if (CaveOceanFilter.isSubmergedWaterColumn(chunk, px, pz, sea)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

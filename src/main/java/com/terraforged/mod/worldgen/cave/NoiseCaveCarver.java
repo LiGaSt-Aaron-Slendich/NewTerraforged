@@ -82,6 +82,9 @@ public class NoiseCaveCarver {
             if (!columns.matches(configType, dx, dz)) {
                 continue;
             }
+            if (columns.riverCarveBlocked(dx, dz)) {
+                continue;
+            }
             int x = startX + dx;
             int z = startZ + dz;
             int sampleX = x + columns.sampleShiftX(dx, dz);
@@ -147,9 +150,9 @@ public class NoiseCaveCarver {
             int roofBuffer = NoiseCaveCarver.resolveRoofBuffer(breachMask, sampleX, sampleZ, chunk, generator, config, underwaterOcean, seed, columns, dx, dz);
             int ceiling = surface - roofBuffer;
             boolean naturalBreach = megaGiga && roofBuffer == 0;
-            if (megaGiga && carve && !naturalBreach && !columns.suppressSurfaceBreach(dx, dz) && CaveEntranceCarver.isEntranceCandidate(generator, carver, generator.getCaveEntranceClaims(), seed, x, z, cavern, breachMask, true)) {
+            if (megaGiga && carve && !columns.riverSurfaceSuppressed(dx, dz) && !naturalBreach && !columns.suppressSurfaceBreach(dx, dz) && CaveEntranceCarver.isEntranceCandidate(generator, carver, generator.getCaveEntranceClaims(), seed, x, z, cavern, breachMask, true)) {
                 CaveEntranceCarver.carveSlopeEntrance(chunk, carver, generator, generator.getCaveEntranceClaims(), config, seed, x, z, dx, dz, cavern, breachMask);
-            } else if (megaGiga && carve && !naturalBreach && CaveEntranceCarver.isTunnelExitCandidate(generator, carver, generator.getCaveEntranceClaims(), seed, x, z, cavern, breachMask, true)) {
+            } else if (megaGiga && carve && !columns.riverSurfaceSuppressed(dx, dz) && !naturalBreach && CaveEntranceCarver.isTunnelExitCandidate(generator, carver, generator.getCaveEntranceClaims(), seed, x, z, cavern, breachMask, true)) {
                 CaveEntranceCarver.carveTunnelExit(chunk, carver, generator, generator.getCaveEntranceClaims(), config, seed, x, z, dx, dz, cavern, breachMask);
             }
             if (ceiling <= minY) {
@@ -206,12 +209,12 @@ public class NoiseCaveCarver {
                     densityBudget.consumeSecondary(verticalSpan);
                 }
             }
-            if (columns.reserveEntrance(dx, dz) && top >= surface - 6 && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+            if (columns.reserveEntrance(dx, dz) && top >= surface - 6 && !columns.riverSurfaceSuppressed(dx, dz) && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
                 carver.markEntranceColumn(dx, dz);
                 if (columns.nearSea() && columns.riverHillside(dx, dz)) {
                     carver.markCoastalEntranceColumn(dx, dz);
                 }
-            } else if (NoiseCaveCarver.shouldMarkEntranceColumn(naturalBreach, surfaceBreach, piercedSurface, breachMask, top, surface, columns, dx, dz) && !columns.suppressSurfaceBreach(dx, dz) && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+            } else if (NoiseCaveCarver.shouldMarkEntranceColumn(naturalBreach, surfaceBreach, piercedSurface, breachMask, top, surface, columns, dx, dz) && !columns.riverSurfaceSuppressed(dx, dz) && !columns.suppressSurfaceBreach(dx, dz) && !CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
                 carver.markEntranceColumn(dx, dz);
                 if (columns.nearSea() && columns.riverHillside(dx, dz)) {
                     carver.markCoastalEntranceColumn(dx, dz);
@@ -251,7 +254,7 @@ public class NoiseCaveCarver {
     }
 
     private static boolean shouldMarkEntranceColumn(boolean naturalBreach, boolean surfaceBreach, boolean piercedSurface, float breachMask, int top, int surface, CarverColumnCache columns, int dx, int dz) {
-        if (columns.reserveEntrance(dx, dz)) {
+        if (columns.riverSurfaceSuppressed(dx, dz) || columns.reserveEntrance(dx, dz)) {
             return false;
         }
         if (naturalBreach && top >= surface - 6) {
@@ -265,7 +268,7 @@ public class NoiseCaveCarver {
     }
 
     private static int[] computeMegaGigaBounds(int centerY, int cavern, int surface, int roofBuffer, int minY, float breachMask, CarverColumnCache columns, int dx, int dz) {
-        boolean riverColumn = columns.nearRiver(dx, dz);
+        boolean riverColumn = columns.riverSurfaceSuppressed(dx, dz) || columns.nearRiver(dx, dz);
         boolean reservedEntrance = columns.reserveEntrance(dx, dz);
         int vertRadius = Math.max(MIN_MEGA_GIGA_CAVERN, cavern);
         int shiftedY;
@@ -420,6 +423,12 @@ public class NoiseCaveCarver {
                 int ox = px - dx;
                 int oz = pz - dz;
                 if (ox * ox + oz * oz > radiusSq) {
+                    continue;
+                }
+                if (carver.isColumnCacheReady() && carver.columnCache().riverCarveBlocked(px, pz)) {
+                    continue;
+                }
+                if (carver.isColumnCacheReady() && carver.columnCache().riverSurfaceSuppressed(px, pz)) {
                     continue;
                 }
                 int localSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, px, pz);
@@ -728,6 +737,43 @@ public class NoiseCaveCarver {
         NoiseCaveCarver.prepareSmoothedMegaGigaColumns(seed, config, carver, columns, configType, startX, startZ, centerOut, cavernOut);
     }
 
+    /**
+     * True when a mega/giga sphere centered at {@code sourceDx/sourceDz} would set air at the probe voxel
+     * (horizontal bleed — explains air at columns whose own cavern probe is 0).
+     */
+    public static boolean megaGigaSphereCoversPoint(int seed, ChunkAccess sourceChunk, ChunkAccess probeChunk,
+            Generator generator, NoiseCave config, CarverColumnCache columns, int sourceDx, int sourceDz, int probeLx,
+            int probeLy, int probeLz, int[][] smoothedCenterY, int[][] smoothedCavern) {
+        CaveType configType = config.getType();
+        if (!configType.isMegaOrGiga() || columns.riverCarveBlocked(probeLx, probeLz)) {
+            return false;
+        }
+        if (!columns.matches(configType, sourceDx, sourceDz) || columns.oceanBlocked(sourceDx, sourceDz)) {
+            return false;
+        }
+        int sourceWx = sourceChunk.getPos().getMinBlockX() + sourceDx;
+        int sourceWz = sourceChunk.getPos().getMinBlockZ() + sourceDz;
+        if (CaveOceanFilter.isSurfaceWaterColumn(generator, sourceWx, sourceWz)) {
+            return false;
+        }
+        if (smoothedCavern == null || smoothedCavern[sourceDx][sourceDz] <= 0) {
+            return false;
+        }
+        int centerY = smoothedCenterY[sourceDx][sourceDz];
+        int cavern = Math.max(MIN_MEGA_GIGA_CAVERN, smoothedCavern[sourceDx][sourceDz]);
+        int radiusSq = cavern * cavern + cavern / 2;
+        int probeWx = probeChunk.getPos().getMinBlockX() + probeLx;
+        int probeWz = probeChunk.getPos().getMinBlockZ() + probeLz;
+        int ox = probeWx - sourceWx;
+        int oz = probeWz - sourceWz;
+        int oy = probeLy - centerY;
+        if (ox * ox + oy * oy + oz * oz > radiusSq) {
+            return false;
+        }
+        int localSurface = probeChunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, probeLx, probeLz);
+        return probeLy <= localSurface - AGGRESSIVE_SURFACE_CRUST;
+    }
+
     public static ColumnProbeResult probeColumn(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator,
             NoiseCave config, int dx, int dz, int probeY, int[][] smoothedCenterY, int[][] smoothedCavern) {
         CaveType configType = config.getType();
@@ -735,6 +781,9 @@ public class NoiseCaveCarver {
         if (!columns.matches(configType, dx, dz)) {
             return ColumnProbeResult.skip("SKIP — zone mismatch for " + configType + " (column zone="
                     + columns.megaGigaFlag(dx, dz) + ")");
+        }
+        if (columns.riverCarveBlocked(dx, dz)) {
+            return ColumnProbeResult.skip("SKIP — river/lake corridor (riverCarveBlocked)");
         }
         int startX = chunk.getPos().getMinBlockX();
         int startZ = chunk.getPos().getMinBlockZ();
