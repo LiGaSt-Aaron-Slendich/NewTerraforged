@@ -52,7 +52,7 @@ public final class CarveDecisionDiagnostics {
         CarverColumnCache columns = carver.columnCache();
         CarveDecisionDiagnostics.appendSurfaceBreakdown(generator, chunk, carver, lx, lz, x, z, report);
         CarveDecisionDiagnostics.appendSynapseGateBreakdown(generator, chunk, columns, lx, lz, x, z, seed, report);
-        CarveDecisionDiagnostics.appendColumnFlags(columns, lx, lz, report);
+        CarveDecisionDiagnostics.appendColumnFlags(generator, chunk, columns, lx, lz, report);
         boolean airAtFeet = chunk.getBlockState(new BlockPos(lx, y, lz)).isAir();
         CarveDecisionDiagnostics.appendPostGenTruth(chunk, lx, y, lz, report);
         if (airAtFeet) {
@@ -345,7 +345,14 @@ public final class CarveDecisionDiagnostics {
         }
     }
 
-    private static void appendColumnFlags(CarverColumnCache columns, int lx, int lz, CaveDebugReport report) {
+    private static void appendColumnFlags(Generator generator, ChunkAccess chunk, CarverColumnCache columns, int lx, int lz, CaveDebugReport report) {
+        report.add(String.format(Locale.ROOT,
+                "Sea level (TerraForged default): Y=%d — hydrator/guards clamp near this height",
+                generator.getSeaLevel()));
+        int waterTop = CaveOceanFilter.findWaterSurfaceY(chunk, lx, lz);
+        if (waterTop >= 0) {
+            report.add(String.format(Locale.ROOT, "Chunk water surface at probe column: Y=%d", waterTop));
+        }
         byte zone = columns.megaGigaFlag(lx, lz);
         String zoneLabel = switch (zone) {
             case MegaGigaZoneProbe.MEGA -> "MEGA";

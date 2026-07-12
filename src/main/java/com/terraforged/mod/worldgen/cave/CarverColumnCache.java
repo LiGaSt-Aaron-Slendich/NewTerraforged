@@ -160,7 +160,7 @@ final class CarverColumnCache {
             return true;
         }
         if (CaveOceanFilter.hasSubmergedWaterNeighborInChunk(chunk, dx, dz, sea, 8)) {
-            return !this.riverHillside(dx, dz);
+            return true;
         }
         if (this.nearRiver(dx, dz) && this.localTerrainDip(dx, dz) >= 2) {
             return true;
@@ -174,10 +174,7 @@ final class CarverColumnCache {
         if (river >= 0.90f) {
             return false;
         }
-        if (river < 0.72f) {
-            return true;
-        }
-        return !this.riverHillside(dx, dz);
+        return river < 0.72f;
     }
 
     boolean riverCarveBlocked(int dx, int dz) {

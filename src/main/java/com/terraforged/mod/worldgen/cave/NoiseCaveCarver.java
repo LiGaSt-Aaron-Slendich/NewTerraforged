@@ -359,6 +359,12 @@ public class NoiseCaveCarver {
             int heightCap = actualSurface - Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST);
             solidCap = Math.min(solidCap, heightCap);
             carveCap = Math.min(carveCap, heightCap);
+            int waterTop = CaveOceanFilter.findWaterSurfaceY(chunk, dx, dz);
+            if (waterTop >= 0) {
+                int waterCap = waterTop - 1 - Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST);
+                solidCap = Math.min(solidCap, waterCap);
+                carveCap = Math.min(carveCap, waterCap);
+            }
         }
         boolean piercedSurface = false;
         for (int cy = bottom; cy <= top; ++cy) {
@@ -756,6 +762,12 @@ public class NoiseCaveCarver {
             int heightCap = actualSurface - Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST);
             solidCap = Math.min(solidCap, heightCap);
             carveCap = Math.min(carveCap, heightCap);
+            int waterTop = CaveOceanFilter.findWaterSurfaceY(chunk, dx, dz);
+            if (waterTop >= 0) {
+                int waterCap = waterTop - 1 - Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST);
+                solidCap = Math.min(solidCap, waterCap);
+                carveCap = Math.min(carveCap, waterCap);
+            }
         }
         if (probeY < bottom || probeY > top) {
             return ColumnProbeResult.skip(String.format(java.util.Locale.ROOT,

@@ -57,10 +57,8 @@ public final class CaveRiverEntranceHydrator {
             BlockState state = chunk.getBlockState(pos);
             if (state.isAir()) {
                 inAirRun = true;
-                if (y >= sea - 1) {
-                    chunk.setBlockState(pos, Fluids.WATER.defaultFluidState().createLegacyBlock(), false);
-                    ++placed;
-                }
+                chunk.setBlockState(pos, Fluids.WATER.defaultFluidState().createLegacyBlock(), false);
+                ++placed;
                 continue;
             }
             if (!state.getFluidState().isEmpty()) {

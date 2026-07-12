@@ -69,14 +69,11 @@ public final class CaveOceanFilter {
         return generator.getOceanFloorHeight(worldX, worldZ) <= generator.getSeaLevel();
     }
 
-    /** Chunk column with water at/near the surface band (river/lake bed in generated chunk). */
+    /** Chunk column with water in the surface band (any elevation — not only at/below sea level). */
     public static boolean isSubmergedWaterColumn(ChunkAccess chunk, int lx, int lz, int sea) {
         int top = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-        if (top > sea + 1) {
-            return false;
-        }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int y = top; y >= Math.max(chunk.getMinBuildHeight(), top - 3); --y) {
+        for (int y = top; y >= Math.max(chunk.getMinBuildHeight(), top - 5); --y) {
             pos.set(lx, y, lz);
             BlockState state = chunk.getBlockState(pos);
             if (!state.getFluidState().isEmpty() || state.is(Blocks.WATER)) {
@@ -86,7 +83,26 @@ public final class CaveOceanFilter {
                 break;
             }
         }
-        return top <= sea;
+        return false;
+    }
+
+    /** Top Y of water/fluid in the column surface band, or -1 if none. */
+    public static int findWaterSurfaceY(ChunkAccess chunk, int lx, int lz) {
+        int top = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int waterTop = -1;
+        for (int y = top; y >= Math.max(chunk.getMinBuildHeight(), top - 5); --y) {
+            pos.set(lx, y, lz);
+            BlockState state = chunk.getBlockState(pos);
+            if (!state.getFluidState().isEmpty() || state.is(Blocks.WATER)) {
+                waterTop = Math.max(waterTop, y);
+                continue;
+            }
+            if (!state.isAir()) {
+                break;
+            }
+        }
+        return waterTop;
     }
 
     public static boolean hasSubmergedWaterNeighborInChunk(ChunkAccess chunk, int lx, int lz, int sea, int radius) {
