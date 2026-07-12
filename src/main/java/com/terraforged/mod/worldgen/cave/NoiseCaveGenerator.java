@@ -68,6 +68,42 @@ public class NoiseCaveGenerator {
         return this.cache.get(pos);
     }
 
+    public CarverChunk buildDiagnosticCarver(int seed, ChunkAccess chunk, Generator generator) {
+        CarverChunk carver = this.createCarverChunk();
+        carver.mask = this.caveBreachNoise;
+        carver.megaModifier = this.megaCaveNoise;
+        carver.gigaModifier = this.gigaCaveNoise;
+        carver.terrainData = generator.getChunkData(chunk.getPos());
+        if (carver.terrainData == null) {
+            return null;
+        }
+        carver.prepareColumnCache(seed, chunk, generator);
+        CarverColumnCache columns = carver.columnCache();
+        NoiseCave synapseProbe = NoiseCaveGenerator.findPrimarySynapseConfig(this.caves);
+        if (NoiseCaveGenerator.isCaveEnabled(synapseProbe)) {
+            columns.ensureSynapseEligibility(synapseProbe, seed);
+        }
+        NoiseCave envelopeConfig = NoiseCaveGenerator.representativeMegaGiga(columns, this.caves);
+        if (envelopeConfig != null) {
+            carver.beginCavePass(envelopeConfig);
+            carver.modifier = this.getModifier(envelopeConfig);
+            CaveParallelExposureFilter.build(columns, seed, chunk, carver, generator, envelopeConfig);
+        }
+        return carver;
+    }
+
+    public NoiseCave[] orderedCarveConfigs() {
+        return this.carveOrderCaves;
+    }
+
+    public boolean isCarveConfigEnabled(NoiseCave config) {
+        return NoiseCaveGenerator.isCaveEnabled(config);
+    }
+
+    public Module modifierFor(NoiseCave cave) {
+        return this.getModifier(cave);
+    }
+
     public void decorateVolume(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
         CarverChunk carver = this.prepareDecorateCarver((int)generator.getSeed(), chunk, generator);
         if (carver == null) {

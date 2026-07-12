@@ -12,6 +12,7 @@ import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.VanillaGen;
 import com.terraforged.mod.worldgen.biome.BiomeGenerator;
 import com.terraforged.mod.worldgen.biome.Source;
+import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
@@ -103,6 +104,23 @@ implements IGenerator {
 
     public CarverChunk peekCaveCarver(ChunkPos pos) {
         return this.biomeGenerator.peekCaveCarver(pos);
+    }
+
+    @Nullable
+    public CarverChunk buildDiagnosticCarver(int seed, ChunkAccess chunk) {
+        return this.biomeGenerator.buildDiagnosticCarver(seed, chunk, this);
+    }
+
+    public NoiseCave[] orderedCarveConfigs() {
+        return this.biomeGenerator.orderedCarveConfigs();
+    }
+
+    public boolean isCarveConfigEnabled(NoiseCave config) {
+        return this.biomeGenerator.isCarveConfigEnabled(config);
+    }
+
+    public com.terraforged.noise.Module carveModifierFor(NoiseCave config) {
+        return this.biomeGenerator.carveModifierFor(config);
     }
 
     protected RegistryAccess getRegistries() {

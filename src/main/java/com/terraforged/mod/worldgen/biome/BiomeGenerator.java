@@ -8,9 +8,11 @@ import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.NoiseCaveGenerator;
+import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel;
 import com.terraforged.mod.worldgen.util.ChunkUtil;
+import com.terraforged.noise.Module;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.WorldGenRegion;
@@ -49,6 +51,23 @@ public class BiomeGenerator {
 
     public CarverChunk peekCaveCarver(net.minecraft.world.level.ChunkPos pos) {
         return this.noiseCaveGenerator.peekCarver(pos);
+    }
+
+    @org.jetbrains.annotations.Nullable
+    public CarverChunk buildDiagnosticCarver(int seed, ChunkAccess chunk, Generator generator) {
+        return this.noiseCaveGenerator.buildDiagnosticCarver(seed, chunk, generator);
+    }
+
+    public NoiseCave[] orderedCarveConfigs() {
+        return this.noiseCaveGenerator.orderedCarveConfigs();
+    }
+
+    public boolean isCarveConfigEnabled(NoiseCave config) {
+        return this.noiseCaveGenerator.isCarveConfigEnabled(config);
+    }
+
+    public Module carveModifierFor(NoiseCave config) {
+        return this.noiseCaveGenerator.modifierFor(config);
     }
 
     public void carve(long seed, ChunkAccess chunk, WorldGenRegion region, BiomeManager biomes, GenerationStep.Carving step, Generator generator) {

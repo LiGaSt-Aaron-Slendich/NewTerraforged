@@ -19,6 +19,7 @@ import com.terraforged.mod.platform.forge.CaveDebugNetwork;
 import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
 import com.terraforged.mod.worldgen.cave.CaveDebugReport;
 import com.terraforged.mod.worldgen.cave.CaveFeatureDiagnostics;
+import com.terraforged.mod.worldgen.cave.CarveDecisionDiagnostics;
 import com.terraforged.mod.worldgen.cave.CaveLayoutRegionGrid;
 import com.terraforged.mod.worldgen.cave.CaveMegaGigaLayout;
 import com.terraforged.mod.worldgen.cave.CaveSiteTags;
@@ -51,7 +52,7 @@ public final class CaveDebugCommand {
     }
 
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
-        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"newtf").requires(source -> source.hasPermission(0))).then(Commands.literal((String)"debug").then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"cave").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.FULL))).then(Commands.literal((String)"start").executes(ctx -> CaveDebugCommand.executeStart((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"stop").executes(ctx -> CaveDebugCommand.executeStop((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"map").executes(ctx -> CaveDebugCommand.executeMap((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"save").executes(ctx -> CaveDebugCommand.executeSave((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"menu").executes(ctx -> CaveDebugCommand.executeMenu((CommandContext<CommandSourceStack>)ctx)))).then(((LiteralArgumentBuilder)Commands.literal((String)"stats").then(Commands.literal((String)"local").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.LOCAL)))).then(Commands.literal((String)"global").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.GLOBAL))))));
+        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"newtf").requires(source -> source.hasPermission(0))).then(Commands.literal((String)"debug").then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"cave").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.FULL))).then(Commands.literal((String)"carve").executes(ctx -> CaveDebugCommand.executeCarve((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"start").executes(ctx -> CaveDebugCommand.executeStart((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"stop").executes(ctx -> CaveDebugCommand.executeStop((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"map").executes(ctx -> CaveDebugCommand.executeMap((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"save").executes(ctx -> CaveDebugCommand.executeSave((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"menu").executes(ctx -> CaveDebugCommand.executeMenu((CommandContext<CommandSourceStack>)ctx)))).then(((LiteralArgumentBuilder)Commands.literal((String)"stats").then(Commands.literal((String)"local").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.LOCAL)))).then(Commands.literal((String)"global").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.GLOBAL))))));
     }
 
     private static int execute(CommandContext<CommandSourceStack> context, Mode mode) throws CommandSyntaxException {
@@ -81,6 +82,31 @@ public final class CaveDebugCommand {
 
     private static int executeStop(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         return CaveDebugSession.stop(((CommandSourceStack)context.getSource()).getPlayerOrException());
+    }
+
+    private static int executeCarve(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerLevel level = player.getLevel();
+        Generator generator = GeneratorPreset.getGenerator(level);
+        if (generator == null) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        BlockPos pos = player.blockPosition();
+        try {
+            CaveDebugReport report = new CaveDebugReport();
+            report.add("=== Carve decision replay ===");
+            report.add(String.format(Locale.ROOT, "Position: %d %d %d", pos.getX(), pos.getY(), pos.getZ()));
+            CarveDecisionDiagnostics.append(generator, level.getChunk(pos), pos, report);
+            for (String line : report.lines()) {
+                player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+            }
+        }
+        catch (Throwable t) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Carve debug failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        return 1;
     }
 
     private static int executeMap(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

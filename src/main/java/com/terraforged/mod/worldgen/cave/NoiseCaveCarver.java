@@ -19,6 +19,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 public class NoiseCaveCarver {
     private static final int MIN_GLOBAL_CAVERN = 1;
+    /** Max excess of terrain-data surface over heightmap — river/lake banks inflate far higher. */
+    private static final int MAX_TERRAIN_INFLATION = 12;
     /** Breach mask at/above this: no roof cap тАФ noise carve may open to sky; decorators finish the mouth. */
     private static final float NATURAL_BREACH_THRESHOLD = 0.25f;
     /** Breach strong enough to pierce solid rock at the surface and form a decorated entrance. */
@@ -90,6 +92,9 @@ public class NoiseCaveCarver {
             int y;
             int surface;
             if (megaGiga) {
+                if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+                    continue;
+                }
                 surface = carver.cachedSurface(dx, dz);
                 if (smoothedCavern[dx][dz] <= 0) {
                     continue;
@@ -111,6 +116,13 @@ public class NoiseCaveCarver {
                     surface = NoiseCaveCarver.resolveColumnSurface(dx, dz, chunk, generator, carver, config, seed, x, z);
                 } else {
                     surface = carver.cachedSurface(dx, dz);
+                    int actualSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+                    if (surface > actualSurface + MAX_TERRAIN_INFLATION) {
+                        surface = actualSurface + MAX_TERRAIN_INFLATION;
+                    }
+                    if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+                        surface = Math.min(surface, chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz));
+                    }
                     float mask = carver.getCarvingMask(seed, sampleX, sampleZ, false);
                     if (surface > sea || surface < sea - 16) {
                         surface += 9;
@@ -635,4 +647,191 @@ public class NoiseCaveCarver {
             }
         }
     }
+
+
+    public static final class ColumnProbeResult {
+        private final boolean carvesAtProbe;
+        private final String skipReason;
+        private final int bottom;
+        private final int top;
+        private final int surface;
+        private final int cavern;
+        private final int centerY;
+        private final int roofBuffer;
+        private final int carveCap;
+        private final float noiseValue;
+        private final float breachMask;
+        private final boolean megaGigaSphere;
+
+        private ColumnProbeResult(boolean carvesAtProbe, String skipReason, int bottom, int top, int surface,
+                int cavern, int centerY, int roofBuffer, int carveCap, float noiseValue, float breachMask,
+                boolean megaGigaSphere) {
+            this.carvesAtProbe = carvesAtProbe;
+            this.skipReason = skipReason;
+            this.bottom = bottom;
+            this.top = top;
+            this.surface = surface;
+            this.cavern = cavern;
+            this.centerY = centerY;
+            this.roofBuffer = roofBuffer;
+            this.carveCap = carveCap;
+            this.noiseValue = noiseValue;
+            this.breachMask = breachMask;
+            this.megaGigaSphere = megaGigaSphere;
+        }
+
+        public boolean carvesAtProbe() {
+            return this.carvesAtProbe;
+        }
+
+        public String skipReason() {
+            return this.skipReason;
+        }
+
+        public String detailLine() {
+            return String.format(java.util.Locale.ROOT,
+                    "Y=%d..%d carveCap=%d centerY=%d cavern=%d surface=%d roofBuffer=%d noise=%.3f breach=%.3f%s",
+                    this.bottom, this.top, this.carveCap, this.centerY, this.cavern, this.surface, this.roofBuffer,
+                    this.noiseValue, this.breachMask, this.megaGigaSphere ? " mode=MEGA_GIGA_SPHERE" : " mode=COLUMN");
+        }
+
+        private static ColumnProbeResult skip(String reason) {
+            return new ColumnProbeResult(false, reason, 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, false);
+        }
+    }
+
+    public static void prepareSmoothedMegaGigaColumnsForProbe(int seed, NoiseCave config, CarverChunk carver,
+            CarverColumnCache columns, CaveType configType, int startX, int startZ, int[][] centerOut, int[][] cavernOut) {
+        NoiseCaveCarver.prepareSmoothedMegaGigaColumns(seed, config, carver, columns, configType, startX, startZ, centerOut, cavernOut);
+    }
+
+    public static ColumnProbeResult probeColumn(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator,
+            NoiseCave config, int dx, int dz, int probeY, int[][] smoothedCenterY, int[][] smoothedCavern) {
+        CaveType configType = config.getType();
+        CarverColumnCache columns = carver.columnCache();
+        if (!columns.matches(configType, dx, dz)) {
+            return ColumnProbeResult.skip("SKIP — zone mismatch for " + configType + " (column zone="
+                    + columns.megaGigaFlag(dx, dz) + ")");
+        }
+        int startX = chunk.getPos().getMinBlockX();
+        int startZ = chunk.getPos().getMinBlockZ();
+        int x = startX + dx;
+        int z = startZ + dz;
+        int sampleX = x + columns.sampleShiftX(dx, dz);
+        int sampleZ = z + columns.sampleShiftZ(dx, dz);
+        boolean megaGiga = configType.isMegaOrGiga();
+        int minY = generator.getMinY();
+        int sea = generator.getSeaLevel();
+        float value;
+        int cavern;
+        int centerY;
+        int surface;
+        if (megaGiga) {
+            if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+                return ColumnProbeResult.skip("SKIP — mega/giga skips surface water column");
+            }
+            surface = carver.cachedSurface(dx, dz);
+            if (smoothedCavern == null || smoothedCavern[dx][dz] <= 0) {
+                return ColumnProbeResult.skip("SKIP — smoothed cavern radius <= 0 (mega/giga noise too weak here)");
+            }
+            centerY = smoothedCenterY[dx][dz];
+            cavern = smoothedCavern[dx][dz];
+            value = CaveNoise.sampleMerged(carver.modifier, seed, sampleX, sampleZ);
+        } else {
+            value = CaveNoise.sample(carver.modifier, seed, sampleX, sampleZ);
+            cavern = config.getCavernSize(seed, sampleX, sampleZ, value);
+            if (cavern < MIN_GLOBAL_CAVERN) {
+                return ColumnProbeResult.skip(String.format(java.util.Locale.ROOT,
+                        "SKIP — cavern=%d < min %d (noise=%.3f)", cavern, MIN_GLOBAL_CAVERN, value));
+            }
+            centerY = config.getHeight(seed, sampleX, sampleZ) - columns.extraCenterDrop(dx, dz);
+            if (NoiseCaveCarver.isUnderwaterOcean(chunk, dx, dz, sea)) {
+                surface = NoiseCaveCarver.resolveColumnSurface(dx, dz, chunk, generator, carver, config, seed, x, z);
+            } else {
+                surface = carver.cachedSurface(dx, dz);
+                int actualSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+                if (surface > actualSurface + MAX_TERRAIN_INFLATION) {
+                    surface = actualSurface + MAX_TERRAIN_INFLATION;
+                }
+                if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+                    surface = Math.min(surface, chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz));
+                }
+                float mask = carver.getCarvingMask(seed, sampleX, sampleZ, false);
+                if (surface > sea || surface < sea - 16) {
+                    surface += 9;
+                }
+                surface -= NoiseUtil.floor(16.0f * mask);
+            }
+        }
+        if (megaGiga && columns.oceanBlocked(dx, dz)) {
+            return ColumnProbeResult.skip("SKIP — oceanBlocked (cached surface at/below sea level in mega/giga zone)");
+        }
+        if (megaGiga && cavern < MIN_MEGA_GIGA_CAVERN) {
+            cavern = MIN_MEGA_GIGA_CAVERN;
+        } else if (cavern == 0) {
+            return ColumnProbeResult.skip("SKIP — cavern radius 0");
+        }
+        int floor = config.getFloorDepth(seed, x, z, cavern);
+        float breachMask = carver.getCarvingMask(seed, sampleX, sampleZ, megaGiga);
+        boolean underwaterOcean = !megaGiga && NoiseCaveCarver.isUnderwaterOcean(chunk, dx, dz, sea);
+        int roofBuffer = NoiseCaveCarver.resolveRoofBuffer(breachMask, sampleX, sampleZ, chunk, generator, config,
+                underwaterOcean, seed, columns, dx, dz);
+        int ceiling = surface - roofBuffer;
+        if (ceiling <= minY) {
+            return ColumnProbeResult.skip("SKIP — ceiling=" + ceiling + " <= minY (surface=" + surface + " roofBuffer="
+                    + roofBuffer + ")");
+        }
+        int bottom;
+        int top;
+        boolean surfaceBreach;
+        if (megaGiga) {
+            int[] bounds = NoiseCaveCarver.computeMegaGigaBounds(centerY, cavern, surface, roofBuffer, minY, breachMask,
+                    columns, dx, dz);
+            if (bounds == null) {
+                return ColumnProbeResult.skip("SKIP — mega/giga bounds null (river/headroom rejected)");
+            }
+            bottom = bounds[0];
+            top = bounds[1];
+            surfaceBreach = bounds[2] != 0;
+        } else {
+            int[] bounds = NoiseCaveCarver.computeGlobalBounds(centerY, cavern, floor, surface, roofBuffer, minY,
+                    breachMask);
+            if (bounds == null) {
+                return ColumnProbeResult.skip("SKIP — global bounds null");
+            }
+            bottom = bounds[0];
+            top = bounds[1];
+            surfaceBreach = bounds[2] != 0;
+        }
+        if (top - bottom < 3) {
+            return ColumnProbeResult.skip("SKIP — vertical span < 3 (bottom=" + bottom + " top=" + top + ")");
+        }
+        int midY = bottom + top >> 1;
+        net.minecraft.core.Holder<Biome> biome = carver.getBiome(x, z, midY, config, generator);
+        if (biome == null) {
+            return ColumnProbeResult.skip("SKIP — no biome for cave at midY=" + midY);
+        }
+        int floorBed = surface;
+        if (!megaGiga) {
+            int stoneFloor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz) - 1;
+            int blockTop = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz) - 1;
+            if (stoneFloor < blockTop && stoneFloor >= sea - 4) {
+                floorBed = Math.min(surface, stoneFloor);
+            }
+        }
+        int solidCap = floorBed - (surfaceBreach ? 0 : Math.min(roofBuffer, AGGRESSIVE_SURFACE_CRUST));
+        int carveCap = surfaceBreach ? surface + ENTRANCE_AIR_LIFT : solidCap;
+        if (probeY < bottom || probeY > top) {
+            return ColumnProbeResult.skip(String.format(java.util.Locale.ROOT,
+                    "SKIP — probe Y=%d outside carve band Y=%d..%d (surface=%d)", probeY, bottom, top, surface));
+        }
+        if (!megaGiga && probeY > carveCap) {
+            return ColumnProbeResult.skip(String.format(java.util.Locale.ROOT,
+                    "SKIP — probe Y=%d above carveCap=%d (surfaceBreach=%s surface=%d)", probeY, carveCap, surfaceBreach,
+                    surface));
+        }
+        return new ColumnProbeResult(true, null, bottom, top, surface, cavern, centerY, roofBuffer, carveCap, value,
+                breachMask, megaGiga);
+    }
+
 }
