@@ -5,6 +5,8 @@ alwaysApply: true
 
 # JAR deploy (TerraforgedTest / mods)
 
+**Default:** after a successful `compileJava` + `reobfJar` (or any build that produces the mod JAR), **always deploy** to TerraforgedTest unless the user explicitly says not to deploy in that message.
+
 When copying a built mod JAR into a Minecraft instance `mods` folder:
 
 1. **Never delete** the existing JAR of the same name.
