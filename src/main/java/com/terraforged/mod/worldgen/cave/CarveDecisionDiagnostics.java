@@ -429,7 +429,7 @@ public final class CarveDecisionDiagnostics {
                         bedYTerrain, waterYTerrain));
             }
         }
-        report.add("River/lake: restoreRiverDepressions only tops up missing water on river==0 bed columns; no trim/sync/void-fill");
+        report.add("River/lake: seam fill treats subsurface water under crust as gaps (air or trapped water); open surface water is left");
         if (carver.hasTunnelRiver()) {
             report.add("Tunnel river: CaveTunnelRiverDecorator may carve punch/channel along massif tunnel axis (separate from restoreRiverDepressions)");
         }
