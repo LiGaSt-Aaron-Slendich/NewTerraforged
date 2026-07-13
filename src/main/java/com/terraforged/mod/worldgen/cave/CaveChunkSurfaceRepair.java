@@ -175,6 +175,18 @@ public final class CaveChunkSurfaceRepair {
 
     /** Carve river/lake beds from terrain data after flat surface repair — keeps channels from leaking. */
     public static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, false);
+    }
+
+    /**
+     * Solidify river/lake voids after surface build and before NoiseCave carving so accidental
+     * generation shafts are filled first; carving then has solid stone/water to cut through.
+     */
+    public static void solidifyRiverChannelsPreCarve(ChunkAccess chunk, Generator generator, TerrainData terrain) {
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, null, generator, terrain, true);
+    }
+
+    private static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain, boolean preCarve) {
         if (!CaveChunkSurfaceRepair.riverDepressionRestoreEnabled) {
             return;
         }
@@ -196,8 +208,12 @@ public final class CaveChunkSurfaceRepair {
                 int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
                 int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
                 if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedY, waterY)) {
-                    CaveChunkSurfaceRepair.restoreRiverBedAfterCaveBreached(chunk, carver, lx, lz, bedY, waterY, sea,
-                            water, pos);
+                    if (CaveCarvingGate.isEnabled() && !preCarve) {
+                        CaveChunkSurfaceRepair.syncRiverChannelBand(chunk, carver, lx, lz, bedY, waterY, water, pos);
+                    } else {
+                        CaveChunkSurfaceRepair.restoreRiverBedAfterCaveBreached(chunk, carver, lx, lz, bedY, waterY, sea,
+                                water, pos);
+                    }
                     continue;
                 }
                 if (shellTop > waterY) {
@@ -206,21 +222,27 @@ public final class CaveChunkSurfaceRepair {
                 CaveChunkSurfaceRepair.syncRiverChannelBand(chunk, carver, lx, lz, bedY, waterY, water, pos);
             }
         }
-        CaveChunkSurfaceRepair.plugShaftBelowRiverChannels(chunk, carver, generator, terrain);
+        if (preCarve || !CaveCarvingGate.isEnabled()) {
+            CaveChunkSurfaceRepair.plugRiverChannelVoids(chunk, carver, generator, terrain);
+        }
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
+    private static final int NEAR_RIVER_BED_RADIUS = 2;
+
     /**
-     * Fills air shafts below river/lake columns — never places blocks at or above {@code bedY}.
-     * Targets voids under water bodies, not crust above the surface.
+     * Fills air in and below river/lake columns up to {@code waterY}, plus land within
+     * {@link #NEAR_RIVER_BED_RADIUS} of a river bed. Never places blocks above {@code waterY}.
      */
-    public static void plugShaftBelowRiverChannels(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
+    public static void plugRiverChannelVoids(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
         if (terrain == null) {
             return;
         }
         int sea = generator.getSeaLevel();
         int minY = chunk.getMinBuildHeight();
         BlockState stone = Blocks.STONE.defaultBlockState();
+        BlockState gravel = Blocks.GRAVEL.defaultBlockState();
+        BlockState water = Blocks.WATER.defaultBlockState();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
@@ -233,23 +255,97 @@ public final class CaveChunkSurfaceRepair {
                 }
                 int waterY = TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
                 int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
-                int plugFloor = minY;
-                if (waterY > sea + 4) {
-                    plugFloor = Math.max(minY, sea);
-                }
-                int plugTop = bedY - 1;
-                if (plugTop < plugFloor) {
-                    continue;
-                }
-                for (int y = plugTop; y >= plugFloor; --y) {
-                    pos.set(lx, y, lz);
-                    if (chunk.getBlockState(pos).isAir()) {
-                        chunk.setBlockState(pos, stone, false);
-                    }
+                boolean bedColumn = CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz);
+                CaveChunkSurfaceRepair.plugColumnVoids(chunk, lx, lz, bedY, waterY, sea, minY, bedColumn, stone, gravel,
+                        water, pos);
+            }
+        }
+        boolean[][] nearRiverBed = new boolean[16][16];
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+                    CaveChunkSurfaceRepair.markNearRiverBed(nearRiverBed, lx, lz, NEAR_RIVER_BED_RADIUS);
                 }
             }
         }
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (carver != null && carver.isEntranceColumn(lx, lz)) {
+                    continue;
+                }
+                if (!nearRiverBed[lx][lz]) {
+                    continue;
+                }
+                Terrain type = terrain.getTerrain().get(lx, lz);
+                if (type.isRiver() || type.isLake()) {
+                    continue;
+                }
+                int refWaterY = CaveChunkSurfaceRepair.nearestRiverBedWaterY(terrain, lx, lz, sea, NEAR_RIVER_BED_RADIUS);
+                if (refWaterY < 0) {
+                    continue;
+                }
+                int bedY = terrain.getHeight(lx, lz);
+                CaveChunkSurfaceRepair.plugColumnVoids(chunk, lx, lz, bedY, refWaterY, sea, minY, false, stone, gravel,
+                        water, pos);
+            }
+        }
         ChunkUtil.refreshHeightmaps(chunk);
+    }
+
+    private static void plugColumnVoids(ChunkAccess chunk, int lx, int lz, int bedY, int waterY, int sea, int minY,
+            boolean waterColumn, BlockState stone, BlockState gravel, BlockState water, BlockPos.MutableBlockPos pos) {
+        int plugFloor = minY;
+        if (waterY > sea + 4) {
+            plugFloor = Math.max(minY, sea);
+        }
+        int plugTop = waterY;
+        if (plugTop < plugFloor) {
+            return;
+        }
+        for (int y = plugTop; y >= plugFloor; --y) {
+            pos.set(lx, y, lz);
+            if (!chunk.getBlockState(pos).isAir()) {
+                continue;
+            }
+            if (waterColumn && y > bedY && y <= waterY) {
+                BlockState fill = y == waterY ? (BlockState)water.setValue((Property)LiquidBlock.LEVEL, 0) : water;
+                chunk.setBlockState(pos, fill, false);
+            } else if (waterColumn && y == bedY) {
+                chunk.setBlockState(pos, gravel, false);
+            } else {
+                chunk.setBlockState(pos, stone, false);
+            }
+        }
+    }
+
+    private static int nearestRiverBedWaterY(TerrainData terrain, int lx, int lz, int sea, int radius) {
+        int best = Integer.MIN_VALUE;
+        for (int dz = -radius; dz <= radius; ++dz) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                int nx = lx + dx;
+                int nz = lz + dz;
+                if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16) {
+                    continue;
+                }
+                if (!CaveChunkSurfaceRepair.isRiverBedColumn(terrain, nx, nz)) {
+                    continue;
+                }
+                best = Math.max(best, TerrainLevels.getWaterLevel(nx, nz, sea, terrain));
+            }
+        }
+        return best;
+    }
+
+    private static void markNearRiverBed(boolean[][] near, int cx, int cz, int radius) {
+        for (int dz = -radius; dz <= radius; ++dz) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                int nx = cx + dx;
+                int nz = cz + dz;
+                if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) {
+                    near[nx][nz] = true;
+                }
+            }
+        }
     }
 
     private static boolean mayModifyRiverColumn(int lx, int y, int lz, int bedY, int waterY) {

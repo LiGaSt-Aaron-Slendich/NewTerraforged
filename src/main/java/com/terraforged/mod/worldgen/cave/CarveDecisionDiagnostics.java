@@ -434,7 +434,9 @@ public final class CarveDecisionDiagnostics {
             }
         }
         if (!CaveCarvingGate.isEnabled()) {
-            report.add("River/lake: plugShaftBelowRiverChannels fills air below bedY only (never above waterY)");
+            report.add("River/lake: plugRiverChannelVoids fills air bed..waterY + land within 2 blocks of river bed (pre-carve solidify runs before carving)");
+        } else {
+            report.add("River/lake: solidifyRiverChannelsPreCarve runs before carving; post-decorate only syncs water (no re-plug)");
         }
         if (carver.hasTunnelRiver()) {
             report.add("Tunnel river: CaveTunnelRiverDecorator may carve punch/channel along massif tunnel axis (separate from restoreRiverDepressions)");
