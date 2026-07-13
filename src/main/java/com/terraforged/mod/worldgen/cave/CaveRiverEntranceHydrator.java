@@ -4,6 +4,7 @@ import com.terraforged.mod.worldgen.Generator;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.Fluids;
 
 /**
@@ -11,21 +12,30 @@ import net.minecraft.world.level.material.Fluids;
  */
 public final class CaveRiverEntranceHydrator {
     private static final float RIVER_WATER = 0.72f;
-    private static final int MAX_DROP = 96;
+
+    /**
+     * A/B toggle: post-carve water fill on entrance columns near rivers.
+     * Old logic only filled {@code y >= sea-1}, leaving an air shaft to Y=62 on high rivers.
+     */
+    public static boolean riverEntranceHydratorEnabled = false;
 
     private CaveRiverEntranceHydrator() {
     }
 
+    public static boolean isRiverEntranceHydratorEnabled() {
+        return CaveRiverEntranceHydrator.riverEntranceHydratorEnabled;
+    }
+
     public static void hydrate(ChunkAccess chunk, CarverChunk carver, Generator generator) {
+        if (!CaveRiverEntranceHydrator.riverEntranceHydratorEnabled) {
+            return;
+        }
         if (!carver.hasAnyEntranceColumn()) {
             return;
         }
         CarverColumnCache columns = carver.columnCache();
         int startX = chunk.getPos().getMinBlockX();
         int startZ = chunk.getPos().getMinBlockZ();
-        int minY = chunk.getMinBuildHeight();
-        int maxY = chunk.getHighestSectionPosition() + 15;
-        int sea = generator.getSeaLevel();
         for (int dx = 0; dx < 16; ++dx) {
             for (int dz = 0; dz < 16; ++dz) {
                 if (!carver.isEntranceColumn(dx, dz)) {
@@ -39,39 +49,29 @@ public final class CaveRiverEntranceHydrator {
                 if (generator.getTerrainSample(wx, wz).riverNoise >= RIVER_WATER) {
                     continue;
                 }
-                int surface = carver.cachedSurface(dx, dz);
-                if (surface <= sea) {
+                int waterTop = CaveOceanFilter.findWaterSurfaceY(chunk, dx, dz);
+                if (waterTop < 0) {
                     continue;
                 }
-                CaveRiverEntranceHydrator.fillWaterColumn(chunk, dx, dz, surface, minY, maxY, sea);
+                int bedY = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                CaveRiverEntranceHydrator.fillRiverBand(chunk, dx, dz, bedY, waterTop);
             }
         }
     }
 
-    private static void fillWaterColumn(ChunkAccess chunk, int lx, int lz, int surfaceY, int minY, int maxY, int sea) {
-        int waterTop = Math.min(surfaceY, maxY);
-        int placed = 0;
-        boolean inAirRun = false;
-        for (int y = waterTop; y >= Math.max(minY, waterTop - MAX_DROP); --y) {
-            BlockPos pos = new BlockPos(lx, y, lz);
+    /** Refill only the river channel band — never deep cave air below the bed, never clamp to sea level. */
+    private static void fillRiverBand(ChunkAccess chunk, int lx, int lz, int bedY, int waterTop) {
+        if (waterTop <= bedY) {
+            return;
+        }
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int y = bedY + 1; y <= waterTop; ++y) {
+            pos.set(lx, y, lz);
             BlockState state = chunk.getBlockState(pos);
-            if (state.isAir()) {
-                inAirRun = true;
-                chunk.setBlockState(pos, Fluids.WATER.defaultFluidState().createLegacyBlock(), false);
-                ++placed;
+            if (!state.isAir() && !state.getFluidState().isEmpty()) {
                 continue;
             }
-            if (!state.getFluidState().isEmpty()) {
-                inAirRun = true;
-                continue;
-            }
-            if (inAirRun && placed > 0) {
-                return;
-            }
-            if (!inAirRun && y >= waterTop - 2) {
-                continue;
-            }
-            break;
+            chunk.setBlockState(pos, Fluids.WATER.defaultFluidState().createLegacyBlock(), false);
         }
     }
 }

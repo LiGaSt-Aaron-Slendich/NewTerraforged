@@ -75,6 +75,12 @@ public class NoiseCaveCarver {
             if (columns.riverCarveBlocked(dx, dz)) {
                 continue;
             }
+            if (carver.terrainData != null && CaveChunkSurfaceRepair.isRiverBedColumn(carver.terrainData, dx, dz)) {
+                continue;
+            }
+            if (CaveOceanFilter.findWaterSurfaceY(chunk, dx, dz) >= 0) {
+                continue;
+            }
             int x = startX + dx;
             int z = startZ + dz;
             int sampleX = x + columns.sampleShiftX(dx, dz);
@@ -85,7 +91,8 @@ public class NoiseCaveCarver {
             int y;
             int surface;
             if (megaGiga) {
-                if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
+                if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)
+                        || CaveOceanFilter.findWaterSurfaceY(chunk, dx, dz) >= 0) {
                     continue;
                 }
                 surface = carver.cachedSurface(dx, dz);

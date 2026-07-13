@@ -159,7 +159,10 @@ final class CarverColumnCache {
         if (CaveOceanFilter.isSubmergedWaterColumn(chunk, dx, dz, sea)) {
             return true;
         }
-        if (CaveOceanFilter.hasSubmergedWaterNeighborInChunk(chunk, dx, dz, sea, 8)) {
+        if (this.surfaceY(dx, dz) > sea && this.nearRiver(dx, dz)) {
+            return true;
+        }
+        if (CaveOceanFilter.hasSubmergedWaterNeighborInChunk(chunk, dx, dz, sea, 12)) {
             return true;
         }
         if (this.nearRiver(dx, dz) && this.localTerrainDip(dx, dz) >= 2) {

@@ -384,11 +384,21 @@ public final class CarveDecisionDiagnostics {
     private static void appendPostProcessHint(Generator generator, ChunkAccess chunk, CarverChunk carver, int lx, int lz, int y, CaveDebugReport report) {
         int x = chunk.getPos().getMinBlockX() + lx;
         int z = chunk.getPos().getMinBlockZ() + lz;
+        if (!CaveChunkSurfaceRepair.isRiverDepressionRestoreEnabled()) {
+            report.add("Post-carve repair: restoreRiverDepressions DISABLED (riverDepressionRestoreEnabled=false)");
+        }
+        if (!CaveRiverEntranceHydrator.isRiverEntranceHydratorEnabled()) {
+            report.add("Post-carve repair: CaveRiverEntranceHydrator DISABLED — old version filled y>=sea-1 only, leaving air shaft to Y="
+                    + generator.getSeaLevel() + " on high rivers");
+        }
         if (!CaveOceanFilter.isSurfaceWaterColumn(generator, x, z) && !carver.columnCache().nearRiver(lx, lz)) {
             return;
         }
-        if (!CaveChunkSurfaceRepair.isRiverDepressionRestoreEnabled()) {
-            report.add("Post-carve repair: restoreRiverDepressions DISABLED (riverDepressionRestoreEnabled=false)");
+        if (CaveChunkSurfaceRepair.isRiverDepressionRestoreEnabled()
+                && CaveRiverEntranceHydrator.isRiverEntranceHydratorEnabled()) {
+            // fall through to legacy hints below when both enabled
+        } else if (!CaveChunkSurfaceRepair.isRiverDepressionRestoreEnabled()
+                && !CaveRiverEntranceHydrator.isRiverEntranceHydratorEnabled()) {
             return;
         }
         int waterY = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
@@ -411,7 +421,7 @@ public final class CarveDecisionDiagnostics {
             int waterYTerrain = com.terraforged.mod.worldgen.terrain.TerrainLevels.getWaterLevel(lx, lz, generator.getSeaLevel(), terrain);
             if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedYTerrain, waterYTerrain)) {
                 report.add(String.format(Locale.ROOT,
-                        "River bed column: restoreRiverDepressions SKIPPED (cave air bed~%d..%d) — avoids eroded partial carve",
+                        "River bed column: restoreRiverDepressions will PLUG shaft bed~%d..%d (cave breach under river)",
                         bedYTerrain, waterYTerrain));
             }
         }

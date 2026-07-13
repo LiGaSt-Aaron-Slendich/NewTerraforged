@@ -20,10 +20,10 @@ public final class CaveChunkSurfaceRepair {
     /** Max height change per column during noise repair — avoids chunk-edge cliffs. */
     private static final int MAX_REPAIR_DELTA = 2;
     /**
-     * A/B toggle: post-carve river/lake bed restore ({@link #restoreRiverDepressions}).
-     * Set {@code false} to test whether eroded surface tunnels near rivers come from this pass.
+     * Post-carve river/lake bed restore ({@link #restoreRiverDepressions}).
+     * Plugs mega/synapse shaft breaches and rebuilds the channel bed + water.
      */
-    public static boolean riverDepressionRestoreEnabled = false;
+    public static boolean riverDepressionRestoreEnabled = true;
 
     private CaveChunkSurfaceRepair() {
     }
@@ -117,12 +117,46 @@ public final class CaveChunkSurfaceRepair {
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
-    /** True when mega/synapse air under a river bed column — {@link #restoreRiverDepressions} must not partial-carve. */
+    /** True when mega/synapse opened air under a river bed — needs bed plug, not depression carve. */
     public static boolean riverDepressionSkippedDueToCaveAir(ChunkAccess chunk, int lx, int lz, int bedY, int waterY) {
         int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
         int carveTop = Math.min(waterY, shellTop);
         return CaveChunkSurfaceRepair.hasCaveChamberBelow(chunk, lx, lz, waterY)
                 || CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, carveTop, bedY);
+    }
+
+    /**
+     * After cave carving breached a river column: plug the visible shaft (often down to sea level)
+     * and rebuild bed + water. This is what masked surface tunnels before we disabled the pass.
+     */
+    private static void restoreRiverBedAfterCaveBreached(ChunkAccess chunk, CarverChunk carver, int lx, int lz,
+            int bedY, int waterY, int sea, BlockState water, BlockPos.MutableBlockPos pos) {
+        BlockState gravel = Blocks.GRAVEL.defaultBlockState();
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        int plugFloor = Math.max(chunk.getMinBuildHeight(), sea);
+        for (int y = waterY; y >= plugFloor; --y) {
+            pos.set(lx, y, lz);
+            BlockState state = chunk.getBlockState(pos);
+            if (y == waterY) {
+                chunk.setBlockState(pos, (BlockState)water.setValue((Property)LiquidBlock.LEVEL, 0), false);
+                continue;
+            }
+            if (y > bedY) {
+                if (state.isAir()) {
+                    chunk.setBlockState(pos, water, false);
+                }
+                continue;
+            }
+            if (y == bedY) {
+                if (state.isAir()) {
+                    chunk.setBlockState(pos, gravel, false);
+                }
+                continue;
+            }
+            if (state.isAir()) {
+                chunk.setBlockState(pos, stone, false);
+            }
+        }
     }
 
     /** Carve river/lake beds from terrain data after flat surface repair — keeps channels from leaking. */
@@ -149,9 +183,8 @@ public final class CaveChunkSurfaceRepair {
                 int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
                 int carveTop = Math.min(waterY, shellTop);
                 if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedY, waterY)) {
-                    // Mega/synapse already opened this column. Partial depression carve stops at the
-                    // first air pocket and varies per column — the jagged "dynamite erosion" under rivers.
-                    // refillWaterOnly also leaves void under the bed; leave geometry to the carver.
+                    CaveChunkSurfaceRepair.restoreRiverBedAfterCaveBreached(chunk, carver, lx, lz, bedY, waterY, sea,
+                            water, pos);
                     continue;
                 }
                 if (shellTop <= waterY + 1) {
