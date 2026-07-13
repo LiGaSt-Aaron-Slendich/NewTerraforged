@@ -79,7 +79,6 @@ public class BiomeGenerator {
         if (terrain == null) {
             terrain = generator.getChunkData(chunk.getPos());
         }
-        CaveChunkSurfaceRepair.solidifyRiverChannelsPreCarve(chunk, region, generator, terrain);
         this.noiseCaveGenerator.carve(chunk, generator);
     }
 

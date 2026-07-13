@@ -415,7 +415,7 @@ public final class CarveDecisionDiagnostics {
         }
         if (airUnderWater) {
             report.add(String.format(Locale.ROOT,
-                    "Post-carve repair: river channel has air under water (waterY=%d bed~%d) — syncRiverChannelBand will refill band only",
+                    "Post-carve repair: river channel has air under water (waterY=%d bed~%d) — refillWaterOnly patches gaps only (no carve/sync/plug)",
                     waterY, bedY));
         }
         TerrainData terrain = generator.getChunkDataIfReady(chunk.getPos());
@@ -425,19 +425,11 @@ public final class CarveDecisionDiagnostics {
             int waterYTerrain = com.terraforged.mod.worldgen.terrain.TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
             if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedYTerrain, waterYTerrain)) {
                 report.add(String.format(Locale.ROOT,
-                        "River bed column: restoreRiverDepressions will PLUG cave air bed~%d..%d (not sea-level shaft)",
+                        "River bed column: cave air below bed~%d..%d — restoreRiverDepressions no longer plugs (fix carve root cause)",
                         bedYTerrain, waterYTerrain));
-            } else if (waterYTerrain > sea + 4 && bedYTerrain < waterYTerrain - 8) {
-                report.add(String.format(Locale.ROOT,
-                        "River bed column: terrain bedY=%d clamped for high waterY=%d (avoids shaft to sea=%d)",
-                        bedYTerrain, waterYTerrain, sea));
             }
         }
-        if (!CaveCarvingGate.isEnabled()) {
-            report.add("River void fill: river bed columns only (river==0), land within 18 blocks of bed; skips structure blocks");
-        } else {
-            report.add("River/lake: solidifyRiverChannelsPreCarve runs before carving; post-decorate only syncs water (no re-plug)");
-        }
+        report.add("River/lake: restoreRiverDepressions only tops up missing water on river==0 bed columns; no trim/sync/void-fill");
         if (carver.hasTunnelRiver()) {
             report.add("Tunnel river: CaveTunnelRiverDecorator may carve punch/channel along massif tunnel axis (separate from restoreRiverDepressions)");
         }

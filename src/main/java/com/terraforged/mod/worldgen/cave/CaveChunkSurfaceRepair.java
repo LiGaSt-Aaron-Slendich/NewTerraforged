@@ -22,8 +22,8 @@ public final class CaveChunkSurfaceRepair {
     /** Max height change per column during noise repair — avoids chunk-edge cliffs. */
     private static final int MAX_REPAIR_DELTA = 2;
     /**
-     * Post-carve river/lake bed restore ({@link #restoreRiverDepressions}).
-     * Plugs mega/synapse shaft breaches and rebuilds the channel bed + water.
+     * Post-carve river/lake surface water top-up ({@link #restoreRiverDepressions}).
+     * Does not carve crust, reshape beds, or run void-fill plugs — those masked the root cut bug.
      */
     public static boolean riverDepressionRestoreEnabled = true;
 
@@ -186,25 +186,17 @@ public final class CaveChunkSurfaceRepair {
         CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, sampler, false);
     }
 
-    /**
-     * Solidify river/lake voids after surface build and before NoiseCave carving so accidental
-     * generation shafts are filled first; carving then has solid stone/water to cut through.
-     */
-    public static void solidifyRiverChannelsPreCarve(ChunkAccess chunk, BlockGetter sampler, Generator generator, TerrainData terrain) {
-        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, null, generator, terrain, sampler, true);
-    }
-
     private static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain,
             BlockGetter sampler, boolean preCarve) {
+        if (preCarve) {
+            return;
+        }
         if (!CaveChunkSurfaceRepair.riverDepressionRestoreEnabled) {
             return;
         }
         if (terrain == null) {
             return;
         }
-        BlockGetter level = sampler != null ? sampler : chunk;
-        int fillSeed = (int)generator.getSeed() ^ (int)(chunk.getPos().toLong() >>> 32) ^ (int)chunk.getPos().toLong();
-        Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache = RiverVoidStrataFill.newLayerCache();
         int sea = generator.getSeaLevel();
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -217,25 +209,14 @@ public final class CaveChunkSurfaceRepair {
                     continue;
                 }
                 int waterY = TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
-                int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
-                int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
-                if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedY, waterY)) {
-                    if (CaveCarvingGate.isEnabled() && !preCarve) {
-                        CaveChunkSurfaceRepair.syncRiverChannelBand(chunk, carver, lx, lz, bedY, waterY, water, pos);
-                    } else {
-                        CaveChunkSurfaceRepair.restoreRiverBedAfterCaveBreached(chunk, carver, lx, lz, bedY, waterY, sea,
-                                water, pos, level, fillSeed, layerCache);
-                    }
-                    continue;
+                int bedY = terrain.getHeight(lx, lz);
+                CaveChunkSurfaceRepair.refillWaterOnly(chunk, carver, lx, lz, bedY, waterY, water, pos);
+                pos.set(lx, waterY, lz);
+                BlockState surface = chunk.getBlockState(pos);
+                if (surface.isAir()) {
+                    chunk.setBlockState(pos, (BlockState)water.setValue((Property)LiquidBlock.LEVEL, 0), false);
                 }
-                if (shellTop > waterY) {
-                    CaveChunkSurfaceRepair.trimRiverCrustAboveWater(chunk, carver, lx, lz, waterY, shellTop, pos);
-                }
-                CaveChunkSurfaceRepair.syncRiverChannelBand(chunk, carver, lx, lz, bedY, waterY, water, pos);
             }
-        }
-        if (preCarve || !CaveCarvingGate.isEnabled()) {
-            CaveChunkSurfaceRepair.plugRiverChannelVoids(chunk, carver, generator, terrain, level, fillSeed, layerCache);
         }
         ChunkUtil.refreshHeightmaps(chunk);
     }
