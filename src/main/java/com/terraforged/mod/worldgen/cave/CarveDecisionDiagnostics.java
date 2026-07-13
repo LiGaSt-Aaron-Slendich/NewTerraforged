@@ -434,7 +434,7 @@ public final class CarveDecisionDiagnostics {
             }
         }
         if (!CaveCarvingGate.isEnabled()) {
-            report.add("River/lake void fill: per-Y strata from neighbor chunks (dominant stone + noise accents); cover blocks only");
+            report.add("River/lake void fill: per-Y strata from neighbors; land within 18 blocks of river/lake (cross-chunk)");
         } else {
             report.add("River/lake: solidifyRiverChannelsPreCarve runs before carving; post-decorate only syncs water (no re-plug)");
         }
