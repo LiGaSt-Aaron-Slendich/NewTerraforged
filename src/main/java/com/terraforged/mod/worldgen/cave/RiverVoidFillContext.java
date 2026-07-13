@@ -49,7 +49,7 @@ final class RiverVoidFillContext {
     }
 
     static boolean chunkNeedsFill(Generator generator, TerrainData terrain, ChunkAccess chunk) {
-        if (RiverVoidFillContext.hasLocalRiverLake(terrain)) {
+        if (RiverVoidFillContext.hasLocalRiverBed(terrain)) {
             return true;
         }
         int cx = chunk.getPos().getMiddleBlockX();
@@ -57,11 +57,10 @@ final class RiverVoidFillContext {
         return CaveRiverProximityCache.chunkMayHaveRiver(generator, cx, cz);
     }
 
-    static boolean hasLocalRiverLake(TerrainData terrain) {
+    static boolean hasLocalRiverBed(TerrainData terrain) {
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
-                Terrain type = terrain.getTerrain().get(lx, lz);
-                if (type.isRiver() || type.isLake()) {
+                if (CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
                     return true;
                 }
             }
@@ -137,27 +136,21 @@ final class RiverVoidFillContext {
                 }
                 int slx = wx - sampleChunk.getMinBlockX();
                 int slz = wz - sampleChunk.getMinBlockZ();
-                float noise = sampleTerrain.getRiver().get(slx, slz);
-                this.riverNoise[idx] = noise;
-                int waterY = RiverVoidFillContext.resolveValleyWaterY(sampleTerrain, slx, slz, this.sea, noise);
+                this.riverNoise[idx] = sampleTerrain.getRiver().get(slx, slz);
+                int waterY = RiverVoidFillContext.resolveValleyWaterY(sampleTerrain, slx, slz, this.sea);
                 this.valleyWaterY[idx] = waterY;
-                if (waterY != Integer.MIN_VALUE || noise < CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE) {
+                if (waterY != Integer.MIN_VALUE) {
                     this.blockWaterY[idx] = RiverVoidFillContext.scanSurfaceWaterY(level, chunk, wx, wz, pos);
                 }
             }
         }
     }
 
-    private static int resolveValleyWaterY(TerrainData terrain, int lx, int lz, int sea, float riverNoise) {
-        Terrain type = terrain.getTerrain().get(lx, lz);
-        int base = terrain.getBaseHeight(lx, lz);
-        if (type.isRiver() || type.isLake()) {
-            return Math.max(TerrainLevels.getWaterLevel(lx, lz, sea, terrain), base);
+    private static int resolveValleyWaterY(TerrainData terrain, int lx, int lz, int sea) {
+        if (!CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+            return Integer.MIN_VALUE;
         }
-        if (riverNoise < CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE) {
-            return Math.max(base, sea);
-        }
-        return Integer.MIN_VALUE;
+        return Math.max(TerrainLevels.getWaterLevel(lx, lz, sea, terrain), terrain.getBaseHeight(lx, lz));
     }
 
     private static int scanSurfaceWaterY(BlockGetter level, ChunkAccess chunk, int wx, int wz, BlockPos.MutableBlockPos pos) {
