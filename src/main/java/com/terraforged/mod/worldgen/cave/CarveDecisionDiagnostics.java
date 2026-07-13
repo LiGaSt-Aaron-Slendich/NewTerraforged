@@ -434,7 +434,7 @@ public final class CarveDecisionDiagnostics {
             }
         }
         if (!CaveCarvingGate.isEnabled()) {
-            report.add("CaveCarvingGate OFF — fill-gap plug runs at buildSurface (pre-features), not post-tree decorate");
+            report.add("CaveCarvingGate OFF — hollow plug uses terrain fill top → natural ground (skips logs/leaves only)");
         }
         if (carver.hasTunnelRiver()) {
             report.add("Tunnel river: CaveTunnelRiverDecorator may carve punch/channel along massif tunnel axis (separate from restoreRiverDepressions)");
