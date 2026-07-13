@@ -62,7 +62,7 @@ public final class CaveChunkOrderRestorer {
             Surface.repairExposedCover(chunk, region, generator, terrain, carver);
             Surface.applyPost(chunk, terrain, generator);
         }
-        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
         CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver);
         ChunkUtil.refreshHeightmaps(chunk);
     }
@@ -173,7 +173,7 @@ public final class CaveChunkOrderRestorer {
         if (after.issues().contains(CaveChunkCorruptionReport.Issue.NOISE)) {
             TerrainData terrain = terrainFuture != null ? terrainFuture.getNow(generator.getChunkDataIfReady(chunk.getPos())) : generator.getChunkDataIfReady(chunk.getPos());
             CaveChunkSurfaceRepair.repairNoiseSurface(chunk, carver, generator, region, terrain, true);
-            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
+            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
             CaveChunkSurfaceRepair.stripSurfacePillars(chunk, carver);
             ChunkUtil.refreshHeightmaps(chunk);
             after = CaveChunkCorruptionChecker.verify(chunk, carver, generator);
@@ -197,7 +197,7 @@ public final class CaveChunkOrderRestorer {
         TerrainData terrain = terrainFuture != null ? terrainFuture.getNow(generator.getChunkDataIfReady(chunk.getPos())) : generator.getChunkDataIfReady(chunk.getPos());
         if (surfaceDecorator != null && region != null && terrain != null) {
             surfaceDecorator.refreshAfterIntegrity(chunk, region, generator, terrain, carver);
-            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
+            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
         }
         if (featureDecorator != null && region != null && structures != null && terrainFuture != null) {
             featureDecorator.decorate(chunk, region, structures, terrainFuture, generator);

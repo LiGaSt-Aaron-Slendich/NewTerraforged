@@ -5,7 +5,9 @@ import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import com.terraforged.mod.worldgen.util.ChunkUtil;
+import java.util.Map;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -144,9 +146,9 @@ public final class CaveChunkSurfaceRepair {
      * and rebuild bed + water. This is what masked surface tunnels before we disabled the pass.
      */
     private static void restoreRiverBedAfterCaveBreached(ChunkAccess chunk, CarverChunk carver, int lx, int lz,
-            int bedY, int waterY, int sea, BlockState water, BlockPos.MutableBlockPos pos) {
+            int bedY, int waterY, int sea, BlockState water, BlockPos.MutableBlockPos pos, BlockGetter sampler,
+            int fillSeed, Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache) {
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
-        BlockState stone = Blocks.STONE.defaultBlockState();
         int plugFloor = Math.max(chunk.getMinBuildHeight(), sea);
         for (int y = waterY; y >= plugFloor; --y) {
             pos.set(lx, y, lz);
@@ -168,31 +170,41 @@ public final class CaveChunkSurfaceRepair {
                 continue;
             }
             if (state.isAir()) {
-                chunk.setBlockState(pos, stone, false);
+                chunk.setBlockState(pos, RiverVoidStrataFill.pickStoneFill(sampler, chunk, lx, y, lz, fillSeed, layerCache),
+                        false);
             }
         }
     }
 
     /** Carve river/lake beds from terrain data after flat surface repair — keeps channels from leaking. */
     public static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
-        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, false);
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, chunk, false);
+    }
+
+    public static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain,
+            BlockGetter sampler) {
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, sampler, false);
     }
 
     /**
      * Solidify river/lake voids after surface build and before NoiseCave carving so accidental
      * generation shafts are filled first; carving then has solid stone/water to cut through.
      */
-    public static void solidifyRiverChannelsPreCarve(ChunkAccess chunk, Generator generator, TerrainData terrain) {
-        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, null, generator, terrain, true);
+    public static void solidifyRiverChannelsPreCarve(ChunkAccess chunk, BlockGetter sampler, Generator generator, TerrainData terrain) {
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, null, generator, terrain, sampler, true);
     }
 
-    private static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain, boolean preCarve) {
+    private static void restoreRiverDepressions(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain,
+            BlockGetter sampler, boolean preCarve) {
         if (!CaveChunkSurfaceRepair.riverDepressionRestoreEnabled) {
             return;
         }
         if (terrain == null) {
             return;
         }
+        BlockGetter level = sampler != null ? sampler : chunk;
+        int fillSeed = (int)generator.getSeed() ^ (int)(chunk.getPos().toLong() >>> 32) ^ (int)chunk.getPos().toLong();
+        Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache = RiverVoidStrataFill.newLayerCache();
         int sea = generator.getSeaLevel();
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -212,7 +224,7 @@ public final class CaveChunkSurfaceRepair {
                         CaveChunkSurfaceRepair.syncRiverChannelBand(chunk, carver, lx, lz, bedY, waterY, water, pos);
                     } else {
                         CaveChunkSurfaceRepair.restoreRiverBedAfterCaveBreached(chunk, carver, lx, lz, bedY, waterY, sea,
-                                water, pos);
+                                water, pos, level, fillSeed, layerCache);
                     }
                     continue;
                 }
@@ -223,7 +235,7 @@ public final class CaveChunkSurfaceRepair {
             }
         }
         if (preCarve || !CaveCarvingGate.isEnabled()) {
-            CaveChunkSurfaceRepair.plugRiverChannelVoids(chunk, carver, generator, terrain);
+            CaveChunkSurfaceRepair.plugRiverChannelVoids(chunk, carver, generator, terrain, level, fillSeed, layerCache);
         }
         ChunkUtil.refreshHeightmaps(chunk);
     }
@@ -234,13 +246,17 @@ public final class CaveChunkSurfaceRepair {
      * Fills air in and below river/lake columns up to {@code waterY}, plus land within
      * {@link #NEAR_RIVER_BED_RADIUS} of a river bed. Never places blocks above {@code waterY}.
      */
-    public static void plugRiverChannelVoids(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
+    public static void plugRiverChannelVoids(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain,
+            BlockGetter sampler, int fillSeed, Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache) {
         if (terrain == null) {
             return;
         }
+        BlockGetter level = sampler != null ? sampler : chunk;
+        if (layerCache == null) {
+            layerCache = RiverVoidStrataFill.newLayerCache();
+        }
         int sea = generator.getSeaLevel();
         int minY = chunk.getMinBuildHeight();
-        BlockState stone = Blocks.STONE.defaultBlockState();
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -256,8 +272,8 @@ public final class CaveChunkSurfaceRepair {
                 int waterY = TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
                 int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
                 boolean bedColumn = CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz);
-                CaveChunkSurfaceRepair.plugColumnVoids(chunk, lx, lz, bedY, waterY, sea, minY, bedColumn, stone, gravel,
-                        water, pos);
+                CaveChunkSurfaceRepair.plugColumnVoids(chunk, level, lx, lz, bedY, waterY, sea, minY, bedColumn, gravel,
+                        water, pos, fillSeed, layerCache);
             }
         }
         boolean[][] nearRiverBed = new boolean[16][16];
@@ -285,15 +301,16 @@ public final class CaveChunkSurfaceRepair {
                     continue;
                 }
                 int bedY = terrain.getHeight(lx, lz);
-                CaveChunkSurfaceRepair.plugColumnVoids(chunk, lx, lz, bedY, refWaterY, sea, minY, false, stone, gravel,
-                        water, pos);
+                CaveChunkSurfaceRepair.plugColumnVoids(chunk, level, lx, lz, bedY, refWaterY, sea, minY, false, gravel,
+                        water, pos, fillSeed, layerCache);
             }
         }
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
-    private static void plugColumnVoids(ChunkAccess chunk, int lx, int lz, int bedY, int waterY, int sea, int minY,
-            boolean waterColumn, BlockState stone, BlockState gravel, BlockState water, BlockPos.MutableBlockPos pos) {
+    private static void plugColumnVoids(ChunkAccess chunk, BlockGetter sampler, int lx, int lz, int bedY, int waterY, int sea,
+            int minY, boolean waterColumn, BlockState gravel, BlockState water, BlockPos.MutableBlockPos pos, int fillSeed,
+            Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache) {
         int plugFloor = minY;
         if (waterY > sea + 4) {
             plugFloor = Math.max(minY, sea);
@@ -313,7 +330,8 @@ public final class CaveChunkSurfaceRepair {
             } else if (waterColumn && y == bedY) {
                 chunk.setBlockState(pos, gravel, false);
             } else {
-                chunk.setBlockState(pos, stone, false);
+                chunk.setBlockState(pos,
+                        RiverVoidStrataFill.pickStoneFill(sampler, chunk, lx, y, lz, fillSeed, layerCache), false);
             }
         }
     }

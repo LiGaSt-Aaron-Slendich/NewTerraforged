@@ -434,7 +434,7 @@ public final class CarveDecisionDiagnostics {
             }
         }
         if (!CaveCarvingGate.isEnabled()) {
-            report.add("River/lake: plugRiverChannelVoids fills air bed..waterY + land within 2 blocks of river bed (pre-carve solidify runs before carving)");
+            report.add("River/lake void fill: per-Y strata from neighbor chunks (dominant stone + noise accents); cover blocks only");
         } else {
             report.add("River/lake: solidifyRiverChannelsPreCarve runs before carving; post-decorate only syncs water (no re-plug)");
         }
