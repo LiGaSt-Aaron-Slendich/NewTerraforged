@@ -11,7 +11,6 @@ import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.NoiseCaveGenerator;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
-import com.terraforged.mod.worldgen.terrain.TerrainSubsurfacePlug;
 import com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel;
 import com.terraforged.mod.worldgen.util.ChunkUtil;
 import com.terraforged.noise.Module;
@@ -95,7 +94,6 @@ public class BiomeGenerator {
         Surface.applyPost(chunk, terrain, generator);
         CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);
-        TerrainSubsurfacePlug.plugTerrainHollow(chunk, terrain, generator);
         CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain);
         this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
         CaveChunkIntegrityPass.runOnce(chunk, scoped, structures, generator, carver, this.featureDecorator, this.surfaceDecorator, terrainFuture);

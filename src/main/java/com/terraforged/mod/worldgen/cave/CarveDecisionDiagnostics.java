@@ -434,7 +434,7 @@ public final class CarveDecisionDiagnostics {
             }
         }
         if (!CaveCarvingGate.isEnabled()) {
-            report.add("CaveCarvingGate OFF — hollow plug uses terrain fill top → natural ground (skips logs/leaves only)");
+            report.add("River/lake: plugShaftBelowRiverChannels fills air below bedY only (never above waterY)");
         }
         if (carver.hasTunnelRiver()) {
             report.add("Tunnel river: CaveTunnelRiverDecorator may carve punch/channel along massif tunnel axis (separate from restoreRiverDepressions)");

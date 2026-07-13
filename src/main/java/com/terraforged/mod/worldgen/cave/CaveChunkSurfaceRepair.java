@@ -147,7 +147,7 @@ public final class CaveChunkSurfaceRepair {
             int bedY, int waterY, int sea, BlockState water, BlockPos.MutableBlockPos pos) {
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState stone = Blocks.STONE.defaultBlockState();
-        int plugFloor = Math.max(chunk.getMinBuildHeight(), bedY);
+        int plugFloor = Math.max(chunk.getMinBuildHeight(), sea);
         for (int y = waterY; y >= plugFloor; --y) {
             pos.set(lx, y, lz);
             BlockState state = chunk.getBlockState(pos);
@@ -204,6 +204,49 @@ public final class CaveChunkSurfaceRepair {
                     CaveChunkSurfaceRepair.trimRiverCrustAboveWater(chunk, carver, lx, lz, waterY, shellTop, pos);
                 }
                 CaveChunkSurfaceRepair.syncRiverChannelBand(chunk, carver, lx, lz, bedY, waterY, water, pos);
+            }
+        }
+        CaveChunkSurfaceRepair.plugShaftBelowRiverChannels(chunk, carver, generator, terrain);
+        ChunkUtil.refreshHeightmaps(chunk);
+    }
+
+    /**
+     * Fills air shafts below river/lake columns — never places blocks at or above {@code bedY}.
+     * Targets voids under water bodies, not crust above the surface.
+     */
+    public static void plugShaftBelowRiverChannels(ChunkAccess chunk, CarverChunk carver, Generator generator, TerrainData terrain) {
+        if (terrain == null) {
+            return;
+        }
+        int sea = generator.getSeaLevel();
+        int minY = chunk.getMinBuildHeight();
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (carver != null && carver.isEntranceColumn(lx, lz)) {
+                    continue;
+                }
+                Terrain type = terrain.getTerrain().get(lx, lz);
+                if (!type.isRiver() && !type.isLake()) {
+                    continue;
+                }
+                int waterY = TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
+                int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
+                int plugFloor = minY;
+                if (waterY > sea + 4) {
+                    plugFloor = Math.max(minY, sea);
+                }
+                int plugTop = bedY - 1;
+                if (plugTop < plugFloor) {
+                    continue;
+                }
+                for (int y = plugTop; y >= plugFloor; --y) {
+                    pos.set(lx, y, lz);
+                    if (chunk.getBlockState(pos).isAir()) {
+                        chunk.setBlockState(pos, stone, false);
+                    }
+                }
             }
         }
         ChunkUtil.refreshHeightmaps(chunk);
