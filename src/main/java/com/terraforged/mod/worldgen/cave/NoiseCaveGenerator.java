@@ -210,6 +210,9 @@ public class NoiseCaveGenerator {
     }
 
     public void carve(ChunkAccess chunk, Generator generator) {
+        if (!CaveCarvingGate.isEnabled()) {
+            return;
+        }
         int seed = (int)generator.getSeed();
         CarverChunk carver = this.getPreCarveChunk(chunk);
         carver.terrainData = generator.getChunkData(chunk.getPos());
@@ -296,16 +299,18 @@ public class NoiseCaveGenerator {
             carver.modifier = this.getModifier(envelopeConfig);
             CaveParallelExposureFilter.build(columns, seed, chunk, carver, generator, envelopeConfig);
         }
-        if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators()) {
-            this.replayCarveForBiomes(seed, chunk, carver, generator);
-        } else {
-            for (NoiseCave config : this.carveOrderCaves) {
-                if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
-                CaveType type = config.getType();
-                if (!type.isMegaOrGiga()) continue;
-                carver.beginCavePass(config);
-                carver.modifier = this.getModifier(config);
-                NoiseCaveCarver.carve(seed, chunk, carver, generator, config, false);
+        if (CaveCarvingGate.isEnabled()) {
+            if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators()) {
+                this.replayCarveForBiomes(seed, chunk, carver, generator);
+            } else {
+                for (NoiseCave config : this.carveOrderCaves) {
+                    if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
+                    CaveType type = config.getType();
+                    if (!type.isMegaOrGiga()) continue;
+                    carver.beginCavePass(config);
+                    carver.modifier = this.getModifier(config);
+                    NoiseCaveCarver.carve(seed, chunk, carver, generator, config, false);
+                }
             }
         }
         return carver;

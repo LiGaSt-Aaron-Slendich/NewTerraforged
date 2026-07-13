@@ -32,6 +32,9 @@ public final class CarveDecisionDiagnostics {
         int seed = Seeds.get(generator.getSeed());
         report.add("");
         report.add("[Carve decision replay]");
+        if (!CaveCarvingGate.isEnabled()) {
+            report.add("NoiseCave carving: DISABLED (CaveCarvingGate.enabled=false) — no synapse/mega/giga air should be placed");
+        }
         CarverChunk live = generator.peekCaveCarver(chunk.getPos());
         if (live != null && live.isColumnCacheReady()) {
             report.add("Column cache source: live carver (chunk still in decorate pipeline)");

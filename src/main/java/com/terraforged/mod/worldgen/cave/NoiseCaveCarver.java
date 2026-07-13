@@ -36,6 +36,9 @@ public class NoiseCaveCarver {
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 
     public static void carve(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, NoiseCave config, boolean carve) {
+        if (!CaveCarvingGate.isEnabled()) {
+            return;
+        }
         if (!carver.isColumnCacheReady()) {
             carver.prepareColumnCache(seed, chunk, generator);
         }

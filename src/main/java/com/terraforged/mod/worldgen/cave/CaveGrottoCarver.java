@@ -20,6 +20,9 @@ public final class CaveGrottoCarver {
     }
 
     public static void tryCarveChunk(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator, NoiseCave synapseConfig, CaveEntranceClaims claims) {
+        if (!CaveCarvingGate.isEnabled()) {
+            return;
+        }
         if (synapseConfig == null || claims == null) {
             return;
         }

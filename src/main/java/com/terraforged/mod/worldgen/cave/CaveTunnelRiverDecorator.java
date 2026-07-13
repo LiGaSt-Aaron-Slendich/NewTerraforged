@@ -37,6 +37,9 @@ public final class CaveTunnelRiverDecorator {
     }
 
     public static void decorate(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator) {
+        if (!CaveCarvingGate.isEnabled()) {
+            return;
+        }
         int chunkMaxZ;
         int chunkMinZ;
         int chunkMaxX;
