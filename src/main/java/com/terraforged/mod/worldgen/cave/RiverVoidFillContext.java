@@ -89,6 +89,31 @@ final class RiverVoidFillContext {
         return Math.max(this.nearestValleyWaterY(worldX, worldZ), this.nearestBlockWaterY(worldX, worldZ));
     }
 
+    /** Squared world-space distance to the nearest river/lake bed column, or {@link Integer#MAX_VALUE}. */
+    int nearestShoreDistSq(int worldX, int worldZ) {
+        int gx = worldX - this.originX;
+        int gz = worldZ - this.originZ;
+        int bestDist = Integer.MAX_VALUE;
+        int minGx = Math.max(0, gx - this.radius);
+        int maxGx = Math.min(this.size - 1, gx + this.radius);
+        int minGz = Math.max(0, gz - this.radius);
+        int maxGz = Math.min(this.size - 1, gz + this.radius);
+        for (int nz = minGz; nz <= maxGz; ++nz) {
+            for (int nx = minGx; nx <= maxGx; ++nx) {
+                if (this.valleyWaterY[nz * this.size + nx] == Integer.MIN_VALUE) {
+                    continue;
+                }
+                int dx = nx - gx;
+                int dz = nz - gz;
+                int dist = dx * dx + dz * dz;
+                if (dist <= this.radiusSq && dist < bestDist) {
+                    bestDist = dist;
+                }
+            }
+        }
+        return bestDist;
+    }
+
     private int nearestFromGrid(int[] grid, int worldX, int worldZ) {
         int gx = worldX - this.originX;
         int gz = worldZ - this.originZ;
