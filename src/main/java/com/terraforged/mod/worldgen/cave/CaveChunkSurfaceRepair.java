@@ -119,10 +119,24 @@ public final class CaveChunkSurfaceRepair {
 
     /** True when mega/synapse opened air under a river bed — needs bed plug, not depression carve. */
     public static boolean riverDepressionSkippedDueToCaveAir(ChunkAccess chunk, int lx, int lz, int bedY, int waterY) {
-        int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
-        int carveTop = Math.min(waterY, shellTop);
-        return CaveChunkSurfaceRepair.hasCaveChamberBelow(chunk, lx, lz, waterY)
-                || CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, carveTop, bedY);
+        return CaveChunkSurfaceRepair.hasCaveChamberBelow(chunk, lx, lz, bedY);
+    }
+
+    /**
+     * River bed from terrain noise can sit at sea level on high rivers while {@code waterY} follows
+     * {@code baseHeight} — carving down to that bed opens a shaft to Y=62 with carving disabled.
+     */
+    private static int resolveRiverBedY(TerrainData terrain, int lx, int lz, int waterY, int sea) {
+        int bedY = terrain.getHeight(lx, lz);
+        if (waterY <= sea + 2) {
+            return bedY;
+        }
+        int maxDepth = Math.max(2, Math.min(6, (waterY - sea) / 8 + 2));
+        int minBed = waterY - maxDepth;
+        if (bedY < minBed) {
+            return minBed;
+        }
+        return bedY;
     }
 
     /**
@@ -133,7 +147,7 @@ public final class CaveChunkSurfaceRepair {
             int bedY, int waterY, int sea, BlockState water, BlockPos.MutableBlockPos pos) {
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState stone = Blocks.STONE.defaultBlockState();
-        int plugFloor = Math.max(chunk.getMinBuildHeight(), sea);
+        int plugFloor = Math.max(chunk.getMinBuildHeight(), bedY);
         for (int y = waterY; y >= plugFloor; --y) {
             pos.set(lx, y, lz);
             BlockState state = chunk.getBlockState(pos);
@@ -178,42 +192,18 @@ public final class CaveChunkSurfaceRepair {
                 if (!CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
                     continue;
                 }
-                int bedY = terrain.getHeight(lx, lz);
                 int waterY = TerrainLevels.getWaterLevel(lx, lz, sea, terrain);
+                int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
                 int shellTop = CaveChunkSurfaceRepair.findSurfaceShellTop(chunk, lx, lz);
-                int carveTop = Math.min(waterY, shellTop);
                 if (CaveChunkSurfaceRepair.riverDepressionSkippedDueToCaveAir(chunk, lx, lz, bedY, waterY)) {
                     CaveChunkSurfaceRepair.restoreRiverBedAfterCaveBreached(chunk, carver, lx, lz, bedY, waterY, sea,
                             water, pos);
                     continue;
                 }
-                if (shellTop <= waterY + 1) {
-                    CaveChunkSurfaceRepair.refillWaterOnly(chunk, carver, lx, lz, bedY, waterY, water, pos);
-                    continue;
+                if (shellTop > waterY) {
+                    CaveChunkSurfaceRepair.trimRiverCrustAboveWater(chunk, carver, lx, lz, waterY, shellTop, pos);
                 }
-                if (carveTop <= bedY) {
-                    CaveChunkSurfaceRepair.refillWaterOnly(chunk, carver, lx, lz, bedY, waterY, water, pos);
-                    continue;
-                }
-                for (int y = carveTop; y > bedY; --y) {
-                    if (!CaveChunkSurfaceRepair.mayModifyRiverColumn(lx, y, lz, bedY, waterY)) {
-                        continue;
-                    }
-                    pos.set(lx, y, lz);
-                    BlockState state = chunk.getBlockState(pos);
-                    if (state.isAir() || !state.getFluidState().isEmpty()) {
-                        break;
-                    }
-                    chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
-                }
-                for (int y = bedY + 1; y <= waterY; ++y) {
-                    if (!CaveChunkSurfaceRepair.mayModifyRiverColumn(lx, y, lz, bedY, waterY)) {
-                        continue;
-                    }
-                    pos.set(lx, y, lz);
-                    BlockState fill = y == waterY ? (BlockState)water.setValue((Property)LiquidBlock.LEVEL, 0) : water;
-                    chunk.setBlockState(pos, fill, false);
-                }
+                CaveChunkSurfaceRepair.syncRiverChannelBand(chunk, carver, lx, lz, bedY, waterY, water, pos);
             }
         }
         ChunkUtil.refreshHeightmaps(chunk);
@@ -230,8 +220,8 @@ public final class CaveChunkSurfaceRepair {
         return y >= waterY - CaveChunkSurfaceBounds.SURFACE_CRUST && y <= waterY;
     }
 
-    private static boolean hasCaveChamberBelow(ChunkAccess chunk, int lx, int lz, int waterY) {
-        return CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, waterY - 1, Math.max(chunk.getMinBuildHeight(), waterY - 48));
+    private static boolean hasCaveChamberBelow(ChunkAccess chunk, int lx, int lz, int bedY) {
+        return CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, bedY - 1, Math.max(chunk.getMinBuildHeight(), bedY - 48));
     }
 
     private static boolean hasAirInColumnBand(ChunkAccess chunk, int lx, int lz, int topY, int bottomY) {
@@ -240,7 +230,7 @@ public final class CaveChunkSurfaceRepair {
         int airRun = 0;
         for (int y = maxY; y >= minY; --y) {
             BlockState state = chunk.getBlockState(new BlockPos(lx, y, lz));
-            if (state.isAir() || !state.getFluidState().isEmpty()) {
+            if (state.isAir()) {
                 if (++airRun >= 2) {
                     return true;
                 }
@@ -249,6 +239,57 @@ public final class CaveChunkSurfaceRepair {
             airRun = 0;
         }
         return false;
+    }
+
+    /** Remove lifted surface soil above the water line — never opens rock below the channel band. */
+    private static void trimRiverCrustAboveWater(ChunkAccess chunk, CarverChunk carver, int lx, int lz, int waterY, int shellTop, BlockPos.MutableBlockPos pos) {
+        for (int y = shellTop; y > waterY; --y) {
+            if (!CaveChunkSurfaceBounds.mayModify(chunk, carver, lx, y, lz)) {
+                continue;
+            }
+            pos.set(lx, y, lz);
+            BlockState state = chunk.getBlockState(pos);
+            if (state.isAir() || !state.getFluidState().isEmpty()) {
+                continue;
+            }
+            if (!CaveChunkSurfaceRepair.isRiverCrustBlock(state)) {
+                continue;
+            }
+            chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
+        }
+    }
+
+    /**
+     * Sync bed + water in the channel band only ({@code bedY+1..waterY}). Replaces misplaced
+     * soil/stone in-band with water instead of carving a deep air shaft.
+     */
+    private static void syncRiverChannelBand(ChunkAccess chunk, CarverChunk carver, int lx, int lz, int bedY, int waterY, BlockState water, BlockPos.MutableBlockPos pos) {
+        if (waterY <= bedY) {
+            CaveChunkSurfaceRepair.refillWaterOnly(chunk, carver, lx, lz, bedY, waterY, water, pos);
+            return;
+        }
+        BlockState gravel = Blocks.GRAVEL.defaultBlockState();
+        for (int y = bedY + 1; y <= waterY; ++y) {
+            if (!CaveChunkSurfaceRepair.mayModifyRiverColumn(lx, y, lz, bedY, waterY)) {
+                continue;
+            }
+            pos.set(lx, y, lz);
+            BlockState fill = y == waterY ? (BlockState)water.setValue((Property)LiquidBlock.LEVEL, 0) : water;
+            chunk.setBlockState(pos, fill, false);
+        }
+        if (CaveChunkSurfaceBounds.mayModify(chunk, carver, lx, bedY, lz)) {
+            pos.set(lx, bedY, lz);
+            BlockState bed = chunk.getBlockState(pos);
+            if (bed.isAir()) {
+                chunk.setBlockState(pos, gravel, false);
+            }
+        }
+    }
+
+    private static boolean isRiverCrustBlock(BlockState state) {
+        return state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.PODZOL)
+                || state.is(Blocks.MYCELIUM) || state.is(Blocks.ROOTED_DIRT) || state.is(BlockTags.LEAVES)
+                || state.is(BlockTags.LOGS) || state.is(BlockTags.FLOWERS);
     }
 
     private static void refillWaterOnly(ChunkAccess chunk, CarverChunk carver, int lx, int lz, int bedY, int waterY, BlockState water, BlockPos.MutableBlockPos pos) {
