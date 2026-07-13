@@ -15,9 +15,7 @@ import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class CaveChunkSurfaceRepair {
     private static final int SURFACE_LIFT = 16;
@@ -245,7 +243,7 @@ public final class CaveChunkSurfaceRepair {
     /** Horizontal reach of void fill around river/lake water columns (world-space, includes neighbor chunks). */
     private static final int NEAR_RIVER_FILL_RADIUS = 18;
     /** Valley / confluence influence from TerraForged river noise (matches NoiseGenerator gate). */
-    private static final float RIVER_INFLUENCE_NOISE = 0.75f;
+    static final float RIVER_INFLUENCE_NOISE = 0.75f;
 
     /**
      * Fills air in and below river/lake columns up to {@code waterY}, plus land within
@@ -256,15 +254,28 @@ public final class CaveChunkSurfaceRepair {
         if (terrain == null) {
             return;
         }
+        if (!RiverVoidFillContext.chunkNeedsFill(generator, terrain, chunk)) {
+            return;
+        }
         BlockGetter level = sampler != null ? sampler : chunk;
         if (layerCache == null) {
             layerCache = RiverVoidStrataFill.newLayerCache();
         }
+        RiverVoidFillContext fillCtx = new RiverVoidFillContext(generator, chunk, terrain, level, generator.getSeaLevel(),
+                NEAR_RIVER_FILL_RADIUS);
         int sea = generator.getSeaLevel();
         int minY = chunk.getMinBuildHeight();
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int[][] plugTops = new int[16][16];
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                plugTops[lx][lz] = Integer.MIN_VALUE;
+            }
+        }
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
                 if (carver != null && carver.isEntranceColumn(lx, lz)) {
@@ -277,6 +288,7 @@ public final class CaveChunkSurfaceRepair {
                 int waterY = CaveChunkSurfaceRepair.resolveRiverSurfaceY(terrain, lx, lz, sea);
                 int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
                 boolean bedColumn = CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz);
+                plugTops[lx][lz] = waterY;
                 CaveChunkSurfaceRepair.plugColumnVoids(chunk, level, lx, lz, bedY, waterY, waterY, sea, minY, bedColumn, gravel,
                         water, pos, fillSeed, layerCache);
             }
@@ -290,40 +302,35 @@ public final class CaveChunkSurfaceRepair {
                 if (type.isRiver() || type.isLake()) {
                     continue;
                 }
-                int wx = chunk.getPos().getMinBlockX() + lx;
-                int wz = chunk.getPos().getMinBlockZ() + lz;
-                float localRiver = generator.getTerrainSample(wx, wz).riverNoise;
-                int refTerrainY = CaveChunkSurfaceRepair.nearestValleyWaterYWorld(generator, wx, wz, sea,
-                        NEAR_RIVER_FILL_RADIUS);
-                int refBlockY = CaveChunkSurfaceRepair.nearestSurfaceWaterY(level, chunk, wx, wz, NEAR_RIVER_FILL_RADIUS);
-                int refWaterY = Math.max(refTerrainY, refBlockY);
+                int wx = chunkX + lx;
+                int wz = chunkZ + lz;
+                float localRiver = fillCtx.riverNoiseAt(wx, wz);
+                int refWaterY = fillCtx.nearestRefWaterY(wx, wz);
                 if (refWaterY < 0 && localRiver >= RIVER_INFLUENCE_NOISE) {
+                    continue;
+                }
+                int roughTop = Math.max(terrain.getHeight(lx, lz), terrain.getBaseHeight(lx, lz));
+                if (refWaterY >= 0) {
+                    roughTop = Math.max(roughTop, refWaterY);
+                } else if (localRiver < RIVER_INFLUENCE_NOISE) {
+                    roughTop = Math.max(roughTop, sea);
+                }
+                if (!CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, roughTop + 2, minY)) {
                     continue;
                 }
                 int bedY = terrain.getHeight(lx, lz);
                 int plugTop = CaveChunkSurfaceRepair.computeShorePlugTop(chunk, terrain, lx, lz, refWaterY, sea, localRiver);
+                plugTops[lx][lz] = plugTop;
                 CaveChunkSurfaceRepair.plugColumnVoids(chunk, level, lx, lz, bedY, plugTop, plugTop, sea, minY, false, gravel,
                         water, pos, fillSeed, layerCache);
             }
         }
-        CaveChunkSurfaceRepair.sealHorizontalRiverGaps(chunk, level, generator, terrain, sea, minY, fillSeed, layerCache);
+        CaveChunkSurfaceRepair.sealHorizontalRiverGaps(chunk, level, terrain, sea, minY, fillSeed, layerCache, plugTops);
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
     private static int resolveRiverSurfaceY(TerrainData terrain, int lx, int lz, int sea) {
         return Math.max(TerrainLevels.getWaterLevel(lx, lz, sea, terrain), terrain.getBaseHeight(lx, lz));
-    }
-
-    private static int resolveValleyWaterY(TerrainData terrain, int lx, int lz, int sea, float riverNoise) {
-        Terrain type = terrain.getTerrain().get(lx, lz);
-        int base = terrain.getBaseHeight(lx, lz);
-        if (type.isRiver() || type.isLake()) {
-            return CaveChunkSurfaceRepair.resolveRiverSurfaceY(terrain, lx, lz, sea);
-        }
-        if (riverNoise < RIVER_INFLUENCE_NOISE) {
-            return Math.max(base, sea);
-        }
-        return Integer.MIN_VALUE;
     }
 
     private static int computeShorePlugTop(ChunkAccess chunk, TerrainData terrain, int lx, int lz, int refWaterY, int sea,
@@ -371,114 +378,17 @@ public final class CaveChunkSurfaceRepair {
         }
     }
 
-    private static int nearestValleyWaterYWorld(Generator generator, int worldX, int worldZ, int sea, int radius) {
-        int radiusSq = radius * radius;
-        int bestWaterY = Integer.MIN_VALUE;
-        int bestDistSq = Integer.MAX_VALUE;
-        for (int dz = -radius; dz <= radius; ++dz) {
-            for (int dx = -radius; dx <= radius; ++dx) {
-                int distSq = dx * dx + dz * dz;
-                if (distSq > radiusSq) {
-                    continue;
-                }
-                int sx = worldX + dx;
-                int sz = worldZ + dz;
-                ChunkPos sampleChunk = new ChunkPos(sx >> 4, sz >> 4);
-                TerrainData sampleTerrain = generator.getChunkData(sampleChunk);
-                if (sampleTerrain == null) {
-                    continue;
-                }
-                int slx = sx - sampleChunk.getMinBlockX();
-                int slz = sz - sampleChunk.getMinBlockZ();
-                float riverNoise = generator.getTerrainSample(sx, sz).riverNoise;
-                int waterY = CaveChunkSurfaceRepair.resolveValleyWaterY(sampleTerrain, slx, slz, sea, riverNoise);
-                if (waterY == Integer.MIN_VALUE) {
-                    continue;
-                }
-                if (distSq < bestDistSq || distSq == bestDistSq && waterY > bestWaterY) {
-                    bestDistSq = distSq;
-                    bestWaterY = waterY;
-                }
-            }
-        }
-        return bestWaterY;
-    }
-
-    private static int nearestSurfaceWaterY(BlockGetter level, ChunkAccess chunk, int worldX, int worldZ, int radius) {
-        int radiusSq = radius * radius;
-        int bestY = Integer.MIN_VALUE;
-        int bestDistSq = Integer.MAX_VALUE;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int minY = CaveChunkSurfaceRepair.resolveMinBuildY(level, chunk);
-        for (int dz = -radius; dz <= radius; ++dz) {
-            for (int dx = -radius; dx <= radius; ++dx) {
-                int distSq = dx * dx + dz * dz;
-                if (distSq > radiusSq) {
-                    continue;
-                }
-                int sx = worldX + dx;
-                int sz = worldZ + dz;
-                int scanTop = CaveChunkSurfaceRepair.motionBlockingY(level, chunk, sx, sz);
-                int scanBottom = Math.max(minY, scanTop - 16);
-                for (int y = scanTop; y >= scanBottom; --y) {
-                    pos.set(sx, y, sz);
-                    BlockState state = CaveChunkSurfaceRepair.blockAt(level, chunk, pos);
-                    if (state.getFluidState().isEmpty() || !state.getFluidState().is(Fluids.WATER)) {
-                        continue;
-                    }
-                    if (distSq < bestDistSq || distSq == bestDistSq && y > bestY) {
-                        bestDistSq = distSq;
-                        bestY = y;
-                    }
-                    break;
-                }
-            }
-        }
-        return bestY;
-    }
-
-    private static int motionBlockingY(BlockGetter level, ChunkAccess chunk, int wx, int wz) {
-        ChunkPos cp = chunk.getPos();
-        if (wx >= cp.getMinBlockX() && wx < cp.getMaxBlockX() && wz >= cp.getMinBlockZ() && wz < cp.getMaxBlockZ()) {
-            return chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, wx & 15, wz & 15);
-        }
-        if (level instanceof WorldGenLevel world) {
-            return world.getHeight(Heightmap.Types.MOTION_BLOCKING, wx, wz);
-        }
-        return chunk.getHighestSectionPosition() + 15;
-    }
-
-    private static int resolveMinBuildY(BlockGetter level, ChunkAccess chunk) {
-        return chunk.getMinBuildHeight();
-    }
-
-    private static BlockState blockAt(BlockGetter level, ChunkAccess chunk, BlockPos pos) {
-        if (pos.getX() >= chunk.getPos().getMinBlockX() && pos.getX() < chunk.getPos().getMaxBlockX()
-                && pos.getZ() >= chunk.getPos().getMinBlockZ() && pos.getZ() < chunk.getPos().getMaxBlockZ()) {
-            return chunk.getBlockState(pos);
-        }
-        return level.getBlockState(pos);
-    }
-
     /** Closes horizontal air pockets between filled river columns (confluences / shore seams). */
-    private static void sealHorizontalRiverGaps(ChunkAccess chunk, BlockGetter level, Generator generator, TerrainData terrain,
-            int sea, int minY, int fillSeed, Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache) {
+    private static void sealHorizontalRiverGaps(ChunkAccess chunk, BlockGetter level, TerrainData terrain, int sea, int minY,
+            int fillSeed, Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache, int[][] plugTops) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos neighbor = new BlockPos.MutableBlockPos();
-        int chunkX = chunk.getPos().getMinBlockX();
-        int chunkZ = chunk.getPos().getMinBlockZ();
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
-                int wx = chunkX + lx;
-                int wz = chunkZ + lz;
-                float localRiver = generator.getTerrainSample(wx, wz).riverNoise;
-                int refY = Math.max(
-                        CaveChunkSurfaceRepair.nearestValleyWaterYWorld(generator, wx, wz, sea, NEAR_RIVER_FILL_RADIUS),
-                        CaveChunkSurfaceRepair.nearestSurfaceWaterY(level, chunk, wx, wz, NEAR_RIVER_FILL_RADIUS));
-                if (refY < 0 && localRiver >= RIVER_INFLUENCE_NOISE) {
+                int plugTop = plugTops[lx][lz];
+                if (plugTop == Integer.MIN_VALUE) {
                     continue;
                 }
-                int plugTop = CaveChunkSurfaceRepair.computeShorePlugTop(chunk, terrain, lx, lz, refY, sea, localRiver);
                 int plugFloor = plugTop > sea + 4 ? Math.max(minY, sea) : minY;
                 if (plugTop < plugFloor) {
                     continue;
@@ -509,7 +419,12 @@ public final class CaveChunkSurfaceRepair {
             } else {
                 neighbor.set(chunk.getPos().getMinBlockX() + nx, y, chunk.getPos().getMinBlockZ() + nz);
             }
-            BlockState state = CaveChunkSurfaceRepair.blockAt(level, chunk, neighbor);
+            BlockState state;
+            if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) {
+                state = chunk.getBlockState(neighbor);
+            } else {
+                state = level.getBlockState(neighbor);
+            }
             if (state.isAir()) {
                 continue;
             }

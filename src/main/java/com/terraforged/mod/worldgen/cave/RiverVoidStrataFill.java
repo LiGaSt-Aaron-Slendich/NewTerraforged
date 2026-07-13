@@ -19,7 +19,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  * uses the dominant block per layer, and sprinkles secondary types via deterministic noise.
  */
 public final class RiverVoidStrataFill {
-    private static final int SAMPLE_RADIUS = 24;
+    private static final int SAMPLE_RADIUS = 8;
     private static final int ACCENT_MASK = 7;
 
     private RiverVoidStrataFill() {
@@ -43,7 +43,8 @@ public final class RiverVoidStrataFill {
             Map<Integer, LayerPalette> layerCache) {
         int wx = chunk.getPos().getMinBlockX() + lx;
         int wz = chunk.getPos().getMinBlockZ() + lz;
-        LayerPalette palette = layerCache.computeIfAbsent(y, ly -> RiverVoidStrataFill.sampleLayer(level, wx, wz, ly));
+        LayerPalette palette = layerCache.computeIfAbsent(y,
+                ly -> RiverVoidStrataFill.sampleLayer(level, chunk, wx, wz, ly));
         if (palette.accents.length == 0) {
             return palette.primary;
         }
@@ -54,13 +55,21 @@ public final class RiverVoidStrataFill {
         return palette.primary;
     }
 
-    private static LayerPalette sampleLayer(BlockGetter level, int centerX, int centerZ, int y) {
+    private static LayerPalette sampleLayer(BlockGetter level, ChunkAccess chunk, int centerX, int centerZ, int y) {
         Map<Block, Integer> counts = new HashMap<>();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int chunkMinX = chunk.getPos().getMinBlockX();
+        int chunkMaxX = chunk.getPos().getMaxBlockX();
+        int chunkMinZ = chunk.getPos().getMinBlockZ();
+        int chunkMaxZ = chunk.getPos().getMaxBlockZ();
         for (int dz = -SAMPLE_RADIUS; dz <= SAMPLE_RADIUS; ++dz) {
             for (int dx = -SAMPLE_RADIUS; dx <= SAMPLE_RADIUS; ++dx) {
-                pos.set(centerX + dx, y, centerZ + dz);
-                BlockState state = level.getBlockState(pos);
+                int wx = centerX + dx;
+                int wz = centerZ + dz;
+                pos.set(wx, y, wz);
+                BlockState state = wx >= chunkMinX && wx < chunkMaxX && wz >= chunkMinZ && wz < chunkMaxZ
+                        ? chunk.getBlockState(pos)
+                        : level.getBlockState(pos);
                 if (!RiverVoidStrataFill.isStrataCandidate(state)) {
                     continue;
                 }
