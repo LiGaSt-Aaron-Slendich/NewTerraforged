@@ -76,7 +76,12 @@ public class VanillaDecorator {
             Holder feature = features.get(i);
             if (megaCave && VanillaDecorator.isBlockedMegaGigaFeature((Holder<PlacedFeature>)feature) || FeatureMassClassifier.isTree((Holder<PlacedFeature>)feature) && (megaCave || CavePlacementFilter.shouldSkipTree(generator, chunk, wx, origin.getY(), wz) || !FeaturePlacement.hasStableGround((BlockGetter)level, origin, 2))) continue;
             random.setFeatureSeed(seed, offset + i, stage);
-            ((PlacedFeature)feature.value()).placeWithBiomeCheck(level, (ChunkGenerator)generator, (Random)random, origin);
+            try {
+                ((PlacedFeature)feature.value()).placeWithBiomeCheck(level, (ChunkGenerator)generator, (Random)random, origin);
+            } catch (RuntimeException ignored) {
+                // Some third-party placed features can throw during chunkgen (eg. DynamicTreesBOP hydration lookup).
+                // Skipping the failing feature avoids crashing world generation.
+            }
         }
     }
 
