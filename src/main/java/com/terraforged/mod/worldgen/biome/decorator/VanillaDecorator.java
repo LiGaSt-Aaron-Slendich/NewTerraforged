@@ -39,6 +39,7 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 public class VanillaDecorator {
     private static final ResourceLocation END_SPIKE = new ResourceLocation("minecraft", "end_spike");
+    private static final String[] GLOBAL_BLOCKED_STRUCTURES = new String[]{"shipwreck", "ocean_ruin", "underwater_ruin"};
 
     public static void decorate(long seed, int from, int to, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, FeatureDecorator decorator) {
         VanillaDecorator.decorate(seed, from, to, origin, biome, chunk, level, generator, random, structureManager, decorator, true);
@@ -111,6 +112,9 @@ public class VanillaDecorator {
     }
 
     private static boolean shouldSkipStructure(Holder<ConfiguredStructureFeature<?, ?>> structure, WorldGenLevel level) {
+        if (VanillaDecorator.isGloballyBlockedStructure(structure)) {
+            return true;
+        }
         if (level.getLevel().dimension() == Level.END) {
             return false;
         }
@@ -120,6 +124,18 @@ public class VanillaDecorator {
                 return true;
             }
             return path.contains("end_city") || path.contains("end_gateway") || path.contains("end_spike");
+        }).orElse(false);
+    }
+
+    private static boolean isGloballyBlockedStructure(Holder<ConfiguredStructureFeature<?, ?>> structure) {
+        return structure.unwrapKey().map(key -> {
+            String path = key.location().getPath().toLowerCase();
+            for (String keyword : VanillaDecorator.GLOBAL_BLOCKED_STRUCTURES) {
+                if (path.contains(keyword)) {
+                    return true;
+                }
+            }
+            return false;
         }).orElse(false);
     }
 

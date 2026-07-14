@@ -31,6 +31,14 @@ implements IBiomeSampler {
         return this.getBiomeOverride(biome, sample);
     }
 
+    /** Land biome without river/lake/ocean/beach overrides — for shore re-paint. */
+    public Holder<Biome> sampleLandBiome(int seed, int x, int z) {
+        ClimateSample sample = this.getSample(seed, x, z);
+        WeightMap<Holder<Biome>> pool = this.biomeMapManager.getBiomeMap().get(sample.climateType);
+        Holder<Biome> biome = this.getInitialBiome(sample.biomeNoise, sample.climateType);
+        return BiomeTerrainIntegration.filter(biome, sample.terrainType.getName(), pool);
+    }
+
     private Holder<Biome> getInitialBiome(float noise, BiomeType climateType) {
         WeightMap<Holder<Biome>> map = this.biomeMapManager.getBiomeMap().get(climateType);
         if (map == null || map.isEmpty()) {
@@ -64,7 +72,7 @@ implements IBiomeSampler {
                 default -> this.biomeMapManager.get((ResourceKey<Biome>)Biomes.BEACH);
             };
         }
-        if ((sample.terrainType.isRiver() || sample.terrainType.isLake()) && sample.riverNoise == 0.0f) {
+        if ((sample.terrainType.isRiver() || sample.terrainType.isLake()) && sample.riverNoise <= 0.0f) {
             return biomeType == BiomeType.TUNDRA ? this.biomeMapManager.get((ResourceKey<Biome>)Biomes.FROZEN_RIVER) : this.biomeMapManager.get((ResourceKey<Biome>)Biomes.RIVER);
         }
         return input;

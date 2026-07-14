@@ -235,6 +235,8 @@ public final class CaveChunkSurfaceRepair {
     private static final int ELEVATED_RIVER_VOID_FILL_MAX_Y = 61;
     /** Valley / confluence influence from TerraForged river noise (matches NoiseGenerator gate). */
     static final float RIVER_INFLUENCE_NOISE = 0.75f;
+    /** Never fill air in the river channel spine — prevents dirt/grass bridges across water. */
+    private static final float RIVER_CHANNEL_FILL_NOISE = 0.08f;
 
     /**
      * Fills all subsurface voids in river/lake bed columns and within {@link #RIVER_ZONE_FILL_RADIUS} of a bed column.
@@ -325,6 +327,12 @@ public final class CaveChunkSurfaceRepair {
                     continue;
                 }
                 int surfaceY = Math.max(groundTop, targetSurfaceY);
+                if (!CaveChunkSurfaceRepair.hasAirInColumnBand(chunk, lx, lz, fillTop, fillBottom)) {
+                    continue;
+                }
+                if (CaveChunkSurfaceRepair.shouldSkipShoreVoidFill(chunk, terrain, lx, lz, surfaceY, sea)) {
+                    continue;
+                }
                 BlockState surfaceCover = RiverVoidStrataFill.sampleSurfaceCover(level, chunk, lx, lz, surfaceY);
                 BlockState subsurfaceFill = RiverVoidStrataFill.sampleSubsurfaceFill(level, chunk, lx, lz, surfaceY);
                 for (int y = fillBottom; y <= fillTop; ++y) {
@@ -333,8 +341,8 @@ public final class CaveChunkSurfaceRepair {
                     if (CaveChunkSurfaceRepair.isProtectedFromRiverFill(current)) {
                         continue;
                     }
-                    if (!CaveChunkSurfaceRepair.isAggressiveFillTarget(chunk, level, lx, y, lz, wx, wz, refWaterY,
-                            current)) {
+                    if (!CaveChunkSurfaceRepair.isAggressiveFillTarget(chunk, level, terrain, fillCtx, lx, y, lz, wx, wz,
+                            refWaterY, current)) {
                         continue;
                     }
                     BlockState fill;
@@ -353,15 +361,33 @@ public final class CaveChunkSurfaceRepair {
 
     private static boolean isInRiverFillZone(TerrainData terrain, RiverVoidFillContext fillCtx, int lx, int lz, int wx,
             int wz) {
-        if (fillCtx.nearestShoreDistSq(wx, wz) <= CaveChunkSurfaceRepair.RIVER_ZONE_FILL_RADIUS_SQ) {
-            return true;
-        }
-        return terrain.getRiver().get(lx, lz) < CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE;
+        return fillCtx.nearestShoreDistSq(wx, wz) <= CaveChunkSurfaceRepair.RIVER_ZONE_FILL_RADIUS_SQ;
     }
 
-    /** Air, or subsurface water — never open river surface water. */
-    private static boolean isAggressiveFillTarget(ChunkAccess chunk, BlockGetter level, int lx, int y, int lz, int wx, int wz,
-            int refWaterY, BlockState current) {
+    private static boolean shouldSkipShoreVoidFill(ChunkAccess chunk, TerrainData terrain, int lx, int lz, int surfaceY,
+            int sea) {
+        if (surfaceY > sea + 4) {
+            return false;
+        }
+        BlockState top = chunk.getBlockState(new BlockPos(lx, surfaceY, lz));
+        if (top.is(Blocks.SAND) || top.is(Blocks.RED_SAND) || top.is(Blocks.GRAVEL)) {
+            return true;
+        }
+        if (CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+            return false;
+        }
+        return terrain.getRiver().get(lx, lz) >= CaveChunkSurfaceRepair.RIVER_CHANNEL_FILL_NOISE;
+    }
+
+    /** Air, or subsurface water — never open river surface water or channel spine. */
+    private static boolean isAggressiveFillTarget(ChunkAccess chunk, BlockGetter level, TerrainData terrain,
+            RiverVoidFillContext fillCtx, int lx, int y, int lz, int wx, int wz, int refWaterY, BlockState current) {
+        if (terrain != null && fillCtx != null && refWaterY > 0 && y <= refWaterY + 1) {
+            float riverNoise = Math.min(fillCtx.riverNoiseAt(wx, wz), terrain.getRiver().get(lx, lz));
+            if (riverNoise < CaveChunkSurfaceRepair.RIVER_CHANNEL_FILL_NOISE) {
+                return false;
+            }
+        }
         if (current.isAir()) {
             return !CaveChunkSurfaceRepair.isOpenWaterLevelGap(chunk, level, lx, y, lz, wx, wz, refWaterY);
         }
