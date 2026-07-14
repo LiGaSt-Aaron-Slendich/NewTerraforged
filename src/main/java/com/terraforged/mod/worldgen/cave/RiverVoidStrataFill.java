@@ -188,8 +188,26 @@ public final class RiverVoidStrataFill {
         return Blocks.STONE.defaultBlockState();
     }
 
+    /** Decorative cave leaks — never sample as fill material (avoids lichen/vine mixtures in void plugs). */
+    private static boolean isDecorativeFillExcluded(BlockState state) {
+        if (state.is(Blocks.GLOW_LICHEN) || state.is(Blocks.VINE) || state.is(Blocks.CAVE_VINES)
+                || state.is(Blocks.CAVE_VINES_PLANT) || state.is(Blocks.TWISTING_VINES)
+                || state.is(Blocks.TWISTING_VINES_PLANT) || state.is(Blocks.WEEPING_VINES)
+                || state.is(Blocks.WEEPING_VINES_PLANT) || state.is(Blocks.HANGING_ROOTS)
+                || state.is(Blocks.MOSS_CARPET) || state.is(Blocks.SPORE_BLOSSOM)
+                || state.is(Blocks.SMALL_DRIPLEAF) || state.is(Blocks.BIG_DRIPLEAF)
+                || state.is(Blocks.BIG_DRIPLEAF_STEM) || state.is(Blocks.SEAGRASS)
+                || state.is(Blocks.TALL_SEAGRASS) || state.is(Blocks.COBWEB)) {
+            return true;
+        }
+        return state.is(BlockTags.CLIMBABLE) || state.is(BlockTags.CORAL_PLANTS);
+    }
+
     static boolean isSurfaceCoverCandidate(BlockState state) {
         if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        if (RiverVoidStrataFill.isDecorativeFillExcluded(state)) {
             return false;
         }
         if (state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES) || state.is(BlockTags.FLOWERS)) {
@@ -207,6 +225,9 @@ public final class RiverVoidStrataFill {
         if (state.isAir() || !state.getFluidState().isEmpty()) {
             return false;
         }
+        if (RiverVoidStrataFill.isDecorativeFillExcluded(state)) {
+            return false;
+        }
         if (state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES) || state.is(BlockTags.FLOWERS)) {
             return false;
         }
@@ -221,6 +242,9 @@ public final class RiverVoidStrataFill {
     /** Strata / deep fill — stone, terracotta bands, sandstone, etc. */
     static boolean isStrataCandidate(BlockState state) {
         if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        if (RiverVoidStrataFill.isDecorativeFillExcluded(state)) {
             return false;
         }
         if (state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES) || state.is(BlockTags.FLOWERS)

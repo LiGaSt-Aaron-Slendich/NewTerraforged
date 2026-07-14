@@ -344,12 +344,9 @@ public final class CaveChunkSurfaceRepair {
         return terrain.getRiver().get(lx, lz) < CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE;
     }
 
-    /** Air, subsurface water, or decorative leaks (glow lichen, vines) — never open channel water. */
+    /** Air, or subsurface water — never open river surface water. */
     private static boolean isAggressiveFillTarget(ChunkAccess chunk, BlockGetter level, int lx, int y, int lz, int wx, int wz,
             int refWaterY, BlockState current) {
-        if (CaveChunkSurfaceRepair.isDecorativeRiverFillReplaceable(current)) {
-            return true;
-        }
         if (current.isAir()) {
             return !CaveChunkSurfaceRepair.isOpenWaterLevelGap(chunk, level, lx, y, lz, wx, wz, refWaterY);
         }
@@ -413,36 +410,16 @@ public final class CaveChunkSurfaceRepair {
                 && chunk.getBlockState(new BlockPos(lx, below, lz)).isAir();
     }
 
-    /** Blocks that may be replaced by fill — air, seam water, and decorative cave leaks only. */
+    /** Blocks that may be replaced by fill — air and seam water only, not open river surface. */
     private static boolean shouldPlaceFillBlock(ChunkAccess chunk, int lx, int y, int lz) {
         BlockState state = chunk.getBlockState(new BlockPos(lx, y, lz));
-        if (state.isAir() || CaveChunkSurfaceRepair.isDecorativeRiverFillReplaceable(state)) {
+        if (state.isAir()) {
             return true;
         }
         if (!state.getFluidState().is(Fluids.WATER)) {
             return false;
         }
         return CaveChunkSurfaceRepair.hasSolidCrustAbove(chunk, lx, y, lz);
-    }
-
-    /** Vines, glow lichen, etc. — not structural; leave floating pillars if left in place during fill. */
-    private static boolean isDecorativeRiverFillReplaceable(BlockState state) {
-        if (state.isAir() || !state.getFluidState().isEmpty()) {
-            return false;
-        }
-        if (state.is(Blocks.GLOW_LICHEN) || state.is(Blocks.VINE) || state.is(Blocks.CAVE_VINES)
-                || state.is(Blocks.CAVE_VINES_PLANT) || state.is(Blocks.TWISTING_VINES)
-                || state.is(Blocks.TWISTING_VINES_PLANT) || state.is(Blocks.WEEPING_VINES)
-                || state.is(Blocks.WEEPING_VINES_PLANT) || state.is(Blocks.HANGING_ROOTS)
-                || state.is(Blocks.MOSS_CARPET) || state.is(Blocks.SPORE_BLOSSOM)
-                || state.is(Blocks.SMALL_DRIPLEAF) || state.is(Blocks.BIG_DRIPLEAF)
-                || state.is(Blocks.BIG_DRIPLEAF_STEM) || state.is(Blocks.SEAGRASS) || state.is(Blocks.TALL_SEAGRASS)) {
-            return true;
-        }
-        if (state.is(BlockTags.CORAL_PLANTS)) {
-            return true;
-        }
-        return state.is(Blocks.COBWEB);
     }
 
     private static int findColumnWaterTop(ChunkAccess chunk, int lx, int lz, int floorY, int topY) {
