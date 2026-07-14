@@ -9,7 +9,6 @@ import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -74,8 +73,10 @@ public final class RiverVoidStrataFill {
                 if (Math.abs(ny - nearY) > 6) {
                     continue;
                 }
-                pos.set(nx >= 0 && nx < 16 && nz >= 0 && nz < 16 ? nx : cx + dx, ny, nz >= 0 && nz < 16 ? nz : cz + dz);
-                BlockState state = nx >= 0 && nx < 16 && nz >= 0 && nz < 16 ? chunk.getBlockState(pos) : level.getBlockState(pos);
+                BlockState state = RiverVoidFillAccess.blockState(level, chunk, cx + dx, ny, cz + dz);
+                if (state == null) {
+                    continue;
+                }
                 if (RiverVoidStrataFill.isSurfaceCoverCandidate(state)) {
                     counts.merge(state.getBlock(), 1, Integer::sum);
                 }
@@ -112,11 +113,9 @@ public final class RiverVoidStrataFill {
                     continue;
                 }
                 pos.set(wx, surfaceY - 1, wz);
-                BlockState under;
-                if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) {
-                    under = chunk.getBlockState(pos.set(nx, surfaceY - 1, nz));
-                } else {
-                    under = level.getBlockState(pos);
+                BlockState under = RiverVoidFillAccess.blockState(level, chunk, wx, surfaceY - 1, wz);
+                if (under == null) {
+                    continue;
                 }
                 if (RiverVoidStrataFill.isSubsurfaceFillCandidate(under)) {
                     counts.merge(under.getBlock(), 1, Integer::sum);
@@ -140,35 +139,24 @@ public final class RiverVoidStrataFill {
         if (lx >= 0 && lx < 16 && lz >= 0 && lz < 16) {
             return chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
         }
-        if (level instanceof WorldGenLevel world) {
-            return world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz);
-        }
-        return fallback;
+        return RiverVoidFillAccess.motionBlockingY(level, chunk, wx, wz, fallback);
     }
 
     private static LayerPalette sampleLayer(BlockGetter level, ChunkAccess chunk, int centerX, int centerZ, int y) {
         Map<Block, Integer> counts = new HashMap<>();
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int chunkMinX = chunk.getPos().getMinBlockX();
-        int chunkMaxX = chunk.getPos().getMaxBlockX();
-        int chunkMinZ = chunk.getPos().getMinBlockZ();
-        int chunkMaxZ = chunk.getPos().getMaxBlockZ();
         for (int dz = -SAMPLE_RADIUS; dz <= SAMPLE_RADIUS; ++dz) {
             for (int dx = -SAMPLE_RADIUS; dx <= SAMPLE_RADIUS; ++dx) {
                 int wx = centerX + dx;
                 int wz = centerZ + dz;
-                pos.set(wx, y, wz);
-                BlockState state = wx >= chunkMinX && wx < chunkMaxX && wz >= chunkMinZ && wz < chunkMaxZ
-                        ? chunk.getBlockState(pos)
-                        : level.getBlockState(pos);
-                if (!RiverVoidStrataFill.isStrataCandidate(state)) {
+                BlockState state = RiverVoidFillAccess.blockState(level, chunk, wx, y, wz);
+                if (state == null || !RiverVoidStrataFill.isStrataCandidate(state)) {
                     continue;
                 }
                 counts.merge(state.getBlock(), 1, Integer::sum);
             }
         }
         if (counts.isEmpty()) {
-            BlockState fallback = RiverVoidStrataFill.fallbackNear(level, centerX, y, centerZ, pos);
+            BlockState fallback = RiverVoidStrataFill.fallbackNear(level, chunk, centerX, y, centerZ);
             return new LayerPalette(fallback, new BlockState[0]);
         }
         List<Map.Entry<Block, Integer>> ranked = new ArrayList<>(counts.entrySet());
@@ -182,21 +170,18 @@ public final class RiverVoidStrataFill {
         return new LayerPalette(primary, accents);
     }
 
-    private static BlockState fallbackNear(BlockGetter level, int centerX, int y, int centerZ, BlockPos.MutableBlockPos pos) {
-        pos.set(centerX, y, centerZ);
-        BlockState local = level.getBlockState(pos);
-        if (RiverVoidStrataFill.isStrataCandidate(local)) {
+    private static BlockState fallbackNear(BlockGetter level, ChunkAccess chunk, int centerX, int y, int centerZ) {
+        BlockState local = RiverVoidFillAccess.blockState(level, chunk, centerX, y, centerZ);
+        if (local != null && RiverVoidStrataFill.isStrataCandidate(local)) {
             return local.getBlock().defaultBlockState();
         }
         for (int dy = 1; dy <= 4; ++dy) {
-            pos.set(centerX, y - dy, centerZ);
-            BlockState below = level.getBlockState(pos);
-            if (RiverVoidStrataFill.isStrataCandidate(below)) {
+            BlockState below = RiverVoidFillAccess.blockState(level, chunk, centerX, y - dy, centerZ);
+            if (below != null && RiverVoidStrataFill.isStrataCandidate(below)) {
                 return below.getBlock().defaultBlockState();
             }
-            pos.set(centerX, y + dy, centerZ);
-            BlockState above = level.getBlockState(pos);
-            if (RiverVoidStrataFill.isStrataCandidate(above)) {
+            BlockState above = RiverVoidFillAccess.blockState(level, chunk, centerX, y + dy, centerZ);
+            if (above != null && RiverVoidStrataFill.isStrataCandidate(above)) {
                 return above.getBlock().defaultBlockState();
             }
         }

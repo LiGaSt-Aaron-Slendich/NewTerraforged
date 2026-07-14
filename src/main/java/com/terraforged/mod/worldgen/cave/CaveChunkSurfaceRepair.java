@@ -450,7 +450,11 @@ public final class CaveChunkSurfaceRepair {
             if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) {
                 neighbor = chunk.getBlockState(new BlockPos(nx, y, nz));
             } else {
-                neighbor = level.getBlockState(new BlockPos(wx + offset[0], y, wz + offset[1]));
+                BlockState sampled = RiverVoidFillAccess.blockState(level, chunk, wx + offset[0], y, wz + offset[1]);
+                if (sampled == null) {
+                    continue;
+                }
+                neighbor = sampled;
             }
             if (!neighbor.getFluidState().is(Fluids.WATER)) {
                 continue;

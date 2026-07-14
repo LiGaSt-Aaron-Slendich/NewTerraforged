@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.block.state.BlockState;
@@ -196,18 +196,11 @@ final class RiverVoidFillContext {
         if (wx >= cp.getMinBlockX() && wx < cp.getMaxBlockX() && wz >= cp.getMinBlockZ() && wz < cp.getMaxBlockZ()) {
             return chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, wx & 15, wz & 15);
         }
-        if (level instanceof WorldGenLevel world) {
-            return world.getHeight(Heightmap.Types.MOTION_BLOCKING, wx, wz);
-        }
-        return chunk.getHighestSectionPosition() + 15;
+        return RiverVoidFillAccess.motionBlockingY(level, chunk, wx, wz, chunk.getHighestSectionPosition() + 15);
     }
 
     private static BlockState blockAt(BlockGetter level, ChunkAccess chunk, BlockPos pos) {
-        ChunkPos cp = chunk.getPos();
-        if (pos.getX() >= cp.getMinBlockX() && pos.getX() < cp.getMaxBlockX() && pos.getZ() >= cp.getMinBlockZ()
-                && pos.getZ() < cp.getMaxBlockZ()) {
-            return chunk.getBlockState(pos);
-        }
-        return level.getBlockState(pos);
+        BlockState state = RiverVoidFillAccess.blockState(level, chunk, pos.getX(), pos.getY(), pos.getZ());
+        return state != null ? state : Blocks.AIR.defaultBlockState();
     }
 }
