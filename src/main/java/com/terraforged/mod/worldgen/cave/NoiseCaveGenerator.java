@@ -213,6 +213,52 @@ public class NoiseCaveGenerator {
         if (!CaveCarvingGate.isEnabled()) {
             return;
         }
+        this.prepareCarverChunk(chunk, generator);
+        if (!CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
+            this.applyCarveBlocks(chunk, generator);
+        }
+    }
+
+    /** Places cave air volumes — call after {@link CaveChunkSurfaceRepair#restoreRiverDepressions} when defer is on. */
+    public void applyCarveBlocks(ChunkAccess chunk, Generator generator) {
+        if (!CaveCarvingGate.isEnabled()) {
+            return;
+        }
+        CarverChunk carver = this.cache.get(chunk.getPos());
+        if (carver == null) {
+            this.prepareCarverChunk(chunk, generator);
+            carver = this.cache.get(chunk.getPos());
+        }
+        if (carver == null) {
+            return;
+        }
+        int seed = (int)generator.getSeed();
+        for (NoiseCave config : this.carveOrderCaves) {
+            CaveBiomeRegistry registry;
+            if (!NoiseCaveGenerator.isCaveEnabled(config)) {
+                continue;
+            }
+            CaveType type = config.getType();
+            carver.beginCavePass(config);
+            carver.modifier = this.getModifier(config);
+            NoiseCaveCarver.carve(seed, chunk, carver, generator, config, true);
+            if (!type.isMegaOrGiga() || (registry = NoiseCaveGenerator.resolveRegistry(generator)) == null) {
+                continue;
+            }
+            CavePatchPlacer.apply(seed, chunk, generator, config, carver, registry);
+            CaveBiomeColumnUnifier.unifyMegaGigaChunk(seed, chunk, carver, generator, config);
+        }
+        if (NoiseCaveGenerator.isSynapseEnabled()) {
+            CaveGrottoCarver.tryCarveChunk(seed, chunk, carver, generator, NoiseCaveGenerator.findSynapseConfig(this.caves),
+                    generator.getCaveEntranceClaims());
+        }
+        CaveRiverEntranceHydrator.hydrate(chunk, carver, generator);
+        this.entranceSnapshots.put(chunk.getPos(), carver.snapshotEntranceColumns());
+        ChunkUtil.refreshHeightmaps(chunk);
+        CaveSurfaceBiomeRestorer.restore(chunk, generator, carver);
+    }
+
+    private void prepareCarverChunk(ChunkAccess chunk, Generator generator) {
         int seed = (int)generator.getSeed();
         CarverChunk carver = this.getPreCarveChunk(chunk);
         carver.terrainData = generator.getChunkData(chunk.getPos());
@@ -222,7 +268,6 @@ public class NoiseCaveGenerator {
         carver.prepareColumnCache(seed, chunk, generator);
         CarverColumnCache columns = carver.columnCache();
         carver.setDensityBudget(NoiseCaveGenerator.createDensityBudget());
-        CaveDensitySettings densitySettings = NoiseCaveGenerator.resolveDensitySettings();
         if (columns.anyMegaGiga()) {
             int chunkX = chunk.getPos().getMinBlockX() + 8;
             int chunkZ = chunk.getPos().getMinBlockZ() + 8;
@@ -238,24 +283,6 @@ public class NoiseCaveGenerator {
         if (NoiseCaveGenerator.isCaveEnabled(synapseProbe)) {
             columns.ensureSynapseEligibility(synapseProbe, seed);
         }
-        for (NoiseCave config : this.carveOrderCaves) {
-            CaveBiomeRegistry registry;
-            if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
-            CaveType type = config.getType();
-            carver.beginCavePass(config);
-            carver.modifier = this.getModifier(config);
-            NoiseCaveCarver.carve(seed, chunk, carver, generator, config, true);
-            if (!type.isMegaOrGiga() || (registry = NoiseCaveGenerator.resolveRegistry(generator)) == null) continue;
-            CavePatchPlacer.apply(seed, chunk, generator, config, carver, registry);
-            CaveBiomeColumnUnifier.unifyMegaGigaChunk(seed, chunk, carver, generator, config);
-        }
-        if (NoiseCaveGenerator.isSynapseEnabled()) {
-            CaveGrottoCarver.tryCarveChunk(seed, chunk, carver, generator, NoiseCaveGenerator.findSynapseConfig(this.caves), generator.getCaveEntranceClaims());
-        }
-        CaveRiverEntranceHydrator.hydrate(chunk, carver, generator);
-        this.entranceSnapshots.put(chunk.getPos(), carver.snapshotEntranceColumns());
-        ChunkUtil.refreshHeightmaps(chunk);
-        CaveSurfaceBiomeRestorer.restore(chunk, generator, carver);
     }
 
     private CarverChunk prepareDecorateCarver(int seed, ChunkAccess chunk, Generator generator) {

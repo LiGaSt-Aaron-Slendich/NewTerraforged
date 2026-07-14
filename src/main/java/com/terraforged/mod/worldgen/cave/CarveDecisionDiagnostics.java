@@ -34,6 +34,8 @@ public final class CarveDecisionDiagnostics {
         report.add("[Carve decision replay]");
         if (!CaveCarvingGate.isEnabled()) {
             report.add("NoiseCave carving: DISABLED (CaveCarvingGate.enabled=false) — no synapse/mega/giga air should be placed");
+        } else if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
+            report.add("NoiseCave block carve: deferred until after restoreRiverDepressions in decorate");
         }
         CarverChunk live = generator.peekCaveCarver(chunk.getPos());
         if (live != null && live.isColumnCacheReady()) {
@@ -429,7 +431,7 @@ public final class CarveDecisionDiagnostics {
                         bedYTerrain, waterYTerrain));
             }
         }
-        report.add("River/lake: seam fill treats subsurface water under crust as gaps (air or trapped water); open surface water is left");
+        report.add("River/lake: bank fill targets terrain.getHeight() per column (yellow-line slope), not flat refWaterY shelf");
         if (carver.hasTunnelRiver()) {
             report.add("Tunnel river: CaveTunnelRiverDecorator may carve punch/channel along massif tunnel axis (separate from restoreRiverDepressions)");
         }

@@ -5,6 +5,7 @@ import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
+import com.terraforged.mod.worldgen.cave.CaveCarvingGate;
 import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
 import com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair;
 import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
@@ -93,12 +94,16 @@ public class BiomeGenerator {
         }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
         this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, ChunkScopedWorldGenLevel.FEATURE_PLACEMENT_RADIUS), structures, terrainFuture, generator);
-        this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
         CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
-        Surface.repairExposedCover(chunk, region, generator, terrain, carver);
         CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
+        if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
+            this.noiseCaveGenerator.applyCarveBlocks(chunk, generator);
+            carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
+        }
+        this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
+        Surface.repairExposedCover(chunk, region, generator, terrain, carver);
         this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
         CaveChunkIntegrityPass.runOnce(chunk, scoped, structures, generator, carver, this.featureDecorator, this.surfaceDecorator, terrainFuture);
         this.noiseCaveGenerator.finishDecorate(chunk, generator);
