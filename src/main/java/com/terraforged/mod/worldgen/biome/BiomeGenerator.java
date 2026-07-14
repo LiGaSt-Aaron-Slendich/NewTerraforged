@@ -5,6 +5,7 @@ import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
+import com.terraforged.mod.worldgen.cave.CaveCarvingGate;
 import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
 import com.terraforged.mod.worldgen.cave.RiverShoreBiomeClip;
 import com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair;
@@ -81,9 +82,6 @@ public class BiomeGenerator {
             terrain = generator.getChunkData(chunk.getPos());
         }
         this.noiseCaveGenerator.carve(chunk, generator);
-        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
-        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
-        ChunkUtil.refreshHeightmaps(chunk);
     }
 
     public void decorate(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator) {
@@ -97,10 +95,16 @@ public class BiomeGenerator {
         }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
         WorldGenLevel featureLevel = ChunkScopedWorldGenLevel.wrap(region, chunk, ChunkScopedWorldGenLevel.FEATURE_PLACEMENT_RADIUS);
+        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
+        // Plug buggy river/lake shafts from terrain — before NoiseCave block carve, not caused by it.
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
+        if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
+            this.noiseCaveGenerator.applyCarveBlocks(chunk, generator);
+            carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
+        }
         this.featureDecorator.decorate(chunk, featureLevel, structures, terrainFuture, generator, false);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
-        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
         RiverShoreBiomeClip.clip(chunk, generator, terrain);
         this.featureDecorator.placeStructures(chunk, featureLevel, structures, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);

@@ -2,11 +2,12 @@ package com.terraforged.mod.worldgen.cave;
 
 /**
  * Master switch for the NoiseCave carving pipeline.
- * Block carve runs during the AIR carving step; river void fill runs in the same step immediately after.
+ * When {@link #deferBlockCarveUntilAfterRiverFill} is true, the AIR step only prepares column metadata;
+ * river void fill runs first in decorate (plugs terrain bug shafts), then block carve, then features.
  */
 public final class CaveCarvingGate {
     public static boolean enabled = true;
-    public static boolean deferBlockCarveUntilAfterRiverFill = false;
+    public static boolean deferBlockCarveUntilAfterRiverFill = true;
 
     private CaveCarvingGate() {
     }

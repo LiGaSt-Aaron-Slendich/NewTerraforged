@@ -35,7 +35,7 @@ public final class CarveDecisionDiagnostics {
         if (!CaveCarvingGate.isEnabled()) {
             report.add("NoiseCave carving: DISABLED (CaveCarvingGate.enabled=false) — no synapse/mega/giga air should be placed");
         } else if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
-            report.add("NoiseCave block carve: deferred until after restoreRiverDepressions in decorate");
+            report.add("NoiseCave block carve: deferred — restoreRiverDepressions first, then applyCarveBlocks, then features");
         } else {
             report.add("NoiseCave block carve: AIR step, then restoreRiverDepressions in same carve() call");
         }
