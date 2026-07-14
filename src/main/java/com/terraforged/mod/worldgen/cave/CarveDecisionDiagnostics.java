@@ -36,6 +36,8 @@ public final class CarveDecisionDiagnostics {
             report.add("NoiseCave carving: DISABLED (CaveCarvingGate.enabled=false) — no synapse/mega/giga air should be placed");
         } else if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
             report.add("NoiseCave block carve: deferred until after restoreRiverDepressions in decorate");
+        } else {
+            report.add("NoiseCave block carve: AIR step, then restoreRiverDepressions in same carve() call");
         }
         CarverChunk live = generator.peekCaveCarver(chunk.getPos());
         if (live != null && live.isColumnCacheReady()) {

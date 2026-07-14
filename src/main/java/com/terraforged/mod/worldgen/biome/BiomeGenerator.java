@@ -81,6 +81,9 @@ public class BiomeGenerator {
             terrain = generator.getChunkData(chunk.getPos());
         }
         this.noiseCaveGenerator.carve(chunk, generator);
+        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
+        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
+        ChunkUtil.refreshHeightmaps(chunk);
     }
 
     public void decorate(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator) {
@@ -98,7 +101,6 @@ public class BiomeGenerator {
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
         CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
-        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
         RiverShoreBiomeClip.clip(chunk, generator, terrain);
         this.featureDecorator.placeStructures(chunk, featureLevel, structures, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
