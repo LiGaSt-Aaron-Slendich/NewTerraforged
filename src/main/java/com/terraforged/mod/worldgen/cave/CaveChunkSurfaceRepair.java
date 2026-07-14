@@ -288,6 +288,8 @@ public final class CaveChunkSurfaceRepair {
         }
         CaveChunkSurfaceRepair.fillRiverZoneSubsurfaceVoids(chunk, carver, terrain, level, fillCtx, sea, minY, fillSeed,
                 layerCache);
+        CaveChunkSurfaceRepair.terraceRiverBankProfiles(chunk, carver, terrain, level, fillCtx, sea, minY, fillSeed,
+                layerCache);
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
@@ -324,13 +326,14 @@ public final class CaveChunkSurfaceRepair {
                 }
                 int groundTop = CaveChunkSurfaceRepair.findNaturalGroundTop(chunk, lx, lz);
                 int targetSurfaceY = CaveChunkSurfaceRepair.resolveBankSurfaceY(terrain, lx, lz, refWaterY, sea);
-                int fillTop = Math.max(Math.max(groundTop, targetSurfaceY),
+                int surfaceY = CaveChunkSurfaceRepair.slopedBankSurfaceY(terrain, lx, lz, refWaterY, groundTop,
+                        targetSurfaceY);
+                int fillTop = Math.max(surfaceY,
                         CaveChunkSurfaceRepair.findColumnWaterTop(chunk, lx, lz, minY, maxY));
                 int fillBottom = CaveChunkSurfaceRepair.elevatedRiverFillFloor(minY, refWaterY, sea);
                 if (fillTop < fillBottom) {
                     continue;
                 }
-                int surfaceY = Math.max(groundTop, targetSurfaceY);
                 BlockState surfaceCover = RiverVoidStrataFill.sampleSurfaceCover(level, chunk, lx, lz, surfaceY);
                 BlockState subsurfaceFill = RiverVoidStrataFill.sampleSubsurfaceFill(level, chunk, lx, lz, surfaceY);
                 for (int y = fillBottom; y <= fillTop; ++y) {
@@ -533,7 +536,102 @@ public final class CaveChunkSurfaceRepair {
     /** Target surface from TerraForged terrain height — the yellow-line bank, not flat water level. */
     private static int resolveBankSurfaceY(TerrainData terrain, int lx, int lz, int refWaterY, int sea) {
         int terrainY = terrain.getHeight(lx, lz);
+        int neighborProfile = CaveChunkSurfaceRepair.neighborTerrainHeightMax(terrain, lx, lz);
+        terrainY = Math.max(terrainY, (terrainY + neighborProfile) / 2);
         return Math.max(terrainY, refWaterY);
+    }
+
+    /** Blend bank height toward terrain profile so fill follows the valley slope instead of vertical cliffs. */
+    private static int slopedBankSurfaceY(TerrainData terrain, int lx, int lz, int refWaterY, int groundTop,
+            int targetSurfaceY) {
+        float riverNoise = terrain.getRiver().get(lx, lz);
+        if (riverNoise <= 0.04f || riverNoise >= CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE) {
+            return Math.max(groundTop, targetSurfaceY);
+        }
+        int profileY = Math.max(targetSurfaceY, CaveChunkSurfaceRepair.neighborTerrainHeightMax(terrain, lx, lz));
+        float t = Math.min(1.0f, riverNoise / CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE);
+        int sloped = refWaterY + Math.round(t * (profileY - refWaterY));
+        sloped = Math.max(sloped, refWaterY + 1);
+        return Math.max(Math.min(Math.max(groundTop, targetSurfaceY), profileY), sloped);
+    }
+
+    private static int neighborTerrainHeightMax(TerrainData terrain, int lx, int lz) {
+        int best = terrain.getHeight(lx, lz);
+        for (int dz = -2; dz <= 2; ++dz) {
+            for (int dx = -2; dx <= 2; ++dx) {
+                int nx = lx + dx;
+                int nz = lz + dz;
+                if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16) {
+                    continue;
+                }
+                best = Math.max(best, terrain.getHeight(nx, nz));
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Second pass: step bank columns toward neighbor profiles so carved voids become slopes, not walls.
+     */
+    private static void terraceRiverBankProfiles(ChunkAccess chunk, CarverChunk carver, TerrainData terrain,
+            BlockGetter level, RiverVoidFillContext fillCtx, int sea, int minY, int fillSeed,
+            Map<Integer, RiverVoidStrataFill.LayerPalette> layerCache) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int chunkX = chunk.getPos().getMinBlockX();
+        int chunkZ = chunk.getPos().getMinBlockZ();
+        int[][] offsets = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (carver != null && carver.isEntranceColumn(lx, lz)) {
+                    continue;
+                }
+                if (CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+                    continue;
+                }
+                int wx = chunkX + lx;
+                int wz = chunkZ + lz;
+                if (!CaveChunkSurfaceRepair.isInRiverFillZone(terrain, fillCtx, lx, lz, wx, wz)) {
+                    continue;
+                }
+                float riverNoise = terrain.getRiver().get(lx, lz);
+                if (riverNoise <= 0.04f || riverNoise >= CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE) {
+                    continue;
+                }
+                int refWaterY = fillCtx.nearestRefWaterY(wx, wz);
+                if (refWaterY <= sea) {
+                    continue;
+                }
+                int surfaceY = CaveChunkSurfaceRepair.slopedBankSurfaceY(terrain, lx, lz, refWaterY,
+                        CaveChunkSurfaceRepair.findNaturalGroundTop(chunk, lx, lz),
+                        CaveChunkSurfaceRepair.resolveBankSurfaceY(terrain, lx, lz, refWaterY, sea));
+                int fillBottom = CaveChunkSurfaceRepair.elevatedRiverFillFloor(minY, refWaterY, sea);
+                BlockState surfaceCover = RiverVoidStrataFill.sampleSurfaceCover(level, chunk, lx, lz, surfaceY);
+                BlockState subsurfaceFill = RiverVoidStrataFill.sampleSubsurfaceFill(level, chunk, lx, lz, surfaceY);
+                for (int y = fillBottom; y <= surfaceY; ++y) {
+                    pos.set(lx, y, lz);
+                    if (!chunk.getBlockState(pos).isAir()) {
+                        continue;
+                    }
+                    if (CaveChunkSurfaceRepair.isRiverChannelInterior(chunk, lx, y, lz, refWaterY)) {
+                        continue;
+                    }
+                    int neighborSolid = 0;
+                    for (int[] offset : offsets) {
+                        BlockState neighbor = chunk.getBlockState(new BlockPos(lx + offset[0], y, lz + offset[1]));
+                        if (!neighbor.isAir() && neighbor.getFluidState().isEmpty()) {
+                            ++neighborSolid;
+                        }
+                    }
+                    if (neighborSolid == 0) {
+                        continue;
+                    }
+                    BlockState fill = y == surfaceY ? surfaceCover
+                            : (y >= surfaceY - 4 ? subsurfaceFill
+                                    : RiverVoidStrataFill.pickStoneFill(level, chunk, lx, y, lz, fillSeed, layerCache));
+                    chunk.setBlockState(pos, fill, false);
+                }
+            }
+        }
     }
 
     private static boolean isProtectedFromRiverFill(BlockState state) {

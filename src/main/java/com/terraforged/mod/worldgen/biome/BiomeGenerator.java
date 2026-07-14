@@ -5,7 +5,6 @@ import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
-import com.terraforged.mod.worldgen.cave.CaveCarvingGate;
 import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
 import com.terraforged.mod.worldgen.cave.RiverShoreBiomeClip;
 import com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair;
@@ -102,10 +101,6 @@ public class BiomeGenerator {
         CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
         RiverShoreBiomeClip.clip(chunk, generator, terrain);
         this.featureDecorator.placeStructures(chunk, featureLevel, structures, generator);
-        if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
-            this.noiseCaveGenerator.applyCarveBlocks(chunk, generator);
-            carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
-        }
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);
         this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
