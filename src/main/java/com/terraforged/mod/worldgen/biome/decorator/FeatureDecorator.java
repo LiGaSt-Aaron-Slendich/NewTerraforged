@@ -32,7 +32,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 public class FeatureDecorator {
     public static final GenerationStep.Decoration[] STAGES = GenerationStep.Decoration.values();
     private static final int VEGETATION_STAGE = GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
-    private static final int MAX_DECORATION_STAGE = GenerationStep.Decoration.TOP_LAYER_MODIFICATION.ordinal();
+    static final int MAX_DECORATION_STAGE = GenerationStep.Decoration.TOP_LAYER_MODIFICATION.ordinal();
     private final BiomeVegetationManager vegetation;
     private final Map<GenerationStep.Decoration, List<Holder<ConfiguredStructureFeature<?, ?>>>> structures;
 
@@ -58,21 +58,33 @@ public class FeatureDecorator {
     }
 
     public void decorate(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator) {
+        this.decorate(chunk, level, structures, terrain, generator, true);
+    }
+
+    public void decorate(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator, boolean placeStructures) {
         BlockPos origin = FeatureDecorator.getSurfaceOrigin(chunk);
         Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
         WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
         long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
-        this.decoratePre(seed, origin, biome, chunk, level, generator, random, structures);
-        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures);
-        this.decoratePost(seed, origin, biome, chunk, level, generator, random, structures);
+        this.decoratePre(seed, origin, biome, chunk, level, generator, random, structures, placeStructures);
+        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures, placeStructures);
+        this.decoratePost(seed, origin, biome, chunk, level, generator, random, structures, placeStructures);
     }
 
-    private void decoratePre(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager) {
-        VanillaDecorator.decorate(seed, 0, VEGETATION_STAGE - 1, origin, biome, chunk, level, generator, random, structureManager, this);
+    public void placeStructures(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, Generator generator) {
+        BlockPos origin = FeatureDecorator.getSurfaceOrigin(chunk);
+        Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
+        WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
+        long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
+        VanillaDecorator.placeAllStructures(seed, origin, biome, chunk, level, generator, random, structures, this);
     }
 
-    private void decoratePost(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager) {
-        VanillaDecorator.decorate(seed, VEGETATION_STAGE + 1, MAX_DECORATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this);
+    private void decoratePre(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, boolean placeStructures) {
+        VanillaDecorator.decorate(seed, 0, VEGETATION_STAGE - 1, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
+    }
+
+    private void decoratePost(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, boolean placeStructures) {
+        VanillaDecorator.decorate(seed, VEGETATION_STAGE + 1, MAX_DECORATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
     }
 
     public void decorateVegetation(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator) {
@@ -80,7 +92,7 @@ public class FeatureDecorator {
         Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
         WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
         long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
-        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures);
+        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures, true);
     }
 
     /** Surface-only refresh after chunk integrity repair — skips underground/cave biomes. */
@@ -92,12 +104,12 @@ public class FeatureDecorator {
         }
         WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
         long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
-        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures);
+        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures, true);
     }
 
-    private void decorateVegetation(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, CompletableFuture<TerrainData> terrain, StructureFeatureManager structureManager) {
+    private void decorateVegetation(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, CompletableFuture<TerrainData> terrain, StructureFeatureManager structureManager, boolean placeStructures) {
         if (DynamicTreesCompat.isLoaded()) {
-            VanillaDecorator.decorate(seed, VEGETATION_STAGE, VEGETATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this);
+            VanillaDecorator.decorate(seed, VEGETATION_STAGE, VEGETATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
             PositionSampler.placeVegetationWithoutTrees(seed, origin, biome, chunk, level, generator, random, terrain, this);
             return;
         }

@@ -89,6 +89,16 @@ final class RiverVoidFillContext {
         return Math.max(this.nearestValleyWaterY(worldX, worldZ), this.nearestBlockWaterY(worldX, worldZ));
     }
 
+    /** True when any river/lake bed in the precomputed zone sits above sea level (elevated-river shaft bug). */
+    boolean hasElevatedRiverRef(int sea) {
+        for (int waterY : this.valleyWaterY) {
+            if (waterY > sea) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Squared world-space distance to the nearest river/lake bed column, or {@link Integer#MAX_VALUE}. */
     int nearestShoreDistSq(int worldX, int worldZ) {
         int gx = worldX - this.originX;

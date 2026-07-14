@@ -41,15 +41,33 @@ public class VanillaDecorator {
     private static final ResourceLocation END_SPIKE = new ResourceLocation("minecraft", "end_spike");
 
     public static void decorate(long seed, int from, int to, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, FeatureDecorator decorator) {
+        VanillaDecorator.decorate(seed, from, to, origin, biome, chunk, level, generator, random, structureManager, decorator, true);
+    }
+
+    public static void decorate(long seed, int from, int to, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, FeatureDecorator decorator, boolean placeStructures) {
         if (CaveBiomeIds.isUndergroundBiome(biome)) {
             return;
         }
         for (int stage = from; stage <= to; ++stage) {
             List<Holder<ConfiguredStructureFeature<?, ?>>> structures = decorator.getStageStructures(stage);
             HolderSet<PlacedFeature> features = decorator.getStageFeatures(stage, (Biome)biome.value());
-            if (features == null) continue;
+            if (features == null) {
+                continue;
+            }
+            if (placeStructures) {
+                VanillaDecorator.placeStructures(seed, stage, chunk, level, generator, random, structureManager, structures);
+            }
+            VanillaDecorator.placeFeatures(seed, placeStructures ? structures.size() : 0, stage, origin, chunk, level, generator, random, features);
+        }
+    }
+
+    public static void placeAllStructures(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, FeatureDecorator decorator) {
+        if (CaveBiomeIds.isUndergroundBiome(biome)) {
+            return;
+        }
+        for (int stage = 0; stage <= FeatureDecorator.MAX_DECORATION_STAGE; ++stage) {
+            List<Holder<ConfiguredStructureFeature<?, ?>>> structures = decorator.getStageStructures(stage);
             VanillaDecorator.placeStructures(seed, stage, chunk, level, generator, random, structureManager, structures);
-            VanillaDecorator.placeFeatures(seed, structures.size(), stage, origin, chunk, level, generator, random, features);
         }
     }
 

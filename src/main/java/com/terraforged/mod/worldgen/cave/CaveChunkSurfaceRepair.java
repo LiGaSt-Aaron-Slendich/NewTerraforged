@@ -228,6 +228,11 @@ public final class CaveChunkSurfaceRepair {
     /** Horizontal reach of void fill around river/lake bed columns (world-space, includes neighbor chunks). */
     private static final int RIVER_ZONE_FILL_RADIUS = 18;
     private static final int RIVER_ZONE_FILL_RADIUS_SQ = RIVER_ZONE_FILL_RADIUS * RIVER_ZONE_FILL_RADIUS;
+    /**
+     * Elevated rivers carve shafts down to sea level (Y 62); subsurface void fill stops here.
+     * Sea-level rivers do not need void fill — the shaft bug does not apply.
+     */
+    private static final int ELEVATED_RIVER_VOID_FILL_MAX_Y = 61;
     /** Valley / confluence influence from TerraForged river noise (matches NoiseGenerator gate). */
     static final float RIVER_INFLUENCE_NOISE = 0.75f;
 
@@ -247,9 +252,12 @@ public final class CaveChunkSurfaceRepair {
         if (layerCache == null) {
             layerCache = RiverVoidStrataFill.newLayerCache();
         }
-        RiverVoidFillContext fillCtx = new RiverVoidFillContext(generator, chunk, terrain, level, generator.getSeaLevel(),
-                RIVER_ZONE_FILL_RADIUS);
         int sea = generator.getSeaLevel();
+        RiverVoidFillContext fillCtx = new RiverVoidFillContext(generator, chunk, terrain, level, sea,
+                RIVER_ZONE_FILL_RADIUS);
+        if (!fillCtx.hasElevatedRiverRef(sea)) {
+            return;
+        }
         int minY = chunk.getMinBuildHeight();
         BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState water = Blocks.WATER.defaultBlockState();
@@ -263,6 +271,9 @@ public final class CaveChunkSurfaceRepair {
                     continue;
                 }
                 int waterY = CaveChunkSurfaceRepair.resolveRiverSurfaceY(terrain, lx, lz, sea);
+                if (waterY <= sea) {
+                    continue;
+                }
                 int bedY = CaveChunkSurfaceRepair.resolveRiverBedY(terrain, lx, lz, waterY, sea);
                 CaveChunkSurfaceRepair.plugColumnVoids(chunk, level, lx, lz, bedY, waterY, waterY, sea, minY, true, gravel,
                         water, pos, fillSeed, layerCache);
@@ -298,6 +309,9 @@ public final class CaveChunkSurfaceRepair {
                     continue;
                 }
                 int refWaterY = fillCtx.nearestRefWaterY(wx, wz);
+                if (refWaterY <= sea) {
+                    continue;
+                }
                 if (refWaterY < 0) {
                     refWaterY = Math.max(sea, terrain.getBaseHeight(lx, lz));
                 }
@@ -305,6 +319,7 @@ public final class CaveChunkSurfaceRepair {
                 int targetSurfaceY = CaveChunkSurfaceRepair.resolveBankSurfaceY(terrain, lx, lz, refWaterY, sea);
                 int fillTop = Math.max(Math.max(groundTop, targetSurfaceY),
                         CaveChunkSurfaceRepair.findColumnWaterTop(chunk, lx, lz, minY, maxY));
+                fillTop = Math.min(fillTop, CaveChunkSurfaceRepair.ELEVATED_RIVER_VOID_FILL_MAX_Y);
                 int fillBottom = minY;
                 if (fillTop < fillBottom) {
                     continue;
@@ -324,7 +339,7 @@ public final class CaveChunkSurfaceRepair {
                     }
                     BlockState fill;
                     if (y >= surfaceY) {
-                        fill = y == surfaceY ? surfaceCover : subsurfaceFill;
+                        fill = surfaceCover;
                     } else if (y >= surfaceY - 4) {
                         fill = subsurfaceFill;
                     } else {
@@ -521,6 +536,22 @@ public final class CaveChunkSurfaceRepair {
             return;
         }
         for (int y = plugTop; y >= plugFloor; --y) {
+            if (waterColumn && waterY > sea && y > CaveChunkSurfaceRepair.ELEVATED_RIVER_VOID_FILL_MAX_Y) {
+                if (y > bedY && y <= waterY) {
+                    pos.set(lx, y, lz);
+                    BlockState current = chunk.getBlockState(pos);
+                    if (CaveChunkSurfaceRepair.isProtectedFromRiverFill(current)) {
+                        continue;
+                    }
+                    if (current.isAir()) {
+                        BlockState fill = y == waterY ? (BlockState)water.setValue((Property)LiquidBlock.LEVEL, 0) : water;
+                        chunk.setBlockState(pos, fill, false);
+                    } else if (!current.getFluidState().is(Fluids.WATER)) {
+                        chunk.setBlockState(pos, gravel, false);
+                    }
+                }
+                continue;
+            }
             pos.set(lx, y, lz);
             BlockState current = chunk.getBlockState(pos);
             if (CaveChunkSurfaceRepair.isProtectedFromRiverFill(current)) {

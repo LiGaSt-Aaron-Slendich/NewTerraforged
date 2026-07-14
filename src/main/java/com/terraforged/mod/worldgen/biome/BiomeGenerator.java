@@ -93,11 +93,13 @@ public class BiomeGenerator {
             terrain = terrainFuture.join();
         }
         WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
-        this.featureDecorator.decorate(chunk, ChunkScopedWorldGenLevel.wrap(region, chunk, ChunkScopedWorldGenLevel.FEATURE_PLACEMENT_RADIUS), structures, terrainFuture, generator);
+        WorldGenLevel featureLevel = ChunkScopedWorldGenLevel.wrap(region, chunk, ChunkScopedWorldGenLevel.FEATURE_PLACEMENT_RADIUS);
+        this.featureDecorator.decorate(chunk, featureLevel, structures, terrainFuture, generator, false);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
         CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
         CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
+        this.featureDecorator.placeStructures(chunk, featureLevel, structures, generator);
         if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
             this.noiseCaveGenerator.applyCarveBlocks(chunk, generator);
             carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
