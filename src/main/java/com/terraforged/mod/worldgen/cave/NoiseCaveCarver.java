@@ -345,7 +345,7 @@ public class NoiseCaveCarver {
         int topThird = config.getMaxY() - (config.getMaxY() - config.getMinY()) / 3;
         boolean patchPlacement = config.getPlacementType() == CavePlacementType.CEILING_PATCH || config.getPlacementType() == CavePlacementType.ISLAND_PATCH;
         boolean global = config.getType() == CaveType.GLOBAL;
-        int surfaceBiomeSkip = global ? 3 : (megaGiga ? 10 : 8);
+        int surfaceBiomeSkip = global ? 3 : (megaGiga ? 6 : 8);
         Holder<Biome> patchBiome = defaultBiome;
         int patchY = bottom;
         if (patchPlacement) {

@@ -54,7 +54,12 @@ public final class CaveSurfaceBiomeRestorer {
                         continue;
                     }
                     Holder<Biome> existing = CarverChunk.readPaintedBiomeAt(chunk, lx, y, lz);
-                    if (existing != null && (CaveBiomeIds.isUndergroundBiome(existing) || CaveBiomeIds.isPatchPaintedBiome(existing))) continue;
+                    if (existing != null) {
+                        int entranceBand = surface - CaveUndergroundGuard.ENTRANCE_BIOME_DEPTH;
+                        if (y < entranceBand && (CaveBiomeIds.isUndergroundBiome(existing) || CaveBiomeIds.isPatchPaintedBiome(existing))) {
+                            continue;
+                        }
+                    }
                     CaveSurfaceBiomeRestorer.setBiomeQuart(chunk, lx, y, lz, surfaceBiome);
                 }
             }

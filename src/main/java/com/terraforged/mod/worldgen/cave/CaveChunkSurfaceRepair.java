@@ -225,6 +225,85 @@ public final class CaveChunkSurfaceRepair {
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
+    /**
+     * Sea-level and low river banks: terrace exposed stone cliffs toward terrain profile (P1/P3).
+     */
+    public static void repairSeaLevelRiverBanks(ChunkAccess chunk, TerrainData terrain, Generator generator) {
+        if (terrain == null) {
+            return;
+        }
+        int sea = generator.getSeaLevel();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int[][] offsets = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                if (CaveChunkSurfaceRepair.isRiverBedColumn(terrain, lx, lz)) {
+                    continue;
+                }
+                float riverNoise = terrain.getRiver().get(lx, lz);
+                if (riverNoise <= 0.06f || riverNoise >= CaveChunkSurfaceRepair.RIVER_INFLUENCE_NOISE) {
+                    continue;
+                }
+                int groundTop = CaveChunkSurfaceRepair.findNaturalGroundTop(chunk, lx, lz);
+                int waterRef = -1;
+                for (int[] offset : offsets) {
+                    int nx = lx + offset[0];
+                    int nz = lz + offset[1];
+                    if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16) {
+                        continue;
+                    }
+                    int ny = chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, nx, nz);
+                    pos.set(nx, ny, nz);
+                    BlockState neighbor = chunk.getBlockState(pos);
+                    if (neighbor.getFluidState().is(Fluids.WATER) || CaveChunkSurfaceRepair.isRiverBedColumn(terrain, nx, nz)) {
+                        waterRef = Math.max(waterRef, ny);
+                    }
+                }
+                if (waterRef < 0 || groundTop - waterRef < 2) {
+                    continue;
+                }
+                int refWater = Math.max(waterRef, sea);
+                int targetSurface = CaveChunkSurfaceRepair.slopedBankSurfaceY(terrain, lx, lz, refWater, groundTop,
+                        CaveChunkSurfaceRepair.resolveBankSurfaceY(terrain, lx, lz, refWater, sea));
+                targetSurface = Math.min(targetSurface, groundTop);
+                BlockState grass = Blocks.GRASS_BLOCK.defaultBlockState();
+                BlockState dirt = Blocks.DIRT.defaultBlockState();
+                for (int y = waterRef + 1; y <= targetSurface; ++y) {
+                    pos.set(lx, y, lz);
+                    BlockState current = chunk.getBlockState(pos);
+                    if (!current.isAir() && current.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    chunk.setBlockState(pos, y == targetSurface ? grass : dirt, false);
+                }
+                pos.set(lx, targetSurface, lz);
+                BlockState top = chunk.getBlockState(pos);
+                if (top.is(BlockTags.BASE_STONE_OVERWORLD) || top.is(Blocks.GRAVEL) || top.is(Blocks.STONE)) {
+                    chunk.setBlockState(pos, grass, false);
+                    if (targetSurface > chunk.getMinBuildHeight()) {
+                        pos.set(lx, targetSurface - 1, lz);
+                        if (chunk.getBlockState(pos).isAir()) {
+                            chunk.setBlockState(pos, dirt, false);
+                        }
+                    }
+                }
+            }
+        }
+        ChunkUtil.refreshHeightmaps(chunk);
+    }
+
+    private static boolean columnHasSubsurfaceVoid(ChunkAccess chunk, int lx, int lz, int fillBottom, int fillTop) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int y = fillBottom; y <= fillTop; ++y) {
+            pos.set(lx, y, lz);
+            BlockState state = chunk.getBlockState(pos);
+            if (state.isAir() || !state.getFluidState().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Horizontal reach of void fill around river/lake bed columns (world-space, includes neighbor chunks). */
     private static final int RIVER_ZONE_FILL_RADIUS = 18;
     private static final int RIVER_ZONE_FILL_RADIUS_SQ = RIVER_ZONE_FILL_RADIUS * RIVER_ZONE_FILL_RADIUS;
@@ -332,6 +411,9 @@ public final class CaveChunkSurfaceRepair {
                         CaveChunkSurfaceRepair.findColumnWaterTop(chunk, lx, lz, minY, maxY));
                 int fillBottom = CaveChunkSurfaceRepair.elevatedRiverFillFloor(minY, refWaterY, sea);
                 if (fillTop < fillBottom) {
+                    continue;
+                }
+                if (!CaveChunkSurfaceRepair.columnHasSubsurfaceVoid(chunk, lx, lz, fillBottom, fillTop)) {
                     continue;
                 }
                 BlockState surfaceCover = RiverVoidStrataFill.sampleSurfaceCover(level, chunk, lx, lz, surfaceY);

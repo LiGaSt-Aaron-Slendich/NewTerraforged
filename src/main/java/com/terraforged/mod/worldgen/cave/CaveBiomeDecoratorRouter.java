@@ -51,8 +51,9 @@ public final class CaveBiomeDecoratorRouter {
         return CaveBiomeIds.isEmptyStoneCave(id) || "minecraft".equals(id.getNamespace()) && path.contains("cave");
     }
 
-    /** Glowing grotto and similar — vanilla multi-origin pass. */
+    /** Glowing grotto and similar — vanilla multi-origin pass (Terralith/BOP model). */
     private static boolean isVanillaBiome(String path) {
-        return path.contains("glowing_grotto") || path.contains("undergarden") && !path.contains("fungal");
+        return path.contains("glowing_grotto") || path.contains("glowshroom_caves") || path.contains("glowshroom_cave")
+                || path.contains("undergarden") && !path.contains("fungal");
     }
 }

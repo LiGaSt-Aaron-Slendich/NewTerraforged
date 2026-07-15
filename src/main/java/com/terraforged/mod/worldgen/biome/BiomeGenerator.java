@@ -99,6 +99,7 @@ public class BiomeGenerator {
         // Plug buggy river/lake shafts from terrain — before NoiseCave block carve, not caused by it.
         if (GenerationFeatureGates.riverVoidFillEnabled) {
             CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
+            CaveChunkSurfaceRepair.repairSeaLevelRiverBanks(chunk, terrain, generator);
         }
         if (GenerationFeatureGates.riverShoreBiomeClipEnabled) {
             RiverShoreBiomeClip.clip(chunk, generator, terrain);

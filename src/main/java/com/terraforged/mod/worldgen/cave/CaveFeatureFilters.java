@@ -33,6 +33,16 @@ public final class CaveFeatureFilters {
         String bPath = ((ResourceKey<Biome>) biomeKey.get()).location().getPath().toLowerCase();
         String fNs = featureId.getNamespace();
         String bNs = ((ResourceKey<Biome>) biomeKey.get()).location().getNamespace();
+        if ("terralith".equals(bNs) && fPath.contains("cave/")) {
+            return true;
+        }
+        if ("biomesoplenty".equals(bNs) && (fPath.contains("grotto") || fPath.contains("glowshroom") || fPath.contains("glow_worm")
+                || fPath.contains("mycel") || fPath.contains("glowing_grotto"))) {
+            return true;
+        }
+        if ("regions_unexplored".equals(bNs) && (fPath.contains("cave/") || fPath.contains("bioshroom") || fPath.contains("glow"))) {
+            return true;
+        }
         if (CaveFeatureFilters.isForeignThemeFeature(fPath, bPath)) {
             return false;
         }

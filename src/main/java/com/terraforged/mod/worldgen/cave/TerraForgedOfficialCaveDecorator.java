@@ -69,6 +69,10 @@ public final class TerraForgedOfficialCaveDecorator {
                 continue;
             }
             BlockPos seed = entry.getValue();
+            if (CaveBiomeDecoratorRouter.resolve(biome) == CaveDecoratorKind.VANILLA) {
+                CaveBiomeVanillaPass.decorateBiome(chunk, carver, region, generator, biome, seed);
+                continue;
+            }
             boolean zoneMega = megaGiga || (carver.isColumnCacheReady() && carver.columnCache().isMegaGigaZone(seed.getX() & 0xF, seed.getZ() & 0xF));
             TerraForgedOfficialCaveDecorator.decorateOfficialBiome(chunk, carver, region, generator, biome, seed, zoneMega, random);
         }
@@ -88,7 +92,7 @@ public final class TerraForgedOfficialCaveDecorator {
         int maxY = chunk.getHighestSectionPosition() + 15;
         int grid = TerraForgedOfficialCaveDecorator.originGridFor(decorBiome, megaGiga);
         List<BlockPos> floorOrigins = TerraForgedOfficialCaveDecorator.collectFloorOrigins(chunk, carver, generator, decorBiome, seed, chunkX, chunkZ, minY, maxY, grid, megaGiga);
-        int floorCap = megaGiga ? MAX_FLOOR_ORIGINS_MEGA : (TerraForgedOfficialCaveDecorator.isVanillaUndergroundCave(decorBiome) ? MAX_FLOOR_ORIGINS_VANILLA : MAX_FLOOR_ORIGINS);
+        int floorCap = TerraForgedOfficialCaveDecorator.resolveFloorOriginCap(decorBiome, megaGiga, floorOrigins.size());
         floorOrigins = TerraForgedOfficialCaveDecorator.capOrigins(floorOrigins, floorCap);
         BiomeGenerationSettings settings = ((Biome)decorBiome.value()).getGenerationSettings();
         WorldGenLevel placement = ChunkScopedWorldGenLevel.wrapWithBiomeGuard(region, chunk, decorBiome, carver);
@@ -125,6 +129,18 @@ public final class TerraForgedOfficialCaveDecorator {
             return origins;
         }
         return new ArrayList<>(origins.subList(0, max));
+    }
+
+    /** Scale origin budget with painted chamber count — TB-style density without hard 12-cap in mega zones. */
+    private static int resolveFloorOriginCap(Holder<Biome> biome, boolean megaGiga, int paintedOrigins) {
+        if (TerraForgedOfficialCaveDecorator.isVanillaUndergroundCave(biome)) {
+            return MAX_FLOOR_ORIGINS_VANILLA;
+        }
+        int base = megaGiga ? MAX_FLOOR_ORIGINS_MEGA : MAX_FLOOR_ORIGINS;
+        if (!megaGiga) {
+            return base;
+        }
+        return Math.min(MAX_FLOOR_ORIGINS, Math.max(base, paintedOrigins / 2 + 8));
     }
 
     /** Pointed / cluster / large dripstone from biome JSON — open chambers absorb tall features. */
