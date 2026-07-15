@@ -28,6 +28,14 @@ public final class GenerationFeatureGates {
     public static boolean namespacedModSurfaceRulesEnabled = true;
     /** External mod biomes use biome JSON + vanilla placement; TF grid only for newterraforged/terraforged/minecraft. */
     public static boolean useVanillaVegetationOnlyForModBiomes = true;
+    /** P4#21: per-quart TB-style feature placement for pre/post decoration stages. */
+    public static boolean terraBlenderChunkBiomeDecorEnabled = true;
+    /** P4#22: one surface-quart restore pass after shore clip, before features. */
+    public static boolean biomeQuartAuthorityEnabled = true;
+    /** P4#23: TF vegetation grid only when biome has explicit VegetationConfig in TOML (not NONE). */
+    public static boolean tfVegetationGridOptInOnly = true;
+    /** P4#20: boost weight for biomes registered via TerraBlender regions. */
+    public static boolean terraBlenderRegionBiomeBoostEnabled = true;
 
     private GenerationFeatureGates() {
     }

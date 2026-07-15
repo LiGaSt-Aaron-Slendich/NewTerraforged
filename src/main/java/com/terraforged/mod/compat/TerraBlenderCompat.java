@@ -1,6 +1,7 @@
 package com.terraforged.mod.compat;
 
 import com.terraforged.mod.TerraForged;
+import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fml.ModList;
 
 public final class TerraBlenderCompat {
@@ -21,7 +22,7 @@ public final class TerraBlenderCompat {
         terraBlenderLoaded = ModList.get().isLoaded(TB_ID);
         terralithLoaded = ModList.get().isLoaded(TERRALITH_ID);
         if (terraBlenderLoaded) {
-            TerraForged.LOG.info("TerraBlender detected \u0432\u0402\u201d NewTerraForged keeps custom terrain; mod biomes use newterraforged:climate source");
+            TerraForged.LOG.info("TerraBlender detected — NewTerraForged keeps custom terrain; mod biomes use climate source + TB region registry");
         }
         if (terralithLoaded) {
             TerraForged.LOG.info("Terralith detected \u0432\u0402\u201d surface/cave biomes integrated via BiomeMapManager and TF configs");
@@ -36,11 +37,18 @@ public final class TerraBlenderCompat {
         return terralithLoaded;
     }
 
-    public static void onGeneratorActive() {
+    public static void onGeneratorActive(MinecraftServer server) {
         if (!terraBlenderLoaded && !terralithLoaded) {
             return;
         }
+        if (server != null && terraBlenderLoaded) {
+            TerraBlenderRegionBridge.onWorldLoad(server);
+        }
         TerraForged.LOG.info("NewTerraForged generator active with{}{}", (terraBlenderLoaded ? " TerraBlender" : ""), (terralithLoaded ? " Terralith" : ""));
+    }
+
+    public static void onGeneratorActive() {
+        TerraBlenderCompat.onGeneratorActive(null);
     }
 
     public static void warnVanillaOverworld(String generatorType) {

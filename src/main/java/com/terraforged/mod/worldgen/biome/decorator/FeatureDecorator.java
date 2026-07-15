@@ -80,10 +80,18 @@ public class FeatureDecorator {
     }
 
     private void decoratePre(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, boolean placeStructures) {
+        if (com.terraforged.mod.worldgen.GenerationFeatureGates.terraBlenderChunkBiomeDecorEnabled) {
+            BiomeQuartDecorator.decorateStages(seed, 0, VEGETATION_STAGE - 1, chunk, level, generator, random, structureManager, this, placeStructures);
+            return;
+        }
         VanillaDecorator.decorate(seed, 0, VEGETATION_STAGE - 1, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
     }
 
     private void decoratePost(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, boolean placeStructures) {
+        if (com.terraforged.mod.worldgen.GenerationFeatureGates.terraBlenderChunkBiomeDecorEnabled) {
+            BiomeQuartDecorator.decorateStages(seed, VEGETATION_STAGE + 1, MAX_DECORATION_STAGE, chunk, level, generator, random, structureManager, this, placeStructures);
+            return;
+        }
         VanillaDecorator.decorate(seed, VEGETATION_STAGE + 1, MAX_DECORATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
     }
 

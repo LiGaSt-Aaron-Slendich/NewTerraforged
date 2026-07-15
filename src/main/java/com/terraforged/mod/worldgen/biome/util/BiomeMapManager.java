@@ -6,6 +6,8 @@ import com.terraforged.mod.util.storage.WeightMap;
 import com.terraforged.mod.worldgen.asset.ClimateType;
 import com.terraforged.mod.worldgen.biome.util.BiomeUtil;
 import com.terraforged.mod.worldgen.biome.util.SurfaceBiomeConfigLoader;
+import com.terraforged.mod.compat.TerraBlenderRegionBridge;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import it.unimi.dsi.fastutil.objects.Object2FloatLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2FloatMap;
@@ -39,6 +41,9 @@ public class BiomeMapManager {
     private final Map<BiomeType, WeightMap<Holder<Biome>>> biomeMap;
 
     public BiomeMapManager(RegistryAccess access) {
+        if (com.terraforged.mod.compat.TerraBlenderCompat.isTerraBlenderLoaded()) {
+            TerraBlenderRegionBridge.scan(access);
+        }
         this.biomes = access.ownedRegistryOrThrow(Registry.BIOME_REGISTRY);
         this.climateTypes = access.ownedRegistryOrThrow(TerraForged.CLIMATES.get());
         this.overworldBiomes = BiomeMapManager.getOverworldBiomes(this.biomes, this.climateTypes);
@@ -125,6 +130,9 @@ public class BiomeMapManager {
             BiomeType type;
             if (!BiomeUtil.isOverworldSurfaceBiome(biome) || registered.contains(biome) || overlay.configured().contains(biome) || !overlay.autoDetectModBiomes() && BiomeMapManager.isModBiome(biome) || (type = BiomeUtil.getType(biome)) == null) continue;
             float weight = BiomeMapManager.isModBiome(biome) ? overlay.autoModWeight() : 1.0f;
+            if (GenerationFeatureGates.terraBlenderRegionBiomeBoostEnabled && biome.unwrapKey().map(key -> TerraBlenderRegionBridge.isTerraBlenderRegionBiome(key.location())).orElse(false)) {
+                weight = Math.max(weight, overlay.autoModWeight() * 1.5f);
+            }
             map.computeIfAbsent(type, t -> new Object2FloatLinkedOpenHashMap()).put(biome, weight);
             if (!BiomeMapManager.isModBiome(biome)) continue;
             ++modBiomes;

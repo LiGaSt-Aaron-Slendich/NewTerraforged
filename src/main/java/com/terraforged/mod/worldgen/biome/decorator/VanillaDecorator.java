@@ -67,9 +67,13 @@ public class VanillaDecorator {
             return;
         }
         for (int stage = 0; stage <= FeatureDecorator.MAX_DECORATION_STAGE; ++stage) {
-            List<Holder<ConfiguredStructureFeature<?, ?>>> structures = decorator.getStageStructures(stage);
-            VanillaDecorator.placeStructures(seed, stage, chunk, level, generator, random, structureManager, structures);
+            VanillaDecorator.decorateStructuresOnly(seed, stage, chunk, level, generator, random, structureManager, decorator);
         }
+    }
+
+    public static void decorateStructuresOnly(long seed, int stage, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, FeatureDecorator decorator) {
+        List<Holder<ConfiguredStructureFeature<?, ?>>> structures = decorator.getStageStructures(stage);
+        VanillaDecorator.placeStructures(seed, stage, chunk, level, generator, random, structureManager, structures);
     }
 
     private static void placeStructures(long seed, int stage, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, List<Holder<ConfiguredStructureFeature<?, ?>>> structures) {
@@ -104,7 +108,7 @@ public class VanillaDecorator {
         }
     }
 
-    private static boolean isBlockedMegaGigaFeature(Holder<PlacedFeature> feature) {
+    static boolean isBlockedMegaGigaFeature(Holder<PlacedFeature> feature) {
         return feature.unwrapKey().map(key -> {
             String path = key.location().getPath().toLowerCase();
             return path.contains("geode") || path.contains("amethyst");

@@ -63,7 +63,7 @@ public final class WorldGeneratorRestorer {
             PrimaryLevelData p;
             WorldData worldData = server.getWorldData();
             WorldGeneratorRestorer.markWorld(server, worldData instanceof PrimaryLevelData ? (p = (PrimaryLevelData)worldData) : null);
-            TerraBlenderCompat.onGeneratorActive();
+            TerraBlenderCompat.onGeneratorActive(server);
             return;
         }
         WorldData data = server.getWorldData();
@@ -84,7 +84,7 @@ public final class WorldGeneratorRestorer {
             WorldGeneratorRestorer.hotSwapGenerator(overworld.getChunkSource(), tfGen);
             WorldGeneratorRestorer.markWorld(server, levelData);
             TerraForged.LOG.info("Hot-swapped overworld chunk generator to NewTerraForged after reload");
-            TerraBlenderCompat.onGeneratorActive();
+            TerraBlenderCompat.onGeneratorActive(server);
         }
         catch (Throwable t) {
             TerraForged.LOG.error("Failed to hot-swap NewTerraForged generator after reload", t);

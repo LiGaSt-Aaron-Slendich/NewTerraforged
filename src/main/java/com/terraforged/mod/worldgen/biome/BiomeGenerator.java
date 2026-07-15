@@ -2,6 +2,7 @@ package com.terraforged.mod.worldgen.biome;
 
 import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Generator;
+import com.terraforged.mod.worldgen.biome.BiomeQuartAuthority;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
@@ -103,6 +104,9 @@ public class BiomeGenerator {
         }
         if (GenerationFeatureGates.riverShoreBiomeClipEnabled) {
             RiverShoreBiomeClip.clip(chunk, generator, terrain);
+        }
+        if (GenerationFeatureGates.biomeQuartAuthorityEnabled) {
+            BiomeQuartAuthority.finalizeForDecorate(chunk, generator, carver);
         }
         this.featureDecorator.decorate(chunk, featureLevel, structures, terrainFuture, generator, false);
         Surface.smoothWater(chunk, region, terrain);

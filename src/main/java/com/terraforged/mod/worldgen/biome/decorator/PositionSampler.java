@@ -79,6 +79,10 @@ public class PositionSampler {
                 offset = PositionSampler.placeVanillaVegetationGrid(seed, offset + i, x, z, context);
                 continue;
             }
+            if (GenerationFeatureGates.tfVegetationGridOptInOnly && !PositionSampler.usesTfVegetationGrid(biome, config)) {
+                offset = PositionSampler.placeVanillaVegetationGrid(seed, offset + i, x, z, context);
+                continue;
+            }
             if (config == VegetationConfig.NONE) {
                 if (modBiome) {
                     offset = PositionSampler.sample(seed, offset + i, x, z, 0.16f, 0.55f, context, PositionSampler::placeModAt);
@@ -369,6 +373,17 @@ public class PositionSampler {
             }
         }
         return offset;
+    }
+
+    /** P4#23: TF grid only for TF-native biomes with explicit VegetationConfig. */
+    static boolean usesTfVegetationGrid(Holder<Biome> biome, VegetationConfig config) {
+        if (config == null || config == VegetationConfig.NONE) {
+            return false;
+        }
+        return biome.unwrapKey().map(key -> {
+            String ns = key.location().getNamespace();
+            return "minecraft".equals(ns) || "newterraforged".equals(ns) || "terraforged".equals(ns);
+        }).orElse(false);
     }
 
     /** Biome JSON vegetation via vanilla {@code placeWithBiomeCheck} on a chunk grid (Terralith/BOP/RU). */
