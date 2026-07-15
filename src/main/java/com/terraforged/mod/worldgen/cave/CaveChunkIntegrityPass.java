@@ -1,6 +1,7 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.TerraForged;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
@@ -19,6 +20,9 @@ public final class CaveChunkIntegrityPass {
     }
 
     public static boolean enabled() {
+        if (!GenerationFeatureGates.chunkIntegrityPassEnabled) {
+            return false;
+        }
         return com.terraforged.mod.platform.forge.TFCaveBiomeConfig.INSTANCE != null
                 && com.terraforged.mod.platform.forge.TFCaveBiomeConfig.INSTANCE.enableChunkIntegrityRestorer;
     }

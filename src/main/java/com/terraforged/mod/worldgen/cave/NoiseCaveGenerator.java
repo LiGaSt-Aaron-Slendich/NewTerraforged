@@ -3,6 +3,7 @@ package com.terraforged.mod.worldgen.cave;
 import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.platform.forge.TFCaveSystemConfig;
 import com.terraforged.mod.util.storage.ObjectPool;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDensityBudget;
@@ -132,7 +133,7 @@ public class NoiseCaveGenerator {
                 CaveTunnelRiverDecorator.decorate(chunk, carver, guarded, generator);
             }
         }
-        if (megaGiga) {
+        if (megaGiga && GenerationFeatureGates.caveFloatingCrustStripEnabled) {
             CaveFloatingCrustStrip.stripMegaGigaChunk(chunk, carver, columns);
         }
     }
@@ -444,6 +445,9 @@ public class NoiseCaveGenerator {
     }
 
     private static boolean isSynapseEnabled() {
+        if (!GenerationFeatureGates.synapseCavesEnabled) {
+            return false;
+        }
         if (TFCaveSystemConfig.INSTANCE == null) {
             return false;
         }
@@ -472,8 +476,14 @@ public class NoiseCaveGenerator {
     }
 
     private static boolean isCaveEnabled(NoiseCave cave) {
+        if (cave.getType() == CaveType.MEGA || cave.getType() == CaveType.GIGA) {
+            return GenerationFeatureGates.megaGigaCavesEnabled;
+        }
         if (cave.getType() != CaveType.GLOBAL) {
             return true;
+        }
+        if (!GenerationFeatureGates.synapseCavesEnabled) {
+            return false;
         }
         if (TFCaveSystemConfig.INSTANCE == null) {
             return false;

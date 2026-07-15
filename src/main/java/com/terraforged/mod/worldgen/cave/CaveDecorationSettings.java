@@ -1,6 +1,7 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 
 /**
  * Toggle between compromise, vanilla, and legacy cave decoration passes.
@@ -23,6 +24,9 @@ public final class CaveDecorationSettings {
     }
 
     public static boolean useCompromiseDecorator() {
+        if (!GenerationFeatureGates.compromiseCaveDecoratorsEnabled) {
+            return false;
+        }
         TFCaveBiomeConfig cfg = TFCaveBiomeConfig.INSTANCE;
         if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
             return false;
@@ -31,11 +35,17 @@ public final class CaveDecorationSettings {
     }
 
     public static boolean useVanillaPass() {
+        if (!GenerationFeatureGates.vanillaCavePassEnabled) {
+            return false;
+        }
         TFCaveBiomeConfig cfg = TFCaveBiomeConfig.INSTANCE;
         return cfg != null && cfg.useVanillaCavePass && !CaveDecorationSettings.useOfficialTfDecorator() && !CaveDecorationSettings.useCompromiseDecorator();
     }
 
     public static boolean useLegacyDecorators() {
+        if (!GenerationFeatureGates.legacyCaveDecoratorsEnabled) {
+            return false;
+        }
         TFCaveBiomeConfig cfg = TFCaveBiomeConfig.INSTANCE;
         if (cfg == null || !cfg.useLegacyCaveDecorators || CaveDecorationSettings.useOfficialTfDecorator()) {
             return false;

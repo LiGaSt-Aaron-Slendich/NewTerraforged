@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.biome;
 
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
@@ -97,7 +98,9 @@ public class BiomeGenerator {
         WorldGenLevel featureLevel = ChunkScopedWorldGenLevel.wrap(region, chunk, ChunkScopedWorldGenLevel.FEATURE_PLACEMENT_RADIUS);
         CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
         // Plug buggy river/lake shafts from terrain — before NoiseCave block carve, not caused by it.
-        CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
+        if (GenerationFeatureGates.riverVoidFillEnabled) {
+            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
+        }
         if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
             this.noiseCaveGenerator.applyCarveBlocks(chunk, generator);
             carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
@@ -105,7 +108,9 @@ public class BiomeGenerator {
         this.featureDecorator.decorate(chunk, featureLevel, structures, terrainFuture, generator, false);
         Surface.smoothWater(chunk, region, terrain);
         Surface.applyPost(chunk, terrain, generator);
-        RiverShoreBiomeClip.clip(chunk, generator, terrain);
+        if (GenerationFeatureGates.riverShoreBiomeClipEnabled) {
+            RiverShoreBiomeClip.clip(chunk, generator, terrain);
+        }
         this.featureDecorator.placeStructures(chunk, featureLevel, structures, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);
