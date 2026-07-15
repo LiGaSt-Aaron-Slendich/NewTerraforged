@@ -1,0 +1,2 @@
+Summary for C:\Users\Апро\Projects\NewTerraForged-1.18.2\NewTerraforged\libs\Terraforged.jar
+Decompiled with CFR 0.152

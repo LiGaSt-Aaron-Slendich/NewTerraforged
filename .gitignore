@@ -51,3 +51,7 @@ tmp_decompile/
 # Stray config copies at repo root (real ones live in Forge/main/resources)
 /cave-biomes.toml
 /caves.toml
+
+# Local reference mod clones (large; see docs/reference-mods/README.md)
+docs/reference-mods/*/
+!docs/reference-mods/README.md
