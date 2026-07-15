@@ -201,6 +201,7 @@ Command: `/newtf debug cave save` — **At feet | At anchor**.
 
 ## 9. Related docs
 
+- [`2026-07-15-decoration-systems-audit.md`](2026-07-15-decoration-systems-audit.md) — full decoration systems study + fix plan
 - `docs/retro-sessions/2026-07-03-cave-decor.md`
 - `docs/biome-terrain-review.md`
 - `.cursor/rules/cave-work-retro.mdc`
