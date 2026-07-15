@@ -14,8 +14,8 @@ public final class GenerationFeatureGates {
     public static boolean vanillaCavePassEnabled = true;
     /** Master off for synapse/GLOBAL caves (in addition to caves.toml). */
     public static boolean synapseCavesEnabled = true;
-    /** Post-decor floating soil/tree crust strip on mega/giga chunks. */
-    public static boolean caveFloatingCrustStripEnabled = true;
+    /** Post-decor floating soil/tree crust strip on mega/giga chunks (off — strip after decor caused cut/floating surface features). */
+    public static boolean caveFloatingCrustStripEnabled = false;
     /** MEGA/GIGA NoiseCave block carving. */
     public static boolean megaGigaCavesEnabled = true;
     /** Post-carve river/lake void fill ({@link com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair}). */

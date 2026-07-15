@@ -37,7 +37,7 @@ public final class CarveDecisionDiagnostics {
         } else if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
             report.add("NoiseCave block carve: deferred — restoreRiverDepressions first, then applyCarveBlocks, then features");
         } else {
-            report.add("NoiseCave block carve: AIR step, then restoreRiverDepressions in same carve() call");
+            report.add("NoiseCave block carve: AIR step (full TerraForged pipeline), river fill in decorate after carve");
         }
         CarverChunk live = generator.peekCaveCarver(chunk.getPos());
         if (live != null && live.isColumnCacheReady()) {

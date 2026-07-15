@@ -6,7 +6,6 @@ import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
-import com.terraforged.mod.worldgen.cave.CaveCarvingGate;
 import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
 import com.terraforged.mod.worldgen.cave.RiverShoreBiomeClip;
 import com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair;
@@ -100,10 +99,6 @@ public class BiomeGenerator {
         // Plug buggy river/lake shafts from terrain — before NoiseCave block carve, not caused by it.
         if (GenerationFeatureGates.riverVoidFillEnabled) {
             CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
-        }
-        if (CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
-            this.noiseCaveGenerator.applyCarveBlocks(chunk, generator);
-            carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
         }
         if (GenerationFeatureGates.riverShoreBiomeClipEnabled) {
             RiverShoreBiomeClip.clip(chunk, generator, terrain);
