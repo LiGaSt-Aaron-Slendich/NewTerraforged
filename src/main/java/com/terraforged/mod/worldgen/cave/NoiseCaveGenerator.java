@@ -114,7 +114,9 @@ public class NoiseCaveGenerator {
         CarverColumnCache columns = carver.columnCache();
         boolean megaGiga = columns.anyMegaGiga();
         WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
-        if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
+        if (CaveDecorationSettings.usePerBiomeDecorators()) {
+            CaveHybridBiomeDecorator.decorateVolume(chunk, carver, guarded, generator);
+        } else if (CaveDecorationSettings.useOfficialTfDecorator()) {
             TerraForgedOfficialCaveDecorator.decorateVolume(chunk, carver, guarded, generator);
         } else if (CaveDecorationSettings.useLegacyDecorators()) {
             CaveBiomeVolumeDecorator.decorateChunk(chunk, carver, guarded, generator);
@@ -148,7 +150,9 @@ public class NoiseCaveGenerator {
         HashSet<Long> decoratedColumns = new HashSet<Long>(128);
         CaveFeaturePlan.Cache planCache = new CaveFeaturePlan.Cache();
         WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
-        if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
+        if (CaveDecorationSettings.usePerBiomeDecorators()) {
+            CaveHybridBiomeDecorator.decorateEntrances(chunk, carver, guarded, generator);
+        } else if (CaveDecorationSettings.useOfficialTfDecorator()) {
             if (carver.hasAnyEntranceColumn()) {
                 CaveEntranceSurfaceDecorator.decorate(chunk, carver, guarded, generator);
                 CaveEntranceVanillaDecorator.decorate(chunk, carver, guarded, generator);

@@ -105,12 +105,12 @@ public class BiomeGenerator {
             this.noiseCaveGenerator.applyCarveBlocks(chunk, generator);
             carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
         }
-        this.featureDecorator.decorate(chunk, featureLevel, structures, terrainFuture, generator, false);
-        Surface.smoothWater(chunk, region, terrain);
-        Surface.applyPost(chunk, terrain, generator);
         if (GenerationFeatureGates.riverShoreBiomeClipEnabled) {
             RiverShoreBiomeClip.clip(chunk, generator, terrain);
         }
+        this.featureDecorator.decorate(chunk, featureLevel, structures, terrainFuture, generator, false);
+        Surface.smoothWater(chunk, region, terrain);
+        Surface.applyPost(chunk, terrain, generator);
         this.featureDecorator.placeStructures(chunk, featureLevel, structures, generator);
         this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
         Surface.repairExposedCover(chunk, region, generator, terrain, carver);

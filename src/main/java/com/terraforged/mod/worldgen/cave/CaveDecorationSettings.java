@@ -12,7 +12,7 @@ public final class CaveDecorationSettings {
 
     public static boolean usePerBiomeDecorators() {
         TFCaveBiomeConfig cfg = TFCaveBiomeConfig.INSTANCE;
-        return cfg == null || cfg.usePerBiomeDecorators;
+        return cfg != null && cfg.usePerBiomeDecorators;
     }
 
     public static boolean useOfficialTfDecorator() {
@@ -54,7 +54,10 @@ public final class CaveDecorationSettings {
     }
 
     public static String activeModeLabel() {
-        if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
+        if (CaveDecorationSettings.usePerBiomeDecorators()) {
+            return "hybrid";
+        }
+        if (CaveDecorationSettings.useOfficialTfDecorator()) {
             return "official";
         }
         if (CaveDecorationSettings.useLegacyDecorators()) {

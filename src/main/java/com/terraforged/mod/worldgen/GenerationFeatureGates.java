@@ -24,6 +24,10 @@ public final class GenerationFeatureGates {
     public static boolean riverShoreBiomeClipEnabled = true;
     /** Full-chunk integrity re-decorate pass ({@link com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass}). */
     public static boolean chunkIntegrityPassEnabled = false;
+    /** Dispatch Terralith/BOP/etc. surface rules via TerraBlender registry when TB is loaded. */
+    public static boolean namespacedModSurfaceRulesEnabled = true;
+    /** External mod biomes use biome JSON + vanilla placement; TF grid only for newterraforged/terraforged/minecraft. */
+    public static boolean useVanillaVegetationOnlyForModBiomes = true;
 
     private GenerationFeatureGates() {
     }

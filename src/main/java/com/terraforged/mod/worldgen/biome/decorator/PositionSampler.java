@@ -1,5 +1,7 @@
 package com.terraforged.mod.worldgen.biome.decorator;
 
+import com.terraforged.mod.compat.ModBiomeIntegration;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.VegetationConfig;
@@ -73,6 +75,10 @@ public class PositionSampler {
             VegetationConfig config = vegetation.config;
             boolean modBiome = biome.unwrapKey().map(key -> !"minecraft".equals(key.location().getNamespace())).orElse(true);
             context.push((Biome)biome.value(), vegetation, modBiome);
+            if (GenerationFeatureGates.useVanillaVegetationOnlyForModBiomes && ModBiomeIntegration.isExternalModBiome(biome)) {
+                offset = PositionSampler.placeVanillaVegetationGrid(seed, offset + i, x, z, context);
+                continue;
+            }
             if (config == VegetationConfig.NONE) {
                 if (modBiome) {
                     offset = PositionSampler.sample(seed, offset + i, x, z, 0.16f, 0.55f, context, PositionSampler::placeModAt);
@@ -143,6 +149,7 @@ public class PositionSampler {
         if (vegetation.features.other().length == 0) {
             return;
         }
+        ChunkAccess chunk = level.getChunk(origin);
         boolean modBiome = biome.unwrapKey().map(key -> !"minecraft".equals(key.location().getNamespace())).orElse(true);
         if (!modBiome) {
             for (PlacedFeature other : vegetation.features.other()) {
@@ -152,7 +159,10 @@ public class PositionSampler {
             }
             return;
         }
-        ChunkAccess chunk = level.getChunk(origin);
+        if (GenerationFeatureGates.useVanillaVegetationOnlyForModBiomes && ModBiomeIntegration.isExternalModBiome(biome)) {
+            offset = PositionSampler.placeVanillaOtherGrid(seed, offset, chunk, level, generator, random, biome, vegetation);
+            return;
+        }
         int chunkMinX = chunk.getPos().getMinBlockX();
         int chunkMinZ = chunk.getPos().getMinBlockZ();
         for (int dz = 0; dz < 16; dz += 4) {
@@ -355,6 +365,83 @@ public class PositionSampler {
                     random.setFeatureSeed(seed, offset, VegetationFeatures.STAGE);
                     if (!FeatureDensity.tryPlace(feature, context.featureBudget, dx, dz, region, generator, (Random)random, (BlockPos)pos, context.modBiome)) continue;
                     ++offset;
+                }
+            }
+        }
+        return offset;
+    }
+
+    /** Biome JSON vegetation via vanilla {@code placeWithBiomeCheck} on a chunk grid (Terralith/BOP/RU). */
+    private static int placeVanillaVegetationGrid(long seed, int offset, int chunkMinX, int chunkMinZ, SamplerContext context) {
+        ChunkAccess chunk = context.chunk;
+        WorldGenLevel region = context.region;
+        Generator generator = context.generator;
+        WorldgenRandom random = context.random;
+        BlockPos.MutableBlockPos pos = context.pos;
+        for (int dz = 0; dz < 16; dz += COVER_GRID_STEP) {
+            for (int dx = 0; dx < 16; dx += COVER_GRID_STEP) {
+                if (context.terrainData().getRiver().get(dx, dz) < MOD_RIVER_CUTOFF) {
+                    continue;
+                }
+                int x = chunkMinX + dx;
+                int z = chunkMinZ + dz;
+                int y = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                if (y <= generator.getSeaLevel()) {
+                    continue;
+                }
+                pos.set(x, y, z);
+                if (region.getBiome((BlockPos)pos).value() != context.biome) {
+                    continue;
+                }
+                if (CavePlacementFilter.shouldSkipTree(generator, chunk, x, y, z)) {
+                    continue;
+                }
+                for (PlacedFeature feature : context.features.trees()) {
+                    random.setFeatureSeed(seed, offset + dx * 3 + dz, VegetationFeatures.STAGE);
+                    if (FeaturePlacement.place(feature, region, (ChunkGenerator)generator, (Random)random, (BlockPos)pos, false)) {
+                        ++offset;
+                        break;
+                    }
+                }
+                for (PlacedFeature feature : context.features.grass()) {
+                    random.setFeatureSeed(seed, offset + dx * 5 + dz, VegetationFeatures.STAGE);
+                    if (FeaturePlacement.place(feature, region, (ChunkGenerator)generator, (Random)random, (BlockPos)pos, false)) {
+                        ++offset;
+                        break;
+                    }
+                }
+            }
+        }
+        return offset;
+    }
+
+    private static int placeVanillaOtherGrid(long seed, int offset, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, Holder<Biome> biome, BiomeVegetation vegetation) {
+        PlacedFeature[] others = vegetation.features.other();
+        if (others.length == 0) {
+            return offset;
+        }
+        int chunkMinX = chunk.getPos().getMinBlockX();
+        int chunkMinZ = chunk.getPos().getMinBlockZ();
+        for (int dz = 0; dz < 16; dz += 4) {
+            block2:
+            for (int dx = 0; dx < 16; dx += 4) {
+                int x = chunkMinX + dx;
+                int z = chunkMinZ + dz;
+                int y = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                if (y <= generator.getSeaLevel()) {
+                    continue;
+                }
+                BlockPos pos = new BlockPos(x, y, z);
+                if (!level.getBiome(pos).equals(biome)) {
+                    continue;
+                }
+                for (PlacedFeature other : others) {
+                    random.setFeatureSeed(seed, offset, VegetationFeatures.STAGE);
+                    if (!FeaturePlacement.place(other, level, (ChunkGenerator)generator, (Random)random, pos, false)) {
+                        continue;
+                    }
+                    ++offset;
+                    continue block2;
                 }
             }
         }

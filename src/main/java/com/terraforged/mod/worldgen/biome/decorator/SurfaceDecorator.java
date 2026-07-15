@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.biome.decorator;
 
+import com.terraforged.mod.compat.TerraBlenderSurfaceRules;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
@@ -25,7 +26,7 @@ public class SurfaceDecorator {
         WorldGenerationContext context = new WorldGenerationContext((ChunkGenerator)generator, (LevelHeightAccessor)region);
         NoiseChunk noiseChunk = NoiseChunkUtil.getNoiseChunk(chunk, generator);
         NoiseGeneratorSettings settings = (NoiseGeneratorSettings)generator.getVanillaGen().getSettings().value();
-        SurfaceRules.RuleSource surfaceRules = settings.surfaceRule();
+        SurfaceRules.RuleSource surfaceRules = TerraBlenderSurfaceRules.wrap(settings.surfaceRule());
         Registry<Biome> biomes = generator.getBiomeSource().getRegistry();
         BiomeManager biomeManager = region.getBiomeManager();
         SurfaceSystem surfaceSystem = generator.getVanillaGen().getSurfaceSystem();
