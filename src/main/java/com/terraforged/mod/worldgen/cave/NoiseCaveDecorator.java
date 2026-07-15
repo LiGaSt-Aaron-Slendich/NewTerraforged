@@ -1,6 +1,7 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDensityBudget;
@@ -175,11 +176,18 @@ public class NoiseCaveDecorator {
         boolean ceiling = anchor == CaveFeatureRules.Anchor.CEILING;
         int placedOnCeiling = 0;
         for (CaveFeaturePlan.StageFeature entry : candidates) {
-            if (FeatureMassClassifier.spawnsSurfaceVegetation(entry.feature()) || !CaveFeaturePlacement.mayPlace(entry.feature(), anchor, airPos, chunk) || !budget.canPlace(entry.mass(), localX, localZ)) continue;
+            if (FeatureMassClassifier.spawnsSurfaceVegetation(entry.feature()) || !CaveFeaturePlacement.mayPlace(entry.feature(), anchor, airPos, chunk)) {
+                continue;
+            }
+            if (GenerationFeatureGates.featureDensityBudgetEnabled && !budget.canPlace(entry.mass(), localX, localZ)) {
+                continue;
+            }
             BlockPos placePos = CaveFeaturePlacement.resolveWorldPos(airPos, anchor, entry.topLayer());
             random.setFeatureSeed(baseSeed, entry.featureIndex(), entry.stageIndex());
             if (!NoiseCaveDecorator.placeFeature(entry.feature(), placement, generator, random, placePos)) continue;
-            budget.record(entry.mass(), localX, localZ);
+            if (GenerationFeatureGates.featureDensityBudgetEnabled) {
+                budget.record(entry.mass(), localX, localZ);
+            }
             if (ceiling && megaGiga && ++placedOnCeiling >= 3) break;
         }
     }

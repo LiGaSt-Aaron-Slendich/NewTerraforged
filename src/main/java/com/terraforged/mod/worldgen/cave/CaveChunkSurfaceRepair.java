@@ -1,6 +1,7 @@
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.engine.world.terrain.Terrain;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
@@ -365,10 +366,12 @@ public final class CaveChunkSurfaceRepair {
                         water, pos, fillSeed, layerCache);
             }
         }
-        CaveChunkSurfaceRepair.fillRiverZoneSubsurfaceVoids(chunk, carver, terrain, level, fillCtx, sea, minY, fillSeed,
-                layerCache);
-        CaveChunkSurfaceRepair.terraceRiverBankProfiles(chunk, carver, terrain, level, fillCtx, sea, minY, fillSeed,
-                layerCache);
+        if (GenerationFeatureGates.riverZoneAggressiveFillEnabled) {
+            CaveChunkSurfaceRepair.fillRiverZoneSubsurfaceVoids(chunk, carver, terrain, level, fillCtx, sea, minY, fillSeed,
+                    layerCache);
+            CaveChunkSurfaceRepair.terraceRiverBankProfiles(chunk, carver, terrain, level, fillCtx, sea, minY, fillSeed,
+                    layerCache);
+        }
         ChunkUtil.refreshHeightmaps(chunk);
     }
 
@@ -416,6 +419,9 @@ public final class CaveChunkSurfaceRepair {
                 if (!CaveChunkSurfaceRepair.columnHasSubsurfaceVoid(chunk, lx, lz, fillBottom, fillTop)) {
                     continue;
                 }
+                if (CaveChunkSurfaceRepair.columnIntersectsOpenCave(chunk, lx, lz, fillBottom, fillTop)) {
+                    continue;
+                }
                 BlockState surfaceCover = RiverVoidStrataFill.sampleSurfaceCover(level, chunk, lx, lz, surfaceY);
                 BlockState subsurfaceFill = RiverVoidStrataFill.sampleSubsurfaceFill(level, chunk, lx, lz, surfaceY);
                 for (int y = fillBottom; y <= fillTop; ++y) {
@@ -457,7 +463,8 @@ public final class CaveChunkSurfaceRepair {
             return false;
         }
         if (current.isAir()) {
-            return !CaveChunkSurfaceRepair.isOpenWaterLevelGap(chunk, level, lx, y, lz, wx, wz, refWaterY);
+            return !CaveChunkSurfaceRepair.isOpenWaterLevelGap(chunk, level, lx, y, lz, wx, wz, refWaterY)
+                    && !CaveChunkSurfaceRepair.isConnectedCaveAir(chunk, lx, y, lz);
         }
         if (!current.getFluidState().is(Fluids.WATER)) {
             return false;
@@ -741,6 +748,7 @@ public final class CaveChunkSurfaceRepair {
         if (plugTop < plugFloor) {
             return;
         }
+        boolean caveBelow = CaveChunkSurfaceRepair.hasCaveChamberBelow(chunk, lx, lz, bedY);
         for (int y = plugTop; y >= plugFloor; --y) {
             pos.set(lx, y, lz);
             BlockState current = chunk.getBlockState(pos);
@@ -761,11 +769,43 @@ public final class CaveChunkSurfaceRepair {
                 if (current.isAir()) {
                     chunk.setBlockState(pos, gravel, false);
                 }
-            } else {
+            } else if (!caveBelow) {
                 chunk.setBlockState(pos,
                         RiverVoidStrataFill.pickStoneFill(sampler, chunk, lx, y, lz, fillSeed, layerCache), false);
             }
         }
+    }
+
+    /** Horizontal air pocket — cave chamber, not a vertical river shaft. */
+    private static boolean isConnectedCaveAir(ChunkAccess chunk, int lx, int y, int lz) {
+        int airNeighbors = 0;
+        int[][] offsets = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] offset : offsets) {
+            int nx = lx + offset[0];
+            int nz = lz + offset[1];
+            if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16) {
+                continue;
+            }
+            if (chunk.getBlockState(new BlockPos(nx, y, nz)).isAir()) {
+                ++airNeighbors;
+            }
+        }
+        return airNeighbors >= 2;
+    }
+
+    /** Skip columns where fill band intersects an open cave pocket (not a narrow shaft). */
+    private static boolean columnIntersectsOpenCave(ChunkAccess chunk, int lx, int lz, int fillBottom, int fillTop) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int y = fillBottom; y <= fillTop; ++y) {
+            pos.set(lx, y, lz);
+            if (!chunk.getBlockState(pos).isAir()) {
+                continue;
+            }
+            if (CaveChunkSurfaceRepair.isConnectedCaveAir(chunk, lx, y, lz)) {
+                return true;
+            }
+        }
+        return CaveChunkSurfaceRepair.hasCaveChamberBelow(chunk, lx, lz, fillTop);
     }
 
     private static boolean mayModifyRiverColumn(int lx, int y, int lz, int bedY, int waterY) {

@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.biome.decorator;
 
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDensityBudget;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureMass;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureMassClassifier;
@@ -16,6 +17,12 @@ public final class FeatureDensity {
     }
 
     public static boolean tryPlace(PlacedFeature feature, FeatureDensityBudget budget, int localX, int localZ, WorldGenLevel level, ChunkGenerator generator, Random random, BlockPos pos, boolean modBiome) {
+        if (!GenerationFeatureGates.featureDensityBudgetEnabled) {
+            if (FeatureMassClassifier.isTree(feature) && !FeaturePlacement.hasStableGround((BlockGetter)level, pos, 2)) {
+                return false;
+            }
+            return FeaturePlacement.place(feature, level, generator, random, pos, modBiome);
+        }
         FeatureMass mass = FeatureMassClassifier.classify(feature);
         if (mass == FeatureMass.BLOCKED || !budget.canPlace(mass, localX, localZ)) {
             return false;

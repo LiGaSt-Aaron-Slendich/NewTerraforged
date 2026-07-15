@@ -27,15 +27,19 @@ public final class GenerationFeatureGates {
     /** Dispatch Terralith/BOP/etc. surface rules via TerraBlender registry when TB is loaded. */
     public static boolean namespacedModSurfaceRulesEnabled = true;
     /** External mod biomes use biome JSON + vanilla placement; TF grid only for newterraforged/terraforged/minecraft. */
-    public static boolean useVanillaVegetationOnlyForModBiomes = true;
+    public static boolean useVanillaVegetationOnlyForModBiomes = false;
     /** P4#21: per-quart TB-style feature placement for pre/post decoration stages. */
-    public static boolean terraBlenderChunkBiomeDecorEnabled = true;
+    public static boolean terraBlenderChunkBiomeDecorEnabled = false;
     /** P4#22: one surface-quart restore pass after shore clip, before features. */
-    public static boolean biomeQuartAuthorityEnabled = true;
+    public static boolean biomeQuartAuthorityEnabled = false;
     /** P4#23: TF vegetation grid only when biome has explicit VegetationConfig in TOML (not NONE). */
-    public static boolean tfVegetationGridOptInOnly = true;
+    public static boolean tfVegetationGridOptInOnly = false;
     /** P4#20: boost weight for biomes registered via TerraBlender regions. */
     public static boolean terraBlenderRegionBiomeBoostEnabled = true;
+    /** Custom per-subcell feature cap (surface + cave) — off restores unconstrained placement. */
+    public static boolean featureDensityBudgetEnabled = false;
+    /** Wide river-zone subsurface void fill — off keeps bed-column plug + water top-up only. */
+    public static boolean riverZoneAggressiveFillEnabled = false;
 
     private GenerationFeatureGates() {
     }

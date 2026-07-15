@@ -161,6 +161,11 @@ public final class RiverVoidStrataFill {
         }
         List<Map.Entry<Block, Integer>> ranked = new ArrayList<>(counts.entrySet());
         ranked.sort(Comparator.comparingInt(Map.Entry<Block, Integer>::getValue).reversed());
+        ranked.removeIf(entry -> RiverVoidStrataFill.isOreOrWrongFill(entry.getKey().defaultBlockState()));
+        if (ranked.isEmpty()) {
+            BlockState fallback = RiverVoidStrataFill.fallbackNear(level, chunk, centerX, y, centerZ);
+            return new LayerPalette(fallback, new BlockState[0]);
+        }
         BlockState primary = ranked.get(0).getKey().defaultBlockState();
         int accentCount = Math.min(2, ranked.size() - 1);
         BlockState[] accents = new BlockState[accentCount];
@@ -190,6 +195,9 @@ public final class RiverVoidStrataFill {
 
     /** Decorative cave leaks — never sample as fill material (avoids lichen/vine mixtures in void plugs). */
     private static boolean isDecorativeFillExcluded(BlockState state) {
+        if (RiverVoidStrataFill.isOreOrWrongFill(state)) {
+            return true;
+        }
         if (state.is(Blocks.GLOW_LICHEN) || state.is(Blocks.VINE) || state.is(Blocks.CAVE_VINES)
                 || state.is(Blocks.CAVE_VINES_PLANT) || state.is(Blocks.TWISTING_VINES)
                 || state.is(Blocks.TWISTING_VINES_PLANT) || state.is(Blocks.WEEPING_VINES)
@@ -201,6 +209,26 @@ public final class RiverVoidStrataFill {
             return true;
         }
         return state.is(BlockTags.CLIMBABLE) || state.is(BlockTags.CORAL_PLANTS);
+    }
+
+    /** Ores and cave decor must never be copied into river void plugs. */
+    static boolean isOreOrWrongFill(BlockState state) {
+        if (state.is(BlockTags.COAL_ORES) || state.is(BlockTags.IRON_ORES) || state.is(BlockTags.COPPER_ORES)
+                || state.is(BlockTags.GOLD_ORES) || state.is(BlockTags.LAPIS_ORES)
+                || state.is(BlockTags.REDSTONE_ORES) || state.is(BlockTags.DIAMOND_ORES)
+                || state.is(BlockTags.EMERALD_ORES)) {
+            return true;
+        }
+        if (state.is(Blocks.MOSS_BLOCK) || state.is(Blocks.DRIPSTONE_BLOCK) || state.is(Blocks.POINTED_DRIPSTONE)
+                || state.is(Blocks.AMETHYST_BLOCK) || state.is(Blocks.BUDDING_AMETHYST)
+                || state.is(Blocks.AMETHYST_CLUSTER) || state.is(Blocks.LARGE_AMETHYST_BUD)
+                || state.is(Blocks.MEDIUM_AMETHYST_BUD) || state.is(Blocks.SMALL_AMETHYST_BUD)
+                || state.is(Blocks.RAW_IRON_BLOCK) || state.is(Blocks.RAW_GOLD_BLOCK)
+                || state.is(Blocks.RAW_COPPER_BLOCK)) {
+            return true;
+        }
+        String path = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(state.getBlock()).getPath();
+        return path.contains("ore") || path.contains("raw_") && path.contains("block");
     }
 
     static boolean isSurfaceCoverCandidate(BlockState state) {
