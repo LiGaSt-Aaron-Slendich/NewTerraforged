@@ -1,6 +1,7 @@
 package com.terraforged.mod.worldgen.biome;
 
 import com.terraforged.engine.world.biome.type.BiomeType;
+import com.terraforged.mod.compat.TerraBlenderBiomeAuthority;
 import com.terraforged.mod.util.storage.WeightMap;
 import com.terraforged.mod.worldgen.biome.IBiomeSampler;
 import com.terraforged.mod.worldgen.biome.util.BiomeMapManager;
@@ -25,15 +26,24 @@ implements IBiomeSampler {
 
     public Holder<Biome> sampleBiome(int seed, int x, int z) {
         ClimateSample sample = this.getSample(seed, x, z);
-        WeightMap<Holder<Biome>> pool = this.biomeMapManager.getBiomeMap().get(sample.climateType);
-        Holder<Biome> biome = this.getInitialBiome(sample.biomeNoise, sample.climateType);
-        biome = BiomeTerrainIntegration.filter(biome, sample.terrainType.getName(), pool);
+        Holder<Biome> biome;
+        if (TerraBlenderBiomeAuthority.isActive()) {
+            // TB region ParameterPoints own distribution; TF weight maps sleep.
+            biome = TerraBlenderBiomeAuthority.sampleSurface(sample);
+        } else {
+            WeightMap<Holder<Biome>> pool = this.biomeMapManager.getBiomeMap().get(sample.climateType);
+            biome = this.getInitialBiome(sample.biomeNoise, sample.climateType);
+            biome = BiomeTerrainIntegration.filter(biome, sample.terrainType.getName(), pool);
+        }
         return this.getBiomeOverride(biome, sample);
     }
 
     /** Land biome without river/lake/ocean/beach overrides — for shore re-paint. */
     public Holder<Biome> sampleLandBiome(int seed, int x, int z) {
         ClimateSample sample = this.getSample(seed, x, z);
+        if (TerraBlenderBiomeAuthority.isActive()) {
+            return TerraBlenderBiomeAuthority.sampleSurface(sample);
+        }
         WeightMap<Holder<Biome>> pool = this.biomeMapManager.getBiomeMap().get(sample.climateType);
         Holder<Biome> biome = this.getInitialBiome(sample.biomeNoise, sample.climateType);
         return BiomeTerrainIntegration.filter(biome, sample.terrainType.getName(), pool);

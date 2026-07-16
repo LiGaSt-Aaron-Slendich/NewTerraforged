@@ -335,7 +335,8 @@ public final class CaveBiomeIds {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom") || path.contains("bioshroom");
+        return path.contains("fungal") || path.contains("mycotoxic") || path.contains("glowshroom")
+                || path.contains("bioshroom") || path.contains("glowing_grotto") || path.contains("mushroom");
     }
 
     public static boolean isFungalCaveBiome(Holder<Biome> biome) {

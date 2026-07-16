@@ -405,13 +405,20 @@ public class CarverChunk {
 
     public float getCarvingMask(int seed, int x, int z, boolean megaGiga) {
         float noise = CaveNoise.sample(this.mask, seed, x, z);
-        if (megaGiga || this.terrainData == null) {
-            return 1.0f - noise;
+        float breach = 1.0f - noise;
+        if (this.terrainData == null) {
+            return breach;
         }
         int localX = x & 0xF;
         int localZ = z & 0xF;
-        float river = this.terrainData.getRiver().get(localX, localZ);
-        return 1.0f - noise * river * 0.45f;
+        // TerrainData river: ~0 in channel/bed, ~1 on dry land (same as BiomeSampler).
+        // Scale breach by land factor so rivers get no surface-drop / no roof pierce.
+        // Applies to MEGA/GIGA too (previously ignored river → shafts under rivers).
+        float land = Math.max(0.0f, Math.min(1.0f, this.terrainData.getRiver().get(localX, localZ)));
+        if (land < 0.75f) {
+            land *= land;
+        }
+        return breach * land;
     }
 
     private Holder<Biome> getFullRegionBiome(int x, int z, int blockY, NoiseCave config, Generator generator) {

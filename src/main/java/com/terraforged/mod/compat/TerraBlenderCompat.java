@@ -43,6 +43,7 @@ public final class TerraBlenderCompat {
         }
         if (server != null && terraBlenderLoaded) {
             TerraBlenderRegionBridge.onWorldLoad(server);
+            TerraBlenderBiomeAuthority.onWorldLoad(server);
         }
         TerraForged.LOG.info("NewTerraForged generator active with{}{}", (terraBlenderLoaded ? " TerraBlender" : ""), (terralithLoaded ? " Terralith" : ""));
     }

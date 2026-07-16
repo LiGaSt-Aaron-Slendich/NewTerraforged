@@ -112,6 +112,8 @@ public final class DynamicTreesCompat {
             return true;
         }
         String name = state.getBlock().getDescriptionId().toLowerCase();
-        return name.contains("mycel") || name.contains("bioshroom") || name.contains("fung") && name.contains("block") || name.contains("mulch") || name.contains("peat");
+        return name.contains("mycel") || name.contains("bioshroom") || name.contains("fung") && name.contains("block")
+                || name.contains("mulch") || name.contains("peat") || name.contains("glow") && name.contains("dirt")
+                || name.contains("nylium") || name.contains("humus");
     }
 }

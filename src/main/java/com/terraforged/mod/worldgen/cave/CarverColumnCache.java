@@ -178,7 +178,8 @@ final class CarverColumnCache {
         if (river >= 0.90f) {
             return false;
         }
-        return river < 0.72f;
+        // Wider corridor than before — elevated rivers / banks still tunnel without this.
+        return river < 0.82f;
     }
 
     boolean riverCarveBlocked(int dx, int dz) {

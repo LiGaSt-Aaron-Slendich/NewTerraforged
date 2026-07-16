@@ -40,6 +40,11 @@ public final class GenerationFeatureGates {
     public static boolean featureDensityBudgetEnabled = false;
     /** Wide river-zone subsurface void fill — off keeps bed-column plug + water top-up only. */
     public static boolean riverZoneAggressiveFillEnabled = false;
+    /**
+     * When TerraBlender is loaded: paint biomes via TB region ParameterPoints (disables TF BiomeSampler
+     * weight maps as the paint authority). Terrain/carve stay NewTerraForged.
+     */
+    public static boolean terraBlenderBiomeAuthorityEnabled = true;
 
     private GenerationFeatureGates() {
     }

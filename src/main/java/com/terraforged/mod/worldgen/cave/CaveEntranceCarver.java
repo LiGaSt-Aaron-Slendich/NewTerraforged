@@ -191,6 +191,12 @@ public final class CaveEntranceCarver {
         if (dx < 0 || dx > 15 || dz < 0 || dz > 15) {
             return;
         }
+        if (carver.isColumnCacheReady() && carver.columnCache().riverCarveBlocked(dx, dz)) {
+            return;
+        }
+        if (carver.terrainData != null && CaveChunkSurfaceRepair.isRiverBedColumn(carver.terrainData, dx, dz)) {
+            return;
+        }
         if (exit && claims.hasExit(key)) {
             if (CaveEntranceCarver.hasSurfaceBreachAtAnchor(chunk, generator, carver, dx, dz, wx, wz)) {
                 return;

@@ -104,6 +104,15 @@ extends BiomeSource {
     }
 
     public Holder<Biome> getUnderGroundBiome(int seed, int x, int z, CaveType type, Holder<Biome> surfaceBiome, int blockY, int surfaceY, int caveCenterX, int caveCenterZ, int caveRadius) {
+        if (com.terraforged.mod.compat.TerraBlenderBiomeAuthority.isActive() && !type.isMegaOrGiga()) {
+            float depth = surfaceY <= 0 ? 0.5f
+                    : Math.max(0.15f, Math.min(1.1f, (float)(surfaceY - blockY) / Math.max(16.0f, (float)surfaceY)));
+            com.terraforged.mod.worldgen.noise.climate.ClimateSample sample = this.biomeSampler.getSample(seed, x, z);
+            Holder<Biome> tb = com.terraforged.mod.compat.TerraBlenderBiomeAuthority.sampleUnderground(sample, depth);
+            if (tb != null) {
+                return tb;
+            }
+        }
         return this.caveBiomeSampler.getUnderGroundBiome(seed, x, z, type, surfaceBiome, blockY, surfaceY, caveCenterX, caveCenterZ, caveRadius);
     }
 
