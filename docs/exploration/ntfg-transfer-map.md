@@ -37,6 +37,8 @@ Tectonic lesson: underground rivers live in density; TF lesson: river lives in c
 | P2.1 | Single underground paint at carve; surface restore only in entrance band | Matches prior cave retro |
 | P2.2 | Do not invent “TB quart decor”; instead ensure painted biome is what feature check sees | Terralith/TB |
 | P2.3 | Optional: import TB region biome IDs into `BiomeMapManager` weights (bridge already started) | Keep terrain NTFG-owned |
+| P2.4 | Fix `TerraBlenderRegionBridge`: real TB API is `LevelUtils.initializeOnServerStart` (not `onServerAboutToStart`); it still **no-ops** for non-`NoiseBasedChunkGenerator` — prefer `Regions.get` + `region.addBiomes` | TB subagent |
+| P2.5 | Depth-aware underground pick (or depth proxy from surfaceY/blockY) so Terralith lush/dripstone/cave ParameterPoints can match | TB depth presets SURFACE / UNDERGROUND / FLOOR |
 
 ---
 

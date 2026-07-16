@@ -32,8 +32,11 @@ Goal: learn how experienced worldgen mods structure landscape, biome paint, and 
 
 ### 1.1 Version note
 
-- `mods.toml`: Forge `[40,)` — same loader band as 1.18.2, but Java uses **1.19-era** names (`RandomState`, `StructureManager`, `Structure` holders).
+- Gradle truth: **MC 1.19** (`minecraft_version = "1.19"`, Forge 41). Folder/mods.toml still say 0.3.x; README/fabric.mod.json “1.18” claims are stale.
+- Java uses **1.19-era** names (`RandomState`, `StructureManager`, `Structure` holders).
+- Cave assets in `ModCaves`: synapse GLOBAL + **mega as UNIQUE** (not the later NTFG MEGA/GIGA type enum).
 - **Do not paste 0.3 classes into NTFG.** Port *ideas*, reimplement against 1.18.2 APIs already in NTFG (`StructureFeatureManager`, etc.).
+- Cave decor “feature dump” is the blueprint for *invoking* biome JSON — NTFG still needs filters/anchors so surface features don’t spam underground (0.3 UNIQUE sampler even comments that UNDERGROUND category filter is TODO).
 
 ### 1.2 Pipeline (clean)
 
