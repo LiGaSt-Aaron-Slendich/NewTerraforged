@@ -1,13 +1,14 @@
 package com.terraforged.mod.worldgen.cave;
 
+import com.terraforged.mod.compat.TerraBlenderBiomeAuthority;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 /**
- * Classifies cave biomes for diagnostics and feature-stage routing.
- * All biomes now go through the unified official TF decorator — this router
- * is kept only for CaveFeatureDiagnostics verdicts and optional per-biome checks.
+ * Classifies cave biomes for hybrid decorator routing.
+ * When TerraBlender owns paint, datapack cave biomes use TF-0.3-style
+ * {@code placeWithBiomeCheck} (VANILLA pass) instead of heavy OFFICIAL filters.
  */
 public final class CaveBiomeDecoratorRouter {
     private CaveBiomeDecoratorRouter() {
@@ -19,6 +20,14 @@ public final class CaveBiomeDecoratorRouter {
             return CaveDecoratorKind.OFFICIAL;
         }
         String path = id.getPath().toLowerCase();
+        // Volcanic / scorching still need OFFICIAL accent + filter routing.
+        if (CaveBiomeIds.isScorchingCaveBiome(id) || CaveBiomeIds.isVolcanicCaveBiome(id)
+                || path.contains("mantle") || path.contains("brimstone") || path.contains("magma")) {
+            return CaveDecoratorKind.OFFICIAL;
+        }
+        if (TerraBlenderBiomeAuthority.isActive() && CaveBiomeDecoratorRouter.isTerraBlenderDatapackCave(id, path)) {
+            return CaveDecoratorKind.VANILLA;
+        }
         if (CaveBiomeDecoratorRouter.isOfficialBiome(path, id)) {
             return CaveDecoratorKind.OFFICIAL;
         }
@@ -26,6 +35,19 @@ public final class CaveBiomeDecoratorRouter {
             return CaveDecoratorKind.VANILLA;
         }
         return CaveDecoratorKind.OFFICIAL;
+    }
+
+    /** Terralith / BOP / RU / BYG / WilderNature cave biomes painted via TB ParameterLists. */
+    private static boolean isTerraBlenderDatapackCave(ResourceLocation id, String path) {
+        String ns = id.getNamespace();
+        if ("terralith".equals(ns) || "biomesoplenty".equals(ns) || "regions_unexplored".equals(ns)
+                || "byg".equals(ns) || "wildernature".equals(ns) || "wythers".equals(ns)) {
+            return path.contains("cave") || path.contains("grotto") || path.contains("fungal")
+                    || path.contains("bioshroom") || path.contains("glowshroom") || path.contains("dripstone")
+                    || path.contains("lush_caves") || path.contains("underground") || path.contains("karst")
+                    || path.contains("prismachasm") || path.contains("mycotoxic") || path.contains("undergarden");
+        }
+        return false;
     }
 
     /** All TF and mod cave biomes — unified official decorator handles feature/tag routing. */

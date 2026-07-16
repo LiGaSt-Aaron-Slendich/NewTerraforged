@@ -33,6 +33,16 @@ public final class CaveFeatureFilters {
         String bPath = ((ResourceKey<Biome>) biomeKey.get()).location().getPath().toLowerCase();
         String fNs = featureId.getNamespace();
         String bNs = ((ResourceKey<Biome>) biomeKey.get()).location().getNamespace();
+        // Same-namespace datapack cave features: trust biome JSON (TB authority softens over-blocking).
+        if (fNs.equals(bNs) && ("terralith".equals(bNs) || "biomesoplenty".equals(bNs) || "regions_unexplored".equals(bNs)
+                || "byg".equals(bNs) || "wildernature".equals(bNs))) {
+            if (fPath.contains("cave/") || fPath.contains("/cave") || fPath.contains("grotto") || fPath.contains("glowshroom")
+                    || fPath.contains("bioshroom") || fPath.contains("fungal") || fPath.contains("underground")
+                    || fPath.contains("dripstone") || fPath.contains("lush") || fPath.contains("mycel")
+                    || fPath.contains("glow_worm") || fPath.contains("glowing_grotto") || fPath.contains("crystal")) {
+                return true;
+            }
+        }
         if ("terralith".equals(bNs) && fPath.contains("cave/")) {
             return true;
         }
