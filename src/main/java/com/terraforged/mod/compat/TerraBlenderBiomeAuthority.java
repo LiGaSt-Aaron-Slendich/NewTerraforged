@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
 import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.worldgen.GenerationFeatureGates;
+import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
@@ -25,6 +27,7 @@ import net.minecraft.world.level.biome.Climate;
  * Uses public {@link Climate.ParameterList} (RTree is protected on 1.18.2).
  */
 public final class TerraBlenderBiomeAuthority {
+    private static final ResourceLocation DEFERRED_PLACEHOLDER = new ResourceLocation("terrablender", "deferred_placeholder");
     private static Climate.ParameterList<Holder<Biome>> surfaceList;
     private static Climate.ParameterList<Holder<Biome>> undergroundList;
     private static boolean ready;
@@ -41,12 +44,20 @@ public final class TerraBlenderBiomeAuthority {
     }
 
     public static void onWorldLoad(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+        TerraBlenderBiomeAuthority.init(server.registryAccess());
+    }
+
+    /** Build trees as soon as registries exist (createLevels HEAD) so spawn chunks use TB. */
+    public static void init(RegistryAccess access) {
         if (!GenerationFeatureGates.terraBlenderBiomeAuthorityEnabled || !TerraBlenderCompat.isTerraBlenderLoaded()) {
             ready = false;
             return;
         }
         try {
-            TerraBlenderBiomeAuthority.buildTrees(server.registryAccess());
+            TerraBlenderBiomeAuthority.buildTrees(access);
             ready = surfaceList != null;
             if (ready) {
                 TerraForged.LOG.info("[TerraBlenderBiomeAuthority] Active — TF BiomeSampler paint suppressed; TB region ParameterLists in use");
@@ -58,14 +69,31 @@ public final class TerraBlenderBiomeAuthority {
         }
     }
 
+    public static void clear() {
+        surfaceList = null;
+        undergroundList = null;
+        plainsFallback = null;
+        ready = false;
+    }
+
     public static Holder<Biome> sampleSurface(ClimateSample sample) {
         return TerraBlenderBiomeAuthority.find(surfaceList, TerraBlenderBiomeAuthority.toTarget(sample, 0.0f));
     }
 
+    /**
+     * Depth-aware TB pick. Returns null if the nearest point is not an underground biome
+     * so {@code CaveBiomeSampler} can take over.
+     */
     public static Holder<Biome> sampleUnderground(ClimateSample sample, float depth01) {
-        Climate.ParameterList<Holder<Biome>> list = undergroundList != null ? undergroundList : surfaceList;
+        if (undergroundList == null) {
+            return null;
+        }
         float depth = Math.max(0.15f, Math.min(1.1f, depth01));
-        return TerraBlenderBiomeAuthority.find(list, TerraBlenderBiomeAuthority.toTarget(sample, depth));
+        Holder<Biome> found = TerraBlenderBiomeAuthority.find(undergroundList, TerraBlenderBiomeAuthority.toTarget(sample, depth));
+        if (found == null || !CaveBiomeIds.isUndergroundBiome(found)) {
+            return null;
+        }
+        return found;
     }
 
     private static Holder<Biome> find(Climate.ParameterList<Holder<Biome>> list, Climate.TargetPoint target) {
@@ -73,6 +101,9 @@ public final class TerraBlenderBiomeAuthority {
             return plainsFallback;
         }
         Holder<Biome> found = list.findValue(target);
+        if (found != null && TerraBlenderBiomeAuthority.isDeferredOrVoid(found)) {
+            return plainsFallback;
+        }
         return found != null ? found : plainsFallback;
     }
 
@@ -89,6 +120,13 @@ public final class TerraBlenderBiomeAuthority {
         float erosion = sample.riverNoise <= 0.05f ? -0.85f : (0.5f - sample.biomeEdgeNoise);
         float weirdness = sample.biomeNoise * 2.0f - 1.0f;
         return Climate.target(temp, humid, cont, erosion, depth, weirdness);
+    }
+
+    private static boolean isDeferredOrVoid(Holder<Biome> holder) {
+        return holder.unwrapKey().map(key -> {
+            ResourceLocation loc = key.location();
+            return DEFERRED_PLACEHOLDER.equals(loc) || "the_void".equals(loc.getPath());
+        }).orElse(false);
     }
 
     @SuppressWarnings("unchecked")
@@ -119,14 +157,17 @@ public final class TerraBlenderBiomeAuthority {
             Method addBiomes = region.getClass().getMethod("addBiomes", Registry.class, Consumer.class);
             Consumer<Pair<Climate.ParameterPoint, ResourceKey<Biome>>> consumer = pair -> {
                 ResourceKey<Biome> key = pair.getSecond();
+                if (DEFERRED_PLACEHOLDER.equals(key.location()) || "the_void".equals(key.location().getPath())) {
+                    return;
+                }
                 Holder<Biome> holder = biomes.getHolder(key).orElse(null);
-                if (holder == null) {
+                if (holder == null || TerraBlenderBiomeAuthority.isDeferredOrVoid(holder)) {
                     return;
                 }
                 Climate.ParameterPoint point = pair.getFirst();
                 surface.add(Pair.of(point, holder));
                 float depthMid = (Climate.unquantizeCoord(point.depth().min()) + Climate.unquantizeCoord(point.depth().max())) * 0.5f;
-                if (depthMid >= 0.1f) {
+                if (depthMid >= 0.1f && CaveBiomeIds.isUndergroundBiome(key.location())) {
                     underground.add(Pair.of(point, holder));
                 }
             };
@@ -140,7 +181,8 @@ public final class TerraBlenderBiomeAuthority {
             return;
         }
         surfaceList = new Climate.ParameterList<>(ImmutableList.copyOf(surface));
-        undergroundList = underground.isEmpty() ? surfaceList : new Climate.ParameterList<>(ImmutableList.copyOf(underground));
+        // Never fall back to surface list for underground paint — that paints plains into caves.
+        undergroundList = underground.isEmpty() ? null : new Climate.ParameterList<>(ImmutableList.copyOf(underground));
         TerraForged.LOG.info("[TerraBlenderBiomeAuthority] Built trees: surface={} underground={}", surface.size(), underground.size());
     }
 }

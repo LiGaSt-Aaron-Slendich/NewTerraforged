@@ -197,6 +197,11 @@ public final class CaveEntranceCarver {
         if (carver.terrainData != null && CaveChunkSurfaceRepair.isRiverBedColumn(carver.terrainData, dx, dz)) {
             return;
         }
+        float landMask = carver.getCarvingMask(seed, wx, wz, true);
+        // River/bank land factor suppresses mask — do not floor to 0.65 and punch tunnels.
+        if (landMask < 0.35f) {
+            return;
+        }
         if (exit && claims.hasExit(key)) {
             if (CaveEntranceCarver.hasSurfaceBreachAtAnchor(chunk, generator, carver, dx, dz, wx, wz)) {
                 return;
@@ -208,7 +213,7 @@ public final class CaveEntranceCarver {
         }
         float value = CaveNoise.sampleMerged(carver.modifier, seed, wx, wz);
         int cavern = Math.max(14, config.getCavernSize(seed, wx, wz, value));
-        float breachMask = Math.max(0.65f, carver.getCarvingMask(seed, wx, wz, true));
+        float breachMask = Math.max(0.65f, landMask);
         CaveEntranceClaims.TunnelAxis axis = claims.tunnelAxis(key);
         boolean forcedAxis = axis != null;
         if (forcedAxis) {

@@ -51,7 +51,7 @@ public final class CaveChunkSurfaceRepair {
 
     static boolean isRiverBedColumn(TerrainData terrain, int lx, int lz) {
         Terrain type = terrain.getTerrain().get(lx, lz);
-        return (type.isRiver() || type.isLake()) && terrain.getRiver().get(lx, lz) == 0.0f;
+        return (type.isRiver() || type.isLake()) && terrain.getRiver().get(lx, lz) < 0.05f;
     }
 
     private static int resolveRepairHeight(ChunkAccess chunk, CarverChunk carver, TerrainData terrain, Generator generator, int lx, int lz) {

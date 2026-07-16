@@ -38,6 +38,7 @@ public final class TerraBlenderCompat {
     }
 
     public static void onGeneratorActive(MinecraftServer server) {
+        TerraBlenderCompat.init();
         if (!terraBlenderLoaded && !terralithLoaded) {
             return;
         }

@@ -123,8 +123,14 @@ public final class CaveBiomeVanillaPass {
             }
             for (int featureIndex = 0; featureIndex < stage.size(); ++featureIndex) {
                 Holder<PlacedFeature> feature = stage.get(featureIndex);
+                if (CaveFeatureFilters.isDeferredOrGlobalFeature(feature)
+                        || !CaveFeatureFilters.isModCaveFeatureAllowed(feature, biome)
+                        || CaveFeatureFilters.isForbiddenForCaveBiome(feature, biome)) {
+                    continue;
+                }
                 random.setFeatureSeed(seed, featureIndex, stageIndex);
-                FeaturePlacement.place(feature, guarded, (ChunkGenerator)generator, (Random)random, origin, true);
+                // True placeWithBiomeCheck only — no strip-biome-filter / bare ConfiguredFeature fallback.
+                FeaturePlacement.place(feature, guarded, (ChunkGenerator)generator, (Random)random, origin, false);
             }
         }
     }

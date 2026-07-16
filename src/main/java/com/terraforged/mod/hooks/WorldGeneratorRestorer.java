@@ -32,6 +32,9 @@ public final class WorldGeneratorRestorer {
     }
 
     public static void patchSettingsBeforeLevels(MinecraftServer server) {
+        // Build TB ParameterLists before createLevels body so spawn chunks do not
+        // briefly paint via TF weight maps (isActive was false until RETURN).
+        TerraBlenderCompat.onGeneratorActive(server);
         WorldData data = server.getWorldData();
         if (!(data instanceof PrimaryLevelData)) {
             return;

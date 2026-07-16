@@ -154,8 +154,15 @@ final class CarverColumnCache {
     }
 
     private boolean isRiverCorridorColumn(ChunkAccess chunk, int dx, int dz, int sea) {
-        if (this.cachedTerrain != null && CaveChunkSurfaceRepair.isRiverBedColumn(this.cachedTerrain, dx, dz)) {
-            return true;
+        if (this.cachedTerrain != null) {
+            if (CaveChunkSurfaceRepair.isRiverBedColumn(this.cachedTerrain, dx, dz)) {
+                return true;
+            }
+            // TerrainData river: ~0 channel … ~1 dry. Always evaluate — do not trust chunkMayHaveRiver alone.
+            float land = this.cachedTerrain.getRiver().get(dx, dz);
+            if (land < 0.82f) {
+                return true;
+            }
         }
         if (CaveOceanFilter.isSubmergedWaterColumn(chunk, dx, dz, sea)) {
             return true;
@@ -164,9 +171,6 @@ final class CarverColumnCache {
             return true;
         }
         if (CaveOceanFilter.hasSubmergedWaterNeighborInChunk(chunk, dx, dz, sea, 12)) {
-            return true;
-        }
-        if (this.nearRiver(dx, dz) && this.localTerrainDip(dx, dz) >= 2) {
             return true;
         }
         if (!this.chunkMayHaveRiver) {
@@ -178,7 +182,6 @@ final class CarverColumnCache {
         if (river >= 0.90f) {
             return false;
         }
-        // Wider corridor than before — elevated rivers / banks still tunnel without this.
         return river < 0.82f;
     }
 

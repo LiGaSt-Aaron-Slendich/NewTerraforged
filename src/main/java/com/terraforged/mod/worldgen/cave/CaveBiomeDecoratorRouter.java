@@ -25,7 +25,8 @@ public final class CaveBiomeDecoratorRouter {
                 || path.contains("mantle") || path.contains("brimstone") || path.contains("magma")) {
             return CaveDecoratorKind.OFFICIAL;
         }
-        if (TerraBlenderBiomeAuthority.isActive() && CaveBiomeDecoratorRouter.isTerraBlenderDatapackCave(id, path)) {
+        if (TerraBlenderBiomeAuthority.isActive() && CaveBiomeIds.isUndergroundBiome(id)
+                && CaveBiomeDecoratorRouter.isTerraBlenderDatapackCave(id, path)) {
             return CaveDecoratorKind.VANILLA;
         }
         if (CaveBiomeDecoratorRouter.isOfficialBiome(path, id)) {
@@ -38,7 +39,7 @@ public final class CaveBiomeDecoratorRouter {
     }
 
     /** Terralith / BOP / RU / BYG / WilderNature cave biomes painted via TB ParameterLists. */
-    private static boolean isTerraBlenderDatapackCave(ResourceLocation id, String path) {
+    static boolean isTerraBlenderDatapackCave(ResourceLocation id, String path) {
         String ns = id.getNamespace();
         if ("terralith".equals(ns) || "biomesoplenty".equals(ns) || "regions_unexplored".equals(ns)
                 || "byg".equals(ns) || "wildernature".equals(ns) || "wythers".equals(ns)) {

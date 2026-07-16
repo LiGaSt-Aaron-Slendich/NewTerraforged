@@ -539,6 +539,10 @@ public class NoiseCaveCarver {
         if (underwaterOcean) {
             return megaGiga ? Math.max(AGGRESSIVE_SURFACE_CRUST, base) : base;
         }
+        // Low land-factor mask (rivers): never leave a 2-block crust — thick roof or skip path should win.
+        if (megaGiga && breachMask < 0.15f) {
+            return Math.max(24, base * 8);
+        }
         if (megaGiga && !nearSea && breachMask < NATURAL_BREACH_THRESHOLD) {
             return AGGRESSIVE_SURFACE_CRUST;
         }

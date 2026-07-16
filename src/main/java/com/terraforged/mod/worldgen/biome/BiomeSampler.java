@@ -26,15 +26,13 @@ implements IBiomeSampler {
 
     public Holder<Biome> sampleBiome(int seed, int x, int z) {
         ClimateSample sample = this.getSample(seed, x, z);
-        Holder<Biome> biome;
         if (TerraBlenderBiomeAuthority.isActive()) {
-            // TB region ParameterPoints own distribution; TF weight maps sleep.
-            biome = TerraBlenderBiomeAuthority.sampleSurface(sample);
-        } else {
-            WeightMap<Holder<Biome>> pool = this.biomeMapManager.getBiomeMap().get(sample.climateType);
-            biome = this.getInitialBiome(sample.biomeNoise, sample.climateType);
-            biome = BiomeTerrainIntegration.filter(biome, sample.terrainType.getName(), pool);
+            // TB region ParameterPoints own distribution; TF weight maps + ocean/beach/river overrides sleep.
+            return TerraBlenderBiomeAuthority.sampleSurface(sample);
         }
+        WeightMap<Holder<Biome>> pool = this.biomeMapManager.getBiomeMap().get(sample.climateType);
+        Holder<Biome> biome = this.getInitialBiome(sample.biomeNoise, sample.climateType);
+        biome = BiomeTerrainIntegration.filter(biome, sample.terrainType.getName(), pool);
         return this.getBiomeOverride(biome, sample);
     }
 
