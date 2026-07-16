@@ -20,3 +20,7 @@ git clone --depth 1 https://github.com/UHQ-GAMES-MODS/REGIONS_UNEXPLORED_FORGE.g
 ```
 
 Do **not** decompile these JARs — use sources only.
+
+## Exploration zips (sibling folder)
+
+Unpacked study notes from `../for exploration/*.zip` live in [`docs/exploration/`](../exploration/README.md) (TerraForged 0.3, Tectonic, TerraBlender, Terralith, Dynamic Trees compat).
