@@ -19,6 +19,7 @@ Extracted working copies (gitignored locally if present): `../for exploration/_e
 | [2026-07-16-systems-study.md](2026-07-16-systems-study.md) | How experienced mods structure terrain, biomes, cave decor |
 | [ntfg-transfer-map.md](ntfg-transfer-map.md) | What to steal / what to avoid in NewTerraForged |
 | [dynamic-trees-compat.md](dynamic-trees-compat.md) | DT API + cave fungal / WWEE / RU compatibility path |
+| [2026-07-16-working-state-plan.md](2026-07-16-working-state-plan.md) | Phased plan to working state (river tunnels, TB authority, DT)
 | [design-principles.md](design-principles.md) | Short “how to write these systems” checklist |
 
 ## Related prior audits
