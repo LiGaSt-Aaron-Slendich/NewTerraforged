@@ -37,6 +37,9 @@ public final class CaveTunnelRiverDecorator {
     }
 
     public static void decorate(ChunkAccess chunk, CarverChunk carver, WorldGenLevel region, Generator generator) {
+        if (!com.terraforged.mod.worldgen.GenerationFeatureGates.caveTunnelRiverEnabled) {
+            return;
+        }
         if (!CaveCarvingGate.isEnabled()) {
             return;
         }

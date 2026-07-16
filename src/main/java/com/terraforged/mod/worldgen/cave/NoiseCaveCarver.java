@@ -52,7 +52,8 @@ public class NoiseCaveCarver {
         if (megaGigaConfig && carve) {
             CaveEntranceCarver.tryCarveTunnelAnchors(seed, chunk, carver, generator, config, generator.getCaveEntranceClaims());
         }
-        if (megaGigaConfig && !carver.hasTunnelRiver()) {
+        if (megaGigaConfig && !carver.hasTunnelRiver()
+                && com.terraforged.mod.worldgen.GenerationFeatureGates.caveTunnelRiverEnabled) {
             int midX = startX + 8;
             int midZ = startZ + 8;
             CaveType systemType = CaveSystemGrid.dominantType(generator, seed, midX, midZ);
@@ -435,6 +436,9 @@ public class NoiseCaveCarver {
         for (int lx = 0; lx < 16; ++lx) {
             for (int lz = 0; lz < 16; ++lz) {
                 if (!columns.isMegaGigaZone(lx, lz)) {
+                    continue;
+                }
+                if (columns.riverCarveBlocked(lx, lz)) {
                     continue;
                 }
                 int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);

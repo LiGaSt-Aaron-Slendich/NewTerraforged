@@ -148,6 +148,9 @@ public class CarverChunk {
     }
 
     public void noteTunnelRiver(int mouthWx, int mouthWz, int chamberWx, int chamberWz, CaveType type) {
+        if (!com.terraforged.mod.worldgen.GenerationFeatureGates.caveTunnelRiverEnabled) {
+            return;
+        }
         this.tunnelMouthX = mouthWx;
         this.tunnelMouthZ = mouthWz;
         int cx = CaveSystemGrid.snapCenter(mouthWx, type);
@@ -165,6 +168,9 @@ public class CarverChunk {
     }
 
     public void restoreTunnel(CaveEntranceClaims.TunnelAxis axis) {
+        if (!com.terraforged.mod.worldgen.GenerationFeatureGates.caveTunnelRiverEnabled) {
+            return;
+        }
         float dz;
         this.tunnelMouthX = axis.mouthX();
         this.tunnelMouthZ = axis.mouthZ();
@@ -415,8 +421,9 @@ public class CarverChunk {
         // Scale breach by land factor so rivers get no surface-drop / no roof pierce.
         // Applies to MEGA/GIGA too (previously ignored river → shafts under rivers).
         float land = Math.max(0.0f, Math.min(1.0f, this.terrainData.getRiver().get(localX, localZ)));
-        if (land < 0.75f) {
-            land *= land;
+        // Hard zero under river corridor — soft land factor alone still left thin roofs on banks.
+        if (land < 0.88f) {
+            return 0.0f;
         }
         return breach * land;
     }

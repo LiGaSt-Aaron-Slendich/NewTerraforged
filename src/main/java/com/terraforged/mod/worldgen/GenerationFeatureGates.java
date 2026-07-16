@@ -41,6 +41,11 @@ public final class GenerationFeatureGates {
     /** Wide river-zone subsurface void fill — off keeps bed-column plug + water top-up only. */
     public static boolean riverZoneAggressiveFillEnabled = false;
     /**
+     * Massif “tunnel river” that punches water tunnels under/along rivers after mega carve.
+     * Off by default — this was the main source of tunnels under rivers.
+     */
+    public static boolean caveTunnelRiverEnabled = false;
+    /**
      * When TerraBlender is loaded: paint biomes via TB region ParameterPoints (disables TF BiomeSampler
      * weight maps as the paint authority). Terrain/carve stay NewTerraForged.
      */

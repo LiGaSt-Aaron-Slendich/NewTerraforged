@@ -154,13 +154,22 @@ final class CarverColumnCache {
     }
 
     private boolean isRiverCorridorColumn(ChunkAccess chunk, int dx, int dz, int sea) {
+        int x = this.cachedStartX + dx;
+        int z = this.cachedStartZ + dz;
+        // Always sample live riverNoise — do not trust region/chunk proximity caches alone.
+        if (this.cachedGenerator != null) {
+            float river = this.cachedGenerator.getTerrainSample(x, z).riverNoise;
+            if (river < 0.88f) {
+                return true;
+            }
+        }
         if (this.cachedTerrain != null) {
             if (CaveChunkSurfaceRepair.isRiverBedColumn(this.cachedTerrain, dx, dz)) {
                 return true;
             }
-            // TerrainData river: ~0 channel … ~1 dry. Always evaluate — do not trust chunkMayHaveRiver alone.
+            // TerrainData river: ~0 channel … ~1 dry.
             float land = this.cachedTerrain.getRiver().get(dx, dz);
-            if (land < 0.82f) {
+            if (land < 0.88f) {
                 return true;
             }
         }
@@ -170,19 +179,7 @@ final class CarverColumnCache {
         if (this.surfaceY(dx, dz) > sea && this.nearRiver(dx, dz)) {
             return true;
         }
-        if (CaveOceanFilter.hasSubmergedWaterNeighborInChunk(chunk, dx, dz, sea, 12)) {
-            return true;
-        }
-        if (!this.chunkMayHaveRiver) {
-            return false;
-        }
-        int x = this.cachedStartX + dx;
-        int z = this.cachedStartZ + dz;
-        float river = this.cachedGenerator.getTerrainSample(x, z).riverNoise;
-        if (river >= 0.90f) {
-            return false;
-        }
-        return river < 0.82f;
+        return CaveOceanFilter.hasSubmergedWaterNeighborInChunk(chunk, dx, dz, sea, 12);
     }
 
     boolean riverCarveBlocked(int dx, int dz) {

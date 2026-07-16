@@ -413,7 +413,8 @@ public final class CaveEntranceCarver {
                 }
             }
             carver.expandEntranceZone(2);
-            if (tunnelMouth && tunnelAxis != null && coastalBiome == null) {
+            if (tunnelMouth && tunnelAxis != null && coastalBiome == null
+                    && com.terraforged.mod.worldgen.GenerationFeatureGates.caveTunnelRiverEnabled) {
                 carver.noteTunnelRiver(mouthWx, mouthWz, chamberWx, chamberWz, systemType);
             }
             if (coastalBiome != null) {
@@ -608,29 +609,35 @@ public final class CaveEntranceCarver {
                     float ny = (float)oy / vRadius;
                     float nz = (float)oz / hRadius;
                     if (nx * nx + ny * ny + nz * nz > 1.0f) continue;
-                    int px = cx + ox;
-                    int pz = cz + oz;
+                    int wx = cx + ox;
+                    int wz = cz + oz;
+                    int lx = wx - chunkMinX;
+                    int lz = wz - chunkMinZ;
                     int py = centerY + oy;
-                    if (px < 0 || px > 15 || pz < 0 || pz > 15 || py <= sea) continue;
-                    pos.set(px, py, pz);
+                    if (lx < 0 || lx > 15 || lz < 0 || lz > 15 || py <= sea) continue;
+                    // Never punch entrance ramps through river/lake corridors.
+                    if (carver.isColumnCacheReady() && carver.columnCache().riverCarveBlocked(lx, lz)) {
+                        continue;
+                    }
+                    pos.set(lx, py, lz);
                     BlockState state = chunk.getBlockState((BlockPos)pos);
                     if (!state.getFluidState().isEmpty() || py >= surface && state.isAir()) continue;
                     chunk.setBlockState((BlockPos)pos, AIR, false);
                     placed = true;
                     if (markMouth && py >= surface - 4) {
                         if (coastalMouth) {
-                            carver.markCoastalEntranceColumn(px, pz);
+                            carver.markCoastalEntranceColumn(lx, lz);
                         } else {
-                            carver.markEntranceColumn(px, pz);
+                            carver.markEntranceColumn(lx, lz);
                         }
                     }
                     if (biome != null && py < surface - CaveUndergroundGuard.ENTRANCE_BIOME_DEPTH) {
-                        CaveEntranceCarver.setBiomeQuart(chunk, px, py, pz, biome);
+                        CaveEntranceCarver.setBiomeQuart(chunk, lx, py, lz, biome);
                         continue;
                     }
                     if (biome == null || py >= surface - CaveUndergroundGuard.ENTRANCE_BIOME_DEPTH) continue;
-                    CaveEntranceCarver.setBiomeQuart(chunk, px, py, pz, biome);
-                    carver.noteDecorateAnchor(biome, new BlockPos(chunkMinX + px, py, chunkMinZ + pz));
+                    CaveEntranceCarver.setBiomeQuart(chunk, lx, py, lz, biome);
+                    carver.noteDecorateAnchor(biome, new BlockPos(wx, py, wz));
                 }
             }
         }
