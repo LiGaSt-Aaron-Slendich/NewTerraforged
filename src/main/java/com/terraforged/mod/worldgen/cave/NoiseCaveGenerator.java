@@ -40,14 +40,10 @@ public class NoiseCaveGenerator {
    }
 
    public void carve(ChunkAccess chunk, Generator generator) {
-      CarverChunk carverchunk = this.getPreCarveChunk(chunk);
-      carverchunk.terrainData = generator.getChunkData(chunk.getPos());
-      carverchunk.mask = this.caveBreachNoise;
-
-      for (NoiseCave noisecave : this.caves) {
-         carverchunk.modifier = this.getModifier(noisecave);
-         NoiseCaveCarver.carve(chunk, carverchunk, generator, noisecave, true);
-      }
+      // TEMP diagnostics 2026-07-19: disable all NoiseCave block carving to isolate
+      // whether under-surface shafts are fill/river vs official cave carve
+      // (official getCarvingMask = 1 - breach*river → MORE carve in river channels).
+      return;
    }
 
    public void decorate(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
