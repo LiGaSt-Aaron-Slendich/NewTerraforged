@@ -18,8 +18,8 @@ public final class GenerationFeatureGates {
     public static boolean caveFloatingCrustStripEnabled = false;
     /** MEGA/GIGA NoiseCave block carving. */
     public static boolean megaGigaCavesEnabled = true;
-    /** Post-carve river/lake void fill ({@link com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair}). */
-    public static boolean riverVoidFillEnabled = true;
+    /** Post-carve river/lake void fill ({@link com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair}). Off — official TF 1.18 has no such pass; it can amplify sea-level water shafts. */
+    public static boolean riverVoidFillEnabled = false;
     /** Dry-shore river biome re-paint ({@link com.terraforged.mod.worldgen.cave.RiverShoreBiomeClip}). */
     public static boolean riverShoreBiomeClipEnabled = true;
     /** Full-chunk integrity re-decorate pass ({@link com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass}). */

@@ -14,8 +14,10 @@ import com.terraforged.noise.util.NoiseUtil;
 public class RiverCarver {
     private static final int SEED_OFFSET = 21221;
     private static final double EROSION_FREQ = 128.0;
-    private static final float BORDER_OFFSET = 0.12f;
-    private static final float BORDER_RANGE = 0.88f;
+    // Official TerraForged-1.18.2-0.3.1-alpha-2 values. NewTF had 0.12/0.88 which
+    // kept valley-floor riverNoise away from exact 0 → getWaterLevel fell back to seaLevel.
+    private static final float BORDER_OFFSET = 0.05f;
+    private static final float BORDER_RANGE = 0.95f;
     private final float blendRadius;
     private final NoiseLevels levels;
     private final Module erosionNoise;
@@ -111,7 +113,7 @@ public class RiverCarver {
     }
 
     private float getValleyNoise(float distance, float bankWidth, float valleyWidth) {
-        float value = 0.12f + RiverCarver.getAlpha(distance, bankWidth, valleyWidth) / 0.88f;
+        float value = BORDER_OFFSET + RiverCarver.getAlpha(distance, bankWidth, valleyWidth) / BORDER_RANGE;
         return MathUtil.clamp(value, 0.0f, 1.0f);
     }
 

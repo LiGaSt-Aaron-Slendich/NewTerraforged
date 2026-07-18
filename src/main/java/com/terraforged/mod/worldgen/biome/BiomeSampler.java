@@ -80,7 +80,7 @@ implements IBiomeSampler {
                 default -> this.biomeMapManager.get((ResourceKey<Biome>)Biomes.BEACH);
             };
         }
-        if ((sample.terrainType.isRiver() || sample.terrainType.isLake()) && sample.riverNoise <= 0.0f) {
+        if ((sample.terrainType.isRiver() || sample.terrainType.isLake()) && sample.riverNoise == 0.0f) {
             return biomeType == BiomeType.TUNDRA ? this.biomeMapManager.get((ResourceKey<Biome>)Biomes.FROZEN_RIVER) : this.biomeMapManager.get((ResourceKey<Biome>)Biomes.RIVER);
         }
         return input;
