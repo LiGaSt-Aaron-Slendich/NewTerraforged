@@ -7,37 +7,43 @@ import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.noise.continent.shape.FalloffPoint;
 
 public interface ContinentPoints {
-    public static final float DEEP_OCEAN = 0.1f;
-    public static final float SHALLOW_OCEAN = 0.25f;
-    public static final float BEACH = 0.5f;
-    public static final float COAST = 0.55f;
-    public static final float INLAND = 0.6f;
+   float DEEP_OCEAN = 0.1F;
+   float SHALLOW_OCEAN = 0.25F;
+   float BEACH = 0.5F;
+   float COAST = 0.55F;
+   float INLAND = 0.6F;
 
-    public static Terrain getTerrainType(float continentNoise) {
-        if (continentNoise < 0.25f) {
-            return TerrainType.DEEP_OCEAN;
-        }
-        if (continentNoise < 0.5f) {
-            return TerrainType.SHALLOW_OCEAN;
-        }
-        if (continentNoise < 0.55f) {
-            return TerrainType.COAST;
-        }
-        return TerrainType.NONE;
-    }
+   static Terrain getTerrainType(float continentNoise) {
+      if (continentNoise < 0.25F) {
+         return TerrainType.DEEP_OCEAN;
+      } else if (continentNoise < 0.5F) {
+         return TerrainType.SHALLOW_OCEAN;
+      } else {
+         return continentNoise < 0.55F ? TerrainType.COAST : TerrainType.NONE;
+      }
+   }
 
-    public static FalloffPoint[] getFalloff(ControlPoints controlPoints) {
-        return new FalloffPoint[]{new FalloffPoint(controlPoints.inland, 1.0f, 1.0f), new FalloffPoint(controlPoints.coast, 0.55f, 1.0f), new FalloffPoint(controlPoints.beach, 0.5f, 0.55f), new FalloffPoint(controlPoints.shallowOcean, 0.25f, 0.5f), new FalloffPoint(controlPoints.deepOcean, 0.1f, 0.25f)};
-    }
+   static FalloffPoint[] getFalloff(ControlPoints controlPoints) {
+      return new FalloffPoint[]{
+         new FalloffPoint(controlPoints.inland, 1.0F, 1.0F),
+         new FalloffPoint(controlPoints.coast, 0.55F, 1.0F),
+         new FalloffPoint(controlPoints.beach, 0.5F, 0.55F),
+         new FalloffPoint(controlPoints.shallowOcean, 0.25F, 0.5F),
+         new FalloffPoint(controlPoints.deepOcean, 0.1F, 0.25F)
+      };
+   }
 
-    public static float getFalloff(float continentNoise, FalloffPoint[] falloffCurve) {
-        float previous = 1.0f;
-        for (FalloffPoint falloff : falloffCurve) {
-            if (continentNoise >= falloff.controlPoint()) {
-                return MathUtil.map(continentNoise, falloff.controlPoint(), previous, falloff.min(), falloff.max());
-            }
-            previous = falloff.controlPoint();
-        }
-        return MathUtil.map(continentNoise, 0.0f, previous, 0.0f, 0.1f);
-    }
+   static float getFalloff(float continentNoise, FalloffPoint[] falloffCurve) {
+      float f = 1.0F;
+
+      for (FalloffPoint falloffpoint : falloffCurve) {
+         if (continentNoise >= falloffpoint.controlPoint()) {
+            return MathUtil.map(continentNoise, falloffpoint.controlPoint(), f, falloffpoint.min(), falloffpoint.max());
+         }
+
+         f = falloffpoint.controlPoint();
+      }
+
+      return MathUtil.map(continentNoise, 0.0F, f, 0.0F, 0.1F);
+   }
 }

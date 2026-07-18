@@ -1,12 +1,8 @@
 package com.terraforged.mod.worldgen.biome.decorator;
 
-import com.terraforged.mod.compat.DynamicTreesCompat;
 import com.terraforged.mod.worldgen.Generator;
-import com.terraforged.mod.worldgen.biome.Source;
-import com.terraforged.mod.worldgen.biome.decorator.PositionSampler;
-import com.terraforged.mod.worldgen.biome.decorator.VanillaDecorator;
 import com.terraforged.mod.worldgen.biome.vegetation.BiomeVegetationManager;
-import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
+import com.terraforged.mod.worldgen.biome.vegetation.VegetationFeatures;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import java.util.List;
 import java.util.Map;
@@ -14,134 +10,102 @@ import java.util.concurrent.CompletableFuture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
-import net.minecraft.core.QuartPos;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureFeatureManager;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.GenerationStep;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
-import net.minecraft.world.level.levelgen.RandomSource;
+import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
+import net.minecraft.world.level.levelgen.GenerationStep.Decoration;
 import net.minecraft.world.level.levelgen.feature.ConfiguredStructureFeature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 public class FeatureDecorator {
-    public static final GenerationStep.Decoration[] STAGES = GenerationStep.Decoration.values();
-    private static final int VEGETATION_STAGE = GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
-    static final int MAX_DECORATION_STAGE = GenerationStep.Decoration.TOP_LAYER_MODIFICATION.ordinal();
-    private final BiomeVegetationManager vegetation;
-    private final Map<GenerationStep.Decoration, List<Holder<ConfiguredStructureFeature<?, ?>>>> structures;
+   public static final Decoration[] STAGES = Decoration.values();
+   private static final int MAX_DECORATION_STAGE = Decoration.TOP_LAYER_MODIFICATION.ordinal();
+   private final BiomeVegetationManager vegetation;
+   private final Map<Decoration, List<Holder<ConfiguredStructureFeature<?, ?>>>> structures;
 
-    public FeatureDecorator(RegistryAccess access) {
-        this.vegetation = new BiomeVegetationManager(access);
-        this.structures = VanillaDecorator.buildStructureMap(access);
-    }
+   public FeatureDecorator(RegistryAccess access) {
+      this.vegetation = new BiomeVegetationManager(access);
+      this.structures = VanillaDecorator.buildStructureMap(access);
+   }
 
-    public BiomeVegetationManager getVegetationManager() {
-        return this.vegetation;
-    }
+   public BiomeVegetationManager getVegetationManager() {
+      return this.vegetation;
+   }
 
-    public List<Holder<ConfiguredStructureFeature<?, ?>>> getStageStructures(int stage) {
-        return this.structures.get(STAGES[stage]);
-    }
+   public List<Holder<ConfiguredStructureFeature<?, ?>>> getStageStructures(int stage) {
+      return this.structures.get(STAGES[stage]);
+   }
 
-    public HolderSet<PlacedFeature> getStageFeatures(int stage, Biome biome) {
-        List stages = biome.getGenerationSettings().features();
-        if (stage >= stages.size()) {
-            return null;
-        }
-        return (HolderSet)stages.get(stage);
-    }
+   public HolderSet<PlacedFeature> getStageFeatures(int stage, Biome biome) {
+      List<HolderSet<PlacedFeature>> list = biome.getGenerationSettings().features();
+      return stage >= list.size() ? null : list.get(stage);
+   }
 
-    public void decorate(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator) {
-        this.decorate(chunk, level, structures, terrain, generator, true);
-    }
+   public void decorate(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator) {
+      BlockPos blockpos = getOrigin(level, chunk);
+      Holder<Biome> holder = level.getBiome(blockpos);
+      WorldgenRandom worldgenrandom = getRandom();
+      long i = worldgenrandom.setDecorationSeed(level.getSeed(), blockpos.getX(), blockpos.getZ());
+      this.decoratePre(i, blockpos, holder, chunk, level, generator, worldgenrandom, structures);
+      this.decorateVegetation(i, blockpos, holder, chunk, level, generator, worldgenrandom, terrain);
+      this.decoratePost(i, blockpos, holder, chunk, level, generator, worldgenrandom, structures);
+   }
 
-    public void decorate(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator, boolean placeStructures) {
-        BlockPos origin = FeatureDecorator.getSurfaceOrigin(chunk);
-        Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
-        WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
-        long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
-        this.decoratePre(seed, origin, biome, chunk, level, generator, random, structures, placeStructures);
-        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures, placeStructures);
-        this.decoratePost(seed, origin, biome, chunk, level, generator, random, structures, placeStructures);
-    }
+   private void decoratePre(
+      long seed,
+      BlockPos origin,
+      Holder<Biome> biome,
+      ChunkAccess chunk,
+      WorldGenLevel level,
+      Generator generator,
+      WorldgenRandom random,
+      StructureFeatureManager structureManager
+   ) {
+      VanillaDecorator.decorate(seed, 0, VegetationFeatures.STAGE - 1, origin, biome, chunk, level, generator, random, structureManager, this);
+   }
 
-    public void placeStructures(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, Generator generator) {
-        BlockPos origin = FeatureDecorator.getSurfaceOrigin(chunk);
-        Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
-        WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
-        long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
-        VanillaDecorator.placeAllStructures(seed, origin, biome, chunk, level, generator, random, structures, this);
-    }
+   private void decoratePost(
+      long seed,
+      BlockPos origin,
+      Holder<Biome> biome,
+      ChunkAccess chunk,
+      WorldGenLevel level,
+      Generator generator,
+      WorldgenRandom random,
+      StructureFeatureManager structureManager
+   ) {
+      VanillaDecorator.decorate(
+         seed, VegetationFeatures.STAGE + 1, MAX_DECORATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this
+      );
+   }
 
-    private void decoratePre(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, boolean placeStructures) {
-        if (com.terraforged.mod.worldgen.GenerationFeatureGates.terraBlenderChunkBiomeDecorEnabled) {
-            BiomeQuartDecorator.decorateStages(seed, 0, VEGETATION_STAGE - 1, chunk, level, generator, random, structureManager, this, placeStructures);
-            return;
-        }
-        VanillaDecorator.decorate(seed, 0, VEGETATION_STAGE - 1, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
-    }
+   private void decorateVegetation(
+      long seed,
+      BlockPos origin,
+      Holder<Biome> biome,
+      ChunkAccess chunk,
+      WorldGenLevel level,
+      Generator generator,
+      WorldgenRandom random,
+      CompletableFuture<TerrainData> terrain
+   ) {
+      PositionSampler.placeVegetation(seed, origin, biome, chunk, level, generator, random, terrain, this);
+   }
 
-    private void decoratePost(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, StructureFeatureManager structureManager, boolean placeStructures) {
-        if (com.terraforged.mod.worldgen.GenerationFeatureGates.terraBlenderChunkBiomeDecorEnabled) {
-            BiomeQuartDecorator.decorateStages(seed, VEGETATION_STAGE + 1, MAX_DECORATION_STAGE, chunk, level, generator, random, structureManager, this, placeStructures);
-            return;
-        }
-        VanillaDecorator.decorate(seed, VEGETATION_STAGE + 1, MAX_DECORATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
-    }
+   private static BlockPos getOrigin(WorldGenLevel level, ChunkAccess chunk) {
+      ChunkPos chunkpos = chunk.getPos();
+      SectionPos sectionpos = SectionPos.of(chunkpos, level.getMinSection());
+      return sectionpos.origin();
+   }
 
-    public void decorateVegetation(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator) {
-        BlockPos origin = FeatureDecorator.getSurfaceOrigin(chunk);
-        Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
-        WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
-        long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
-        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures, true);
-    }
-
-    /** Surface-only refresh after chunk integrity repair — skips underground/cave biomes. */
-    public void refreshSurfaceDecoration(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator, com.terraforged.mod.worldgen.cave.CarverChunk carver) {
-        BlockPos origin = FeatureDecorator.getSurfaceOrigin(chunk);
-        Holder<Biome> biome = FeatureDecorator.resolveSurfaceBiome(level, chunk, generator, origin);
-        if (CaveBiomeIds.isUndergroundBiome(biome) || CaveBiomeIds.isModCaveBiome(biome)) {
-            return;
-        }
-        WorldgenRandom random = FeatureDecorator.getRandom(level.getSeed());
-        long seed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
-        this.decorateVegetation(seed, origin, biome, chunk, level, generator, random, terrain, structures, true);
-    }
-
-    private void decorateVegetation(long seed, BlockPos origin, Holder<Biome> biome, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, CompletableFuture<TerrainData> terrain, StructureFeatureManager structureManager, boolean placeStructures) {
-        if (DynamicTreesCompat.isLoaded()) {
-            VanillaDecorator.decorate(seed, VEGETATION_STAGE, VEGETATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this, placeStructures);
-            PositionSampler.placeVegetationWithoutTrees(seed, origin, biome, chunk, level, generator, random, terrain, this);
-            return;
-        }
-        PositionSampler.placeVegetation(seed, origin, biome, chunk, level, generator, random, terrain, this);
-    }
-
-    private static BlockPos getSurfaceOrigin(ChunkAccess chunk) {
-        ChunkPos chunkPos = chunk.getPos();
-        int lx = 8;
-        int lz = 8;
-        int surface = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, lx, lz);
-        int y = Math.max(surface, chunk.getMinBuildHeight() + 1);
-        return new BlockPos(chunkPos.getMinBlockX() + lx, y, chunkPos.getMinBlockZ() + lz);
-    }
-
-    private static Holder<Biome> resolveSurfaceBiome(WorldGenLevel level, ChunkAccess chunk, Generator generator, BlockPos origin) {
-        Holder biome = level.getBiome(origin);
-        if (!CaveBiomeIds.isUndergroundBiome((Holder<Biome>)biome)) {
-            return biome;
-        }
-        return generator.getBiomeSource().getNoiseBiome(QuartPos.fromBlock((int)origin.getX()), QuartPos.fromBlock((int)origin.getY()), QuartPos.fromBlock((int)origin.getZ()), Source.NOOP_CLIMATE_SAMPLER);
-    }
-
-    private static WorldgenRandom getRandom(long seed) {
-        return new WorldgenRandom((RandomSource)new LegacyRandomSource(seed));
-    }
+   private static WorldgenRandom getRandom() {
+      return new WorldgenRandom(new LegacyRandomSource(RandomSupport.seedUniquifier()));
+   }
 }

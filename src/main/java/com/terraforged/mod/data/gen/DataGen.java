@@ -1,158 +1,139 @@
 package com.terraforged.mod.data.gen;
 
-import com.google.common.hash.Hashing;
-import com.google.common.hash.HashingOutputStream;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
-import com.terraforged.mod.CommonAPI;
+import com.terraforged.mod.Environment;
 import com.terraforged.mod.TerraForged;
-import com.terraforged.mod.data.codec.Codecs;
-import com.terraforged.mod.data.gen.EncodingException;
-import com.terraforged.mod.data.util.JsonFormatter;
-import com.terraforged.mod.registry.DataRegistry;
+import com.terraforged.mod.registry.ModRegistries;
 import com.terraforged.mod.util.FileUtil;
-import com.terraforged.mod.util.TagLoader;
+import com.terraforged.mod.util.Init;
+import com.terraforged.mod.util.json.JsonFormatter;
 import com.terraforged.mod.worldgen.GeneratorPreset;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileAttribute;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Paths;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.data.HashCache;
+import net.minecraft.core.RegistryAccess.Writable;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 
-public class DataGen {
-    private static final ResourceKey<Registry<LevelStem>> LEVEL_STEM_KEY = ResourceKey.createRegistryKey((ResourceLocation)new ResourceLocation("minecraft", "dimension"));
-    private final HashCache cache;
-    private final List<CompletableFuture<?>> tasks = new ObjectArrayList();
+public class DataGen extends Init {
+   public static final DataGen INSTANCE = new DataGen();
 
-    public DataGen(HashCache cache) {
-        this.cache = cache;
-    }
+   @Override
+   protected void doInit() {
+      if (Environment.DATA_GEN) {
+         export(Paths.get("datagen"));
+      }
+   }
 
-    protected CompletableFuture<?> doExport(Path dir) {
-        FileUtil.delete(dir);
-        RegistryAccess.Writable registries = RegistryAccess.builtinCopy();
-        RegistryOps writeOps = RegistryOps.create((DynamicOps)JsonOps.INSTANCE, (RegistryAccess)registries);
-        TagLoader.bindTags((RegistryAccess)registries);
-        this.genPreset(dir, (RegistryAccess)registries, (RegistryOps<JsonElement>)writeOps);
-        this.genBuiltin(dir, (RegistryAccess)registries, (RegistryOps<JsonElement>)writeOps);
-        this.genDimensionType(dir, (RegistryAccess)registries, (RegistryOps<JsonElement>)writeOps);
-        return CompletableFuture.allOf((CompletableFuture[])this.tasks.toArray(CompletableFuture[]::new));
-    }
+   public static void export(Path dir) {
+      FileUtil.delete(dir);
+      TerraForged.LOG.info("Generating json data");
+      Writable writable = RegistryAccess.builtinCopy();
+      RegistryOps<JsonElement> registryops = RegistryOps.create(JsonOps.INSTANCE, writable);
+      genGenerator(dir, writable, registryops);
+      genBuiltin(dir, writable, registryops);
+      genBiomes(dir, writable, registryops);
+   }
 
-    public static CompletableFuture<?> export(Path dir, HashCache cache) {
-        return new DataGen(cache).doExport(dir);
-    }
+   private static void genGenerator(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
+      LevelStem levelstem = GeneratorPreset.getDefault(registries);
+      JsonElement jsonelement = (JsonElement)LevelStem.CODEC.encodeStart(writeOps, levelstem).resultOrPartial(System.err::println).orElseThrow();
+      export(dir, Registry.DIMENSION_REGISTRY, Level.OVERWORLD, jsonelement);
+   }
 
-    private void genPreset(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
-        LevelStem dimension = GeneratorPreset.getDefault(registries);
-        JsonElement dimensionJson = Codecs.encode(dimension, LevelStem.CODEC, writeOps);
-        this.export(dir, LEVEL_STEM_KEY, new ResourceLocation("minecraft", "overworld"), dimensionJson);
-    }
+   private static void genDimensionType(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
+      export(dir, Registry.DIMENSION_TYPE_REGISTRY, DimensionType.DIRECT_CODEC, registries, writeOps);
+   }
 
-    private void genDimensionType(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
-        Registry registry = registries.ownedRegistryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
-        DimensionType overworld = (DimensionType)registry.get(new ResourceLocation("minecraft", "overworld"));
-        JsonObject json = Codecs.encode(overworld, DimensionType.DIRECT_CODEC, writeOps).getAsJsonObject();
-        json.addProperty("height", (Number)1024);
-        json.addProperty("logical_height", (Number)1024);
-        json.addProperty("effects", TerraForged.DIMENSION_EFFECTS.toString());
-        this.export(dir, Registry.DIMENSION_TYPE_REGISTRY, new ResourceLocation("minecraft", "overworld"), (JsonElement)json);
-    }
+   private static void genBuiltin(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
+      for (ModRegistries.HolderEntry<?> holderentry : ModRegistries.getHolders()) {
+         export(dir, holderentry, registries, writeOps);
+      }
+   }
 
-    private void genBuiltin(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
-        for (DataRegistry<?> registry : CommonAPI.get().getRegistryManager().getRegistries()) {
-            this.export(dir, registry, registries, (DynamicOps<JsonElement>)writeOps);
-        }
-    }
+   private static void genBiomes(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
+      Registry<Biome> registry = registries.ownedRegistryOrThrow(Registry.BIOME_REGISTRY);
 
-    private void genTags(Path dir, RegistryAccess registries, RegistryOps<JsonElement> writeOps) {
-    }
+      for (Entry<ResourceKey<Biome>, Biome> entry : registry.entrySet()) {
+         if (entry.getKey().location().getNamespace().equals("terraforged")) {
+            JsonElement jsonelement = (JsonElement)Biome.DIRECT_CODEC.encodeStart(writeOps, entry.getValue()).result().orElseThrow();
+            export(dir, registry.key(), entry.getKey(), jsonelement);
+         }
+      }
+   }
 
-    private <T> void export(Path dir, DataRegistry<T> builtin, RegistryAccess access, DynamicOps<JsonElement> ops) {
-        Registry registry = access.ownedRegistryOrThrow(builtin.key().get());
-        TerraForged.LOG.info("Exporting registry: {}", registry.key());
-        for (Map.Entry<ResourceKey<T>, T> entry : builtin) {
-            try {
-                JsonElement json = (JsonElement)builtin.codec().encodeStart(ops, (T) registry.getOrThrow(entry.getKey())).mapError(s -> {
-                    DataGen.logError(s);
-                    return s;
-                }).result().orElseThrow();
-                this.export(dir, registry.key(), entry.getKey().location(), json);
+   private static <T> void export(Path dir, ModRegistries.HolderEntry<T> holder, RegistryAccess access, DynamicOps<JsonElement> ops) {
+      export(dir, holder.key(), holder.direct(), access, ops);
+   }
+
+   private static <T> void export(Path dir, ResourceKey<? extends Registry<T>> key, Codec<T> codec, RegistryAccess access, DynamicOps<JsonElement> ops) {
+      Registry<T> registry = access.ownedRegistryOrThrow(key);
+      export(dir, registry, codec, ops);
+   }
+
+   private static <T> void export(Path dir, Registry<T> registry, Codec<T> codec, DynamicOps<JsonElement> ops) {
+      TerraForged.LOG.info("Exporting registry: {}", registry.key());
+
+      for (Entry<ResourceKey<T>, T> entry : registry.entrySet()) {
+         try {
+            JsonElement jsonelement = (JsonElement)codec.encodeStart(ops, entry.getValue()).mapError(DataGen::logError).result().orElseThrow();
+            export(dir, registry.key(), entry.getKey(), jsonelement);
+         } catch (Throwable throwable) {
+            new EncodingException(entry.getKey(), throwable).printStackTrace();
+         }
+      }
+   }
+
+   private static <T> void export(Path dir, ResourceKey<Registry<T>> registry, ResourceLocation name, Codec<T> codec, T value, DynamicOps<JsonElement> ops) {
+      JsonElement jsonelement = (JsonElement)codec.encodeStart(ops, value).result().orElseThrow();
+      Path path = dir.resolve("data").resolve(name.getNamespace()).resolve(registry.location().getPath()).resolve(name.getPath() + ".json");
+      FileUtil.write(path, jsonelement, (writer, data) -> new JsonFormatter(writer).write(data));
+   }
+
+   private static void export(Path dir, ResourceKey<?> registry, ResourceKey<?> key, JsonElement json) {
+      Path path = dir.resolve("data").resolve(key.location().getNamespace()).resolve(registry.location().getPath()).resolve(key.location().getPath() + ".json");
+      Path path1 = path.getParent();
+      if (!Files.exists(path1)) {
+         try {
+            Files.createDirectories(path1);
+         } catch (IOException ioexception) {
+            ioexception.printStackTrace();
+            return;
+         }
+      }
+
+      try {
+         CompletableFuture.runAsync(() -> {
+            try (BufferedWriter bufferedwriter = Files.newBufferedWriter(path)) {
+               JsonFormatter.apply(json, bufferedwriter);
+            } catch (IOException ioexception1) {
+               ioexception1.printStackTrace();
             }
-            catch (Throwable t) {
-                new EncodingException(entry.getKey(), t).printStackTrace();
-            }
-        }
-    }
+         }).get(1L, TimeUnit.SECONDS);
+      } catch (ExecutionException | TimeoutException | InterruptedException interruptedexception) {
+         interruptedexception.printStackTrace();
+      }
+   }
 
-    private void export(Path dir, ResourceKey<?> registry, ResourceLocation name, JsonElement json) {
-        Path file = dir.resolve("data").resolve(name.getNamespace()).resolve(registry.location().getPath()).resolve(name.getPath() + ".json");
-        if (this.cache != null) {
-            this.writeCached(file, json);
-        } else {
-            this.tasks.add(CompletableFuture.runAsync(() -> this.writeDirect(file, json)));
-        }
-    }
-
-    protected void writeDirect(Path path, JsonElement json) {
-        Path parent = path.getParent();
-        if (!Files.exists(parent, new LinkOption[0])) {
-            try {
-                Files.createDirectories(parent, new FileAttribute[0]);
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-                return;
-            }
-        }
-        try (BufferedWriter out = Files.newBufferedWriter(path, new OpenOption[0]);){
-            JsonFormatter.format(json, out);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    protected void writeCached(Path path, JsonElement json) {
-        try {
-            ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-            HashingOutputStream hashOut = new HashingOutputStream(Hashing.sha1(), (OutputStream)byteOut);
-            JsonFormatter.format(json, (OutputStream)hashOut);
-            Path parent = path.getParent();
-            if (!Files.exists(parent, new LinkOption[0])) {
-                Files.createDirectories(parent, new FileAttribute[0]);
-            }
-            String hashStr = hashOut.hash().toString();
-            if (!this.cache.had(path)) {
-                Files.write(path, byteOut.toByteArray(), new OpenOption[0]);
-            }
-            this.cache.putNew(path, hashStr);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static String logError(String s) {
-        TerraForged.LOG.warn(s);
-        return s;
-    }
+   private static String logError(String s) {
+      TerraForged.LOG.warn(s);
+      return s;
+   }
 }

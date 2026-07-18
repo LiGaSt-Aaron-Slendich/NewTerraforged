@@ -4,7 +4,7 @@ import net.minecraft.Util;
 import net.minecraft.resources.ResourceLocation;
 
 public class TranslationUtil {
-    public static String key(String type, ResourceLocation location) {
-        return Util.makeDescriptionId((String)type, (ResourceLocation)location);
-    }
+   public static String key(String type, ResourceLocation location) {
+      return Util.makeDescriptionId(type, location);
+   }
 }

@@ -1,122 +1,69 @@
 package com.terraforged.mod.worldgen.biome;
 
-import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Generator;
-import com.terraforged.mod.worldgen.biome.BiomeQuartAuthority;
 import com.terraforged.mod.worldgen.biome.decorator.FeatureDecorator;
 import com.terraforged.mod.worldgen.biome.decorator.SurfaceDecorator;
 import com.terraforged.mod.worldgen.biome.surface.Surface;
-import com.terraforged.mod.worldgen.cave.CarverChunk;
-import com.terraforged.mod.worldgen.cave.CaveChunkIntegrityPass;
-import com.terraforged.mod.worldgen.cave.RiverShoreBiomeClip;
-import com.terraforged.mod.worldgen.cave.CaveChunkSurfaceRepair;
-import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
 import com.terraforged.mod.worldgen.cave.NoiseCaveGenerator;
-import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
-import com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel;
-import com.terraforged.mod.worldgen.util.ChunkUtil;
-import com.terraforged.noise.Module;
+import com.terraforged.mod.worldgen.util.NoiseChunkUtil;
 import java.util.concurrent.CompletableFuture;
+import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.StructureFeatureManager;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.levelgen.NoiseChunk;
+import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+import net.minecraft.world.level.levelgen.SurfaceSystem;
+import net.minecraft.world.level.levelgen.WorldGenerationContext;
+import net.minecraft.world.level.levelgen.GenerationStep.Carving;
+import net.minecraft.world.level.levelgen.SurfaceRules.RuleSource;
 
 public class BiomeGenerator {
-    private final SurfaceDecorator surfaceDecorator;
-    private final FeatureDecorator featureDecorator;
-    private final NoiseCaveGenerator noiseCaveGenerator;
+   private final SurfaceDecorator surfaceDecorator;
+   private final FeatureDecorator featureDecorator;
+   private final NoiseCaveGenerator noiseCaveGenerator;
 
-    public BiomeGenerator(long seed, RegistryAccess access) {
-        this.surfaceDecorator = new SurfaceDecorator();
-        this.featureDecorator = new FeatureDecorator(access);
-        this.noiseCaveGenerator = new NoiseCaveGenerator(seed, access);
-    }
+   public BiomeGenerator(long seed, RegistryAccess access) {
+      this.surfaceDecorator = new SurfaceDecorator();
+      this.featureDecorator = new FeatureDecorator(access);
+      this.noiseCaveGenerator = new NoiseCaveGenerator(seed, access);
+   }
 
-    public BiomeGenerator(long seed, BiomeGenerator other) {
-        this.surfaceDecorator = other.surfaceDecorator;
-        this.featureDecorator = other.featureDecorator;
-        this.noiseCaveGenerator = new NoiseCaveGenerator(seed, other.noiseCaveGenerator);
-    }
+   public BiomeGenerator(long seed, BiomeGenerator other) {
+      this.surfaceDecorator = other.surfaceDecorator;
+      this.featureDecorator = other.featureDecorator;
+      this.noiseCaveGenerator = new NoiseCaveGenerator(seed, other.noiseCaveGenerator);
+   }
 
-    public void surface(ChunkAccess chunk, WorldGenRegion region, Generator generator) {
-        this.surfaceDecorator.decorate(chunk, region, generator);
-        ChunkUtil.refreshHeightmaps(chunk);
-        this.surfaceDecorator.decoratePost(chunk, generator);
-    }
+   public void surface(ChunkAccess chunk, WorldGenRegion region, Generator generator) {
+      this.surfaceDecorator.decorate(chunk, region, generator);
+      this.surfaceDecorator.decoratePost(chunk, generator);
+   }
 
-    public CaveEntranceClaims getCaveEntranceClaims() {
-        return this.noiseCaveGenerator.getEntranceClaims();
-    }
+   public void carve(long seed, ChunkAccess chunk, WorldGenRegion region, BiomeManager biomes, Carving step, Generator generator) {
+      this.noiseCaveGenerator.carve(chunk, generator);
+   }
 
-    public CarverChunk peekCaveCarver(net.minecraft.world.level.ChunkPos pos) {
-        return this.noiseCaveGenerator.peekCarver(pos);
-    }
+   public void decorate(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator) {
+      CompletableFuture<TerrainData> completablefuture = generator.getChunkDataAsync(chunk.getPos());
+      this.featureDecorator.decorate(chunk, region, structures, completablefuture, generator);
+      this.noiseCaveGenerator.decorate(chunk, region, generator);
+      Surface.smoothWater(chunk, region, completablefuture.join());
+      Surface.applyPost(chunk, completablefuture.join(), generator);
+   }
 
-    @org.jetbrains.annotations.Nullable
-    public CarverChunk buildDiagnosticCarver(int seed, ChunkAccess chunk, Generator generator) {
-        return this.noiseCaveGenerator.buildDiagnosticCarver(seed, chunk, generator);
-    }
-
-    public NoiseCave[] orderedCarveConfigs() {
-        return this.noiseCaveGenerator.orderedCarveConfigs();
-    }
-
-    public boolean isCarveConfigEnabled(NoiseCave config) {
-        return this.noiseCaveGenerator.isCarveConfigEnabled(config);
-    }
-
-    public Module carveModifierFor(NoiseCave config) {
-        return this.noiseCaveGenerator.modifierFor(config);
-    }
-
-    public void carve(long seed, ChunkAccess chunk, WorldGenRegion region, BiomeManager biomes, GenerationStep.Carving step, Generator generator) {
-        if (step != GenerationStep.Carving.AIR) {
-            return;
-        }
-        TerrainData terrain = generator.getChunkDataIfReady(chunk.getPos());
-        if (terrain == null) {
-            terrain = generator.getChunkData(chunk.getPos());
-        }
-        this.noiseCaveGenerator.carve(chunk, generator);
-    }
-
-    public void decorate(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator) {
-        TerrainData terrain = generator.getChunkDataIfReady(chunk.getPos());
-        CompletableFuture<TerrainData> terrainFuture;
-        if (terrain != null) {
-            terrainFuture = CompletableFuture.completedFuture(terrain);
-        } else {
-            terrainFuture = generator.getChunkDataAsync(chunk.getPos());
-            terrain = terrainFuture.join();
-        }
-        WorldGenLevel scoped = ChunkScopedWorldGenLevel.wrap(region, chunk, 2);
-        WorldGenLevel featureLevel = ChunkScopedWorldGenLevel.wrap(region, chunk, ChunkScopedWorldGenLevel.FEATURE_PLACEMENT_RADIUS);
-        CarverChunk carver = this.noiseCaveGenerator.peekCarver(chunk.getPos());
-        // Plug buggy river/lake shafts from terrain — before NoiseCave block carve, not caused by it.
-        if (GenerationFeatureGates.riverVoidFillEnabled) {
-            CaveChunkSurfaceRepair.restoreRiverDepressions(chunk, carver, generator, terrain, region);
-            CaveChunkSurfaceRepair.repairSeaLevelRiverBanks(chunk, terrain, generator);
-        }
-        if (GenerationFeatureGates.riverShoreBiomeClipEnabled) {
-            RiverShoreBiomeClip.clip(chunk, generator, terrain);
-        }
-        if (GenerationFeatureGates.biomeQuartAuthorityEnabled) {
-            BiomeQuartAuthority.finalizeForDecorate(chunk, generator, carver);
-        }
-        this.featureDecorator.decorate(chunk, featureLevel, structures, terrainFuture, generator, false);
-        Surface.smoothWater(chunk, region, terrain);
-        Surface.applyPost(chunk, terrain, generator);
-        this.featureDecorator.placeStructures(chunk, featureLevel, structures, generator);
-        this.noiseCaveGenerator.decorateVolume(chunk, scoped, generator);
-        Surface.repairExposedCover(chunk, region, generator, terrain, carver);
-        this.noiseCaveGenerator.decorateEntrances(chunk, scoped, generator);
-        CaveChunkIntegrityPass.runOnce(chunk, scoped, structures, generator, carver, this.featureDecorator, this.surfaceDecorator, terrainFuture);
-        this.noiseCaveGenerator.finishDecorate(chunk, generator);
-        ChunkUtil.refreshHeightmaps(chunk);
-    }
+   protected static void buildVanillaSurface(ChunkAccess chunk, WorldGenRegion region, Generator generator) {
+      WorldGenerationContext worldgenerationcontext = new WorldGenerationContext(generator, region);
+      NoiseChunk noisechunk = NoiseChunkUtil.getNoiseChunk(chunk, generator);
+      Registry<Biome> registry = generator.getBiomeSource().getRegistry();
+      BiomeManager biomemanager = region.getBiomeManager();
+      SurfaceSystem surfacesystem = generator.getVanillaGen().getSurfaceSystem();
+      RuleSource rulesource = ((NoiseGeneratorSettings)generator.getVanillaGen().getSettings().value()).surfaceRule();
+      surfacesystem.buildSurface(biomemanager, registry, false, worldgenerationcontext, chunk, noisechunk, rulesource);
+   }
 }

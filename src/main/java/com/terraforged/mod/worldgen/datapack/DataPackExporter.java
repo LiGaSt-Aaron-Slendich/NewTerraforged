@@ -1,52 +1,63 @@
 package com.terraforged.mod.worldgen.datapack;
 
-import com.terraforged.mod.CommonAPI;
 import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.util.FileUtil;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.world.level.DataPackConfig;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.Nullable;
 
 public class DataPackExporter {
-    public static final String PACK_NAME = "NewTerraforged-v0.2";
-    public static final String PACK_FILE_NAME = "NewTerraforged-v0.2.zip";
-    public static final Path CONFIG_DIR = Paths.get("config", "NewTerraForged").toAbsolutePath();
-    public static final Path DEFAULT_PACK_DIR = CONFIG_DIR.resolve("pack-v0.2");
+   public static final String PACK = "file/TerraForged.zip";
+   public static final Path CONFIG_DIR = Paths.get("config", "terraforged").toAbsolutePath();
+   public static final Path DEFAULT_PACK_DIR = CONFIG_DIR.resolve("pack-v0.1");
 
-    public static void extractDefaultPack() {
-        try {
-            TerraForged.LOG.info("Extracting default datapack to {}", DEFAULT_PACK_DIR);
-            Path root = CommonAPI.get().getContainer();
-            FileUtil.createDirCopy(root, "default", DEFAULT_PACK_DIR);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+   public static void extractDefaultPack() {
+      try {
+         TerraForged.LOG.info("Extracting default datapack to {}", DEFAULT_PACK_DIR);
+         Path path = TerraForged.getPlatform().getContainer();
+         FileUtil.createDirCopy(path, "default", DEFAULT_PACK_DIR);
+      } catch (IOException ioexception) {
+         ioexception.printStackTrace();
+      }
+   }
 
-    public static Pair<Path, String> getDefaultsPath() {
-        if (!Files.exists(DEFAULT_PACK_DIR, new LinkOption[0])) {
-            DataPackExporter.extractDefaultPack();
-            if (!Files.exists(DEFAULT_PACK_DIR, new LinkOption[0])) {
-                TerraForged.LOG.warn("Failed to extract default datapack to {}", DEFAULT_PACK_DIR);
-                return Pair.of(CommonAPI.get().getContainer(), "default");
-            }
-        }
-        return Pair.of(DEFAULT_PACK_DIR, ".");
-    }
+   public static Pair<Path, String> getDefaultsPath() {
+      if (!Files.exists(DEFAULT_PACK_DIR)) {
+         extractDefaultPack();
+         if (!Files.exists(DEFAULT_PACK_DIR)) {
+            TerraForged.LOG.warn("Failed to extract default datapack to {}", DEFAULT_PACK_DIR);
+            return Pair.of(TerraForged.getPlatform().getContainer(), "default");
+         }
+      }
 
-    public static void createWorldDatapack(Path dir) {
-        TerraForged.LOG.info("Copying world-instance datapack to {}", dir);
-        try {
-            Pair<Path, String> src = DataPackExporter.getDefaultsPath();
-            Path dest = dir.resolve(PACK_FILE_NAME);
-            FileUtil.createZipCopy(src.getLeft(), src.getRight(), dest);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+      return Pair.of(DEFAULT_PACK_DIR, ".");
+   }
+
+   public static DataPackConfig setup(@Nullable Path dir, DataPackConfig config) {
+      if (dir == null) {
+         throw new NullPointerException("Dir is null!");
+      } else {
+         TerraForged.LOG.info("Generating TerraForged datapack");
+
+         try {
+            Pair<Path, String> pair = getDefaultsPath();
+            Path path = dir.resolve("TerraForged.zip");
+            FileUtil.createZipCopy((Path)pair.getLeft(), (String)pair.getRight(), path);
+         } catch (IOException ioexception) {
+            ioexception.printStackTrace();
+         }
+
+         List<String> list = new ArrayList<>(config.getEnabled());
+         list.add("file/TerraForged.zip");
+         List<String> list1 = new ArrayList<>(config.getDisabled());
+         list1.remove("file/TerraForged.zip");
+         return new DataPackConfig(list, list1);
+      }
+   }
 }

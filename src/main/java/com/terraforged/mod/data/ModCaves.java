@@ -1,68 +1,68 @@
 package com.terraforged.mod.data;
 
-import com.terraforged.mod.TerraForged;
+import com.terraforged.mod.Environment;
+import com.terraforged.mod.registry.ModRegistries;
+import com.terraforged.mod.registry.ModRegistry;
 import com.terraforged.mod.util.seed.RandSeed;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
-import com.terraforged.mod.worldgen.cave.CavePlacementType;
 import com.terraforged.mod.worldgen.cave.CaveType;
 import com.terraforged.noise.Module;
 import com.terraforged.noise.Source;
 import com.terraforged.noise.util.NoiseUtil;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceKey;
 
-public interface ModCaves {
-    public static void register() {
-        RandSeed seed = new RandSeed(901246L, 500000);
-        TerraForged.register(TerraForged.CAVES, "synapse_high", Factory.synapse(seed.next(), 0.75f, 96, 384));
-        TerraForged.register(TerraForged.CAVES, "synapse_mid", Factory.synapse(seed.next(), 1.0f, 0, 256));
-        TerraForged.register(TerraForged.CAVES, "synapse_low", Factory.synapse(seed.next(), 1.2f, -32, 128));
-        TerraForged.register(TerraForged.CAVES, "mega", Factory.mega(seed.next(), 1.0f, -32, 96));
-        TerraForged.register(TerraForged.CAVES, "mega_deep", Factory.mega(seed.next(), 1.2f, -48, 80));
-        TerraForged.register(TerraForged.CAVES, "giga", Factory.giga(seed.next(), 1.0f, -48, 84));
-    }
+interface ModCaves extends ModRegistry {
+   static void register() {
+      RandSeed randseed = new RandSeed(901246L, 500000);
+      ModRegistries.register(CAVE, "synapse_high", ModCaves.Factory.synapse(randseed.next(), 0.75F, 96, 384));
+      ModRegistries.register(CAVE, "synapse_mid", ModCaves.Factory.synapse(randseed.next(), 1.0F, 0, 256));
+      ModRegistries.register(CAVE, "synapse_low", ModCaves.Factory.synapse(randseed.next(), 1.2F, -32, 128));
+      ModRegistries.register(CAVE, "mega", ModCaves.Factory.mega(randseed.next(), 1.0F, -16, 64));
+      ModRegistries.register(CAVE, "mega_deep", ModCaves.Factory.mega(randseed.next(), 1.2F, -32, 48));
+   }
 
-    public static class Factory {
-        static NoiseCave synapse(int seed, float scale, int minY, int maxY) {
-            int elevationScale = NoiseUtil.floor(350.0f * scale);
-            int networkScale = NoiseUtil.floor(180.0f * scale);
-            int networkWarpScale = NoiseUtil.floor(20.0f * scale);
-            int networkWarpStrength = networkWarpScale / 2;
-            int floorScale = NoiseUtil.floor(30.0f * scale);
-            int size = NoiseUtil.floor(15.0f * scale);
-            Module elevation = Source.simplex(++seed, elevationScale, 3).map(0.1, 0.9);
-            Module shape = Source.simplexRidge(++seed, networkScale, 3).warp(++seed, networkWarpScale, 1, networkWarpStrength).clamp(0.35, 0.75).map(0.0, 1.0);
-            Module floor = Source.simplex(++seed, floorScale, 2).clamp(0.0, 0.15).map(0.0, 1.0);
-            return new NoiseCave(seed, CaveType.GLOBAL, CavePlacementType.FULL_REGION, elevation, shape, floor, size, minY, maxY);
-        }
+   static NoiseCave[] getCaves(RegistryAccess access) {
+      return access != null && !Environment.DEV_ENV
+         ? ModRegistry.entries(access, (ResourceKey<Registry<NoiseCave>>)CAVE.get(), NoiseCave[]::new)
+         : ModCaves.Factory.getDefaults();
+   }
 
-        static NoiseCave mega(int seed, float scale, int minY, int maxY) {
-            int elevationScale = NoiseUtil.floor(200.0f * scale);
-            int networkScale = NoiseUtil.floor(250.0f * scale);
-            int floorScale = NoiseUtil.floor(50.0f * scale);
-            int size = NoiseUtil.floor(30.0f * scale);
-            Module elevation = Source.simplex(++seed, elevationScale, 2).map(0.3, 0.7);
-            Module shape = Source.simplex(++seed, networkScale, 3).bias(-0.5).abs().scale(2.0).invert().clamp(0.75, 1.0).map(0.0, 1.0);
-            Module floor = Source.simplex(++seed, floorScale, 2).clamp(0.0, 0.3).map(0.0, 1.0);
-            return new NoiseCave(seed, CaveType.MEGA, CavePlacementType.FULL_REGION, elevation, shape, floor, size, minY, maxY);
-        }
+   public static class Factory {
+      static NoiseCave mega(int seed, float scale, int minY, int maxY) {
+         int i = NoiseUtil.floor(200.0F * scale);
+         int j = NoiseUtil.floor(250.0F * scale);
+         int k = NoiseUtil.floor(50.0F * scale);
+         int l = NoiseUtil.floor(30.0F * scale);
+         Module module = Source.simplex(++seed, i, 2).map(0.3, 0.7);
+         Module module1 = Source.simplex(++seed, j, 3).bias(-0.5).abs().scale(2.0).invert().clamp(0.75, 1.0).map(0.0, 1.0);
+         Module module2 = Source.simplex(++seed, k, 2).clamp(0.0, 0.3).map(0.0, 1.0);
+         return new NoiseCave(seed, CaveType.UNIQUE, module, module1, module2, l, minY, maxY);
+      }
 
-        static NoiseCave giga(int seed, float scale, int minY, int maxY) {
-            float geom = 1.35f * scale;
-            int elevationScale = NoiseUtil.floor(200.0f * geom);
-            int networkScale = NoiseUtil.floor(250.0f * geom);
-            int floorScale = NoiseUtil.floor(28.0f * geom);
-            int floorDetailScale = NoiseUtil.floor(12.0f * geom);
-            int size = NoiseUtil.floor(34.0f * geom);
-            Module elevation = Source.simplex(++seed, elevationScale, 3).map(0.22, 0.78);
-            Module shape = Source.simplex(++seed, networkScale, 3).bias(-0.5).abs().scale(2.0).invert().clamp(0.72, 1.0).map(0.0, 1.0);
-            Module floor = Source.simplex(++seed, floorScale, 3).clamp(0.0, 0.42).map(0.0, 1.0);
-            Module floorDetail = Source.simplex(++seed, floorDetailScale, 2).clamp(0.0, 0.28).map(0.0, 1.0);
-            floor = floor.add(floorDetail).clamp(0.0, 1.0);
-            return new NoiseCave(seed, CaveType.GIGA, CavePlacementType.FULL_REGION, elevation, shape, floor, size, minY, maxY);
-        }
+      static NoiseCave synapse(int seed, float scale, int minY, int maxY) {
+         int i = NoiseUtil.floor(350.0F * scale);
+         int j = NoiseUtil.floor(180.0F * scale);
+         int k = NoiseUtil.floor(20.0F * scale);
+         int l = k / 2;
+         int i1 = NoiseUtil.floor(30.0F * scale);
+         int j1 = NoiseUtil.floor(15.0F * scale);
+         Module module = Source.simplex(++seed, i, 3).map(0.1, 0.9);
+         Module module1 = Source.simplexRidge(++seed, j, 3).warp(++seed, k, 1, l).clamp(0.35, 0.75).map(0.0, 1.0);
+         Module module2 = Source.simplex(++seed, i1, 2).clamp(0.0, 0.15).map(0.0, 1.0);
+         return new NoiseCave(seed, CaveType.GLOBAL, module, module1, module2, j1, minY, maxY);
+      }
 
-        static NoiseCave[] getDefaults() {
-            RandSeed seed = new RandSeed(901246L, 500000);
-            return new NoiseCave[]{Factory.synapse(seed.next(), 0.75f, 96, 384), Factory.synapse(seed.next(), 1.0f, 0, 256), Factory.synapse(seed.next(), 1.2f, -32, 128), Factory.mega(seed.next(), 1.0f, -32, 96), Factory.mega(seed.next(), 1.2f, -48, 80), Factory.giga(seed.next(), 1.0f, -48, 84)};
-        }
-    }
+      static NoiseCave[] getDefaults() {
+         RandSeed randseed = new RandSeed(901246L, 500000);
+         return new NoiseCave[]{
+            synapse(randseed.next(), 0.75F, 96, 384),
+            synapse(randseed.next(), 1.0F, 0, 256),
+            synapse(randseed.next(), 1.2F, -32, 128),
+            mega(randseed.next(), 1.0F, -16, 64),
+            mega(randseed.next(), 1.2F, -32, 48)
+         };
+      }
+   }
 }

@@ -7,12 +7,9 @@ import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.util.EnumSet;
-import java.util.Set;
 import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.core.IdMap;
 import net.minecraft.core.IdMapper;
 import net.minecraft.core.QuartPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -21,7 +18,7 @@ import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.StructureFeatureManager;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
-import net.minecraft.world.level.biome.Climate;
+import net.minecraft.world.level.biome.Climate.Sampler;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -29,163 +26,169 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.chunk.PalettedContainer.Strategy;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.Heightmap.Types;
 
 public class ChunkUtil {
-    private static final Set<Heightmap.Types> GENERATION_HEIGHTMAPS = EnumSet.of(Heightmap.Types.OCEAN_FLOOR_WG, Heightmap.Types.WORLD_SURFACE_WG, Heightmap.Types.MOTION_BLOCKING, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES);
-    public static final FillerBlock FILLER = ChunkUtil::getFiller;
-    public static final Supplier<ByteBuf> FULL_SECTION = Suppliers.memoize(ChunkUtil::createFullPalette);
+   public static final ChunkUtil.FillerBlock FILLER = ChunkUtil::getFiller;
+   public static final Supplier<ByteBuf> FULL_SECTION = Suppliers.memoize(ChunkUtil::createFullPalette);
 
-    public static void fillNoiseBiomes(ChunkAccess chunk, BiomeSource source, Climate.Sampler sampler, GeneratorResource resource) {
-        ChunkPos pos = chunk.getPos();
-        int biomeX = QuartPos.fromBlock((int)pos.getMinBlockX());
-        int biomeZ = QuartPos.fromBlock((int)pos.getMinBlockZ());
-        LevelHeightAccessor heightAccessor = chunk.getHeightAccessorForGeneration();
-        Holder<Biome>[] biomeBuffer = resource.biomeBuffer2D;
-        for (int dz = 0; dz < 4; ++dz) {
-            for (int dx = 0; dx < 4; ++dx) {
-                biomeBuffer[dz << 2 | dx] = source.getNoiseBiome(biomeX + dx, -1, biomeZ + dz, sampler);
+   public static void fillNoiseBiomes(ChunkAccess chunk, BiomeSource source, Sampler sampler, GeneratorResource resource) {
+      ChunkPos chunkpos = chunk.getPos();
+      int i = QuartPos.fromBlock(chunkpos.getMinBlockX());
+      int j = QuartPos.fromBlock(chunkpos.getMinBlockZ());
+      LevelHeightAccessor levelheightaccessor = chunk.getHeightAccessorForGeneration();
+      Holder<Biome>[] holder = resource.biomeBuffer2D;
+
+      for (int k = 0; k < 4; k++) {
+         for (int l = 0; l < 4; l++) {
+            Holder<Biome> holder1 = source.getNoiseBiome(i + l, -1, j + k, sampler);
+            holder[k << 2 | l] = holder1;
+         }
+      }
+
+      for (int i1 = levelheightaccessor.getMinSection(); i1 < levelheightaccessor.getMaxSection(); i1++) {
+         LevelChunkSection levelchunksection = chunk.getSection(chunk.getSectionIndexFromSectionY(i1));
+         fillNoiseBiomes(levelchunksection, holder);
+      }
+   }
+
+   private static void fillNoiseBiomes(LevelChunkSection section, Holder<Biome>[] biomeBuffer) {
+      PalettedContainer<Holder<Biome>> palettedcontainer = section.getBiomes();
+      palettedcontainer.acquire();
+
+      for (int i = 0; i < 4; i++) {
+         for (int j = 0; j < 4; j++) {
+            Holder<Biome> holder = biomeBuffer[i << 2 | j];
+
+            for (int k = 0; k < 4; k++) {
+               palettedcontainer.getAndSetUnchecked(j, k, i, holder);
             }
-        }
-        for (int i = heightAccessor.getMinSection(); i < heightAccessor.getMaxSection(); ++i) {
-            ChunkUtil.fillNoiseBiomes(chunk.getSection(chunk.getSectionIndexFromSectionY(i)), biomeBuffer);
-        }
-    }
+         }
+      }
 
-    private static void fillNoiseBiomes(LevelChunkSection section, Holder<Biome>[] biomeBuffer) {
-        PalettedContainer biomes = section.getBiomes();
-        biomes.acquire();
-        for (int dz = 0; dz < 4; ++dz) {
-            for (int dx = 0; dx < 4; ++dx) {
-                Holder<Biome> biome = biomeBuffer[dz << 2 | dx];
-                for (int dy = 0; dy < 4; ++dy) {
-                    biomes.getAndSetUnchecked(dx, dy, dz, biome);
-                }
+      palettedcontainer.release();
+   }
+
+   public static void fillChunk(int seaLevel, ChunkAccess chunk, TerrainData terrainData, ChunkUtil.FillerBlock filler, GeneratorResource resource) {
+      int i = chunk.getMaxBuildHeight();
+      int j = Math.min(i, getLowestSection(terrainData));
+      int k = Math.min(i, getHighestSection(terrainData));
+      FriendlyByteBuf friendlybytebuf = resource.fullSection;
+
+      for (int l = chunk.getMinBuildHeight(); l < j; l += 16) {
+         int i1 = chunk.getSectionIndex(l);
+         LevelChunkSection levelchunksection = chunk.getSection(i1);
+         friendlybytebuf.resetReaderIndex();
+         levelchunksection.getStates().read(friendlybytebuf);
+         levelchunksection.recalcBlockCounts();
+      }
+
+      for (int j1 = j; j1 <= k; j1 += 16) {
+         int k1 = chunk.getSectionIndex(j1);
+         LevelChunkSection levelchunksection1 = chunk.getSection(k1);
+         fillSection(j1, seaLevel, terrainData, chunk, levelchunksection1, filler);
+      }
+   }
+
+   public static void primeHeightmaps(int seaLevel, ChunkAccess chunk, TerrainData terrainData, ChunkUtil.FillerBlock filler) {
+      BlockState blockstate = Blocks.STONE.defaultBlockState();
+      Heightmap heightmap = chunk.getOrCreateHeightmapUnprimed(Types.OCEAN_FLOOR_WG);
+      Heightmap heightmap1 = chunk.getOrCreateHeightmapUnprimed(Types.WORLD_SURFACE_WG);
+      int i = 0;
+
+      for (int j = 0; i < 16; i++) {
+         for (int k = 0; k < 16; j++) {
+            int l = terrainData.getHeight(k, i);
+            int i1 = Math.max(seaLevel, l);
+            BlockState blockstate1 = filler.getState(i1, l);
+            heightmap.update(k, l, i, blockstate);
+            heightmap1.update(k, i1, i, blockstate1);
+            k++;
+         }
+      }
+   }
+
+   public static void buildStructureTerrain(ChunkAccess chunk, TerrainData terrainData, StructureFeatureManager structureFeatures) {
+      int i = chunk.getPos().getMinBlockX();
+      int j = chunk.getPos().getMinBlockZ();
+      StructureTerrain structureterrain = new StructureTerrain(chunk, structureFeatures);
+
+      for (int k = 0; k < 16; k++) {
+         for (int l = 0; l < 16; l++) {
+            structureterrain.modify(i + l, j + k, chunk, terrainData);
+         }
+      }
+   }
+
+   private static void fillSection(
+      int startY, int seaLevel, TerrainData terrainData, ChunkAccess chunk, LevelChunkSection section, ChunkUtil.FillerBlock filler
+   ) {
+      section.acquire();
+      int i = startY + 16;
+      int j = 0;
+
+      for (int k = 0; j < 16; j++) {
+         for (int l = 0; l < 16; k++) {
+            int i1 = terrainData.getHeight(l, j);
+            int j1 = TerrainLevels.getWaterLevel(l, j, seaLevel, terrainData);
+            int k1 = Math.max(i1, j1) + 1;
+            int l1 = Math.min(i, k1);
+
+            for (int i2 = startY; i2 < l1; i2++) {
+               BlockState blockstate = filler.getState(i2, i1);
+               section.setBlockState(l, i2 & 15, j, blockstate, false);
+               if (blockstate.getLightEmission() != 0 && chunk instanceof ProtoChunk protochunk) {
+                  protochunk.addLight(new BlockPos(l, i2, j));
+               }
             }
-        }
-        biomes.release();
-    }
 
-    public static void fillChunk(int seaLevel, ChunkAccess chunk, TerrainData terrainData, FillerBlock filler, GeneratorResource resource) {
-        LevelChunkSection section;
-        int index;
-        int sy;
-        int minBuild = chunk.getMinBuildHeight();
-        int maxSectionStart = minBuild + (chunk.getSectionsCount() - 1) * 16;
-        int min = Math.max(minBuild, ChunkUtil.getLowestSection(terrainData));
-        int max = Math.min(maxSectionStart, ChunkUtil.getHighestSection(terrainData));
-        FriendlyByteBuf sectionData = resource.fullSection;
-        for (sy = minBuild; sy < min; sy += 16) {
-            index = chunk.getSectionIndex(sy);
-            if (index < 0 || index >= chunk.getSectionsCount()) continue;
-            section = chunk.getSection(index);
-            sectionData.resetReaderIndex();
-            section.getStates().read(sectionData);
-            section.recalcBlockCounts();
-        }
-        for (sy = min; sy <= max; sy += 16) {
-            index = chunk.getSectionIndex(sy);
-            if (index < 0 || index >= chunk.getSectionsCount()) continue;
-            section = chunk.getSection(index);
-            ChunkUtil.fillSection(sy, seaLevel, terrainData, chunk, section, filler);
-        }
-    }
+            l++;
+         }
+      }
 
-    public static void primeHeightmaps(int seaLevel, ChunkAccess chunk, TerrainData terrainData, FillerBlock filler) {
-        BlockState solid = Blocks.STONE.defaultBlockState();
-        Heightmap oceanFloor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
-        Heightmap worldSurface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
-        int i = 0;
-        for (int z = 0; z < 16; ++z) {
-            int x = 0;
-            while (x < 16) {
-                int floor = terrainData.getHeight(x, z);
-                int surface = Math.max(seaLevel, floor);
-                BlockState surfaceBlock = filler.getState(surface, floor);
-                oceanFloor.update(x, floor, z, solid);
-                worldSurface.update(x, surface, z, surfaceBlock);
-                ++x;
-                ++i;
+      section.release();
+   }
+
+   protected static BlockState getFiller(int y, int surfaceSolid) {
+      return y <= surfaceSolid ? Blocks.STONE.defaultBlockState() : Blocks.WATER.defaultBlockState();
+   }
+
+   protected static int getHighestSection(TerrainData terrainData) {
+      int i = Math.max(terrainData.getMaxBase(), terrainData.getMax());
+      return i >> 4 << 4;
+   }
+
+   protected static int getLowestSection(TerrainData terrainData) {
+      int i = terrainData.getMin();
+      return i >> 4 << 4;
+   }
+
+   protected static ByteBuf createFullPalette() {
+      IdMapper<BlockState> idmapper = Block.BLOCK_STATE_REGISTRY;
+      PalettedContainer<BlockState> palettedcontainer = new PalettedContainer(idmapper, Blocks.STONE.defaultBlockState(), Strategy.SECTION_STATES);
+      palettedcontainer.acquire();
+
+      for (int i = 0; i < 16; i++) {
+         for (int j = 0; j < 16; j++) {
+            for (int k = 0; k < 16; k++) {
+               palettedcontainer.getAndSetUnchecked(i, j, k, Blocks.STONE.defaultBlockState());
             }
-        }
-    }
+         }
+      }
 
-    public static void refreshHeightmaps(ChunkAccess chunk) {
-        Heightmap.primeHeightmaps((ChunkAccess)chunk, GENERATION_HEIGHTMAPS);
-    }
+      palettedcontainer.release();
+      FriendlyByteBuf friendlybytebuf = new FriendlyByteBuf(Unpooled.buffer());
+      palettedcontainer.write(friendlybytebuf);
+      return friendlybytebuf;
+   }
 
-    public static void buildStructureTerrain(ChunkAccess chunk, TerrainData terrainData, StructureFeatureManager structureFeatures) {
-        int x = chunk.getPos().getMinBlockX();
-        int z = chunk.getPos().getMinBlockZ();
-        StructureTerrain operation = new StructureTerrain(chunk, structureFeatures);
-        for (int dz = 0; dz < 16; ++dz) {
-            for (int dx = 0; dx < 16; ++dx) {
-                operation.modify(x + dx, z + dz, chunk, terrainData);
-            }
-        }
-    }
+   public static FriendlyByteBuf getFullSection() {
+      return new FriendlyByteBuf(FULL_SECTION.get().copy());
+   }
 
-    private static void fillSection(int startY, int seaLevel, TerrainData terrainData, ChunkAccess chunk, LevelChunkSection section, FillerBlock filler) {
-        section.acquire();
-        int sectionMaxY = startY + 16;
-        int i = 0;
-        for (int z = 0; z < 16; ++z) {
-            int x = 0;
-            while (x < 16) {
-                int solidY = terrainData.getHeight(x, z);
-                int waterY = TerrainLevels.getWaterLevel(x, z, seaLevel, terrainData);
-                int firstAirY = Math.max(solidY, waterY) + 1;
-                int exclusiveMaxY = Math.min(sectionMaxY, firstAirY);
-                for (int y = startY; y < exclusiveMaxY; ++y) {
-                    BlockState state = filler.getState(y, solidY);
-                    section.setBlockState(x, y & 0xF, z, state, false);
-                    if (state.getLightEmission() == 0 || !(chunk instanceof ProtoChunk)) continue;
-                    ProtoChunk proto = (ProtoChunk)chunk;
-                    proto.addLight(new BlockPos(x, y, z));
-                }
-                ++x;
-                ++i;
-            }
-        }
-        section.release();
-    }
-
-    protected static BlockState getFiller(int y, int surfaceSolid) {
-        return y <= surfaceSolid ? Blocks.STONE.defaultBlockState() : Blocks.WATER.defaultBlockState();
-    }
-
-    protected static int getHighestSection(TerrainData terrainData) {
-        int y = Math.max(terrainData.getMaxBase(), terrainData.getMax());
-        return y >> 4 << 4;
-    }
-
-    protected static int getLowestSection(TerrainData terrainData) {
-        int y = terrainData.getMin();
-        return y >> 4 << 4;
-    }
-
-    protected static ByteBuf createFullPalette() {
-        IdMapper stateRegistry = Block.BLOCK_STATE_REGISTRY;
-        PalettedContainer container = new PalettedContainer((IdMap)stateRegistry, Blocks.STONE.defaultBlockState(), PalettedContainer.Strategy.SECTION_STATES);
-        container.acquire();
-        for (int x = 0; x < 16; ++x) {
-            for (int y = 0; y < 16; ++y) {
-                for (int z = 0; z < 16; ++z) {
-                    container.getAndSetUnchecked(x, y, z, Blocks.STONE.defaultBlockState());
-                }
-            }
-        }
-        container.release();
-        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        container.write(buffer);
-        return buffer;
-    }
-
-    public static FriendlyByteBuf getFullSection() {
-        return new FriendlyByteBuf(FULL_SECTION.get().copy());
-    }
-
-    public static interface FillerBlock {
-        public BlockState getState(int var1, int var2);
-    }
+   public interface FillerBlock {
+      BlockState getState(int var1, int var2);
+   }
 }

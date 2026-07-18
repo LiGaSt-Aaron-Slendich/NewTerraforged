@@ -4,18 +4,12 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.Reader;
 import java.nio.charset.Charset;
-import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileAttribute;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -23,154 +17,156 @@ import java.util.zip.ZipOutputStream;
 import org.apache.commons.io.IOUtils;
 
 public class FileUtil {
-    public static void write(Path path, IOConsumer<BufferedWriter> consumer) {
-        FileUtil.write(path, null, consumer);
-    }
+   public static void write(Path path, FileUtil.IOConsumer<BufferedWriter> consumer) {
+      write(path, null, consumer);
+   }
 
-    public static <T> void write(Path path, T context, IOBiConsumer<BufferedWriter, T> consumer) {
-        Path parent = (path = path.toAbsolutePath()).getParent();
-        if (!Files.exists(parent, new LinkOption[0])) {
-            try {
-                Files.createDirectories(parent, new FileAttribute[0]);
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-                return;
-            }
-        }
-        try (BufferedWriter writer = Files.newBufferedWriter(path, new OpenOption[0]);){
-            consumer.accept(writer, context);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+   public static <T> void write(Path path, T context, FileUtil.IOBiConsumer<BufferedWriter, T> consumer) {
+      path = path.toAbsolutePath();
+      Path pathx = path.getParent();
+      if (!Files.exists(pathx)) {
+         try {
+            Files.createDirectories(pathx);
+         } catch (IOException ioexception) {
+            ioexception.printStackTrace();
+            return;
+         }
+      }
 
-    public static void walk(Path root, String path, FileSystemVisitor visitor) throws IOException {
-        if (Files.isDirectory(root, new LinkOption[0])) {
-            FileUtil.walkDir(root, path, visitor);
-        } else {
-            FileUtil.walkSystem(root, path, visitor);
-        }
-    }
+      try (BufferedWriter bufferedwriter = Files.newBufferedWriter(path)) {
+         consumer.accept(bufferedwriter, context);
+      } catch (IOException ioexception1) {
+         ioexception1.printStackTrace();
+      }
+   }
 
-    public static void walkDir(Path root, String path, FileSystemVisitor visitor) throws IOException {
-        root = root.resolve(path);
-        FileUtil.walk(root.getFileSystem(), root, root, visitor);
-    }
+   public static void walk(Path root, String path, FileUtil.FileSystemVisitor visitor) throws IOException {
+      if (Files.isDirectory(root)) {
+         walkDir(root, path, visitor);
+      } else {
+         walkSystem(root, path, visitor);
+      }
+   }
 
-    public static void walkSystem(Path root, String path, FileSystemVisitor visitor) throws IOException {
-        try (FileSystem fs = FileSystems.newFileSystem(root);){
-            root = fs.getPath(path, new String[0]);
-            FileUtil.walk(fs, root, root, visitor);
-        }
-    }
+   public static void walkDir(Path root, String path, FileUtil.FileSystemVisitor visitor) throws IOException {
+      root = root.resolve(path);
+      walk(FileSystems.getDefault(), root, root, visitor);
+   }
 
-    public static void walk(FileSystem fs, Path root, Path path, FileSystemVisitor visitor) throws IOException {
-        Path file = fs.getPath(path.toString(), new String[0]);
-        if (Files.isDirectory(file, new LinkOption[0])) {
-            try (DirectoryStream<Path> stream = fs.provider().newDirectoryStream(file, entry -> true);){
-                stream.forEach(f -> {
-                    try {
-                        FileUtil.walk(fs, root, f, visitor);
-                    }
-                    catch (IOException e) {
-                        throw new Error(e);
-                    }
-                });
-            }
-        } else {
-            visitor.visit(fs, root, file);
-        }
-    }
+   public static void walkSystem(Path root, String path, FileUtil.FileSystemVisitor visitor) throws IOException {
+      try (FileSystem filesystem = FileSystems.newFileSystem(root)) {
+         root = filesystem.getPath(path);
+         walk(filesystem, root, root, visitor);
+      }
+   }
 
-    public static void createDirCopy(Path fromRoot, String fromPath, Path to) throws IOException {
-        FileUtil.walk(fromRoot, fromPath, (fs, root, file) -> {
-            Path relative = root.relativize(file);
-            Path dest = FileUtil.resolve(to, relative);
-            if (Files.exists(dest, new LinkOption[0]) || Files.isDirectory(file, new LinkOption[0])) {
-                return;
-            }
-            Path parent = dest.getParent();
-            if (!Files.exists(parent, new LinkOption[0])) {
-                Files.createDirectories(parent, new FileAttribute[0]);
-            }
-            Files.copy(file, dest, new CopyOption[0]);
-        });
-    }
-
-    public static void createZipCopy(Path from, String path, Path to) throws IOException {
-        try (ZipOutputStream output = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(to, new OpenOption[0])));){
-            FileUtil.walk(from, path, (fs, root, file) -> {
-                Object name = root.relativize(file).toString().replace('\\', '/');
-                if (Files.isDirectory(file, new LinkOption[0])) {
-                    if (!((String)name).endsWith("/")) {
-                        name = (String)name + "'/";
-                    }
-                    ZipEntry entry = new ZipEntry((String)name);
-                    entry.setTime(System.currentTimeMillis());
-                    output.putNextEntry(entry);
-                } else {
-                    ZipEntry entry = new ZipEntry((String)name);
-                    entry.setTime(System.currentTimeMillis());
-                    output.putNextEntry(entry);
-                    try (InputStreamReader input = new InputStreamReader(fs.provider().newInputStream(file, new OpenOption[0]));){
-                        IOUtils.copy((Reader)input, (OutputStream)output, (Charset)Charset.defaultCharset());
-                    }
-                }
-                output.closeEntry();
+   public static void walk(FileSystem fs, Path root, Path path, FileUtil.FileSystemVisitor visitor) throws IOException {
+      Path pathx = fs.getPath(path.toString());
+      if (Files.isDirectory(pathx)) {
+         try (DirectoryStream<Path> directorystream = fs.provider().newDirectoryStream(pathx, entry -> true)) {
+            directorystream.forEach(f -> {
+               try {
+                  walk(fs, root, f, visitor);
+               } catch (IOException ioexception) {
+                  throw new Error(ioexception);
+               }
             });
-            output.finish();
-            output.flush();
-        }
-    }
+         }
+      } else {
+         visitor.visit(fs, root, pathx);
+      }
+   }
 
-    public static void delete(Path path) {
-        FileUtil.iterate(path, file -> {
-            try {
-                Files.deleteIfExists(file);
+   public static void createDirCopy(Path fromRoot, String fromPath, Path to) throws IOException {
+      walk(fromRoot, fromPath, (fs, root, file) -> {
+         Path path = root.relativize(file);
+         Path path1 = resolve(to, path);
+         if (!Files.exists(path1) && !Files.isDirectory(file)) {
+            Path path2 = path1.getParent();
+            if (!Files.exists(path2)) {
+               Files.createDirectories(path2);
             }
-            catch (IOException e) {
-                e.printStackTrace();
+
+            Files.copy(file, path1);
+         }
+      });
+   }
+
+   public static void createZipCopy(Path from, String path, Path to) throws IOException {
+      try (ZipOutputStream zipoutputstream = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(to)))) {
+         walk(from, path, (fs, root, file) -> {
+            String s = root.relativize(file).toString().replace('\\', '/');
+            if (Files.isDirectory(file)) {
+               if (!s.endsWith("/")) {
+                  s = s + "'/";
+               }
+
+               ZipEntry zipentry = new ZipEntry(s);
+               zipentry.setTime(System.currentTimeMillis());
+               zipoutputstream.putNextEntry(zipentry);
+               zipoutputstream.closeEntry();
+            } else {
+               ZipEntry zipentry1 = new ZipEntry(s);
+               zipentry1.setTime(System.currentTimeMillis());
+               zipoutputstream.putNextEntry(zipentry1);
+
+               try (InputStreamReader inputstreamreader = new InputStreamReader(fs.provider().newInputStream(file))) {
+                  IOUtils.copy(inputstreamreader, zipoutputstream, Charset.defaultCharset());
+               }
+
+               zipoutputstream.closeEntry();
             }
-        });
-    }
+         });
+         zipoutputstream.finish();
+         zipoutputstream.flush();
+      }
+   }
 
-    public static void iterate(Path path, Consumer<Path> consumer) {
-        if (Files.isDirectory(path, new LinkOption[0])) {
-            try (Stream<Path> files = Files.list(path);){
-                files.forEach(file -> FileUtil.iterate(file, consumer));
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        consumer.accept(path);
-    }
+   public static void delete(Path path) {
+      iterate(path, file -> {
+         try {
+            Files.deleteIfExists(file);
+         } catch (IOException ioexception) {
+            ioexception.printStackTrace();
+         }
+      });
+   }
 
-    public static Path resolve(Path base, Path path) {
-        Path result = base;
-        for (Path part : path) {
-            result = result.resolve(part.getFileName().toString());
-        }
-        return result;
-    }
+   public static void iterate(Path path, Consumer<Path> consumer) {
+      if (Files.isDirectory(path)) {
+         try (Stream<Path> stream = Files.list(path)) {
+            stream.forEach(file -> iterate(file, consumer));
+         } catch (IOException ioexception) {
+            ioexception.printStackTrace();
+         }
+      }
 
-    public static interface IOBiConsumer<A, B> {
-        public void accept(A var1, B var2) throws IOException;
-    }
+      consumer.accept(path);
+   }
 
-    public static interface FileSystemVisitor {
-        public void visit(FileSystem var1, Path var2, Path var3) throws IOException;
-    }
+   public static Path resolve(Path base, Path path) {
+      Path pathx = base;
 
-    public static interface IOConsumer<T>
-    extends IOBiConsumer<T, Void> {
-        public void accept(T var1) throws IOException;
+      for (Path path1 : path) {
+         pathx = pathx.resolve(path1.getFileName().toString());
+      }
 
-        @Override
-        default public void accept(T t, Void unused) throws IOException {
-            this.accept(t);
-        }
-    }
+      return pathx;
+   }
+
+   public interface FileSystemVisitor {
+      void visit(FileSystem var1, Path var2, Path var3) throws IOException;
+   }
+
+   public interface IOBiConsumer<A, B> {
+      void accept(A var1, B var2) throws IOException;
+   }
+
+   public interface IOConsumer<T> extends FileUtil.IOBiConsumer<T, Void> {
+      void accept(T var1) throws IOException;
+
+      default void accept(T t, Void unused) throws IOException {
+         this.accept(t);
+      }
+   }
 }

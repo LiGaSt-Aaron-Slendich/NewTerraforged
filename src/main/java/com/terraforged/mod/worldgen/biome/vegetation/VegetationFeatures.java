@@ -13,156 +13,118 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.levelgen.GenerationStep.Decoration;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.levelgen.placement.PlacementModifier;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 
 public class VegetationFeatures {
-    public static VegetationFeatures NONE = new VegetationFeatures();
-    public static final int STAGE = GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
-    private static volatile MethodHandle featureGetter;
-    private static volatile MethodHandle placementsGetter;
-    private static final Set<PlacementModifierType<?>> BIOME_CHECK;
-    private static final Set<PlacementModifierType<?>> EXCLUSIONS;
-    private static final Set<PlacementModifierType<?>> TREE_EXCLUSIONS;
-    protected static final String[] TREE_KEYWORDS;
-    protected static final String[] GRASS_KEYWORDS;
-    protected static final String[] COVER_KEYWORDS;
-    private final PlacedFeature[] trees;
-    private final PlacedFeature[] grass;
-    private final PlacedFeature[] other;
+   public static VegetationFeatures NONE = new VegetationFeatures();
+   public static final int STAGE = Decoration.VEGETAL_DECORATION.ordinal();
+   private static final MethodHandle FEATURE_GETTER = ReflectionUtil.field(PlacedFeature.class, Holder.class);
+   private static final MethodHandle PLACEMENTS_GETTER = ReflectionUtil.field(PlacedFeature.class, List.class);
+   private static final Set<PlacementModifierType<?>> BIOME_CHECK = Set.of(PlacementModifierType.BIOME_FILTER);
+   private static final Set<PlacementModifierType<?>> EXCLUSIONS = Set.of(
+      PlacementModifierType.BIOME_FILTER,
+      PlacementModifierType.COUNT,
+      PlacementModifierType.COUNT_ON_EVERY_LAYER,
+      PlacementModifierType.NOISE_BASED_COUNT,
+      PlacementModifierType.NOISE_THRESHOLD_COUNT
+   );
+   private static final Set<PlacementModifierType<?>> TREE_EXCLUSIONS = ImmutableSet.<PlacementModifierType<?>>builder().addAll(EXCLUSIONS).add(PlacementModifierType.IN_SQUARE).build();
+   protected static final String[] TREE_KEYWORDS = new String[]{"tree", "spruce", "oak", "birch", "pine", "dark_forest_vegetation"};
+   protected static final String[] GRASS_KEYWORDS = new String[]{"grass"};
+   private final PlacedFeature[] trees;
+   private final PlacedFeature[] grass;
+   private final PlacedFeature[] other;
 
-    private VegetationFeatures() {
-        this.trees = new PlacedFeature[0];
-        this.grass = new PlacedFeature[0];
-        this.other = new PlacedFeature[0];
-    }
+   private VegetationFeatures() {
+      this.trees = new PlacedFeature[0];
+      this.grass = new PlacedFeature[0];
+      this.other = new PlacedFeature[0];
+   }
 
-    public VegetationFeatures(List<PlacedFeature> trees, List<PlacedFeature> grass, List<PlacedFeature> other) {
-        this.trees = (PlacedFeature[])trees.toArray(PlacedFeature[]::new);
-        this.grass = (PlacedFeature[])grass.toArray(PlacedFeature[]::new);
-        this.other = (PlacedFeature[])other.toArray(PlacedFeature[]::new);
-    }
+   public VegetationFeatures(List<PlacedFeature> trees, List<PlacedFeature> grass, List<PlacedFeature> other) {
+      this.trees = trees.toArray(PlacedFeature[]::new);
+      this.grass = grass.toArray(PlacedFeature[]::new);
+      this.other = other.toArray(PlacedFeature[]::new);
+   }
 
-    public PlacedFeature[] trees() {
-        return this.trees;
-    }
+   public PlacedFeature[] trees() {
+      return this.trees;
+   }
 
-    public PlacedFeature[] grass() {
-        return this.grass;
-    }
+   public PlacedFeature[] grass() {
+      return this.grass;
+   }
 
-    public PlacedFeature[] other() {
-        return this.other;
-    }
+   public PlacedFeature[] other() {
+      return this.other;
+   }
 
-    public static VegetationFeatures create(Biome biome, RegistryAccess access, VegetationConfig config) {
-        ArrayList<PlacedFeature> trees = new ArrayList<PlacedFeature>();
-        ArrayList<PlacedFeature> grass = new ArrayList<PlacedFeature>();
-        ArrayList<PlacedFeature> other = new ArrayList<PlacedFeature>();
-        boolean custom = config != VegetationConfig.NONE;
-        List features = biome.getGenerationSettings().features();
-        if (features.size() > STAGE) {
-            HolderSet vegetation = (HolderSet)features.get(STAGE);
-            Registry featureRegistry = access.registryOrThrow(Registry.PLACED_FEATURE_REGISTRY);
-            for (Holder<PlacedFeature> feature : (Iterable<Holder<PlacedFeature>>) vegetation) {
-                ResourceLocation featureKey = featureRegistry.getKey(((PlacedFeature)feature.value()));
-                if (featureKey == null) {
-                    other.add((PlacedFeature)feature.value());
-                    continue;
-                }
-                String path = featureKey.getPath();
-                if (VegetationFeatures.matches(path, TREE_KEYWORDS)) {
-                    trees.add(VegetationFeatures.unwrap((Holder<PlacedFeature>)feature, TREE_EXCLUSIONS, custom));
-                    continue;
-                }
-                if (VegetationFeatures.matches(path, GRASS_KEYWORDS) || VegetationFeatures.matches(path, COVER_KEYWORDS)) {
-                    grass.add((PlacedFeature)feature.value());
-                    continue;
-                }
-                other.add((PlacedFeature)feature.value());
+   public static VegetationFeatures create(Biome biome, RegistryAccess access, VegetationConfig config) {
+      ArrayList<PlacedFeature> arraylist = new ArrayList<>();
+      ArrayList<PlacedFeature> arraylist1 = new ArrayList<>();
+      ArrayList<PlacedFeature> arraylist2 = new ArrayList<>();
+      boolean flag = config != VegetationConfig.NONE;
+      List<HolderSet<PlacedFeature>> list = biome.getGenerationSettings().features();
+      if (list.size() > STAGE) {
+         HolderSet<PlacedFeature> holderset = list.get(STAGE);
+         Registry<PlacedFeature> registry = access.registryOrThrow(Registry.PLACED_FEATURE_REGISTRY);
+
+         for (Holder<PlacedFeature> holder : holderset) {
+            ResourceLocation resourcelocation = registry.getKey((PlacedFeature)holder.value());
+            if (resourcelocation == null) {
+               arraylist2.add((PlacedFeature)holder.value());
+            } else {
+               String s = resourcelocation.getPath();
+               if (matches(s, TREE_KEYWORDS)) {
+                  arraylist.add(unwrap(holder, TREE_EXCLUSIONS, flag));
+               } else if (matches(s, GRASS_KEYWORDS)) {
+                  arraylist1.add((PlacedFeature)holder.value());
+               } else {
+                  arraylist2.add((PlacedFeature)holder.value());
+               }
             }
-        }
-        return new VegetationFeatures(trees, grass, other);
-    }
+         }
+      }
 
-    protected static boolean matches(String name, String[] keywords) {
-        for (String keyword : keywords) {
-            if (!name.contains(keyword)) continue;
+      return new VegetationFeatures(arraylist, arraylist1, arraylist2);
+   }
+
+   protected static boolean matches(String name, String[] keywords) {
+      for (String s : keywords) {
+         if (name.contains(s)) {
             return true;
-        }
-        return false;
-    }
+         }
+      }
 
-    public static PlacedFeature unwrap(Holder<PlacedFeature> supplier, Set<PlacementModifierType<?>> exclusions, boolean custom) {
-        if (!custom) {
+      return false;
+   }
+
+   public static PlacedFeature unwrap(Holder<PlacedFeature> supplier, Set<PlacementModifierType<?>> exclusions, boolean custom) {
+      if (!custom) {
+         return (PlacedFeature)supplier.value();
+      } else {
+         try {
+            PlacedFeature placedfeature = (PlacedFeature)supplier.value();
+            Holder<ConfiguredFeature<?, ?>> holder = getFeature(placedfeature);
+            ArrayList<PlacementModifier> arraylist = new ArrayList<>(getPlacements(placedfeature));
+            arraylist.removeIf(placement -> exclusions.contains(placement.type()));
+            return new PlacedFeature(holder, arraylist);
+         } catch (Throwable throwable) {
+            throwable.printStackTrace();
             return (PlacedFeature)supplier.value();
-        }
-        try {
-            PlacedFeature placed = (PlacedFeature)supplier.value();
-            Holder<ConfiguredFeature<?, ?>> feature = VegetationFeatures.getFeature(placed);
-            ArrayList<PlacementModifier> placements = new ArrayList<PlacementModifier>(VegetationFeatures.getPlacements(placed));
-            placements.removeIf(placement -> exclusions.contains(placement.type()));
-            return new PlacedFeature(feature, placements);
-        }
-        catch (Throwable t) {
-            t.printStackTrace();
-            return (PlacedFeature)supplier.value();
-        }
-    }
+         }
+      }
+   }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     * Enabled force condition propagation
-     * Lifted jumps to return sites
-     */
-    private static MethodHandle featureGetter() {
-        MethodHandle handle = featureGetter;
-        if (handle != null) return handle;
-        Class<VegetationFeatures> clazz = VegetationFeatures.class;
-        synchronized (VegetationFeatures.class) {
-            handle = featureGetter;
-            if (handle != null) return handle;
-            featureGetter = handle = ReflectionUtil.field(PlacedFeature.class, Holder.class, new String[0]);
-            // ** MonitorExit[var1_1] (shouldn't be in output)
-            return handle;
-        }
-    }
+   protected static Holder<ConfiguredFeature<?, ?>> getFeature(PlacedFeature feature) throws Throwable {
+      return (Holder)FEATURE_GETTER.invokeExact((PlacedFeature)feature);
+   }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     * Enabled force condition propagation
-     * Lifted jumps to return sites
-     */
-    private static MethodHandle placementsGetter() {
-        MethodHandle handle = placementsGetter;
-        if (handle != null) return handle;
-        Class<VegetationFeatures> clazz = VegetationFeatures.class;
-        synchronized (VegetationFeatures.class) {
-            handle = placementsGetter;
-            if (handle != null) return handle;
-            placementsGetter = handle = ReflectionUtil.field(PlacedFeature.class, List.class, new String[0]);
-            // ** MonitorExit[var1_1] (shouldn't be in output)
-            return handle;
-        }
-    }
-
-    protected static Holder<ConfiguredFeature<?, ?>> getFeature(PlacedFeature feature) throws Throwable {
-        return (Holder<ConfiguredFeature<?, ?>>) VegetationFeatures.featureGetter().invoke(feature);
-    }
-
-    protected static List<PlacementModifier> getPlacements(PlacedFeature feature) throws Throwable {
-        return (List<PlacementModifier>) VegetationFeatures.placementsGetter().invoke(feature);
-    }
-
-    static {
-        BIOME_CHECK = Set.of(PlacementModifierType.BIOME_FILTER);
-        EXCLUSIONS = Set.of(PlacementModifierType.BIOME_FILTER, PlacementModifierType.COUNT, PlacementModifierType.COUNT_ON_EVERY_LAYER, PlacementModifierType.NOISE_BASED_COUNT, PlacementModifierType.NOISE_THRESHOLD_COUNT);
-        TREE_EXCLUSIONS = ImmutableSet.<PlacementModifierType<?>>builder().addAll(EXCLUSIONS).add(PlacementModifierType.IN_SQUARE).build();
-        TREE_KEYWORDS = new String[]{"tree", "spruce", "oak", "birch", "pine", "dark_forest_vegetation", "jungle", "mega", "redwood", "palm", "willow", "maple", "cypress", "mahogany"};
-        GRASS_KEYWORDS = new String[]{"grass"};
-        COVER_KEYWORDS = new String[]{"flower", "lavender", "patch", "fern", "bush", "petal", "clover", "shrub", "flora", "ground", "moss", "vine", "leaf_litter", "vegetation"};
-    }
+   protected static List<PlacementModifier> getPlacements(PlacedFeature feature) throws Throwable {
+      return (List)PLACEMENTS_GETTER.invokeExact((PlacedFeature)feature);
+   }
 }

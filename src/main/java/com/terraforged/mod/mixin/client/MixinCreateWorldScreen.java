@@ -1,47 +1,45 @@
 package com.terraforged.mod.mixin.client;
 
-import com.terraforged.mod.hooks.DatapackHook;
-import com.terraforged.mod.hooks.WorldGenHook;
-import com.terraforged.mod.mixin.client.WorldGenSettingsComponentAccess;
+import com.mojang.datafixers.util.Pair;
+import com.terraforged.mod.TerraForged;
+import com.terraforged.mod.client.screen.ScreenUtil;
+import com.terraforged.mod.worldgen.datapack.DataPackExporter;
+import java.io.File;
 import java.nio.file.Path;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
-import net.minecraft.client.gui.screens.worldselection.WorldGenSettingsComponent;
 import net.minecraft.server.packs.repository.PackRepository;
-import net.minecraft.world.level.levelgen.WorldGenSettings;
+import net.minecraft.world.level.DataPackConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(value={CreateWorldScreen.class})
+@Mixin({CreateWorldScreen.class})
 public abstract class MixinCreateWorldScreen {
-    @Shadow
-    public WorldGenSettingsComponent worldGenSettingsComponent;
+   @Shadow
+   protected DataPackConfig dataPacks;
 
-    @Shadow
-    protected abstract Path getTempDataPackDir();
+   @Shadow
+   protected abstract Path getTempDataPackDir();
 
-    @Inject(method={"init"}, at={@At(value="RETURN")})
-    private void onInit(CallbackInfo ci) {
-        DatapackHook.selectPreset(this);
-    }
+   @Shadow
+   protected abstract Pair<File, PackRepository> getDataPackSelectionSettings();
 
-    @Inject(method={"tryApplyNewDataPacks"}, at={@At(value="HEAD")})
-    private void onTryApplyNewDataPacks(PackRepository repository, CallbackInfo ci) {
-        DatapackHook.injectDatapack(repository, this.getTempDataPackDir());
-    }
+   @Shadow
+   protected abstract void tryApplyNewDataPacks(PackRepository var1);
 
-    @ModifyVariable(method={"onCreate"}, at=@At(value="INVOKE_ASSIGN", target="Lnet/minecraft/client/gui/screens/worldselection/WorldGenSettingsComponent;makeSettings(Z)Lnet/minecraft/world/level/levelgen/WorldGenSettings;"), ordinal=0)
-    private WorldGenSettings newtf$forceGenerator(WorldGenSettings settings) {
-        WorldGenSettingsComponentAccess access = (WorldGenSettingsComponentAccess)this.worldGenSettingsComponent;
-        DatapackHook.reselectPreset(access.newtf$getTypeButton());
-        return WorldGenHook.applyIfSelected(access.newtf$getTypeButton(), this.worldGenSettingsComponent.registryHolder(), settings);
-    }
-
-    @Inject(method={"removed"}, at={@At(value="HEAD")})
-    private void onRemoved(CallbackInfo ci) {
-        DatapackHook.clearNewTerraForgedIntent();
-    }
+   @Inject(
+      method = {"onCreate()V"},
+      at = {@At("HEAD")}
+   )
+   private void onCreate(CallbackInfo ci) {
+      if (ScreenUtil.isPresetEnabled((CreateWorldScreen)(Object)this)) {
+         this.dataPacks = DataPackExporter.setup(this.getTempDataPackDir(), this.dataPacks);
+         PackRepository packrepository = (PackRepository)this.getDataPackSelectionSettings().getSecond();
+         packrepository.setSelected(this.dataPacks.getEnabled());
+         this.tryApplyNewDataPacks(packrepository);
+         TerraForged.LOG.info("Applied datapacks: {}", packrepository.getSelectedIds());
+      }
+   }
 }

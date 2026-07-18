@@ -7,131 +7,182 @@ import com.terraforged.mod.worldgen.noise.continent.ContinentGenerator;
 import com.terraforged.mod.worldgen.noise.continent.ContinentPoints;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
-import com.terraforged.mod.worldgen.noise.continent.shape.FalloffPoint;
 import com.terraforged.noise.util.NoiseUtil;
 
 public class ShapeGenerator {
-    private static final int RADIUS = 2;
-    private final float baseFalloff;
-    private final float continentFalloff;
-    public final float threshold;
-    public final float baseFalloffMin;
-    public final float baseFalloffMax;
-    private final ContinentGenerator continent;
-    private final FalloffPoint[] falloffPoints;
-    private final ThreadLocal<long[]> edgeBuffer = ThreadLocal.withInitial(() -> new long[9]);
-    private final ThreadLocal<CellLocal[]> cellBuffer = ThreadLocal.withInitial(CellLocal::init);
+   private static final int RADIUS = 2;
+   private final float baseFalloff;
+   private final float continentFalloff;
+   public final float threshold;
+   public final float baseFalloffMin;
+   public final float baseFalloffMax;
+   private final ContinentGenerator continent;
+   private final FalloffPoint[] falloffPoints;
+   private final ThreadLocal<long[]> edgeBuffer = ThreadLocal.withInitial(() -> new long[9]);
+   private final ThreadLocal<ShapeGenerator.CellLocal[]> cellBuffer = ThreadLocal.withInitial(ShapeGenerator.CellLocal::init);
 
-    public ShapeGenerator(ContinentGenerator continent, ContinentConfig config, ControlPoints controlPoints) {
-        this.continent = continent;
-        this.baseFalloff = config.noise.baseNoiseFalloff;
-        this.continentFalloff = config.noise.continentNoiseFalloff;
-        this.falloffPoints = ContinentPoints.getFalloff(controlPoints);
-        this.threshold = config.shape.threshold;
-        this.baseFalloffMin = config.shape.threshold + config.shape.baseFalloffMin;
-        this.baseFalloffMax = config.shape.threshold + config.shape.baseFalloffMax;
-    }
+   public ShapeGenerator(ContinentGenerator continent, ContinentConfig config, ControlPoints controlPoints) {
+      this.continent = continent;
+      this.baseFalloff = config.noise.baseNoiseFalloff;
+      this.continentFalloff = config.noise.continentNoiseFalloff;
+      this.falloffPoints = ContinentPoints.getFalloff(controlPoints);
+      this.threshold = config.shape.threshold;
+      this.baseFalloffMin = config.shape.threshold + config.shape.baseFalloffMin;
+      this.baseFalloffMax = config.shape.threshold + config.shape.baseFalloffMax;
+   }
 
-    public float getThresholdValue(CellPoint cell) {
-        return cell.noise < this.threshold ? 0.0f : 1.0f;
-    }
+   public float getThresholdValue(CellPoint cell) {
+      return cell.noise < this.threshold ? 0.0F : 1.0F;
+   }
 
-    public float getFalloff(float continentNoise) {
-        return ContinentPoints.getFalloff(continentNoise, this.falloffPoints);
-    }
+   public float getFalloff(float continentNoise) {
+      return ContinentPoints.getFalloff(continentNoise, this.falloffPoints);
+   }
 
-    public float getBaseNoise(float value) {
-        float min = this.baseFalloffMin;
-        float max = this.baseFalloffMax;
-        return NoiseUtil.map(value, min, max, max - min);
-    }
+   public float getBaseNoise(float value) {
+      float f = this.baseFalloffMin;
+      float f1 = this.baseFalloffMax;
+      return NoiseUtil.map(value, f, f1, f1 - f);
+   }
 
-    public NoiseSample sample(int seed, float x, float y, NoiseSample sample) {
-        long centre = this.continent.getNearestCell(seed, x, y);
-        int centreX = PosUtil.unpackLeft(centre);
-        int centreY = PosUtil.unpackRight(centre);
-        x = this.continent.cellShape.adjustX(x);
-        y = this.continent.cellShape.adjustY(y);
-        int minX = centreX - 2;
-        int minY = centreY - 2;
-        int maxX = centreX + 2;
-        int maxY = centreY + 2;
-        int closest = -1;
-        float min0 = Float.MAX_VALUE;
-        float min1 = Float.MAX_VALUE;
-        CellLocal[] buffer = this.cellBuffer.get();
-        int i = 0;
-        for (int cy = minY; cy <= maxY; ++cy) {
-            int cx = minX;
-            while (cx <= maxX) {
-                CellPoint cell = this.continent.getCell(seed, cx, cy);
-                CellLocal local = buffer[i];
-                float distance = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cell.px, cell.py));
-                local.cell = cell;
-                local.context = distance;
-                if (distance < min0) {
-                    min1 = min0;
-                    min0 = distance;
-                    closest = i;
-                } else if (distance < min1) {
-                    min1 = distance;
-                }
-                ++cx;
-                ++i;
+   public float getValue(float x, float y) {
+      long i = this.continent.getNearestCell(x, y);
+      int j = PosUtil.unpackLeft(i);
+      int k = PosUtil.unpackRight(i);
+      x = this.continent.cellShape.adjustX(x);
+      y = this.continent.cellShape.adjustY(y);
+      int l = j - 1;
+      int i1 = k - 1;
+      int j1 = j + 1;
+      int k1 = k + 1;
+      float f = Float.MAX_VALUE;
+      float f1 = Float.MAX_VALUE;
+      long[] along = this.edgeBuffer.get();
+      int l1 = i1;
+
+      for (int i2 = 0; l1 <= k1; l1++) {
+         for (int j2 = l; j2 <= j1; i2++) {
+            CellPoint cellpoint = this.continent.getCell(j2, l1);
+            float f2 = this.getThresholdValue(cellpoint);
+            float f3 = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cellpoint.px, cellpoint.py));
+            along[i2] = PosUtil.packf(f2, f3);
+            if (f3 < f) {
+               f1 = f;
+               f = f3;
+            } else if (f3 < f1) {
+               f1 = f3;
             }
-        }
-        return this.sampleEdges(closest, min0, min1, buffer, sample);
-    }
 
-    private NoiseSample sampleEdges(int index, float min0, float min1, CellLocal[] buffer, NoiseSample sample) {
-        float borderDistance = (min0 + min1) * 0.5f;
-        float baseBlend = borderDistance * this.baseFalloff;
-        float continentBlend = borderDistance * this.continentFalloff;
-        float sumBase = 0.0f;
-        float sumContinent = 0.0f;
-        float sumBaseWeight = 0.0f;
-        float sumContinentWeight = 0.0f;
-        for (CellLocal local : buffer) {
-            float dist = local.context;
-            float baseValue = local.cell.noise();
-            float continentValue = this.getThresholdValue(local.cell);
-            float baseWeight = ShapeGenerator.getWeight(dist, min0, baseBlend);
-            float continentWeight = ShapeGenerator.getWeight(dist, min0, continentBlend);
-            sumBase += baseValue * baseWeight;
-            sumContinent += continentValue * continentWeight;
-            sumBaseWeight += baseWeight;
-            sumContinentWeight += continentWeight;
-        }
-        sample.baseNoise = this.getBaseNoise(sumBase / sumBaseWeight);
-        sample.continentNoise = this.getFalloff(sumContinent / sumContinentWeight);
-        return sample;
-    }
+            j2++;
+         }
+      }
 
-    private static float getWeight(float dist, float origin, float blendRange) {
-        float delta = dist - origin;
-        if (delta <= 0.0f) {
-            return 1.0f;
-        }
-        if (delta >= blendRange) {
-            return 0.0f;
-        }
-        return 1.0f - delta / blendRange;
-    }
+      return this.getFalloff(this.getEdge(f, f1, this.continentFalloff, along));
+   }
 
-    protected static class CellLocal {
-        public CellPoint cell;
-        public float context;
+   public NoiseSample sample(float x, float y, NoiseSample sample) {
+      long i = this.continent.getNearestCell(x, y);
+      int j = PosUtil.unpackLeft(i);
+      int k = PosUtil.unpackRight(i);
+      x = this.continent.cellShape.adjustX(x);
+      y = this.continent.cellShape.adjustY(y);
+      int l = j - 2;
+      int i1 = k - 2;
+      int j1 = j + 2;
+      int k1 = k + 2;
+      int l1 = -1;
+      float f = Float.MAX_VALUE;
+      float f1 = Float.MAX_VALUE;
+      ShapeGenerator.CellLocal[] ashapegenerator$celllocal = this.cellBuffer.get();
+      int i2 = i1;
 
-        protected CellLocal() {
-        }
-
-        protected static CellLocal[] init() {
-            int size = 5;
-            CellLocal[] cells = new CellLocal[size * size];
-            for (int i = 0; i < cells.length; ++i) {
-                cells[i] = new CellLocal();
+      for (int j2 = 0; i2 <= k1; i2++) {
+         for (int k2 = l; k2 <= j1; j2++) {
+            CellPoint cellpoint = this.continent.getCell(k2, i2);
+            ShapeGenerator.CellLocal shapegenerator$celllocal = ashapegenerator$celllocal[j2];
+            float f2 = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cellpoint.px, cellpoint.py));
+            shapegenerator$celllocal.cell = cellpoint;
+            shapegenerator$celllocal.context = f2;
+            if (f2 < f) {
+               f1 = f;
+               f = f2;
+               l1 = j2;
+            } else if (f2 < f1) {
+               f1 = f2;
             }
-            return cells;
-        }
-    }
+
+            k2++;
+         }
+      }
+
+      return this.sampleEdges(l1, f, f1, ashapegenerator$celllocal, sample);
+   }
+
+   private float getEdge(float min0, float min1, float falloff, long[] data) {
+      float f = (min0 + min1) * 0.5F;
+      float f1 = f * falloff;
+      float f2 = 0.0F;
+      float f3 = 0.0F;
+
+      for (long i : data) {
+         float f4 = PosUtil.unpackLeftf(i);
+         float f5 = PosUtil.unpackRightf(i);
+         float f6 = getWeight(f5, min0, f1);
+         f2 += f4 * f6;
+         f3 += f6;
+      }
+
+      return NoiseUtil.clamp(f2 / f3, 0.0F, 1.0F);
+   }
+
+   private NoiseSample sampleEdges(int index, float min0, float min1, ShapeGenerator.CellLocal[] buffer, NoiseSample sample) {
+      float f = (min0 + min1) * 0.5F;
+      float f1 = f * this.baseFalloff;
+      float f2 = f * this.continentFalloff;
+      float f3 = 0.0F;
+      float f4 = 0.0F;
+      float f5 = 0.0F;
+      float f6 = 0.0F;
+
+      for (ShapeGenerator.CellLocal shapegenerator$celllocal : buffer) {
+         float f7 = shapegenerator$celllocal.context;
+         float f8 = shapegenerator$celllocal.cell.noise();
+         float f9 = this.getThresholdValue(shapegenerator$celllocal.cell);
+         float f10 = getWeight(f7, min0, f1);
+         float f11 = getWeight(f7, min0, f2);
+         f3 += f8 * f10;
+         f4 += f9 * f11;
+         f5 += f10;
+         f6 += f11;
+      }
+
+      sample.baseNoise = this.getBaseNoise(f3 / f5);
+      sample.continentNoise = this.getFalloff(f4 / f6);
+      return sample;
+   }
+
+   private static float getWeight(float dist, float origin, float blendRange) {
+      float f = dist - origin;
+      if (f <= 0.0F) {
+         return 1.0F;
+      } else {
+         return f >= blendRange ? 0.0F : 1.0F - f / blendRange;
+      }
+   }
+
+   protected static class CellLocal {
+      public CellPoint cell;
+      public float context;
+
+      protected static ShapeGenerator.CellLocal[] init() {
+         int i = 5;
+         ShapeGenerator.CellLocal[] ashapegenerator$celllocal = new ShapeGenerator.CellLocal[i * i];
+
+         for (int j = 0; j < ashapegenerator$celllocal.length; j++) {
+            ashapegenerator$celllocal[j] = new ShapeGenerator.CellLocal();
+         }
+
+         return ashapegenerator$celllocal;
+      }
+   }
 }

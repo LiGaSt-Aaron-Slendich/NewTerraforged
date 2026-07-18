@@ -6,118 +6,124 @@ import com.terraforged.noise.util.NoiseUtil;
 import java.awt.geom.Line2D;
 
 public class MathUtil {
-    public static final float EPSILON = 0.99999f;
+   public static final float EPSILON = 0.99999F;
 
-    public static int clamp(int value, int min, int max) {
-        return value < min ? min : (value > max ? max : value);
-    }
+   public static int clamp(int value, int min, int max) {
+      return value < min ? min : (value > max ? max : value);
+   }
 
-    public static float clamp(float value, float min, float max) {
-        return value < min ? min : (value > max ? max : value);
-    }
+   public static float clamp(float value, float min, float max) {
+      return value < min ? min : (value > max ? max : value);
+   }
 
-    public static float map(float value, float min0, float max0, float min1, float max1) {
-        float alpha = NoiseUtil.map(value, min0, max0, max0 - min0);
-        return NoiseUtil.lerp(min1, max1, alpha);
-    }
+   public static float map(float value, float min0, float max0, float min1, float max1) {
+      float f = NoiseUtil.map(value, min0, max0, max0 - min0);
+      return NoiseUtil.lerp(min1, max1, f);
+   }
 
-    public static int hash(int seed, int x) {
-        return NoiseUtil.hash(seed, x);
-    }
+   public static int hash(int seed, int x) {
+      return NoiseUtil.hash(seed, x);
+   }
 
-    public static int hash(int seed, int x, int z) {
-        return NoiseUtil.hash2D(seed, x, z);
-    }
+   public static int hash(int seed, int x, int z) {
+      return NoiseUtil.hash2D(seed, x, z);
+   }
 
-    public static float getPosX(int hash, int cx, float jitter) {
-        float offset = MathUtil.rand(hash, 1619);
-        return (float)cx + offset * jitter;
-    }
+   public static float getPosX(int hash, int cx, float jitter) {
+      float f = rand(hash, 1619);
+      return cx + f * jitter;
+   }
 
-    public static float getPosY(int hash, int cy, float jitter) {
-        float offset = MathUtil.rand(hash, 31337);
-        return (float)cy + offset * jitter;
-    }
+   public static float getPosY(int hash, int cy, float jitter) {
+      float f = rand(hash, 31337);
+      return cy + f * jitter;
+   }
 
-    public static float getPosX(int hash, int cx, float ox, float jitter) {
-        float offset = MathUtil.rand(hash, 1619);
-        return (float)cx + ox + offset * jitter;
-    }
+   public static float getPosX(int hash, int cx, float ox, float jitter) {
+      float f = rand(hash, 1619);
+      return cx + ox + f * jitter;
+   }
 
-    public static float getPosY(int hash, int cy, float oy, float jitter) {
-        float offset = MathUtil.rand(hash, 31337);
-        return (float)cy + oy + offset * jitter;
-    }
+   public static float getPosY(int hash, int cy, float oy, float jitter) {
+      float f = rand(hash, 31337);
+      return cy + oy + f * jitter;
+   }
 
-    public static float randX(int hash) {
-        return MathUtil.rand(hash, 1619);
-    }
+   public static float randX(int hash) {
+      return rand(hash, 1619);
+   }
 
-    public static float randZ(int hash) {
-        return MathUtil.rand(hash, 31337);
-    }
+   public static float randZ(int hash) {
+      return rand(hash, 31337);
+   }
 
-    public static float rand(int seed, int offset) {
-        return MathUtil.rand(MathUtil.hash(seed, offset));
-    }
+   public static float rand(int seed, int offset) {
+      return rand(hash(seed, offset));
+   }
 
-    public static float rand(int seed, int x, int y) {
-        return MathUtil.rand(MathUtil.hash(seed, x, y));
-    }
+   public static float rand(int seed, int x, int y) {
+      return rand(hash(seed, x, y));
+   }
 
-    public static float rand(int n) {
-        n ^= 0x653;
-        float value = (float)((n ^= 0x7A69) * n * n * 60493) / 2.14748365E9f;
-        return NoiseUtil.map(value, -1.0f, 1.0f, 2.0f);
-    }
+   public static float rand(int n) {
+      n ^= 1619;
+      n ^= 31337;
+      float f = n * n * n * 60493 / 2.1474836E9F;
+      return NoiseUtil.map(f, -1.0F, 1.0F, 2.0F);
+   }
 
-    public static float sum(float[] values) {
-        float sum = 0.0f;
-        for (float value : values) {
-            sum += value;
-        }
-        return sum;
-    }
+   public static float sum(float[] values) {
+      float f = 0.0F;
 
-    protected static float getLineDistance(float x, float y, float ax, float ay, float bx, float by, float ar, float br) {
-        float dx = bx - ax;
-        float dy = by - ay;
-        float v = (x - ax) * dx + (y - ay) * dy;
-        v = (v /= dx * dx + dy * dy) < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
-        float tx = ax + dx * v;
-        float ty = ay + dy * v;
-        float tr = ar + (br - ar) * v;
-        float tr2 = tr * tr;
-        float d2 = Line.dist2(x, y, tx, ty);
-        return d2 < tr2 ? 1.0f - NoiseUtil.sqrt(d2) / tr : 0.0f;
-    }
+      for (float f1 : values) {
+         f += f1;
+      }
 
-    public static long getIntersection(float x, float y, float ax, float ay, float bx, float by) {
-        float dx = bx - ax;
-        float dy = by - ay;
-        float v = (x - ax) * dx + (y - ay) * dy;
-        float px = ax + dx * (v /= dx * dx + dy * dy);
-        float py = ay + dy * v;
-        return PosUtil.packf(px, py);
-    }
+      return f;
+   }
 
-    public static long getIntersection(float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy) {
-        float a1 = by - ay;
-        float b2 = cx - dx;
-        float a2 = dy - cy;
-        float b1 = ax - bx;
-        float det = a1 * b2 - a2 * b1;
-        if (det == 0.0f) {
-            return Long.MAX_VALUE;
-        }
-        float c1 = a1 * ax + b1 * ay;
-        float c2 = a2 * cx + b2 * cy;
-        float x = (b2 * c1 - b1 * c2) / det;
-        float y = (a1 * c2 - a2 * c1) / det;
-        return PosUtil.packf(x, y);
-    }
+   protected static float getLineDistance(float x, float y, float ax, float ay, float bx, float by, float ar, float br) {
+      float f = bx - ax;
+      float f1 = by - ay;
+      float f2 = (x - ax) * f + (y - ay) * f1;
+      f2 /= f * f + f1 * f1;
+      f2 = f2 < 0.0F ? 0.0F : (f2 > 1.0F ? 1.0F : f2);
+      float f3 = ax + f * f2;
+      float f4 = ay + f1 * f2;
+      float f5 = ar + (br - ar) * f2;
+      float f6 = f5 * f5;
+      float f7 = Line.dist2(x, y, f3, f4);
+      return f7 < f6 ? 1.0F - NoiseUtil.sqrt(f7) / f5 : 0.0F;
+   }
 
-    public static boolean intersects(float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy) {
-        return Line2D.linesIntersect(ax, ay, bx, by, cx, cy, dx, dy);
-    }
+   public static long getIntersection(float x, float y, float ax, float ay, float bx, float by) {
+      float f = bx - ax;
+      float f1 = by - ay;
+      float f2 = (x - ax) * f + (y - ay) * f1;
+      f2 /= f * f + f1 * f1;
+      float f3 = ax + f * f2;
+      float f4 = ay + f1 * f2;
+      return PosUtil.packf(f3, f4);
+   }
+
+   public static long getIntersection(float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy) {
+      float f = by - ay;
+      float f1 = ax - bx;
+      float f2 = dy - cy;
+      float f3 = cx - dx;
+      float f4 = f * f3 - f2 * f1;
+      if (f4 == 0.0F) {
+         return Long.MAX_VALUE;
+      } else {
+         float f5 = f * ax + f1 * ay;
+         float f6 = f2 * cx + f3 * cy;
+         float f7 = (f3 * f5 - f1 * f6) / f4;
+         float f8 = (f * f6 - f2 * f5) / f4;
+         return PosUtil.packf(f7, f8);
+      }
+   }
+
+   public static boolean intersects(float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy) {
+      return Line2D.linesIntersect(ax, ay, bx, by, cx, cy, dx, dy);
+   }
 }

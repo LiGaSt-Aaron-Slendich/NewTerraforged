@@ -1,14 +1,13 @@
 package com.terraforged.mod.worldgen.biome.surface;
 
 import com.terraforged.engine.world.terrain.Terrain;
-import com.terraforged.mod.worldgen.Generator;
-import com.terraforged.mod.worldgen.cave.CarverChunk;
-import com.terraforged.mod.worldgen.cave.CaveOpenAirCheck;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
@@ -16,309 +15,157 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.Heightmap.Types;
 
 public class Surface {
-    protected static final TagKey<Block> ERODIBLE = BlockTags.DIRT;
-    private static final int MAX_CLIFF_FILL = 8;
-    private static final float CLIFF_GRADIENT_MIN = 0.62f;
-    private static final float TERRACE_GRADIENT_MIN = 0.28f;
-    private static final float TERRACE_GRADIENT_MAX = 0.58f;
+   protected static final TagKey<Block> ERODIBLE = BlockTags.DIRT;
 
-    public static void apply(TerrainData terrainData, ChunkAccess chunk, ChunkGenerator generator) {
-        float norm = 55.0f * ((float)generator.getGenDepth() / 255.0f);
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int dz = 0; dz < 16; ++dz) {
-            for (int dx = 0; dx < 16; ++dx) {
-                int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
-                if (y < generator.getSeaLevel()) {
-                    continue;
-                }
-                pos.set(dx, y, dz);
-                BlockState top = chunk.getBlockState((BlockPos)pos);
-                float gradient = terrainData.getGradient(dx, dz, norm);
-                if (gradient >= CLIFF_GRADIENT_MIN) {
-                    BlockState solid = Surface.findSolid(pos.set(dx, y, dz), chunk);
-                    BlockState fillMaterial = Surface.resolveCliffFill(pos.set(dx, y, dz), chunk, solid);
-                    if (fillMaterial != null) {
-                        int bottom = pos.getY();
-                        int fillTop = y;
-                        int fillBottom = Math.max(bottom, fillTop - MAX_CLIFF_FILL);
-                        for (int fy = fillTop; fy > fillBottom; --fy) {
-                            chunk.setBlockState((BlockPos)pos.setY(fy), fillMaterial, false);
-                        }
-                    }
-                    continue;
-                }
-                if (!Surface.needsSurfaceCover(top) || !chunk.getBlockState((BlockPos)pos.setY(y + 1)).isAir()) {
-                    continue;
-                }
-                BlockState fill = Surface.resolveCliffFill(pos.set(dx, y, dz), chunk, null);
-                if (fill != null && !Surface.needsSurfaceCover(fill)) {
-                    chunk.setBlockState((BlockPos)pos.setY(y), fill, false);
-                }
+   public static void apply(TerrainData terrainData, ChunkAccess chunk, ChunkGenerator generator) {
+      float f = 55.0F * (generator.getGenDepth() / 255.0F);
+      MutableBlockPos mutableblockpos = new MutableBlockPos();
+
+      for (int i = 0; i < 16; i++) {
+         for (int j = 0; j < 16; j++) {
+            int k = chunk.getHeight(Types.OCEAN_FLOOR_WG, j, i);
+            float f1 = terrainData.getGradient(j, i, f);
+            if (k >= generator.getSeaLevel() && !(f1 < 0.6F)) {
+               BlockState blockstate = findSolid(mutableblockpos.set(j, k, i), chunk);
+               if (blockstate != null) {
+                  for (int l = mutableblockpos.getY(); k > l; k--) {
+                     chunk.setBlockState(mutableblockpos.setY(k), blockstate, false);
+                  }
+               }
             }
-        }
-    }
+         }
+      }
+   }
 
-    public static void applyPost(ChunkAccess chunk, TerrainData terrainData, ChunkGenerator generator) {
-        float norm = 70.0f * ((float)generator.getGenDepth() / 255.0f);
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int dz = 0; dz < 16; ++dz) {
-            for (int dx = 0; dx < 16; ++dx) {
-                int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz) + 1;
-                pos.set(dx, y, dz);
-                BlockState state = chunk.getBlockState((BlockPos)pos);
-                float gradient = terrainData.getGradient(dx, dz, norm);
-                if (gradient < 0.72f) {
-                    if (!(state.getBlock() instanceof SnowLayerBlock)) continue;
-                    Surface.smoothSnow(pos, state, chunk, terrainData, generator);
-                    continue;
-                }
-                if (state.isAir()) {
-                    state = chunk.getBlockState((BlockPos)pos.setY(y - 1));
-                }
-                if (!state.is(BlockTags.SNOW)) continue;
-                Surface.erodeSnow(pos, chunk);
+   public static void applyPost(ChunkAccess chunk, TerrainData terrainData, ChunkGenerator generator) {
+      float f = 70.0F * (generator.getGenDepth() / 255.0F);
+      MutableBlockPos mutableblockpos = new MutableBlockPos();
+
+      for (int i = 0; i < 16; i++) {
+         for (int j = 0; j < 16; j++) {
+            int k = chunk.getHeight(Types.MOTION_BLOCKING_NO_LEAVES, j, i) + 1;
+            mutableblockpos.set(j, k, i);
+            BlockState blockstate = chunk.getBlockState(mutableblockpos);
+            float f1 = terrainData.getGradient(j, i, f);
+            if (f1 < 0.625F) {
+               if (blockstate.getBlock() instanceof SnowLayerBlock) {
+                  smoothSnow(mutableblockpos, blockstate, chunk, terrainData);
+               }
+            } else {
+               if (blockstate.isAir()) {
+                  blockstate = chunk.getBlockState(mutableblockpos.setY(k - 1));
+               }
+
+               if (blockstate.is(BlockTags.SNOW)) {
+                  erodeSnow(mutableblockpos, chunk);
+               }
             }
-        }
-    }
+         }
+      }
+   }
 
-    public static void smoothWater(ChunkAccess chunk, WorldGenLevel region, TerrainData terrainData) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int minX = chunk.getPos().getMinBlockX();
-        int minZ = chunk.getPos().getMinBlockZ();
-        BlockState waterState = (BlockState)Blocks.WATER.defaultBlockState().setValue((Property)LiquidBlock.LEVEL, (Comparable)Integer.valueOf(2));
-        for (int dz = 0; dz < 16; ++dz) {
-            for (int dx = 0; dx < 16; ++dx) {
-                if (!Surface.isSmoothable(dx, dz, terrainData)) continue;
-                int x = minX + dx;
-                int z = minZ + dz;
-                int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
-                BlockState state = chunk.getBlockState((BlockPos)pos.set(x, y, z));
-                if (!state.is(Blocks.WATER) || (Integer)state.getValue((Property)LiquidBlock.LEVEL) != 0 || !Surface.shouldSmooth(x, y, z, chunk, region, pos)) continue;
-                chunk.setBlockState((BlockPos)pos.set(x, y, z), waterState, false);
+   public static void smoothWater(ChunkAccess chunk, WorldGenLevel region, TerrainData terrainData) {
+      MutableBlockPos mutableblockpos = new MutableBlockPos();
+      int i = chunk.getPos().getMinBlockX();
+      int j = chunk.getPos().getMinBlockZ();
+      BlockState blockstate = (BlockState)Blocks.WATER.defaultBlockState().setValue(LiquidBlock.LEVEL, 2);
+
+      for (int k = 0; k < 16; k++) {
+         for (int l = 0; l < 16; l++) {
+            if (isSmoothable(l, k, terrainData)) {
+               int i1 = i + l;
+               int j1 = j + k;
+               int k1 = chunk.getHeight(Types.MOTION_BLOCKING_NO_LEAVES, l, k);
+               BlockState blockstate1 = chunk.getBlockState(mutableblockpos.set(i1, k1, j1));
+               if (blockstate1.is(Blocks.WATER)
+                  && (Integer)blockstate1.getValue(LiquidBlock.LEVEL) == 0
+                  && shouldSmooth(i1, k1, j1, chunk, region, mutableblockpos)) {
+                  chunk.setBlockState(mutableblockpos.set(i1, k1, j1), blockstate, false);
+               }
             }
-        }
-    }
+         }
+      }
+   }
 
-    protected static boolean shouldSmooth(int x, int y, int z, ChunkAccess chunk, WorldGenLevel region, BlockPos.MutableBlockPos pos) {
-        int radius = 6;
-        int radius2 = radius * radius;
-        for (int dz = -radius; dz <= radius; ++dz) {
-            for (int dx = -radius; dx <= radius; ++dx) {
-                int d2 = dx * dx + dz * dz;
-                if (d2 == 0 || d2 > radius2) continue;
-                pos.set(x + dx, y, z + dz);
-                var world = Surface.sameChunk((BlockPos)pos, chunk.getPos()) ? chunk : region;
-                BlockState state = world.getBlockState((BlockPos)pos);
-                if (!state.isAir()) {
-                    continue;
-                }
-                BlockState below = world.getBlockState((BlockPos)pos.set(x + dx, y - 1, z + dz));
-                if (!below.is(Blocks.WATER)) {
-                    continue;
-                }
-                return true;
+   protected static boolean shouldSmooth(int x, int y, int z, ChunkAccess chunk, WorldGenLevel region, MutableBlockPos pos) {
+      int i = 6;
+      int j = i * i;
+
+      for (int k = -i; k <= i; k++) {
+         for (int l = -i; l <= i; l++) {
+            int i1 = l * l + k * k;
+            if (i1 != 0 && i1 <= j) {
+               pos.set(x + l, y, z + k);
+               BlockGetter blockgetter = (BlockGetter)(sameChunk(pos, chunk.getPos()) ? chunk : region);
+               BlockState blockstate = blockgetter.getBlockState(pos);
+               if (blockstate.isAir()) {
+                  return true;
+               }
             }
-        }
-        return false;
-    }
+         }
+      }
 
-    protected static boolean isSmoothable(int x, int z, TerrainData terrainData) {
-        float river = terrainData.getRiver().get(x, z);
-        Terrain terrain = terrainData.getTerrain().get(x, z);
-        if (!terrain.isRiver() && !terrain.isLake()) {
-            return false;
-        }
-        if (river != 0.0f) {
-            return false;
-        }
-        float norm = 55.0f;
-        return terrainData.getGradient(x, z, norm) <= 0.32f;
-    }
+      return false;
+   }
 
-    protected static void smoothSnow(BlockPos.MutableBlockPos pos, BlockState state, ChunkAccess chunk, TerrainData terrain, ChunkGenerator generator) {
-        int x = pos.getX();
-        int z = pos.getZ();
-        float height = terrain.getHeight().get(x, z);
-        float norm = 55.0f * ((float)generator.getGenDepth() / 255.0f);
-        float gradient = terrain.getGradient(x, z, norm);
-        if (gradient > 0.22f) {
-            float avg = Surface.averageNeighborHeight(terrain, x, z);
-            height = NoiseUtil.lerp(height, avg, Math.min(0.75f, gradient * 0.9f));
-        }
-        float delta = height - (float)terrain.getLevels().getHeight(height);
-        float layerScale = gradient > 0.45f ? 2.5f : (gradient > 0.25f ? 4.5f : 7.9999f);
-        int layers = 1 + NoiseUtil.floor(delta * layerScale);
-        int maxLayers = gradient > 0.45f ? 3 : (gradient > 0.25f ? 5 : 8);
-        layers = Math.max(1, Math.min(layers, maxLayers));
-        state = (BlockState)state.setValue((Property)SnowLayerBlock.LAYERS, (Comparable)Integer.valueOf(layers));
-        chunk.setBlockState((BlockPos)pos, state, false);
-    }
+   protected static boolean isSmoothable(int x, int z, TerrainData terrainData) {
+      float f = terrainData.getRiver().get(x, z);
+      Terrain terrain = terrainData.getTerrain().get(x, z);
+      return (terrain.isRiver() || terrain.isLake()) && f == 0.0F;
+   }
 
-    private static float averageNeighborHeight(TerrainData terrain, int x, int z) {
-        float sum = terrain.getHeight().get(x, z);
-        int count = 1;
-        for (int dz = -1; dz <= 1; ++dz) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                if (dx == 0 && dz == 0) {
-                    continue;
-                }
-                sum += terrain.getHeight().get(x + dx, z + dz);
-                ++count;
+   protected static void smoothSnow(MutableBlockPos pos, BlockState state, ChunkAccess chunk, TerrainData terrain) {
+      float f = terrain.getHeight().get(pos.getX(), pos.getZ());
+      float f1 = f - terrain.getLevels().getHeight(f);
+      int i = 1 + NoiseUtil.floor(f1 * 7.9999F);
+      state = (BlockState)state.setValue(SnowLayerBlock.LAYERS, i);
+      chunk.setBlockState(pos, state, false);
+   }
+
+   protected static void erodeSnow(MutableBlockPos pos, ChunkAccess chunk) {
+      chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
+      int i = pos.getY() - 1;
+      int j = Math.max(pos.getY() - 15, 0);
+
+      for (int k = i; k > j; k--) {
+         pos.setY(k);
+         BlockState blockstate = chunk.getBlockState(pos);
+         if (!isErodible(blockstate)) {
+            return;
+         }
+
+         chunk.setBlockState(pos, Blocks.STONE.defaultBlockState(), false);
+      }
+   }
+
+   public static boolean isErodible(BlockState state) {
+      return state.is(ERODIBLE) || state.is(BlockTags.SNOW);
+   }
+
+   protected static boolean sameChunk(BlockPos pos, ChunkPos chunk) {
+      return pos.getX() >> 4 == chunk.x && pos.getZ() >> 4 == chunk.z;
+   }
+
+   protected static BlockState findSolid(MutableBlockPos pos, ChunkAccess chunk) {
+      BlockState blockstate = chunk.getBlockState(pos);
+      if (!isErodible(blockstate)) {
+         return null;
+      } else {
+         int i = pos.getY() - 1;
+
+         for (int j = Math.max(0, pos.getY() - 20); i > j; i--) {
+            blockstate = chunk.getBlockState(pos.setY(i));
+            if (!isErodible(blockstate)) {
+               return blockstate;
             }
-        }
-        return sum / (float)count;
-    }
+         }
 
-    protected static void erodeSnow(BlockPos.MutableBlockPos pos, ChunkAccess chunk) {
-        BlockState state = chunk.getBlockState((BlockPos)pos);
-        if (state.is(BlockTags.SNOW)) {
-            chunk.setBlockState((BlockPos)pos, Blocks.AIR.defaultBlockState(), false);
-        }
-    }
-
-    public static void repairExposedCover(ChunkAccess chunk, WorldGenLevel region, Generator generator, TerrainData terrainData) {
-        Surface.repairExposedCover(chunk, region, generator, terrainData, null);
-    }
-
-    public static void repairExposedCover(ChunkAccess chunk, WorldGenLevel region, Generator generator, TerrainData terrainData, CarverChunk carver) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int dz = 0; dz < 16; ++dz) {
-            for (int dx = 0; dx < 16; ++dx) {
-                if (carver != null && carver.isEntranceColumn(dx, dz)) {
-                    continue;
-                }
-                int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
-                if (y <= generator.getSeaLevel()) {
-                    continue;
-                }
-                float gradient = terrainData.getGradient(dx, dz, 55.0f * ((float)generator.getGenDepth() / 255.0f));
-                if (gradient > TERRACE_GRADIENT_MIN && gradient < TERRACE_GRADIENT_MAX) {
-                    continue;
-                }
-                pos.set(dx, y, dz);
-                BlockState top = chunk.getBlockState((BlockPos)pos);
-                if (!Surface.needsSurfaceCover(top)) {
-                    continue;
-                }
-                if (!chunk.getBlockState((BlockPos)pos.setY(y + 1)).isAir()) {
-                    continue;
-                }
-                if (Surface.isCarvedSurfaceMouth(chunk, dx, y, dz)) {
-                    continue;
-                }
-                BlockState fill = Surface.sampleNeighborCover(chunk, dx, dz);
-                if (fill == null) {
-                    fill = Surface.resolveCliffFill(pos.set(dx, y, dz), chunk, null);
-                }
-                if (fill == null || Surface.needsSurfaceCover(fill)) {
-                    fill = Blocks.GRASS_BLOCK.defaultBlockState();
-                }
-                chunk.setBlockState((BlockPos)pos.setY(y), fill, false);
-                if (y > chunk.getMinBuildHeight()) {
-                    BlockState under = chunk.getBlockState((BlockPos)pos.setY(y - 1));
-                    if (Surface.needsSurfaceCover(under)) {
-                        chunk.setBlockState((BlockPos)pos.setY(y - 1), Blocks.DIRT.defaultBlockState(), false);
-                    }
-                }
-            }
-        }
-    }
-
-    private static boolean isCarvedSurfaceMouth(ChunkAccess chunk, int lx, int y, int lz) {
-        int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
-        if (y < surface - 1) {
-            return CaveOpenAirCheck.isOpenAir(chunk, lx, y, lz);
-        }
-        for (int dy = 1; dy <= 4; ++dy) {
-            int cy = y - dy;
-            if (cy <= chunk.getMinBuildHeight()) {
-                break;
-            }
-            BlockState state = chunk.getBlockState(new BlockPos(lx, cy, lz));
-            if (state.isAir()) {
-                return true;
-            }
-            if (state.getFluidState().isEmpty() && !CaveOpenAirCheck.isIgnoredCover(state)) {
-                return false;
-            }
-        }
-        return false;
-    }
-
-    private static BlockState sampleNeighborCover(ChunkAccess chunk, int lx, int lz) {
-        int[][] offsets = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {2, 0}, {0, 2}, {-2, 0}, {0, -2}};
-        for (int[] offset : offsets) {
-            int nx = lx + offset[0];
-            int nz = lz + offset[1];
-            if (nx < 0 || nx > 15 || nz < 0 || nz > 15) {
-                continue;
-            }
-            int ny = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, nx, nz);
-            BlockState neighbor = chunk.getBlockState(new BlockPos(nx, ny, nz));
-            if (Surface.isErodible(neighbor) || neighbor.is(Blocks.GRASS_BLOCK) || neighbor.is(Blocks.PODZOL) || neighbor.is(Blocks.MYCELIUM)) {
-                return neighbor;
-            }
-        }
-        return null;
-    }
-
-    private static boolean needsSurfaceCover(BlockState state) {
-        if (state.isAir() || !state.getFluidState().isEmpty()) {
-            return false;
-        }
-        if (Surface.isErodible(state) || state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.PODZOL) || state.is(Blocks.MYCELIUM)) {
-            return false;
-        }
-        return state.is(BlockTags.BASE_STONE_OVERWORLD) || state.is(Blocks.GRAVEL) || state.is(Blocks.COBBLESTONE) || state.is(Blocks.STONE) || state.is(Blocks.SAND) || state.is(Blocks.RED_SAND) || state.is(Blocks.SANDSTONE) || state.is(Blocks.SMOOTH_SANDSTONE);
-    }
-
-    private static boolean isBareRock(BlockState state) {
-        return Surface.needsSurfaceCover(state);
-    }
-
-    public static boolean isErodible(BlockState state) {
-        return state.is(ERODIBLE) || state.is(BlockTags.SNOW);
-    }
-
-    protected static boolean sameChunk(BlockPos pos, ChunkPos chunk) {
-        return pos.getX() >> 4 == chunk.x && pos.getZ() >> 4 == chunk.z;
-    }
-
-    protected static BlockState resolveCliffFill(BlockPos.MutableBlockPos pos, ChunkAccess chunk, BlockState solidBelow) {
-        BlockState topState = chunk.getBlockState((BlockPos)pos);
-        if (Surface.isErodible(topState)) {
-            return topState;
-        }
-        if (solidBelow != null && Surface.isErodible(solidBelow)) {
-            return solidBelow;
-        }
-        for (int dy = 1; dy <= 6; ++dy) {
-            BlockState above = chunk.getBlockState((BlockPos)pos.setY(pos.getY() + dy));
-            if (Surface.isErodible(above)) {
-                return above;
-            }
-            if (!above.isAir()) break;
-        }
-        return Blocks.DIRT.defaultBlockState();
-    }
-
-    protected static BlockState findSolid(BlockPos.MutableBlockPos pos, ChunkAccess chunk) {
-        BlockState state = chunk.getBlockState((BlockPos)pos);
-        if (!Surface.isErodible(state)) {
-            return null;
-        }
-        int bottom = Math.max(0, pos.getY() - 20);
-        for (int y = pos.getY() - 1; y > bottom; --y) {
-            state = chunk.getBlockState((BlockPos)pos.setY(y));
-            if (Surface.isErodible(state)) continue;
-            return state;
-        }
-        return null;
-    }
+         return null;
+      }
+   }
 }

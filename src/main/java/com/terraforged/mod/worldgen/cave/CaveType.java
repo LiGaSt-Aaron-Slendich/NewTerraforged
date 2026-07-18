@@ -4,36 +4,22 @@ import com.mojang.serialization.Codec;
 import java.util.Locale;
 
 public enum CaveType {
-    GLOBAL("global"),
-    UNIQUE("unique"),
-    MEGA("mega"),
-    GIGA("giga");
+   GLOBAL("global"),
+   UNIQUE("unique");
 
-    public static final Codec<CaveType> CODEC;
-    final String name;
+   public static final Codec<CaveType> CODEC = Codec.STRING.xmap(CaveType::forName, CaveType::getName);
+   final String name;
 
-    private CaveType(String name) {
-        this.name = name;
-    }
+   private CaveType(String name) {
+      this.name = name;
+   }
 
-    public String getName() {
-        return this.name;
-    }
+   public String getName() {
+      return this.name;
+   }
 
-    public boolean isMegaOrGiga() {
-        return this == MEGA || this == GIGA;
-    }
-
-    public boolean isGiga() {
-        return this == GIGA;
-    }
-
-    public static CaveType forName(String name) {
-        name = name.toUpperCase(Locale.ROOT);
-        return CaveType.valueOf(name);
-    }
-
-    static {
-        CODEC = Codec.STRING.xmap(CaveType::forName, CaveType::getName);
-    }
+   public static CaveType forName(String name) {
+      name = name.toUpperCase(Locale.ROOT);
+      return valueOf(name);
+   }
 }

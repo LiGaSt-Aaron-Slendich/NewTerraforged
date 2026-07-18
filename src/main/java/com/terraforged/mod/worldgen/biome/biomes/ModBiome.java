@@ -7,45 +7,39 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.data.BuiltinRegistries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biome.BiomeBuilder;
 
 public record ModBiome(ResourceKey<Biome> key, Supplier<Biome> factory) {
-    public Biome create() {
-        return this.factory.get();
-    }
+   public Biome create() {
+      return this.factory.get();
+   }
 
-    public static ModBiome of(String name, ResourceKey<Biome> parent, Consumer<Biome.BiomeBuilder> modifier) {
-        ResourceKey key = ResourceKey.create(Registry.BIOME_REGISTRY, (ResourceLocation)TerraForged.location(name));
-        Supplier<Biome> factory = ModBiome.copyFactory(parent, modifier);
-        return new ModBiome((ResourceKey<Biome>)key, factory);
-    }
+   public static ModBiome of(String name, ResourceKey<Biome> parent, Consumer<BiomeBuilder> modifier) {
+      ResourceKey<Biome> resourcekey = ResourceKey.create(Registry.BIOME_REGISTRY, TerraForged.location(name));
+      Supplier<Biome> supplier = copyFactory(parent, modifier);
+      return new ModBiome(resourcekey, supplier);
+   }
 
-    private static Supplier<Biome> copyFactory(ResourceKey<Biome> parent, Consumer<Biome.BiomeBuilder> modifier) {
-        return () -> {
-            Biome.BiomeBuilder builder = ModBiome.builderOf(parent);
-            modifier.accept(builder);
-            return builder.build();
-        };
-    }
+   private static Supplier<Biome> copyFactory(ResourceKey<Biome> parent, Consumer<BiomeBuilder> modifier) {
+      return () -> {
+         BiomeBuilder biomebuilder = builderOf(parent);
+         modifier.accept(biomebuilder);
+         return biomebuilder.build();
+      };
+   }
 
-    private static Biome.BiomeBuilder builderOf(ResourceKey<Biome> parent) {
-        Biome biome = (Biome)BuiltinRegistries.BIOME.getOrThrow(parent);
-        Holder holder = BuiltinRegistries.BIOME.getHolderOrThrow(parent);
-        Biome.BiomeBuilder builder = new Biome.BiomeBuilder();
-        builder.downfall(biome.getDownfall());
-        builder.biomeCategory(Biome.getBiomeCategory((Holder)holder));
-        builder.temperature(biome.getBaseTemperature());
-        builder.mobSpawnSettings(biome.getMobSettings());
-        builder.precipitation(biome.getPrecipitation());
-        builder.specialEffects(biome.getSpecialEffects());
-        builder.generationSettings(biome.getGenerationSettings());
-        return builder;
-    }
-
-    public static Biome create(ResourceKey<Biome> parent, Consumer<Biome.BiomeBuilder> modifier) {
-        Biome.BiomeBuilder builder = ModBiome.builderOf(parent);
-        modifier.accept(builder);
-        return builder.build();
-    }
+   private static BiomeBuilder builderOf(ResourceKey<Biome> parent) {
+      Biome biome = (Biome)BuiltinRegistries.BIOME.getOrThrow(parent);
+      Holder<Biome> holder = BuiltinRegistries.BIOME.getHolderOrThrow(parent);
+      BiomeBuilder biomebuilder = new BiomeBuilder();
+      biomebuilder.downfall(biome.getDownfall());
+      biomebuilder.biomeCategory(Biome.getBiomeCategory(holder));
+      biomebuilder.temperature(biome.getBaseTemperature());
+      biomebuilder.mobSpawnSettings(biome.getMobSettings());
+      biomebuilder.precipitation(biome.getPrecipitation());
+      biomebuilder.specialEffects(biome.getSpecialEffects());
+      biomebuilder.generationSettings(biome.getGenerationSettings());
+      return biomebuilder;
+   }
 }

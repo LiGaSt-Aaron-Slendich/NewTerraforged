@@ -1,52 +1,46 @@
 package com.terraforged.mod.worldgen.biome.viability;
 
 import com.terraforged.mod.worldgen.biome.IBiomeSampler;
-import com.terraforged.mod.worldgen.biome.viability.MultViability;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import java.util.Arrays;
 
 public interface Viability {
-    public static final Viability NONE = (x, z, ctx) -> 1.0f;
+   Viability NONE = (x, z, ctx) -> 1.0F;
 
-    public float getFitness(int var1, int var2, Context var3);
+   float getFitness(int var1, int var2, Viability.Context var3);
 
-    default public float getScaler(TerrainLevels levels) {
-        return (float)levels.maxY / 255.0f;
-    }
+   default float getScaler(TerrainLevels levels) {
+      return levels.maxY / 255.0F;
+   }
 
-    default public Viability mult(Viability ... others) {
-        Viability[] copy = Arrays.copyOf(others, others.length + 1);
-        copy[others.length] = this;
-        return new MultViability(copy);
-    }
+   default Viability mult(Viability... others) {
+      Viability[] aviability = Arrays.copyOf(others, others.length + 1);
+      aviability[others.length] = this;
+      return new MultViability(aviability);
+   }
 
-    public static float getFallOff(float value, float max) {
-        return value < max ? 1.0f - value / max : 0.0f;
-    }
+   static float getFallOff(float value, float max) {
+      return value < max ? 1.0F - value / max : 0.0F;
+   }
 
-    public static float getFallOff(float value, float min, float mid, float max) {
-        if (value < min) {
-            return 0.0f;
-        }
-        if (value < mid) {
-            return (value - min) / (mid - min);
-        }
-        if (value < max) {
-            return 1.0f - (value - mid) / (max - mid);
-        }
-        return 0.0f;
-    }
+   static float getFallOff(float value, float min, float mid, float max) {
+      if (value < min) {
+         return 0.0F;
+      } else if (value < mid) {
+         return (value - min) / (mid - min);
+      } else {
+         return value < max ? 1.0F - (value - mid) / (max - mid) : 0.0F;
+      }
+   }
 
-    public static interface Context {
-        public int seed();
+   public interface Context {
+      boolean edge();
 
-        public boolean edge();
+      TerrainLevels getLevels();
 
-        public TerrainLevels getLevels();
+      TerrainData getTerrain();
 
-        public TerrainData getTerrain();
-
-        public IBiomeSampler getClimateSampler();
-    }
+      IBiomeSampler getClimateSampler();
+   }
 }

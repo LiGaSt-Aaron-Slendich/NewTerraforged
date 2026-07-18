@@ -1,32 +1,38 @@
 package com.terraforged.mod.worldgen.biome.viability;
 
 import com.terraforged.cereal.spec.DataSpec;
+import com.terraforged.cereal.value.DataObject;
 import com.terraforged.cereal.value.DataValue;
-import com.terraforged.mod.worldgen.biome.viability.Viability;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 
-public record HeightViability(float minOffset, float midOffset, float maxOffset) implements Viability
-{
-    public static final DataSpec<HeightViability> SPEC = DataSpec.builder("Height", HeightViability.class, (data, spec, context) -> new HeightViability(spec.get("min", data, DataValue::asFloat).floatValue(), spec.get("mid", data, DataValue::asFloat).floatValue(), spec.get("max", data, DataValue::asFloat).floatValue())).add("min", Float.valueOf(0.0f), HeightViability::minOffset).add("mid", Float.valueOf(0.5f), HeightViability::midOffset).add("max", Float.valueOf(1.0f), HeightViability::maxOffset).build();
+public record HeightViability(float minOffset, float midOffset, float maxOffset) implements Viability {
+   public static final DataSpec<HeightViability> SPEC = DataSpec.<HeightViability>builder(
+         "Height",
+         HeightViability.class,
+         (data, spec, context) -> new HeightViability(
+            spec.get("min", data, DataValue::asFloat), spec.get("mid", data, DataValue::asFloat), spec.get("max", data, DataValue::asFloat)
+         )
+      )
+      .add("min", 0.0F, HeightViability::minOffset)
+      .add("mid", 0.5F, HeightViability::midOffset)
+      .add("max", 1.0F, HeightViability::maxOffset)
+      .build();
 
-    @Override
-    public float getFitness(int x, int z, Viability.Context context) {
-        int base = context.getTerrain().getBaseHeight(x, z);
-        int height = context.getTerrain().getHeight(x, z);
-        TerrainLevels levels = context.getLevels();
-        float scale = this.getScaler(levels);
-        float min = (float)base + this.minOffset() * scale;
-        float mid = (float)base + this.midOffset() * scale;
-        float max = (float)base + this.maxOffset() * scale;
-        if ((float)height < min) {
-            return 1.0f;
-        }
-        if ((float)height > max) {
-            return 1.0f;
-        }
-        if ((float)height < mid) {
-            return (mid - (float)height) / (mid - min);
-        }
-        return ((float)height - mid) / (max - mid);
-    }
+   @Override
+   public float getFitness(int x, int z, Viability.Context context) {
+      int i = context.getTerrain().getBaseHeight(x, z);
+      int j = context.getTerrain().getHeight(x, z);
+      TerrainLevels terrainlevels = context.getLevels();
+      float f = this.getScaler(terrainlevels);
+      float f1 = i + this.minOffset() * f;
+      float f2 = i + this.midOffset() * f;
+      float f3 = i + this.maxOffset() * f;
+      if (j < f1) {
+         return 1.0F;
+      } else if (j > f3) {
+         return 1.0F;
+      } else {
+         return j < f2 ? (f2 - j) / (f2 - f1) : (j - f2) / (f3 - f2);
+      }
+   }
 }

@@ -1,168 +1,175 @@
 package com.terraforged.mod.worldgen.terrain;
 
-import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectListIterator;
 import java.util.Comparator;
-import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureFeatureManager;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.Heightmap.Types;
+import net.minecraft.world.level.levelgen.feature.ConfiguredStructureFeature;
+import net.minecraft.world.level.levelgen.feature.NoiseEffect;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
-import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool.Projection;
 
 public class StructureTerrain {
-    private static final int RADIUS = 20;
-    private static final Comparator<StructurePiece> PIECE_SORTER = Comparator.comparing(o -> o.getBoundingBox().minY());
-    protected final ObjectList<StructurePiece> rigids = new ObjectArrayList(10);
-    protected final ObjectListIterator<StructurePiece> pieceIterator;
-    protected final BlockState air = Blocks.AIR.defaultBlockState();
-    protected final BlockState solid = Blocks.STONE.defaultBlockState();
-    protected final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+   private static final int RADIUS = 20;
+   private static final Comparator<StructurePiece> PIECE_SORTER = Comparator.comparing(o -> o.getBoundingBox().minY());
+   private final ObjectList<StructurePiece> rigids = new ObjectArrayList(10);
+   protected final ObjectListIterator<StructurePiece> pieceIterator;
+   protected final BlockState air = Blocks.AIR.defaultBlockState();
+   protected final BlockState solid = Blocks.STONE.defaultBlockState();
+   protected final MutableBlockPos pos = new MutableBlockPos();
 
-    public StructureTerrain(ChunkAccess chunk, StructureFeatureManager manager) {
-        ChunkPos chunkPos = chunk.getPos();
-        chunk.getAllStarts().values().forEach(start -> {
-            for (StructurePiece piece : start.getPieces()) {
-                if (!piece.isCloseToChunk(chunkPos, 20)) continue;
-                if (piece instanceof PoolElementStructurePiece) {
-                    PoolElementStructurePiece element = (PoolElementStructurePiece)piece;
-                    StructureTemplatePool.Projection projection = element.getElement().getProjection();
-                    if (projection != StructureTemplatePool.Projection.RIGID) continue;
-                    this.rigids.add(element);
-                    continue;
-                }
-                this.rigids.add(piece);
+   public StructureTerrain(ChunkAccess chunk, StructureFeatureManager manager) {
+      ChunkPos chunkpos = chunk.getPos();
+      SectionPos sectionpos = SectionPos.bottomOf(chunk);
+      manager.startsForFeature(sectionpos, cf -> cf.adaptNoise).forEach(start -> {
+         for (StructurePiece structurepiece : start.getPieces()) {
+            if (structurepiece.isCloseToChunk(chunkpos, 20) && structurepiece.getNoiseEffect() == NoiseEffect.BEARD) {
+               if (structurepiece instanceof PoolElementStructurePiece poolelementstructurepiece) {
+                  Projection projection = poolelementstructurepiece.getElement().getProjection();
+                  if (projection == Projection.RIGID) {
+                     this.rigids.add(poolelementstructurepiece);
+                  }
+               } else {
+                  this.rigids.add(structurepiece);
+               }
             }
-        });
-        this.rigids.sort(PIECE_SORTER);
-        this.pieceIterator = this.rigids.iterator();
-    }
+         }
+      });
+      this.rigids.sort(PIECE_SORTER);
+      this.pieceIterator = this.rigids.iterator();
+   }
 
-    public void modify(int x, int z, ChunkAccess chunk, TerrainData terrainData) {
-        int y = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
-        float maxY = y;
-        int maxPosY = y;
-        StructurePiece highest = null;
-        while (this.pieceIterator.hasNext()) {
-            StructurePiece piece = (StructurePiece)this.pieceIterator.next();
-            BoundingBox bounds = piece.getBoundingBox();
-            int length = Math.max(bounds.getXSpan(), bounds.getZSpan());
-            float radius = Math.max(4, 20 - length);
-            int posY = StructureTerrain.getPieceY(piece);
-            maxPosY = Math.max(maxPosY, posY);
-            if (highest == null && posY > y) {
-                maxY = StructureTerrain.raise(x, z, bounds, posY, maxY, radius);
-            }
-            if (x < bounds.minX() || x > bounds.maxX() || z < bounds.minZ() || z > bounds.maxZ() || highest != null && bounds.minY() <= highest.getBoundingBox().minY()) continue;
-            highest = piece;
-        }
-        boolean raised = false;
-        boolean carved = false;
-        if (highest != null) {
-            BoundingBox bounds = highest.getBoundingBox();
-            if (x >= bounds.minX() && x <= bounds.maxX() && z >= bounds.minZ() && z <= bounds.maxZ()) {
-                raised = this.raiseTerrain(x, y, z, maxY, chunk);
-            }
-            carved = this.carveTerrain(x, maxPosY, z, chunk, highest);
-        }
-        if (raised || carved) {
-            terrainData.getHeight().set(x, z, chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z));
-        }
-        this.reset();
-    }
+   public void modify(int x, int z, ChunkAccess chunk, TerrainData terrainData) {
+      int i = chunk.getHeight(Types.OCEAN_FLOOR_WG, x, z);
+      float f = i;
+      int j = i;
+      StructurePiece structurepiece = null;
 
-    protected boolean raiseTerrain(int x, int y, int z, float maxY, ChunkAccess chunk) {
-        int max = (int)maxY;
-        if (y + 1 >= max) {
-            return false;
-        }
-        for (int py = y; py < max; ++py) {
-            chunk.setBlockState((BlockPos)this.pos.set(x, py, z), this.solid, false);
-        }
-        return true;
-    }
+      while (this.pieceIterator.hasNext()) {
+         StructurePiece structurepiece1 = (StructurePiece)this.pieceIterator.next();
+         BoundingBox boundingbox = structurepiece1.getBoundingBox();
+         int k = Math.max(boundingbox.getXSpan(), boundingbox.getZSpan());
+         float f1 = Math.max(4, 20 - k);
+         int l = getPieceY(structurepiece1);
+         j = Math.max(j, l);
+         if (structurepiece == null && l > i) {
+            f = raise(x, z, boundingbox, l, f, f1);
+         }
 
-    protected boolean carveTerrain(int x, int y, int z, ChunkAccess chunk, StructurePiece piece) {
-        if (piece == null) {
-            return false;
-        }
-        BoundingBox bounds = piece.getBoundingBox();
-        int minY = StructureTerrain.getPieceY(piece);
-        int maxY = bounds.maxY();
-        int span = maxY - minY;
-        if (span > 32 || bounds.getXSpan() > 24 || bounds.getZSpan() > 24) {
-            return false;
-        }
-        int localSurface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-        int carveTop = Math.min(maxY, localSurface);
-        if (minY > carveTop) {
-            return false;
-        }
-        int foundationTop = Math.min(carveTop, minY + 12);
-        for (int py = minY; py <= foundationTop; ++py) {
-            chunk.setBlockState((BlockPos)this.pos.set(x, py, z), this.air, false);
-        }
-        return foundationTop >= minY;
-    }
+         if (x >= boundingbox.minX()
+            && x <= boundingbox.maxX()
+            && z >= boundingbox.minZ()
+            && z <= boundingbox.maxZ()
+            && (structurepiece == null || boundingbox.minY() > structurepiece.getBoundingBox().minY())) {
+            structurepiece = structurepiece1;
+         }
+      }
 
-    protected void reset() {
-        this.pieceIterator.back(this.rigids.size());
-    }
+      boolean flag = this.raiseTerrain(x, i, z, f, chunk, terrainData);
+      boolean flag1 = this.carveTerrain(x, j, z, chunk, structurepiece);
+      if (flag || flag1) {
+         terrainData.getHeight().set(x, z, chunk.getHeight(Types.OCEAN_FLOOR_WG, x, z));
+      }
 
-    private static float raise(int x, int z, BoundingBox bounds, float level, float surface, float borderRadius) {
-        float radius2 = Math.max(1.0f, borderRadius * borderRadius);
-        float distAlpha = 1.0f - StructureTerrain.getDistAlpha(x, z, bounds, radius2);
-        float alpha = NoiseUtil.pow(distAlpha, 2.0f - distAlpha);
-        return NoiseUtil.lerp(surface, level, alpha);
-    }
+      this.reset();
+   }
 
-    protected static float getEllipseDistAlpha(int x, int z, BoundingBox bounds) {
-        float radiusX = (float)bounds.getXSpan() * 0.5f;
-        float radiusZ = (float)bounds.getZSpan() * 0.5f;
-        float centerX = (float)(bounds.minX() + bounds.maxX()) * 0.5f;
-        float centerZ = (float)(bounds.minZ() + bounds.maxZ()) * 0.5f;
-        float dx = (float)x - centerX;
-        float dz = (float)z - centerZ;
-        float qx = dx * dx / (radiusX * radiusX);
-        float qz = dz * dz / (radiusZ * radiusZ);
-        return NoiseUtil.clamp(1.0f - qx - qz, 0.0f, 1.0f);
-    }
+   protected boolean raiseTerrain(int x, int y, int z, float maxY, ChunkAccess chunk, TerrainData terrainData) {
+      int i = (int)maxY;
+      if (y + 1 >= i) {
+         return false;
+      } else {
+         for (int j = y; j < i; j++) {
+            chunk.setBlockState(this.pos.set(x, j, z), this.solid, false);
+         }
 
-    protected static float getDistAlpha(int x, int z, BoundingBox box, float radius2) {
-        int dx = StructureTerrain.getDist(x, box.minX(), box.maxX());
-        int dz = StructureTerrain.getDist(z, box.minZ(), box.maxZ());
-        return StructureTerrain.getDistAlpha(dx, dz, radius2);
-    }
+         return true;
+      }
+   }
 
-    protected static float getDistAlpha(int dx, int dz, float radius2) {
-        int d2 = dx * dx + dz * dz;
-        if (d2 == 0) {
-            return 0.0f;
-        }
-        if ((float)d2 >= radius2) {
-            return 1.0f;
-        }
-        return NoiseUtil.sqrt((float)d2 / radius2);
-    }
+   protected boolean carveTerrain(int x, int y, int z, ChunkAccess chunk, StructurePiece piece) {
+      if (piece == null) {
+         return false;
+      } else {
+         int i = chunk.getHeight(Types.OCEAN_FLOOR_WG, x, z);
+         int j = Math.max(y, i);
+         BoundingBox boundingbox = piece.getBoundingBox();
+         int k = getPieceY(piece);
+         int l = boundingbox.maxY();
+         if (j > l + 5) {
+            float f = getEllipseDistAlpha(x, z, boundingbox);
+            float f1 = (j - l) * 0.5F;
+            l += NoiseUtil.round(f1 * f);
+         }
 
-    protected static int getPieceY(StructurePiece piece) {
-        int y = piece.getBoundingBox().minY();
-        if (piece instanceof PoolElementStructurePiece) {
-            PoolElementStructurePiece element = (PoolElementStructurePiece)piece;
-            y += element.getGroundLevelDelta();
-        }
-        return y;
-    }
+         for (int i1 = k; i1 <= l; i1++) {
+            chunk.setBlockState(this.pos.set(x, i1, z), this.air, false);
+         }
 
-    protected static int getDist(int pos, int min, int max) {
-        return Math.max(0, Math.max(min - pos, pos - max));
-    }
+         return true;
+      }
+   }
+
+   protected void reset() {
+      this.pieceIterator.back(this.rigids.size());
+   }
+
+   private static float raise(int x, int z, BoundingBox bounds, float level, float surface, float borderRadius) {
+      float f = Math.max(1.0F, borderRadius * borderRadius);
+      float f1 = 1.0F - getDistAlpha(x, z, bounds, f);
+      float f2 = NoiseUtil.pow(f1, 2.0F - f1);
+      return NoiseUtil.lerp(surface, level, f2);
+   }
+
+   protected static float getEllipseDistAlpha(int x, int z, BoundingBox bounds) {
+      float f = bounds.getXSpan() * 0.5F;
+      float f1 = bounds.getZSpan() * 0.5F;
+      float f2 = (bounds.minX() + bounds.maxX()) * 0.5F;
+      float f3 = (bounds.minZ() + bounds.maxZ()) * 0.5F;
+      float f4 = x - f2;
+      float f5 = z - f3;
+      float f6 = f4 * f4 / (f * f);
+      float f7 = f5 * f5 / (f1 * f1);
+      return NoiseUtil.clamp(1.0F - f6 - f7, 0.0F, 1.0F);
+   }
+
+   protected static float getDistAlpha(int x, int z, BoundingBox box, float radius2) {
+      int i = getDist(x, box.minX(), box.maxX());
+      int j = getDist(z, box.minZ(), box.maxZ());
+      return getDistAlpha(i, j, radius2);
+   }
+
+   protected static float getDistAlpha(int dx, int dz, float radius2) {
+      int i = dx * dx + dz * dz;
+      if (i == 0) {
+         return 0.0F;
+      } else {
+         return i >= radius2 ? 1.0F : NoiseUtil.sqrt(i / radius2);
+      }
+   }
+
+   protected static int getPieceY(StructurePiece piece) {
+      int i = piece.getBoundingBox().minY();
+      if (piece instanceof PoolElementStructurePiece poolelementstructurepiece) {
+         i += poolelementstructurepiece.getGroundLevelDelta();
+      }
+
+      return i;
+   }
+
+   protected static int getDist(int pos, int min, int max) {
+      return Math.max(0, Math.max(min - pos, pos - max));
+   }
 }

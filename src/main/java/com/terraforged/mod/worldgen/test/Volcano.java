@@ -1,225 +1,241 @@
 package com.terraforged.mod.worldgen.test;
 
-import com.terraforged.mod.worldgen.test.VolcanoConfig;
 import java.util.Arrays;
 import net.minecraft.util.Mth;
 
 public class Volcano {
-    public static int toHeightValue(double height) {
-        return 64 + Mth.floor((double)(height * 0.5));
-    }
+   public static int toHeightValue(double height) {
+      return 64 + Mth.floor(height * 0.5);
+   }
 
-    public static Value getHighest(int x, int z, VolcanoConfig config, Cache cache) {
-        Value maxValue = cache.value0.reset();
-        Value value = cache.value1.reset();
-        for (int i = 0; i < cache.size(); ++i) {
-            boolean higher;
-            Point point = cache.at(i);
-            if (!point.valid()) continue;
-            Volcano.evalPoint(x, z, point, value.reset(), config);
-            boolean bl = higher = value.height > maxValue.height;
-            if (!(maxValue.mouth ? value.mouth && higher : value.mouth || higher)) continue;
-            maxValue.height = value.height;
-            maxValue.mouth = value.mouth;
-            maxValue.hash = point.hash;
-        }
-        return maxValue;
-    }
+   public static Volcano.Value getHighest(int x, int z, VolcanoConfig config, Volcano.Cache cache) {
+      Volcano.Value volcano$value = cache.value0.reset();
+      Volcano.Value volcano$value1 = cache.value1.reset();
 
-    private static void evalPoint(int x, int y, Point point, Value value, VolcanoConfig config) {
-        double alpha = Volcano.getDistanceNoise(x, y, point, value, config);
-        if (Double.isNaN(alpha)) {
-            return;
-        }
-        double h0 = 0.0;
-        double h1 = config.height1().get(Noise.rand(point.hash, 31643));
-        if (value.mouth) {
-            h0 = config.height0().get(Noise.rand(point.hash, 30047));
-        } else {
-            alpha *= alpha;
-        }
-        double height = Mth.lerp((double)alpha, (double)h0, (double)h1);
-        value.height = Volcano.toHeightValue(height);
-    }
+      for (int i = 0; i < cache.size(); i++) {
+         Volcano.Point volcano$point = cache.at(i);
+         if (volcano$point.valid()) {
+            evalPoint(x, z, volcano$point, volcano$value1.reset(), config);
+            boolean flag = volcano$value1.height > volcano$value.height;
+            if (volcano$value.mouth ? volcano$value1.mouth && flag : volcano$value1.mouth || flag) {
+               volcano$value.height = volcano$value1.height;
+               volcano$value.mouth = volcano$value1.mouth;
+               volcano$value.hash = volcano$point.hash;
+            }
+         }
+      }
 
-    private static double getDistanceNoise(int x, int y, Point point, Value value, VolcanoConfig config) {
-        double outer;
-        double distance2 = Mth.lengthSquared((double)(point.x - x), (double)(point.y - y));
-        if (distance2 >= (outer = config.radius2().get(Noise.rand(point.hash, 26921))) * outer) {
-            return Double.NaN;
-        }
-        double origin = 1.0;
-        double inner = config.radius1().get(Noise.rand(point.hash, 21701));
-        if (distance2 < inner * inner) {
+      return volcano$value;
+   }
+
+   private static void evalPoint(int x, int y, Volcano.Point point, Volcano.Value value, VolcanoConfig config) {
+      double d0 = getDistanceNoise(x, y, point, value, config);
+      if (!Double.isNaN(d0)) {
+         double d1 = 0.0;
+         double d2 = config.height1().get(Volcano.Noise.rand(point.hash, 31643));
+         if (value.mouth) {
+            d1 = config.height0().get(Volcano.Noise.rand(point.hash, 30047));
+         } else {
+            d0 *= d0;
+         }
+
+         double d3 = Mth.lerp(d0, d1, d2);
+         value.height = toHeightValue(d3);
+      }
+   }
+
+   private static double getDistanceNoise(int x, int y, Volcano.Point point, Volcano.Value value, VolcanoConfig config) {
+      double d0 = Mth.lengthSquared(point.x - x, point.y - y);
+      double d1 = config.radius2().get(Volcano.Noise.rand(point.hash, 26921));
+      if (d0 >= d1 * d1) {
+         return Double.NaN;
+      } else {
+         double d2 = 1.0;
+         double d3 = config.radius1().get(Volcano.Noise.rand(point.hash, 21701));
+         if (d0 < d3 * d3) {
             value.mouth = true;
-            outer = inner;
-            inner = config.radius0().get(Noise.rand(point.hash, 18899));
-            if (distance2 <= inner * inner) {
-                return 0.0;
+            double d4 = config.radius0().get(Volcano.Noise.rand(point.hash, 18899));
+            return d0 <= d4 * d4 ? 0.0 : (Math.sqrt(d0) - d4) / (d3 - d4);
+         } else {
+            return d2 - (Math.sqrt(d0) - d3) / (d1 - d3);
+         }
+      }
+   }
+
+   public static <T> void collectPoints(
+      long seed, int chunkX, int chunkZ, T context, VolcanoConfig config, Volcano.Cache cache, Volcano.VolcanoPredicate<T> filter
+   ) {
+      int i = chunkX << 4;
+      int j = chunkZ << 4;
+      int k = i + 15;
+      int l = j + 15;
+      double d0 = 1.0 / config.scale();
+      double d1 = i * d0;
+      double d2 = j * d0;
+      double d3 = k * d0;
+      double d4 = l * d0;
+      int i1 = Mth.floor(d1) - 1;
+      int j1 = Mth.floor(d2) - 1;
+      int k1 = Mth.floor(d3) + 1;
+      int l1 = Mth.floor(d4) + 1;
+      collectPoints(seed, i1, j1, k1, l1, d0, context, config, cache, filter);
+   }
+
+   private static <T> void collectPoints(
+      long seed,
+      int minX,
+      int minY,
+      int maxX,
+      int maxY,
+      double frequency,
+      T context,
+      VolcanoConfig config,
+      Volcano.Cache cache,
+      Volcano.VolcanoPredicate<T> filter
+   ) {
+      for (int i = minY; i <= maxY; i++) {
+         for (int j = minX; j <= maxX; j++) {
+            long k = Volcano.Noise.mix(seed, j, i);
+            if (!(Volcano.Noise.rand(k, 6869) > config.density())) {
+               double d0 = point(k, 12343, j, config.jitter());
+               double d1 = point(k, 16477, i, config.jitter());
+               int l = Mth.floor(d0 / frequency);
+               int i1 = Mth.floor(d1 / frequency);
+               if (filter.test(l, i1, context)) {
+                  Volcano.Point volcano$point = cache.next();
+                  volcano$point.x = l;
+                  volcano$point.y = i1;
+                  volcano$point.hash = k;
+               }
             }
-            return (Math.sqrt(distance2) - inner) / (outer - inner);
-        }
-        return origin - (Math.sqrt(distance2) - inner) / (outer - inner);
-    }
+         }
+      }
+   }
 
-    public static <T> void collectPoints(long seed, int chunkX, int chunkZ, T context, VolcanoConfig config, Cache cache, VolcanoPredicate<T> filter) {
-        int x0 = chunkX << 4;
-        int y0 = chunkZ << 4;
-        int x1 = x0 + 15;
-        int y1 = y0 + 15;
-        double frequency = 1.0 / config.scale();
-        double fx0 = (double)x0 * frequency;
-        double fy0 = (double)y0 * frequency;
-        double fx1 = (double)x1 * frequency;
-        double fy1 = (double)y1 * frequency;
-        int minX = Mth.floor((double)fx0) - 1;
-        int minY = Mth.floor((double)fy0) - 1;
-        int maxX = Mth.floor((double)fx1) + 1;
-        int maxY = Mth.floor((double)fy1) + 1;
-        Volcano.collectPoints(seed, minX, minY, maxX, maxY, frequency, context, config, cache, filter);
-    }
+   private static double point(long hash, int hashOffset, int cell, double jitter) {
+      return cell + Volcano.Noise.rand(hash, hashOffset) * jitter;
+   }
 
-    private static <T> void collectPoints(long seed, int minX, int minY, int maxX, int maxY, double frequency, T context, VolcanoConfig config, Cache cache, VolcanoPredicate<T> filter) {
-        for (int y = minY; y <= maxY; ++y) {
-            for (int x = minX; x <= maxX; ++x) {
-                int posY;
-                long hash = Noise.mix(seed, x, y);
-                if (Noise.rand(hash, 6869) > config.density()) continue;
-                double px = Volcano.point(hash, 12343, x, config.jitter());
-                double py = Volcano.point(hash, 16477, y, config.jitter());
-                int posX = Mth.floor((double)(px / frequency));
-                if (!filter.test(posX, posY = Mth.floor((double)(py / frequency)), context)) continue;
-                Point point = cache.next();
-                point.x = posX;
-                point.y = posY;
-                point.hash = hash;
+   public static class Cache {
+      protected int size;
+      protected Volcano.Point[] points = new Volcano.Point[9];
+      protected final Volcano.Value value0 = new Volcano.Value();
+      protected final Volcano.Value value1 = new Volcano.Value();
+
+      public Cache() {
+         for (int i = 0; i < this.points.length; i++) {
+            this.points[i] = new Volcano.Point();
+         }
+      }
+
+      public int size() {
+         return this.size;
+      }
+
+      public Volcano.Cache reset() {
+         this.size = 0;
+         return this;
+      }
+
+      public Volcano.Point at(int index) {
+         return this.points[index];
+      }
+
+      public Volcano.Point next() {
+         int i = this.size;
+         this.ensure(i);
+         this.size++;
+         return this.points[i].reset();
+      }
+
+      protected void ensure(int index) {
+         if (index >= this.points.length) {
+            int i = this.points.length;
+            int j = i << 1;
+            this.points = Arrays.copyOf(this.points, j);
+
+            for (int k = i; k < j; k++) {
+               this.points[k] = new Volcano.Point();
             }
-        }
-    }
+         }
+      }
+   }
 
-    private static double point(long hash, int hashOffset, int cell, double jitter) {
-        return (double)cell + Noise.rand(hash, hashOffset) * jitter;
-    }
+   public interface Noise {
+      int DENSITY = 6869;
+      int POINT_X = 12343;
+      int POINT_Y = 16477;
+      int RADIUS_0 = 18899;
+      int RADIUS_1 = 21701;
+      int RADIUS_2 = 26921;
+      int HEIGHT_0 = 30047;
+      int HEIGHT_1 = 31643;
+      int HEIGHT_2 = 33199;
+      int FLUID_FILLER = 39761;
 
-    public static class Cache {
-        protected int size;
-        protected Point[] points = new Point[9];
-        protected final Value value0 = new Value();
-        protected final Value value1 = new Value();
+      static long mixGamma(long z) {
+         z = (z ^ z >>> 33) * -49064778989728563L;
+         z = (z ^ z >>> 33) * -4265267296055464877L;
+         z = z ^ z >>> 33 | 1L;
+         int i = Long.bitCount(z ^ z >>> 1);
+         return i < 24 ? z ^ -6148914691236517206L : z;
+      }
 
-        public Cache() {
-            for (int i = 0; i < this.points.length; ++i) {
-                this.points[i] = new Point();
-            }
-        }
+      static long mix(long z) {
+         z = (z ^ z >>> 30) * -4658895280553007687L;
+         z = (z ^ z >>> 27) * -7723592293110705685L;
+         return z ^ z >>> 31;
+      }
 
-        public int size() {
-            return this.size;
-        }
+      static long mix(long seed, long offset) {
+         return mix(seed + mixGamma(offset));
+      }
 
-        public Cache reset() {
-            this.size = 0;
-            return this;
-        }
+      static long mix(long seed, int x, int y) {
+         long i = mix(seed, x);
+         return mix(i, y);
+      }
 
-        public Point at(int index) {
-            return this.points[index];
-        }
+      static double rand(long hash, int offset) {
+         return rand(mix(hash, offset));
+      }
 
-        public Point next() {
-            int index = this.size++;
-            this.ensure(index);
-            return this.points[index].reset();
-        }
+      static double rand(long hash) {
+         return (hash >>> 11) * 1.110223E-16F;
+      }
+   }
 
-        protected void ensure(int index) {
-            if (index < this.points.length) {
-                return;
-            }
-            int oldLength = this.points.length;
-            int newLength = oldLength << 1;
-            this.points = Arrays.copyOf(this.points, newLength);
-            for (int i = oldLength; i < newLength; ++i) {
-                this.points[i] = new Point();
-            }
-        }
-    }
+   public static class Point {
+      public long hash = Long.MAX_VALUE;
+      public int x = Integer.MAX_VALUE;
+      public int y = Integer.MAX_VALUE;
 
-    public static class Value {
-        public long hash = 0L;
-        public int height = 0;
-        public boolean mouth = false;
+      public boolean valid() {
+         return this.hash != Long.MAX_VALUE && this.x != Integer.MAX_VALUE && this.y != Integer.MAX_VALUE;
+      }
 
-        public Value reset() {
-            this.hash = 0L;
-            this.height = 0;
-            this.mouth = false;
-            return this;
-        }
-    }
+      public Volcano.Point reset() {
+         this.hash = Long.MAX_VALUE;
+         this.x = Integer.MAX_VALUE;
+         this.y = Integer.MAX_VALUE;
+         return this;
+      }
+   }
 
-    public static class Point {
-        public long hash = Long.MAX_VALUE;
-        public int x = Integer.MAX_VALUE;
-        public int y = Integer.MAX_VALUE;
+   public static class Value {
+      public long hash = 0L;
+      public int height = 0;
+      public boolean mouth = false;
 
-        public boolean valid() {
-            return this.hash != Long.MAX_VALUE && this.x != Integer.MAX_VALUE && this.y != Integer.MAX_VALUE;
-        }
+      public Volcano.Value reset() {
+         this.hash = 0L;
+         this.height = 0;
+         this.mouth = false;
+         return this;
+      }
+   }
 
-        public Point reset() {
-            this.hash = Long.MAX_VALUE;
-            this.x = Integer.MAX_VALUE;
-            this.y = Integer.MAX_VALUE;
-            return this;
-        }
-    }
-
-    public static interface Noise {
-        public static final int DENSITY = 6869;
-        public static final int POINT_X = 12343;
-        public static final int POINT_Y = 16477;
-        public static final int RADIUS_0 = 18899;
-        public static final int RADIUS_1 = 21701;
-        public static final int RADIUS_2 = 26921;
-        public static final int HEIGHT_0 = 30047;
-        public static final int HEIGHT_1 = 31643;
-        public static final int HEIGHT_2 = 33199;
-        public static final int FLUID_FILLER = 39761;
-
-        public static long mixGamma(long z) {
-            z = (z ^ z >>> 33) * -49064778989728563L;
-            z = (z ^ z >>> 33) * -4265267296055464877L;
-            int n = Long.bitCount((z = z ^ z >>> 33 | 1L) ^ z >>> 1);
-            return n < 24 ? z ^ 0xAAAAAAAAAAAAAAAAL : z;
-        }
-
-        public static long mix(long z) {
-            z = (z ^ z >>> 30) * -4658895280553007687L;
-            z = (z ^ z >>> 27) * -7723592293110705685L;
-            return z ^ z >>> 31;
-        }
-
-        public static long mix(long seed, long offset) {
-            return Noise.mix(seed + Noise.mixGamma(offset));
-        }
-
-        public static long mix(long seed, int x, int y) {
-            long hash = Noise.mix(seed, x);
-            hash = Noise.mix(hash, y);
-            return hash;
-        }
-
-        public static double rand(long hash, int offset) {
-            return Noise.rand(Noise.mix(hash, offset));
-        }
-
-        public static double rand(long hash) {
-            return (double)(hash >>> 11) * (double)1.110223E-16f;
-        }
-    }
-
-    public static interface VolcanoPredicate<T> {
-        public boolean test(int var1, int var2, T var3);
-    }
+   public interface VolcanoPredicate<T> {
+      boolean test(int var1, int var2, T var3);
+   }
 }

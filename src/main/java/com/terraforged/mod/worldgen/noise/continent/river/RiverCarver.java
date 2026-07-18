@@ -5,141 +5,141 @@ import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
 import com.terraforged.mod.worldgen.noise.continent.config.RiverConfig;
-import com.terraforged.mod.worldgen.noise.continent.river.CarverSample;
-import com.terraforged.mod.worldgen.noise.continent.river.NodeSample;
 import com.terraforged.noise.Module;
 import com.terraforged.noise.Source;
 import com.terraforged.noise.util.NoiseUtil;
 
 public class RiverCarver {
-    private static final int SEED_OFFSET = 21221;
-    private static final double EROSION_FREQ = 128.0;
-    // Official TerraForged-1.18.2-0.3.1-alpha-2 values. NewTF had 0.12/0.88 which
-    // kept valley-floor riverNoise away from exact 0 → getWaterLevel fell back to seaLevel.
-    private static final float BORDER_OFFSET = 0.05f;
-    private static final float BORDER_RANGE = 0.95f;
-    private final float blendRadius;
-    private final NoiseLevels levels;
-    private final Module erosionNoise;
-    private final RiverConfig riverConfig = new RiverConfig();
-    private final RiverConfig lakeConfig = new RiverConfig();
+   private static final int SEED_OFFSET = 21221;
+   private static final double EROSION_FREQ = 128.0;
+   private static final float BORDER_OFFSET = 0.05F;
+   private static final float BORDER_RANGE = 0.95F;
+   private final float blendRadius;
+   private final NoiseLevels levels;
+   private final Module erosionNoise;
+   private final RiverConfig riverConfig = new RiverConfig();
+   private final RiverConfig lakeConfig = new RiverConfig();
 
-    public RiverCarver(NoiseLevels levels, ContinentConfig config) {
-        float frequency = levels.frequency * (1.0f / (float)config.shape.scale);
-        this.levels = levels;
-        this.riverConfig.copy(config.rivers.rivers).scale(frequency);
-        this.lakeConfig.copy(config.rivers.lakes).scale(frequency);
-        this.blendRadius = RiverCarver.getBlendRadius(this.riverConfig, this.lakeConfig);
-        this.erosionNoise = Source.builder().seed(config.rivers.seed + 21221).frequency(128.0).octaves(2).ridge();
-    }
+   public RiverCarver(NoiseLevels levels, ContinentConfig config) {
+      float f = levels.frequency * (1.0F / config.shape.scale);
+      this.levels = levels;
+      this.riverConfig.copy(config.rivers.rivers).scale(f);
+      this.lakeConfig.copy(config.rivers.lakes).scale(f);
+      this.blendRadius = getBlendRadius(this.riverConfig, this.lakeConfig);
+      this.erosionNoise = Source.builder().seed(config.rivers.seed + 21221).frequency(128.0).octaves(2).ridge();
+   }
 
-    public void carve(int seed, float x, float y, NoiseSample sample, CarverSample carverSample) {
-        float erosion = this.erosionNoise.getValue(x, y);
-        float baseModifier = this.getBaseModifier(sample);
-        float baseNoise = sample.baseNoise * baseModifier;
-        baseNoise = this.carve(sample, carverSample.river, this.riverConfig, baseNoise, baseModifier, erosion);
-        sample.baseNoise = baseNoise = this.carve(sample, carverSample.lake, this.lakeConfig, baseNoise, baseModifier, erosion);
-        sample.riverNoise = RiverCarver.clipRiverNoise(sample);
-    }
+   public void carve(float x, float y, NoiseSample sample, CarverSample carverSample) {
+      float f = this.erosionNoise.getValue(x, y);
+      float f1 = this.getBaseModifier(sample);
+      float f2 = sample.baseNoise * f1;
+      f2 = this.carve(sample, carverSample.river, this.riverConfig, f2, f1, f);
+      f2 = this.carve(sample, carverSample.lake, this.lakeConfig, f2, f1, f);
+      sample.baseNoise = f2;
+      sample.riverNoise = clipRiverNoise(sample);
+   }
 
-    private float carve(NoiseSample sample, NodeSample nodeSample, RiverConfig config, float baseNoise, float baseModifier, float erosion) {
-        float modifiedBaseNoise = this.getBaseNoise(sample, nodeSample, config, baseModifier);
-        if (modifiedBaseNoise == -1.0f) {
-            return baseNoise;
-        }
-        float baseLevel = this.levels.toHeightNoise(modifiedBaseNoise, 0.0f);
-        this.carve(baseLevel, erosion, sample, nodeSample, config);
-        return modifiedBaseNoise;
-    }
+   private float carve(NoiseSample sample, NodeSample nodeSample, RiverConfig config, float baseNoise, float baseModifier, float erosion) {
+      float f = this.getBaseNoise(sample, nodeSample, config, baseModifier);
+      if (f == -1.0F) {
+         return baseNoise;
+      } else {
+         float f1 = this.levels.toHeightNoise(f, 0.0F);
+         this.carve(f1, erosion, sample, nodeSample, config);
+         return f;
+      }
+   }
 
-    private void carve(float baseLevel, float erosion, NoiseSample sample, NodeSample nodeSample, RiverConfig config) {
-        float riverAlpha;
-        if (nodeSample.isInvalid()) {
-            return;
-        }
-        float height = sample.heightNoise;
-        float position = nodeSample.position;
-        float distance = nodeSample.distance;
-        float valleyWidth = config.valleyWidth.at(position);
-        float bankWidth = config.bankWidth.at(position);
-        float bankDepth = config.bankDepth.at(position);
-        float bedWidth = config.bedWidth.at(position);
-        float bedDepth = config.bedDepth.at(position);
-        float bedLevel = baseLevel - bedDepth * this.levels.unit;
-        float bankLevel = baseLevel + bankDepth * this.levels.unit;
-        float valleyAlpha = RiverCarver.getValleyAlpha(distance, bankWidth, valleyWidth, sample.baseNoise);
-        if (valleyAlpha < 1.0f) {
-            float level = Math.min(bankLevel, height);
-            float modifier = this.getErosionModifier(erosion * config.erosion, valleyAlpha);
-            height = NoiseUtil.lerp(level, height, valleyAlpha * modifier);
-            sample.riverNoise *= this.getValleyNoise(distance, bankWidth, valleyWidth);
-        }
-        if ((riverAlpha = RiverCarver.getAlpha(distance, bedWidth, bankWidth)) < 1.0f) {
-            // Always target designed bedLevel. Official used Math.min(bedLevel, height), which
-            // keeps erosion trenches below the water table → solidY≈sea while baseHeight stays
-            // elevated → sea-level water shafts under rivers (carve off).
-            height = NoiseUtil.lerp(bedLevel, height, riverAlpha);
+   private void carve(float baseLevel, float erosion, NoiseSample sample, NodeSample nodeSample, RiverConfig config) {
+      if (!nodeSample.isInvalid()) {
+         float f = sample.heightNoise;
+         float f1 = nodeSample.position;
+         float f2 = nodeSample.distance;
+         float f3 = config.valleyWidth.at(f1);
+         float f4 = config.bankWidth.at(f1);
+         float f5 = config.bankDepth.at(f1);
+         float f6 = config.bedWidth.at(f1);
+         float f7 = config.bedDepth.at(f1);
+         float f8 = baseLevel - f7 * this.levels.unit;
+         float f9 = baseLevel + f5 * this.levels.unit;
+         float f10 = getValleyAlpha(f2, f4, f3, sample.baseNoise);
+         if (f10 < 1.0F) {
+            float f11 = Math.min(f9, f);
+            float f12 = this.getErosionModifier(erosion * config.erosion, f10);
+            f = NoiseUtil.lerp(f11, f, f10 * f12);
+            sample.riverNoise = sample.riverNoise * this.getValleyNoise(f2, f4, f3);
+         }
+
+         float f13 = getAlpha(f2, f6, f4);
+         if (f13 < 1.0F) {
+            float f14 = Math.min(f8, f);
+            f = NoiseUtil.lerp(f14, f, f13);
             sample.terrainType = nodeSample.type;
-            sample.riverNoise *= this.getRiverNoise(height, baseLevel, bankLevel);
-        }
-        sample.heightNoise = height;
-    }
+            sample.riverNoise = sample.riverNoise * this.getRiverNoise(f, baseLevel, f9);
+         }
 
-    private float getBaseNoise(NoiseSample sample, NodeSample nodeSample, RiverConfig config, float modifier) {
-        if (nodeSample.isInvalid()) {
-            return -1.0f;
-        }
-        float distance = nodeSample.distance;
-        float position = nodeSample.position;
-        float valleyRadius = config.valleyWidth.at(position);
-        if (distance >= valleyRadius) {
-            return -1.0f;
-        }
-        float bankRadius = config.bankWidth.at(position);
-        if (distance <= bankRadius) {
-            return nodeSample.level * modifier;
-        }
-        float alpha = (distance - bankRadius) / (valleyRadius - bankRadius);
-        return NoiseUtil.lerp(nodeSample.level, sample.baseNoise, alpha) * modifier;
-    }
+         sample.heightNoise = f;
+      }
+   }
 
-    private float getBaseModifier(NoiseSample sample) {
-        float min = 0.55f;
-        float max = 1.0f;
-        return NoiseUtil.map(sample.continentNoise, min, max, max - min);
-    }
+   private float getBaseNoise(NoiseSample sample, NodeSample nodeSample, RiverConfig config, float modifier) {
+      if (nodeSample.isInvalid()) {
+         return -1.0F;
+      } else {
+         float f = nodeSample.distance;
+         float f1 = nodeSample.position;
+         float f2 = config.valleyWidth.at(f1);
+         if (f >= f2) {
+            return -1.0F;
+         } else {
+            float f3 = config.bankWidth.at(f1);
+            if (f <= f3) {
+               return nodeSample.level * modifier;
+            } else {
+               float f4 = (f - f3) / (f2 - f3);
+               return NoiseUtil.lerp(nodeSample.level, sample.baseNoise, f4) * modifier;
+            }
+         }
+      }
+   }
 
-    private float getErosionModifier(float erosionNoise, float valleyAlpha) {
-        float erosionFade = 1.0f - NoiseUtil.map(valleyAlpha, 0.975f, 1.0f, 0.025f);
-        return 1.0f - erosionNoise * erosionFade;
-    }
+   private float getBaseModifier(NoiseSample sample) {
+      float f = 0.55F;
+      float f1 = 1.0F;
+      return NoiseUtil.map(sample.continentNoise, f, f1, f1 - f);
+   }
 
-    private float getValleyNoise(float distance, float bankWidth, float valleyWidth) {
-        float value = BORDER_OFFSET + RiverCarver.getAlpha(distance, bankWidth, valleyWidth) / BORDER_RANGE;
-        return MathUtil.clamp(value, 0.0f, 1.0f);
-    }
+   private float getErosionModifier(float erosionNoise, float valleyAlpha) {
+      float f = 1.0F - NoiseUtil.map(valleyAlpha, 0.975F, 1.0F, 0.025F);
+      return 1.0F - erosionNoise * f;
+   }
 
-    private float getRiverNoise(float height, float waterLevel, float bankLevel) {
-        float value = RiverCarver.getAlpha(height, waterLevel, bankLevel);
-        return MathUtil.clamp(value, 0.0f, 1.0f);
-    }
+   private float getValleyNoise(float distance, float bankWidth, float valleyWidth) {
+      float f = 0.05F + getAlpha(distance, bankWidth, valleyWidth) / 0.95F;
+      return MathUtil.clamp(f, 0.0F, 1.0F);
+   }
 
-    private static float clipRiverNoise(NoiseSample sample) {
-        return sample.continentNoise < 0.5f ? 1.0f : sample.riverNoise;
-    }
+   private float getRiverNoise(float height, float waterLevel, float bankLevel) {
+      float f = getAlpha(height, waterLevel, bankLevel);
+      return MathUtil.clamp(f, 0.0F, 1.0F);
+   }
 
-    private static float getValleyAlpha(float distance, float bankWidth, float valleyWidth, float baseValue) {
-        float alpha = RiverCarver.getAlpha(distance, bankWidth, valleyWidth);
-        float shapeAlpha = RiverCarver.getAlpha(baseValue, 0.4f, 0.6f);
-        return NoiseUtil.lerp(alpha * alpha, alpha, shapeAlpha);
-    }
+   private static float clipRiverNoise(NoiseSample sample) {
+      return sample.continentNoise < 0.5F ? 1.0F : sample.riverNoise;
+   }
 
-    private static float getAlpha(float value, float min, float max) {
-        return value <= min ? 0.0f : (value >= max ? 1.0f : (value - min) / (max - min));
-    }
+   private static float getValleyAlpha(float distance, float bankWidth, float valleyWidth, float baseValue) {
+      float f = getAlpha(distance, bankWidth, valleyWidth);
+      float f1 = getAlpha(baseValue, 0.4F, 0.6F);
+      return NoiseUtil.lerp(f * f, f, f1);
+   }
 
-    private static float getBlendRadius(RiverConfig river, RiverConfig lakes) {
-        float valleyWidth = Math.max(river.valleyWidth.max, lakes.valleyWidth.max);
-        return Math.min(1.0f, valleyWidth + 0.2f);
-    }
+   private static float getAlpha(float value, float min, float max) {
+      return value <= min ? 0.0F : (value >= max ? 1.0F : (value - min) / (max - min));
+   }
+
+   private static float getBlendRadius(RiverConfig river, RiverConfig lakes) {
+      float f = Math.max(river.valleyWidth.max, lakes.valleyWidth.max);
+      return Math.min(1.0F, f + 0.2F);
+   }
 }

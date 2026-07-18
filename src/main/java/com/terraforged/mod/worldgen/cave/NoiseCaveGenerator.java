@@ -1,525 +1,138 @@
 package com.terraforged.mod.worldgen.cave;
 
-import com.terraforged.mod.TerraForged;
-import com.terraforged.mod.platform.forge.TFCaveSystemConfig;
-import com.terraforged.mod.util.storage.ObjectPool;
-import com.terraforged.mod.worldgen.GenerationFeatureGates;
+import com.terraforged.mod.registry.ModRegistry;
+import com.terraforged.mod.util.ObjectPool;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
-import com.terraforged.mod.worldgen.biome.decorator.FeatureDensityBudget;
-import com.terraforged.mod.worldgen.cave.CarverChunk;
-import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
-import com.terraforged.mod.worldgen.cave.CaveBiomeVolumeDecorator;
-import com.terraforged.mod.worldgen.cave.CaveBreaches;
-import com.terraforged.mod.worldgen.cave.CaveEntranceClaims;
-import com.terraforged.mod.worldgen.cave.CaveBiomeVanillaPass;
-import com.terraforged.mod.worldgen.cave.CaveDecorationSettings;
-import com.terraforged.mod.worldgen.cave.CaveEntranceSurfaceDecorator;
-import com.terraforged.mod.worldgen.cave.CaveEntranceVanillaDecorator;
-import com.terraforged.mod.worldgen.cave.CaveFeaturePlan;
-import com.terraforged.mod.worldgen.cave.CaveGrottoEntranceDecorator;
-import com.terraforged.mod.worldgen.cave.CaveMegaAccentDecorator;
-import com.terraforged.mod.worldgen.cave.CaveModifiers;
-import com.terraforged.mod.worldgen.cave.CavePatchPlacer;
-import com.terraforged.mod.worldgen.cave.CaveSurfaceBiomeRestorer;
-import com.terraforged.mod.worldgen.cave.CaveSystemGrid;
-import com.terraforged.mod.worldgen.cave.CaveThermalSpringsDecorator;
-import com.terraforged.mod.worldgen.cave.CaveTunnelRiverDecorator;
-import com.terraforged.mod.worldgen.cave.CaveType;
-import com.terraforged.mod.worldgen.cave.NoiseCaveCarver;
-import com.terraforged.mod.worldgen.cave.NoiseCaveDecorator;
-import com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel;
-import com.terraforged.mod.worldgen.util.ChunkUtil;
 import com.terraforged.noise.Module;
 import com.terraforged.noise.Source;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 public class NoiseCaveGenerator {
-    protected static final int POOL_SIZE = 32;
-    protected static final float DENSITY = 0.05f;
-    protected static final int GLOBAL_CAVE_REPS = 1;
-    protected final NoiseCave[] caves;
-    private final NoiseCave[] carveOrderCaves;
-    protected final Module megaCaveNoise;
-    protected final Module gigaCaveNoise;
-    protected final Module uniqueCaveNoise;
-    protected final Module caveBreachNoise;
-    protected final ObjectPool<CarverChunk> pool;
-    protected final Map<ChunkPos, CarverChunk> cache = new ConcurrentHashMap<ChunkPos, CarverChunk>();
-    private final Map<ChunkPos, boolean[]> entranceSnapshots = new ConcurrentHashMap<ChunkPos, boolean[]>();
-    private final CaveEntranceClaims entranceClaims = new CaveEntranceClaims();
+   protected static final int POOL_SIZE = 32;
+   protected static final float DENSITY = 0.05F;
+   protected static final float BREACH_THRESHOLD = 0.7F;
+   protected static final int GLOBAL_CAVE_REPS = 2;
+   protected final NoiseCave[] caves;
+   protected final Module uniqueCaveNoise;
+   protected final Module caveBreachNoise;
+   protected final ObjectPool<CarverChunk> pool;
+   protected final Map<ChunkPos, CarverChunk> cache = new ConcurrentHashMap<>();
 
-    public CaveEntranceClaims getCaveEntranceClaims() {
-        return this.entranceClaims;
-    }
+   public NoiseCaveGenerator(long seed, RegistryAccess access) {
+      this.uniqueCaveNoise = createUniqueNoise((int)seed, 500, 0.05F);
+      this.caveBreachNoise = createBreachNoise((int)seed + 12, 300, 0.7F);
+      this.caves = createArray(seed, access.registryOrThrow(ModRegistry.CAVE.get()));
+      this.pool = new ObjectPool<>(32, this::createCarverChunk);
+   }
 
-    public CaveEntranceClaims getEntranceClaims() {
-        return this.entranceClaims;
-    }
+   public NoiseCaveGenerator(long seed, NoiseCaveGenerator other) {
+      this.caves = copyOf(seed, other.caves);
+      this.uniqueCaveNoise = createUniqueNoise((int)seed, 500, 0.05F);
+      this.caveBreachNoise = createBreachNoise((int)seed + 12, 300, 0.7F);
+      this.pool = new ObjectPool<>(32, this::createCarverChunk);
+   }
 
-    public CarverChunk peekCarver(ChunkPos pos) {
-        return this.cache.get(pos);
-    }
+   public void carve(ChunkAccess chunk, Generator generator) {
+      CarverChunk carverchunk = this.getPreCarveChunk(chunk);
+      carverchunk.terrainData = generator.getChunkData(chunk.getPos());
+      carverchunk.mask = this.caveBreachNoise;
 
-    public CarverChunk buildDiagnosticCarver(int seed, ChunkAccess chunk, Generator generator) {
-        CarverChunk carver = this.createCarverChunk();
-        carver.mask = this.caveBreachNoise;
-        carver.megaModifier = this.megaCaveNoise;
-        carver.gigaModifier = this.gigaCaveNoise;
-        carver.terrainData = generator.getChunkData(chunk.getPos());
-        if (carver.terrainData == null) {
-            return null;
-        }
-        carver.prepareColumnCache(seed, chunk, generator);
-        CarverColumnCache columns = carver.columnCache();
-        NoiseCave synapseProbe = NoiseCaveGenerator.findPrimarySynapseConfig(this.caves);
-        if (NoiseCaveGenerator.isCaveEnabled(synapseProbe)) {
-            columns.ensureSynapseEligibility(synapseProbe, seed);
-        }
-        NoiseCave envelopeConfig = NoiseCaveGenerator.representativeMegaGiga(columns, this.caves);
-        if (envelopeConfig != null) {
-            carver.beginCavePass(envelopeConfig);
-            carver.modifier = this.getModifier(envelopeConfig);
-            CaveParallelExposureFilter.build(columns, seed, chunk, carver, generator, envelopeConfig);
-        }
-        return carver;
-    }
+      for (NoiseCave noisecave : this.caves) {
+         carverchunk.modifier = this.getModifier(noisecave);
+         NoiseCaveCarver.carve(chunk, carverchunk, generator, noisecave, true);
+      }
+   }
 
-    public NoiseCave[] orderedCarveConfigs() {
-        return this.carveOrderCaves;
-    }
+   public void decorate(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
+      CarverChunk carverchunk = this.getPostCarveChunk(chunk, generator);
 
-    public boolean isCarveConfigEnabled(NoiseCave config) {
-        return NoiseCaveGenerator.isCaveEnabled(config);
-    }
+      for (NoiseCave noisecave : this.caves) {
+         NoiseCaveDecorator.decorate(chunk, carverchunk, region, generator, noisecave);
+      }
 
-    public Module modifierFor(NoiseCave cave) {
-        return this.getModifier(cave);
-    }
+      this.pool.restore(carverchunk);
+   }
 
-    public void decorateVolume(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
-        CarverChunk carver = this.prepareDecorateCarver((int)generator.getSeed(), chunk, generator);
-        if (carver == null) {
-            return;
-        }
-        carver.columnCache().buildDecorationFlags(carver, chunk);
-        CarverColumnCache columns = carver.columnCache();
-        boolean megaGiga = columns.anyMegaGiga();
-        WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
-        if (CaveDecorationSettings.usePerBiomeDecorators()) {
-            CaveHybridBiomeDecorator.decorateVolume(chunk, carver, guarded, generator);
-        } else if (CaveDecorationSettings.useOfficialTfDecorator()) {
-            TerraForgedOfficialCaveDecorator.decorateVolume(chunk, carver, guarded, generator);
-        } else if (CaveDecorationSettings.useLegacyDecorators()) {
-            CaveBiomeVolumeDecorator.decorateChunk(chunk, carver, guarded, generator);
-            if (megaGiga) {
-                if (carver.hasTunnelRiver()) {
-                    CaveTunnelRiverDecorator.decorate(chunk, carver, guarded, generator);
-                }
-                CaveThermalSpringsDecorator.decorate(chunk, carver, guarded, generator);
-                CaveMegaAccentDecorator.decorate(chunk, carver, guarded, generator);
-            }
-        } else if (CaveDecorationSettings.useCompromiseDecorator()) {
-            CaveBiomeCompromiseDecorator.decorateVolume(chunk, carver, guarded, generator);
-        } else if (CaveDecorationSettings.useVanillaPass()) {
-            CaveBiomeVanillaPass.decorateChunk(chunk, carver, guarded, generator);
-            if (megaGiga && carver.hasTunnelRiver()) {
-                CaveTunnelRiverDecorator.decorate(chunk, carver, guarded, generator);
-            }
-        }
-        if (megaGiga && GenerationFeatureGates.caveFloatingCrustStripEnabled) {
-            CaveFloatingCrustStrip.stripMegaGigaChunk(chunk, carver, columns);
-        }
-    }
+   private CarverChunk getPreCarveChunk(ChunkAccess chunk) {
+      return this.cache.computeIfAbsent(chunk.getPos(), p -> this.pool.take().reset());
+   }
 
-    public void decorateEntrances(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
-        CarverChunk carver = this.cache.get(chunk.getPos());
-        if (carver == null) {
-            return;
-        }
-        CarverColumnCache columns = carver.columnCache();
-        boolean megaGiga = columns.anyMegaGiga();
-        HashSet<Long> decoratedColumns = new HashSet<Long>(128);
-        CaveFeaturePlan.Cache planCache = new CaveFeaturePlan.Cache();
-        WorldGenLevel guarded = ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carver);
-        if (CaveDecorationSettings.usePerBiomeDecorators()) {
-            CaveHybridBiomeDecorator.decorateEntrances(chunk, carver, guarded, generator);
-        } else if (CaveDecorationSettings.useOfficialTfDecorator()) {
-            if (carver.hasAnyEntranceColumn()) {
-                CaveEntranceSurfaceDecorator.decorate(chunk, carver, guarded, generator);
-                CaveEntranceVanillaDecorator.decorate(chunk, carver, guarded, generator);
-            }
-        } else if (CaveDecorationSettings.useLegacyDecorators()) {
-            if (carver.hasAnyEntranceColumn()) {
-                CaveEntranceSurfaceDecorator.decorate(chunk, carver, guarded, generator);
-            }
-            CaveGrottoEntranceDecorator.decorate(chunk, carver, guarded, generator);
-            for (NoiseCave config : this.caves) {
-                if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
-                FeatureDensityBudget featureBudget = FeatureDensityBudget.forCaves();
-                NoiseCaveDecorator.decorate(chunk, carver, guarded, generator, config, decoratedColumns, featureBudget, planCache);
-            }
-        } else if (CaveDecorationSettings.useCompromiseDecorator()) {
-            CaveBiomeCompromiseDecorator.decorateEntrances(chunk, carver, guarded, generator);
-            HashSet<Long> globalColumns = new HashSet<Long>(64);
-            FeatureDensityBudget globalBudget = FeatureDensityBudget.forCaves();
-            for (NoiseCave config : this.caves) {
-                if (!NoiseCaveGenerator.isCaveEnabled(config) || config.getType() != CaveType.GLOBAL) continue;
-                NoiseCaveDecorator.decorate(chunk, carver, guarded, generator, config, globalColumns, globalBudget, planCache);
-            }
-        } else if (CaveDecorationSettings.useVanillaPass() && carver.hasAnyEntranceColumn()) {
-            CaveEntranceVanillaDecorator.decorate(chunk, carver, guarded, generator);
-        }
-        planCache.clear();
-    }
+   private CarverChunk getPostCarveChunk(ChunkAccess chunk, Generator generator) {
+      CarverChunk carverchunk = this.cache.remove(chunk.getPos());
+      if (carverchunk != null) {
+         return carverchunk;
+      } else {
+         carverchunk = this.pool.take().reset();
+         carverchunk.mask = this.caveBreachNoise;
+         carverchunk.terrainData = generator.getChunkData(chunk.getPos());
 
-    public void finishDecorate(ChunkAccess chunk, Generator generator) {
-        this.finishDecorate(chunk);
-    }
+         for (NoiseCave noisecave : this.caves) {
+            carverchunk.modifier = this.getModifier(noisecave);
+            NoiseCaveCarver.carve(chunk, carverchunk, generator, noisecave, false);
+         }
 
-    public void finishDecorate(ChunkAccess chunk) {
-        CarverChunk carver = this.cache.remove(chunk.getPos());
-        this.entranceSnapshots.remove(chunk.getPos());
-        if (carver != null) {
-            carver.clearColumnCache();
-            this.pool.restore(carver);
-        }
-    }
+         return carverchunk;
+      }
+   }
 
-    public NoiseCaveGenerator(long seed, RegistryAccess access) {
-        this.megaCaveNoise = CaveModifiers.mega();
-        this.gigaCaveNoise = CaveModifiers.giga();
-        this.uniqueCaveNoise = CaveModifiers.unique();
-        this.caveBreachNoise = CaveBreaches.mask();
-        this.caves = NoiseCaveGenerator.createArray((Iterable<NoiseCave>)access.registryOrThrow(TerraForged.CAVES.get()));
-        this.carveOrderCaves = NoiseCaveGenerator.orderByCarvePriority(this.caves);
-        this.pool = new ObjectPool<CarverChunk>(32, this::createCarverChunk);
-    }
+   private Module getModifier(NoiseCave cave) {
+      return switch (cave.getType()) {
+         case GLOBAL -> Source.ONE;
+         case UNIQUE -> this.uniqueCaveNoise;
+      };
+   }
 
-    public NoiseCaveGenerator(long seed, NoiseCaveGenerator other) {
-        this.caves = NoiseCaveGenerator.copyOf(seed, other.caves);
-        this.carveOrderCaves = NoiseCaveGenerator.orderByCarvePriority(this.caves);
-        this.megaCaveNoise = CaveModifiers.mega();
-        this.gigaCaveNoise = CaveModifiers.giga();
-        this.uniqueCaveNoise = CaveModifiers.unique();
-        this.caveBreachNoise = CaveBreaches.mask();
-        this.pool = new ObjectPool<CarverChunk>(32, this::createCarverChunk);
-    }
+   private CarverChunk createCarverChunk() {
+      return new CarverChunk(this.caves.length);
+   }
 
-    public void carve(ChunkAccess chunk, Generator generator) {
-        if (!CaveCarvingGate.isEnabled()) {
-            return;
-        }
-        this.prepareCarverChunk(chunk, generator);
-        if (!CaveCarvingGate.deferBlockCarveUntilAfterRiverFill) {
-            this.applyCarveBlocks(chunk, generator);
-        }
-    }
+   private static Module createUniqueNoise(int seed, int scale, float density) {
+      return new UniqueCaveDistributor(seed + 1286745, 1.0F / scale, 0.75F, density).clamp(0.2, 1.0).map(0.0, 1.0).warp(seed + 781624, 30, 1, 20.0);
+   }
 
-    /** Places cave air volumes — call after {@link CaveChunkSurfaceRepair#restoreRiverDepressions} when defer is on. */
-    public void applyCarveBlocks(ChunkAccess chunk, Generator generator) {
-        if (!CaveCarvingGate.isEnabled()) {
-            return;
-        }
-        CarverChunk carver = this.cache.get(chunk.getPos());
-        if (carver == null) {
-            this.prepareCarverChunk(chunk, generator);
-            carver = this.cache.get(chunk.getPos());
-        }
-        if (carver == null) {
-            return;
-        }
-        int seed = (int)generator.getSeed();
-        for (NoiseCave config : this.carveOrderCaves) {
-            CaveBiomeRegistry registry;
-            if (!NoiseCaveGenerator.isCaveEnabled(config)) {
-                continue;
-            }
-            CaveType type = config.getType();
-            carver.beginCavePass(config);
-            carver.modifier = this.getModifier(config);
-            NoiseCaveCarver.carve(seed, chunk, carver, generator, config, true);
-            if (!type.isMegaOrGiga() || (registry = NoiseCaveGenerator.resolveRegistry(generator)) == null) {
-                continue;
-            }
-            CavePatchPlacer.apply(seed, chunk, generator, config, carver, registry);
-            CaveBiomeColumnUnifier.unifyMegaGigaChunk(seed, chunk, carver, generator, config);
-        }
-        if (NoiseCaveGenerator.isSynapseEnabled()) {
-            CaveGrottoCarver.tryCarveChunk(seed, chunk, carver, generator, NoiseCaveGenerator.findSynapseConfig(this.caves),
-                    generator.getCaveEntranceClaims());
-        }
-        CaveRiverEntranceHydrator.hydrate(chunk, carver, generator);
-        this.entranceSnapshots.put(chunk.getPos(), carver.snapshotEntranceColumns());
-        ChunkUtil.refreshHeightmaps(chunk);
-        CaveSurfaceBiomeRestorer.restore(chunk, generator, carver);
-    }
+   private static Module createBreachNoise(int seed, int scale, float threshold) {
+      return Source.simplexRidge(seed, scale, 2).clamp(threshold * 0.8F, threshold).map(0.0, 1.0);
+   }
 
-    private void prepareCarverChunk(ChunkAccess chunk, Generator generator) {
-        int seed = (int)generator.getSeed();
-        CarverChunk carver = this.getPreCarveChunk(chunk);
-        carver.terrainData = generator.getChunkData(chunk.getPos());
-        carver.mask = this.caveBreachNoise;
-        carver.megaModifier = this.megaCaveNoise;
-        carver.gigaModifier = this.gigaCaveNoise;
-        carver.prepareColumnCache(seed, chunk, generator);
-        CarverColumnCache columns = carver.columnCache();
-        carver.setDensityBudget(NoiseCaveGenerator.createDensityBudget());
-        if (columns.anyMegaGiga()) {
-            int chunkX = chunk.getPos().getMinBlockX() + 8;
-            int chunkZ = chunk.getPos().getMinBlockZ() + 8;
-            CaveEntranceCarver.ensureMassifTunnelAxis(generator, this.entranceClaims, seed, chunkX, chunkZ);
-        }
-        NoiseCave envelopeConfig = NoiseCaveGenerator.representativeMegaGiga(columns, this.caves);
-        if (envelopeConfig != null) {
-            carver.beginCavePass(envelopeConfig);
-            carver.modifier = this.getModifier(envelopeConfig);
-            CaveParallelExposureFilter.build(columns, seed, chunk, carver, generator, envelopeConfig);
-        }
-        NoiseCave synapseProbe = NoiseCaveGenerator.findPrimarySynapseConfig(this.caves);
-        if (NoiseCaveGenerator.isCaveEnabled(synapseProbe)) {
-            columns.ensureSynapseEligibility(synapseProbe, seed);
-        }
-    }
+   private static NoiseCave[] copyOf(long seed, NoiseCave[] other) {
+      NoiseCave[] anoisecave = Arrays.copyOf(other, other.length);
 
-    private CarverChunk prepareDecorateCarver(int seed, ChunkAccess chunk, Generator generator) {
-        CarverChunk carver = this.cache.get(chunk.getPos());
-        if (carver == null) {
-            carver = this.rebuildDecorateCarver(seed, chunk, generator);
-            if (carver != null) {
-                this.cache.put(chunk.getPos(), carver);
-            }
-        }
-        return carver;
-    }
+      for (int i = 0; i < anoisecave.length; i++) {
+         anoisecave[i] = anoisecave[i].withSeed(seed);
+      }
 
-    private CarverChunk rebuildDecorateCarver(int seed, ChunkAccess chunk, Generator generator) {
-        CarverChunk carver = this.pool.take().reset();
-        carver.mask = this.caveBreachNoise;
-        carver.megaModifier = this.megaCaveNoise;
-        carver.gigaModifier = this.gigaCaveNoise;
-        carver.terrainData = generator.getChunkData(chunk.getPos());
-        carver.prepareColumnCache(seed, chunk, generator);
-        CarverColumnCache columns = carver.columnCache();
-        int chunkX = chunk.getPos().getMinBlockX() + 8;
-        int chunkZ = chunk.getPos().getMinBlockZ() + 8;
-        if (columns.anyMegaGiga()) {
-            CaveEntranceCarver.ensureMassifTunnelAxis(generator, generator.getCaveEntranceClaims(), seed, chunkX, chunkZ);
-        }
-        CaveType systemType = CaveSystemGrid.dominantType(generator, seed, chunkX, chunkZ);
-        CaveEntranceClaims.TunnelAxis axis = generator.getCaveEntranceClaims().tunnelAxis(CaveSystemGrid.systemKey(chunkX, chunkZ, systemType));
-        if (axis != null) {
-            carver.restoreTunnel(axis);
-        }
-        boolean[] savedEntrances = this.entranceSnapshots.get(chunk.getPos());
-        if (savedEntrances != null) {
-            carver.restoreEntranceColumns(savedEntrances);
-            carver.columnCache().buildDecorationFlags(carver, chunk);
-            return carver;
-        }
-        NoiseCave envelopeConfig = NoiseCaveGenerator.representativeMegaGiga(columns, this.caves);
-        if (envelopeConfig != null) {
-            carver.beginCavePass(envelopeConfig);
-            carver.modifier = this.getModifier(envelopeConfig);
-            CaveParallelExposureFilter.build(columns, seed, chunk, carver, generator, envelopeConfig);
-        }
-        if (CaveCarvingGate.isEnabled()) {
-            if (CaveDecorationSettings.useOfficialTfDecorator() || CaveDecorationSettings.usePerBiomeDecorators()) {
-                this.replayCarveForBiomes(seed, chunk, carver, generator);
-            } else {
-                for (NoiseCave config : this.carveOrderCaves) {
-                    if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
-                    CaveType type = config.getType();
-                    if (!type.isMegaOrGiga()) continue;
-                    carver.beginCavePass(config);
-                    carver.modifier = this.getModifier(config);
-                    NoiseCaveCarver.carve(seed, chunk, carver, generator, config, false);
-                }
-            }
-        }
-        return carver;
-    }
+      return anoisecave;
+   }
 
-    private void replayCarveForBiomes(int seed, ChunkAccess chunk, CarverChunk carver, Generator generator) {
-        CarverColumnCache columns = carver.columnCache();
-        boolean megaGiga = columns.anyMegaGiga();
-        for (NoiseCave config : this.carveOrderCaves) {
-            if (!NoiseCaveGenerator.isCaveEnabled(config)) continue;
-            CaveType type = config.getType();
-            if (megaGiga && type == CaveType.GLOBAL) {
-                continue;
-            }
-            if (!megaGiga && type.isMegaOrGiga()) {
-                continue;
-            }
-            carver.beginCavePass(config);
-            carver.modifier = this.getModifier(config);
-            NoiseCaveCarver.carve(seed, chunk, carver, generator, config, false);
-        }
-    }
+   private static NoiseCave[] createArray(long seed, Iterable<NoiseCave> source) {
+      int i = 0;
 
-    private static CaveDensitySettings resolveDensitySettings() {
-        if (TFCaveSystemConfig.INSTANCE == null) {
-            return CaveDensitySettings.DEFAULT;
-        }
-        return TFCaveSystemConfig.INSTANCE.caveDensity;
-    }
+      for (NoiseCave noisecave : source) {
+         i += getCount(noisecave);
+      }
 
-    private static CaveDensityBudget createDensityBudget() {
-        if (TFCaveSystemConfig.INSTANCE == null) {
-            return null;
-        }
-        CaveDensitySettings settings = TFCaveSystemConfig.INSTANCE.caveDensity;
-        if (settings.useSpatialThinning()) {
-            return null;
-        }
-        if (settings.xyLimit() == null && settings.yzLimit() == null) {
-            return null;
-        }
-        return new CaveDensityBudget(settings);
-    }
+      NoiseCave[] anoisecave = new NoiseCave[i];
+      int l = 0;
 
-    private static NoiseCave[] orderByCarvePriority(NoiseCave[] caves) {
-        NoiseCave[] ordered = Arrays.copyOf(caves, caves.length);
-        Arrays.sort(ordered, (a, b) -> Integer.compare(NoiseCaveGenerator.carvePriority(a.getType()), NoiseCaveGenerator.carvePriority(b.getType())));
-        return ordered;
-    }
+      for (NoiseCave noisecave1 : source) {
+         int j = getCount(noisecave1);
 
-    private static int carvePriority(CaveType type) {
-        return switch (type) {
-            case GIGA -> 0;
-            case MEGA -> 1;
-            case UNIQUE -> 2;
-            case GLOBAL -> 3;
-        };
-    }
+         for (int k = 0; k < j; k++) {
+            anoisecave[l++] = noisecave1.withSeed(seed + k * 16421058L);
+         }
+      }
 
-    private CarverChunk getPreCarveChunk(ChunkAccess chunk) {
-        return this.cache.computeIfAbsent(chunk.getPos(), p -> this.pool.take().reset());
-    }
+      return anoisecave;
+   }
 
-    private Module getModifier(NoiseCave cave) {
-        return switch (cave.getType()) {
-            default -> throw new IncompatibleClassChangeError();
-            case GLOBAL -> Source.ONE;
-            case MEGA -> this.megaCaveNoise;
-            case GIGA -> this.gigaCaveNoise;
-            case UNIQUE -> this.uniqueCaveNoise;
-        };
-    }
-
-    private CarverChunk createCarverChunk() {
-        return new CarverChunk(this.caves.length);
-    }
-
-    private static NoiseCave[] copyOf(long seed, NoiseCave[] other) {
-        NoiseCave[] array = Arrays.copyOf(other, other.length);
-        for (int i = 0; i < array.length; ++i) {
-            array[i] = array[i].withSeed(seed);
-        }
-        return array;
-    }
-
-    private static NoiseCave[] createArray(Iterable<NoiseCave> source) {
-        int length = 0;
-        for (NoiseCave cave : source) {
-            length += NoiseCaveGenerator.getCount(cave);
-        }
-        NoiseCave[] array = new NoiseCave[length];
-        int i = 0;
-        for (NoiseCave cave : source) {
-            int count = NoiseCaveGenerator.getCount(cave);
-            for (int j = 0; j < count; ++j) {
-                array[i++] = cave.withSeed((long)j * 16421058L);
-            }
-        }
-        return array;
-    }
-
-    private static int getCount(NoiseCave cave) {
-        return cave.getType() == CaveType.GLOBAL ? 1 : 1;
-    }
-
-    private static boolean isSynapseEnabled() {
-        if (!GenerationFeatureGates.synapseCavesEnabled) {
-            return false;
-        }
-        if (TFCaveSystemConfig.INSTANCE == null) {
-            return false;
-        }
-        return TFCaveSystemConfig.INSTANCE.enableSynapseCaves;
-    }
-
-    private static NoiseCave findSynapseConfig(NoiseCave[] caves) {
-        return NoiseCaveGenerator.findPrimarySynapseConfig(caves);
-    }
-
-    /** Main synapse layer (mid elevation band) — used for prefilter and density-limited carving. */
-    private static NoiseCave findPrimarySynapseConfig(NoiseCave[] caves) {
-        NoiseCave fallback = null;
-        for (NoiseCave cave : caves) {
-            if (cave.getType() != CaveType.GLOBAL || !NoiseCaveGenerator.isCaveEnabled(cave)) {
-                continue;
-            }
-            if (fallback == null) {
-                fallback = cave;
-            }
-            if (cave.getMinY() == 0 && cave.getMaxY() == 256) {
-                return cave;
-            }
-        }
-        return fallback;
-    }
-
-    private static boolean isCaveEnabled(NoiseCave cave) {
-        if (cave.getType() == CaveType.MEGA || cave.getType() == CaveType.GIGA) {
-            return GenerationFeatureGates.megaGigaCavesEnabled;
-        }
-        if (cave.getType() != CaveType.GLOBAL) {
-            return true;
-        }
-        if (!GenerationFeatureGates.synapseCavesEnabled) {
-            return false;
-        }
-        if (TFCaveSystemConfig.INSTANCE == null) {
-            return false;
-        }
-        return TFCaveSystemConfig.INSTANCE.enableSynapseCaves;
-    }
-
-    static NoiseCave representativeMegaGiga(CarverColumnCache columns, NoiseCave[] caves) {
-        if (!columns.anyMegaGiga()) {
-            return null;
-        }
-        for (NoiseCave cave : caves) {
-            if (!NoiseCaveGenerator.isCaveEnabled(cave)) {
-                continue;
-            }
-            CaveType type = cave.getType();
-            if (type == CaveType.GIGA && columns.hasGiga()) {
-                return cave;
-            }
-        }
-        for (NoiseCave cave : caves) {
-            if (!NoiseCaveGenerator.isCaveEnabled(cave)) {
-                continue;
-            }
-            if (cave.getType() == CaveType.MEGA && columns.hasMega()) {
-                return cave;
-            }
-        }
-        return null;
-    }
-
-    private static CaveBiomeRegistry resolveRegistry(Generator generator) {
-        return generator.getBiomeSource().getCaveBiomeRegistry();
-    }
+   private static int getCount(NoiseCave cave) {
+      return cave.getType() == CaveType.GLOBAL ? 2 : 1;
+   }
 }

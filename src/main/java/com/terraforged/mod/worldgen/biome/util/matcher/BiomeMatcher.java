@@ -4,7 +4,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
 
 public interface BiomeMatcher {
-    public static final BiomeMatcher DEFAULT = key -> false;
+   BiomeMatcher DEFAULT = key -> false;
 
-    public boolean test(Holder<Biome> var1);
+   boolean test(Holder<Biome> var1);
 }

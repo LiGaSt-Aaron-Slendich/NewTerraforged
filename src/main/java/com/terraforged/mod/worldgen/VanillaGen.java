@@ -7,67 +7,66 @@ import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.Aquifer;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseChunk;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.SurfaceSystem;
-import net.minecraft.world.level.levelgen.WorldgenRandom;
+import net.minecraft.world.level.levelgen.Aquifer.FluidPicker;
+import net.minecraft.world.level.levelgen.Aquifer.FluidStatus;
+import net.minecraft.world.level.levelgen.WorldgenRandom.Algorithm;
 import net.minecraft.world.level.levelgen.carver.CarvingContext;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
-import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import net.minecraft.world.level.levelgen.synth.NormalNoise.NoiseParameters;
 
 public class VanillaGen {
-    protected final Registry<StructureSet> structureSets;
-    protected final NoiseBasedChunkGenerator vanillaGenerator;
-    protected final Holder<NoiseGeneratorSettings> settings;
-    protected final Registry<NormalNoise.NoiseParameters> parameters;
-    protected final int lavaLevel;
-    protected final Aquifer.FluidStatus fluidStatus1;
-    protected final Aquifer.FluidStatus fluidStatus2;
-    protected final Aquifer.FluidPicker globalFluidPicker;
-    protected final SurfaceSystem surfaceSystem;
+   protected final Registry<StructureSet> structureSets;
+   protected final NoiseBasedChunkGenerator vanillaGenerator;
+   protected final Holder<NoiseGeneratorSettings> settings;
+   protected final Registry<NoiseParameters> parameters;
+   protected final int lavaLevel;
+   protected final FluidStatus fluidStatus1;
+   protected final FluidStatus fluidStatus2;
+   protected final FluidPicker globalFluidPicker;
+   protected final SurfaceSystem surfaceSystem;
 
-    public VanillaGen(long seed, BiomeSource biomeSource, VanillaGen other) {
-        this(seed, biomeSource, other.settings, other.parameters, other.structureSets);
-    }
+   public VanillaGen(long seed, BiomeSource biomeSource, VanillaGen other) {
+      this(seed, biomeSource, other.settings, other.parameters, other.structureSets);
+   }
 
-    public VanillaGen(long seed, BiomeSource biomeSource, Holder<NoiseGeneratorSettings> settings, Registry<NormalNoise.NoiseParameters> parameters, Registry<StructureSet> structures) {
-        this.settings = settings;
-        this.parameters = parameters;
-        this.structureSets = structures;
-        NoiseGeneratorSettings settingsValue = settings.value();
-        this.lavaLevel = Math.min(-54, settingsValue.seaLevel());
-        this.fluidStatus1 = new Aquifer.FluidStatus(-54, Blocks.LAVA.defaultBlockState());
-        this.fluidStatus2 = new Aquifer.FluidStatus(settingsValue.seaLevel(), settingsValue.defaultFluid());
-        this.globalFluidPicker = (x, y, z) -> y < this.lavaLevel ? this.fluidStatus1 : this.fluidStatus2;
-        // Official TF 1.18.2 uses settings' random algorithm, not hardcoded XOROSHIRO.
-        BlockState defaultBlock = settingsValue.defaultBlock();
-        this.surfaceSystem = new SurfaceSystem(parameters, defaultBlock, settingsValue.seaLevel(), seed, settingsValue.getRandomSource());
-        this.vanillaGenerator = new NoiseBasedChunkGenerator(structures, parameters, biomeSource, seed, settings);
-    }
+   public VanillaGen(
+      long seed, BiomeSource biomeSource, Holder<NoiseGeneratorSettings> settings, Registry<NoiseParameters> parameters, Registry<StructureSet> structures
+   ) {
+      this.settings = settings;
+      this.parameters = parameters;
+      this.structureSets = structures;
+      this.lavaLevel = Math.min(-54, ((NoiseGeneratorSettings)settings.value()).seaLevel());
+      this.fluidStatus1 = new FluidStatus(-54, Blocks.LAVA.defaultBlockState());
+      this.fluidStatus2 = new FluidStatus(((NoiseGeneratorSettings)settings.value()).seaLevel(), ((NoiseGeneratorSettings)settings.value()).defaultFluid());
+      this.globalFluidPicker = (x, y, z) -> y < this.lavaLevel ? this.fluidStatus1 : this.fluidStatus2;
+      int i = ((NoiseGeneratorSettings)settings.value()).seaLevel();
+      BlockState blockstate = ((NoiseGeneratorSettings)settings.value()).defaultBlock();
+      Algorithm algorithm = ((NoiseGeneratorSettings)settings.value()).getRandomSource();
+      this.surfaceSystem = new SurfaceSystem(parameters, blockstate, i, seed, algorithm);
+      this.vanillaGenerator = new NoiseBasedChunkGenerator(structures, parameters, biomeSource, seed, settings);
+   }
 
-    public NoiseBasedChunkGenerator getVanillaGenerator() {
-        return this.vanillaGenerator;
-    }
+   public Holder<NoiseGeneratorSettings> getSettings() {
+      return this.settings;
+   }
 
-    public Holder<NoiseGeneratorSettings> getSettings() {
-        return this.settings;
-    }
+   public Registry<StructureSet> getStructureSets() {
+      return this.structureSets;
+   }
 
-    public Registry<StructureSet> getStructureSets() {
-        return this.structureSets;
-    }
+   public FluidPicker getGlobalFluidPicker() {
+      return this.globalFluidPicker;
+   }
 
-    public Aquifer.FluidPicker getGlobalFluidPicker() {
-        return this.globalFluidPicker;
-    }
+   public SurfaceSystem getSurfaceSystem() {
+      return this.surfaceSystem;
+   }
 
-    public SurfaceSystem getSurfaceSystem() {
-        return this.surfaceSystem;
-    }
-
-    public CarvingContext createCarvingContext(WorldGenRegion region, ChunkAccess chunk, NoiseChunk noiseChunk) {
-        return new CarvingContext(this.vanillaGenerator, region.registryAccess(), chunk.getHeightAccessorForGeneration(), noiseChunk);
-    }
+   public CarvingContext createCarvingContext(WorldGenRegion region, ChunkAccess chunk, NoiseChunk noiseChunk) {
+      return new CarvingContext(this.vanillaGenerator, region.registryAccess(), chunk.getHeightAccessorForGeneration(), noiseChunk);
+   }
 }

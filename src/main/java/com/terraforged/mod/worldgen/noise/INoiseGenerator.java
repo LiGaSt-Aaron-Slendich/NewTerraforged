@@ -1,33 +1,29 @@
 package com.terraforged.mod.worldgen.noise;
 
 import com.terraforged.engine.world.terrain.Terrain;
-import com.terraforged.mod.worldgen.noise.IContinentNoise;
-import com.terraforged.mod.worldgen.noise.NoiseData;
-import com.terraforged.mod.worldgen.noise.NoiseLevels;
-import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import java.util.function.Consumer;
 
 public interface INoiseGenerator {
-    public NoiseLevels getLevels();
+   INoiseGenerator with(long var1, TerrainLevels var3);
 
-    public TerrainLevels getTerrainLevels();
+   NoiseLevels getLevels();
 
-    public IContinentNoise getContinent();
+   TerrainLevels getTerrainLevels();
 
-    public NoiseSample getNoiseSample(int var1, int var2, int var3);
+   IContinentNoise getContinent();
 
-    public void sample(int var1, int var2, int var3, NoiseSample var4);
+   NoiseSample getNoiseSample(int var1, int var2);
 
-    public float getHeightNoise(int var1, int var2, int var3);
+   void sample(int var1, int var2, NoiseSample var3);
 
-    public long find(int var1, int var2, int var3, int var4, int var5, Terrain var6);
+   float getHeightNoise(int var1, int var2);
 
-    public void generate(int var1, int var2, int var3, Consumer<NoiseData> var4);
+   long find(int var1, int var2, int var3, int var4, Terrain var5);
 
-    public INoiseGenerator with(long var1, TerrainLevels var3);
+   void generate(int var1, int var2, Consumer<NoiseData> var3);
 
-    default public float getNoiseCoord(int coord) {
-        return (float)coord * this.getLevels().frequency;
-    }
+   default float getNoiseCoord(int coord) {
+      return coord * this.getLevels().frequency;
+   }
 }

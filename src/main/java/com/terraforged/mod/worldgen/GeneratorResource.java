@@ -6,6 +6,10 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.biome.Biome;
 
 public class GeneratorResource {
-    public final Holder<Biome>[] biomeBuffer2D = new Holder[16];
-    public final FriendlyByteBuf fullSection = ChunkUtil.getFullSection();
+   public final Holder<Biome>[] biomeBuffer2D = create(16);
+   public final FriendlyByteBuf fullSection = ChunkUtil.getFullSection();
+
+   public static Holder<Biome>[] create(int size) {
+      return new Holder[size];
+   }
 }
