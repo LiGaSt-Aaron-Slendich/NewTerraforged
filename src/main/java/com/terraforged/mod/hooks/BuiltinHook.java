@@ -1,7 +1,7 @@
 package com.terraforged.mod.hooks;
 
+import com.mojang.serialization.DataResult;
 import com.terraforged.mod.CommonAPI;
-import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.registry.DataRegistry;
 import com.terraforged.mod.util.ReflectionUtil;
 import java.lang.invoke.MethodHandle;
@@ -12,54 +12,43 @@ import net.minecraft.resources.RegistryLoader;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 
+/**
+ * Restored to official TerraForged 1.18.2-0.3.1-alpha-2 flow:
+ * inject holder copies into WritableRegistryAccess, then override from datapack resources.
+ */
 public class BuiltinHook {
-    private static final MethodHandle REGISTRY_GETTER = ReflectionUtil.field(RegistryAccess.WritableRegistryAccess.class, Map.class, new String[0]);
-    private static final MethodHandle READ_CACHE_GETTER = ReflectionUtil.field(RegistryLoader.class, Map.class, new String[0]);
+    private static final MethodHandle REGISTRY_GETTER = ReflectionUtil.field(RegistryAccess.WritableRegistryAccess.class, Map.class);
 
     public static <T> void load(RegistryAccess.Writable writable, RegistryOps<T> ops) {
         if (ops.registryLoader().isEmpty()) {
             return;
         }
-        Map<ResourceKey<?>, Registry<?>> backing = BuiltinHook.getBacking(writable);
+        Map<ResourceKey<?>, Registry<?>> backing = getBacking(writable);
         for (DataRegistry<?> registry : CommonAPI.get().getRegistryManager().getInjectedRegistries()) {
-            backing.putIfAbsent((ResourceKey<?>)(registry.key().get()), (Registry<?>)registry.copy());
+            backing.put(registry.key().get(), registry.copy());
         }
         for (DataRegistry<?> registry : CommonAPI.get().getRegistryManager().getInjectedRegistries()) {
-            BuiltinHook.loadRegistry(registry, ops);
+            loadRegistry(registry, ops);
         }
-        BuiltinHook.reloadPresetRegistry(writable, ops);
     }
 
     private static <T, E> void loadRegistry(DataRegistry<T> registry, RegistryOps<E> ops) {
-        try {
-            RegistryLoader.Bound loader = (RegistryLoader.Bound)ops.registryLoader().orElseThrow();
-            ResourceKey key = registry.key().get();
-            TerraForged.LOG.debug("[BuiltinHook] Registry loaded via backing: {}", key);
-        }
-        catch (Throwable t) {
-            TerraForged.LOG.warn("[BuiltinHook] Could not load registry: {}", t.getMessage());
-        }
+        RegistryLoader.Bound loader = ops.registryLoader().orElseThrow();
+        DataResult<? extends Registry<T>> result = loader.overrideRegistryFromResources(
+                registry.key().get(),
+                registry.codec(),
+                ops.getAsJson()
+        );
+        RegistryAccessUtil.printRegistryContents(result.result().orElseThrow());
     }
 
-    private static <T> void reloadPresetRegistry(RegistryAccess.Writable writable, RegistryOps<T> ops) {
-    }
-
+    @SuppressWarnings("unchecked")
     private static Map<ResourceKey<?>, Registry<?>> getBacking(RegistryAccess.Writable writable) {
         try {
-            return (Map<ResourceKey<?>, Registry<?>>) REGISTRY_GETTER.invoke(writable);
-        }
-        catch (Throwable e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void clearReadCache(RegistryLoader loader, ResourceKey<?> registry) {
-        try {
-            Map<?, ?> map = (Map<?, ?>) READ_CACHE_GETTER.invoke(loader);
-            map.remove(registry);
-        }
-        catch (Throwable e) {
-            throw new RuntimeException(e);
+            return (Map<ResourceKey<?>, Registry<?>>) REGISTRY_GETTER.invokeExact((RegistryAccess.WritableRegistryAccess) writable);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            return Map.of();
         }
     }
 }
