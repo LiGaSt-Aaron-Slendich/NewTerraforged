@@ -75,8 +75,10 @@ public class RiverCarver {
             sample.riverNoise *= this.getValleyNoise(distance, bankWidth, valleyWidth);
         }
         if ((riverAlpha = RiverCarver.getAlpha(distance, bedWidth, bankWidth)) < 1.0f) {
-            float level = Math.min(bedLevel, height);
-            height = NoiseUtil.lerp(level, height, riverAlpha);
+            // Always target designed bedLevel. Official used Math.min(bedLevel, height), which
+            // keeps erosion trenches below the water table → solidY≈sea while baseHeight stays
+            // elevated → sea-level water shafts under rivers (carve off).
+            height = NoiseUtil.lerp(bedLevel, height, riverAlpha);
             sample.terrainType = nodeSample.type;
             sample.riverNoise *= this.getRiverNoise(height, baseLevel, bankLevel);
         }

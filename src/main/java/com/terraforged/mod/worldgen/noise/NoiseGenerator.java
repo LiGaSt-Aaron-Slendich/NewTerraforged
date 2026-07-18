@@ -230,7 +230,9 @@ implements INoiseGenerator {
     }
 
     protected static NoiseTileSize getNoiseTileSize() {
-        return new NoiseTileSize(1);
+        // Official TerraForged-1.18.2-0.3.1-alpha-2 uses radius 2. TileSize(1) was a
+        // spawn-time optimization that changed erosion neighborhoods and river beds.
+        return new NoiseTileSize(2);
     }
 
     protected static Module createOceanTerrain() {
