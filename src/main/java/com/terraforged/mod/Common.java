@@ -13,7 +13,6 @@ import com.terraforged.mod.worldgen.asset.TerrainType;
 import com.terraforged.mod.worldgen.asset.VegetationConfig;
 import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.datapack.DataPackExporter;
-import com.terraforged.mod.worldgen.profiler.GeneratorProfiler;
 import net.minecraft.core.Registry;
 
 public class Common extends Init {
@@ -31,7 +30,8 @@ public class Common extends Init {
       Registry.register(Registry.CHUNK_GENERATOR, new net.minecraft.resources.ResourceLocation("newterraforged", "generator"), Generator.CODEC);
       Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("generator"),
          Generator.CODEC.xmap(g -> g, g -> g));
-      Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("profiler"), GeneratorProfiler.CODEC);
+      // Profiler registration disabled: GeneratorProfiler.CODEC wraps ChunkGenerator.CODEC (circular with dispatch)
+      // and nulls WorldGenSettings encode during CreateWorldScreen datapack validation.
       TerraForged.LOG.info("Registering world-gen component codecs");
       ModRegistries.createRegistry(ModRegistry.CAVE, NoiseCave.CODEC);
       ModRegistries.createRegistry(ModRegistry.CLIMATE, ClimateType.CODEC);

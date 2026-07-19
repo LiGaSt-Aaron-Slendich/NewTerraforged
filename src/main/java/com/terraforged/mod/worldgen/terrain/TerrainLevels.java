@@ -2,10 +2,9 @@ package com.terraforged.mod.worldgen.terrain;
 
 import com.google.common.base.Suppliers;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder.Instance;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.mod.codec.Codecs;
-import com.terraforged.mod.codec.LazyCodec;
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.noise.util.NoiseUtil;
@@ -13,7 +12,8 @@ import java.util.function.Supplier;
 import net.minecraft.world.level.dimension.DimensionType;
 
 public class TerrainLevels {
-   public static final Codec<TerrainLevels> CODEC = LazyCodec.record(
+   // Direct RecordCodecBuilder — LazyCodec memoization can break DFU field encode during world-create.
+   public static final Codec<TerrainLevels> CODEC = RecordCodecBuilder.create(
       instance -> instance.group(
             Codecs.opt("auto_scale", true, Codec.BOOL).forGetter(l -> l.noiseLevels.auto),
             Codecs.opt("horizontal_scale", 1.0F, Codec.floatRange(0.0F, 10.0F)).forGetter(l -> l.noiseLevels.scale),
