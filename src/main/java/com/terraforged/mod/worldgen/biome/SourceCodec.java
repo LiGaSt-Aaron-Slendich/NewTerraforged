@@ -10,6 +10,7 @@ public class SourceCodec implements WorldGenCodec<Source> {
    }
 
    public <T> T encode(Source source, DynamicOps<T> ops) {
-      return (T)ops.empty();
+      // Empty map, not JsonNull — ops.empty() breaks WorldGenSettings JSON round-trips.
+      return ops.createMap(java.util.Map.of());
    }
 }

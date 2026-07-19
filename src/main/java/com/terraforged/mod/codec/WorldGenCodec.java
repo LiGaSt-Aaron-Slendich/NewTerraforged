@@ -7,7 +7,6 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.MapLike;
 import com.mojang.serialization.RecordBuilder;
-import com.mojang.serialization.RecordBuilder.MapBuilder;
 import com.terraforged.mod.hooks.RegistryAccessUtil;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -25,7 +24,9 @@ public interface WorldGenCodec<V> extends Codec<V> {
       }
 
       public <T> RecordBuilder<T> encode(RegistryAccess input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
-         return new MapBuilder(ops);
+         // Keep seed/levels already written into prefix. A fresh MapBuilder dropped them and
+         // made CreateWorldScreen WorldGenSettings round-trip encode to null → datapack validation fail.
+         return prefix;
       }
    };
 
