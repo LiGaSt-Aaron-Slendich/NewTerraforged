@@ -5,6 +5,7 @@ import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.registry.ModRegistry;
 import com.terraforged.mod.util.map.WeightMap;
 import com.terraforged.mod.worldgen.asset.ClimateType;
+import com.terraforged.mod.worldgen.biome.util.SurfaceBiomeConfigLoader;
 import it.unimi.dsi.fastutil.objects.Object2FloatLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2FloatMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -90,6 +91,15 @@ public class BiomeMapManager {
             if (biometype != null) {
                hashmap.computeIfAbsent(biometype, t -> new Object2FloatLinkedOpenHashMap()).put(holder, 1.0F);
             }
+         }
+      }
+
+      // Overlay explicit surface-biomes.toml weights when present.
+      SurfaceBiomeConfigLoader.ConfigOverlay overlay = SurfaceBiomeConfigLoader.load(this.biomes);
+      for (var entry : overlay.explicit().entrySet()) {
+         Object2FloatMap<Holder<Biome>> map = hashmap.computeIfAbsent(entry.getKey(), t -> newMutableWeightMap());
+         for (var e : entry.getValue().object2FloatEntrySet()) {
+            map.put(e.getKey(), e.getFloatValue());
          }
       }
 

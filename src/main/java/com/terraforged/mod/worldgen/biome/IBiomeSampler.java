@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.biome;
 
+import com.terraforged.mod.worldgen.biome.SurfaceBiomeClimate;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.climate.ClimateNoise;
@@ -44,6 +45,8 @@ public interface IBiomeSampler {
          this.noiseGenerator.getContinent().sampleContinent(f, f1, climatesample);
          this.noiseGenerator.getContinent().sampleRiver(f, f1, climatesample);
          this.climateNoise.sample(f, f1, climatesample);
+         climatesample.climateType = SurfaceBiomeClimate.adjustForTerrain(
+               climatesample.climateType, climatesample.terrainType, climatesample.temperature, climatesample.moisture);
          return climatesample;
       }
 
