@@ -39,10 +39,12 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.forge.event.lifecycle.GatherDataEvent;
 
-@Mod("terraforged")
+@Mod("newterraforged")
 public class TFMain extends TerraForged {
    public TFMain() {
       super(TFMain::getRootPath);
+      TFConfigs.register();
+      TFCaveBiomes.register(FMLJavaModLoadingContext.get().getModEventBus());
       CommonAPI.HOLDER.set(new TFMain.ForgeCommonAPI());
       MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onInit);
@@ -99,7 +101,7 @@ public class TFMain extends TerraForged {
    }
 
    private static Path getRootPath() {
-      return ((ModContainer)ModList.get().getModContainerById("terraforged").orElseThrow()).getModInfo().getOwningFile().getFile().getFilePath();
+      return ((ModContainer)ModList.get().getModContainerById("newterraforged").orElseThrow()).getModInfo().getOwningFile().getFile().getFilePath();
    }
 
    private static class ForgeCommonAPI implements CommonAPI {

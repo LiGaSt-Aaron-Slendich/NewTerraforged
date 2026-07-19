@@ -27,6 +27,8 @@ public class Common extends Init {
       TerraForged.LOG.info("Registering world-gen core codecs");
       Registry.register(Registry.BIOME_SOURCE, TerraForged.location("climate"), Source.CODEC);
       Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("generator"), Generator.CODEC);
+      // Legacy terraforged + product newterraforged generator ids (world NBT / soft deps).
+      Registry.register(Registry.CHUNK_GENERATOR, new net.minecraft.resources.ResourceLocation("newterraforged", "generator"), Generator.CODEC);
       Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("profiler"), GeneratorProfiler.CODEC);
       TerraForged.LOG.info("Registering world-gen component codecs");
       ModRegistries.createRegistry(ModRegistry.CAVE, NoiseCave.CODEC);

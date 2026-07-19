@@ -53,10 +53,10 @@ minecraft {
             workingDirectory project.file("run")
             property "forge.logging.markers", "REGISTRIES"
             property "forge.logging.console.level", "debug"
-            arg "-mixin.config=terraforged.mixins.json"
+            arg "-mixin.config=newterraforged.mixins.json"
 
             mods {
-                terraforged {
+                newterraforged {
                     source sourceSets.main
                 }
             }
@@ -66,10 +66,10 @@ minecraft {
             workingDirectory project.file("run")
             property "forge.logging.markers", "REGISTRIES"
             property "forge.logging.console.level", "debug"
-            arg "-mixin.config=terraforged.mixins.json"
+            arg "-mixin.config=newterraforged.mixins.json"
 
             mods {
-                terraforged {
+                newterraforged {
                     source sourceSets.main
                 }
             }
@@ -80,11 +80,11 @@ minecraft {
             property "forge.logging.markers", "REGISTRIES"
             property "forge.logging.console.level", "debug"
 
-            args "--mod", "terraforged", "--server", "--output", file("generated")
-            arg "-mixin.config=terraforged.mixins.json"
+            args "--mod", "newterraforged", "--server", "--output", file("generated")
+            arg "-mixin.config=newterraforged.mixins.json"
 
             mods {
-                terraforged {
+                newterraforged {
                     source sourceSets.main
                 }
             }
@@ -106,11 +106,11 @@ jar {
     from(sourceSets.main.output)
     manifest {
         attributes([
-                "MixinConfigs": "terraforged.mixins.json"
+                "MixinConfigs": "newterraforged.mixins.json"
         ])
     }
 }
 
 mixin {
-    add sourceSets.main, "terraforged.mixins.refmap.json"
+    add sourceSets.main, "newterraforged.refmap.json"
 }

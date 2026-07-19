@@ -17,10 +17,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public abstract class TerraForged implements Platform {
-   public static final String MODID = "terraforged";
-   public static final String TITLE = "TerraForged";
+   public static final String MODID = "newterraforged";
+   public static final String TITLE = "NewTerraforged";
    public static final String DATAPACK_VERSION = "v0.1";
-   public static final Logger LOG = LogManager.getLogger("TerraForged");
+   public static final Logger LOG = LogManager.getLogger("NewTerraforged");
    private final Supplier<Path> container;
    private final Map<ResourceKey<? extends Registry<?>>, Registrar<?>> registrars = new HashMap<>();
 
@@ -52,6 +52,7 @@ public abstract class TerraForged implements Platform {
    }
 
    public static ResourceLocation location(String name) {
+      // Worldgen datapack on this TF118 base stays under terraforged/; Forge modId is newterraforged.
       return name.contains(":") ? new ResourceLocation(name) : new ResourceLocation("terraforged", name);
    }
 
