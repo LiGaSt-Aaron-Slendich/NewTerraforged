@@ -58,7 +58,10 @@ public class TFMain extends TerraForged {
    }
 
    void onInit(FMLCommonSetupEvent event) {
-      event.enqueueWork(Common.INSTANCE::init);
+      event.enqueueWork(() -> {
+         Common.INSTANCE.init();
+         com.terraforged.mod.compat.TerraBlenderCompat.init();
+      });
    }
 
    void onRegisterCommands(RegisterCommandsEvent event) {

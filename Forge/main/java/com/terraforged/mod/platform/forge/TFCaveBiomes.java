@@ -4,14 +4,13 @@ import com.terraforged.mod.TerraForged;
 import net.minecraftforge.eventbus.api.IEventBus;
 
 /**
- * Cave biome DeferredRegister wiring. Full factories restored in cave KEEP layer.
- * Phase-1 stub so identity/config boots without ModCaveBiomeFactories.
+ * Cave biome DeferredRegister. Full ModCaveBiomeFactories deferred with feature presets.
  */
 public final class TFCaveBiomes {
     private TFCaveBiomes() {
     }
 
     public static void register(IEventBus modBus) {
-        TerraForged.LOG.info("[TFCaveBiomes] Deferred until cave KEEP layer (ModCaveBiomeFactories)");
+        TerraForged.LOG.info("[TFCaveBiomes] Deferred — ModCaveBiomeFactories excluded until decor KEEP compiles on TF118 carver");
     }
 }

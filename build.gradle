@@ -30,7 +30,7 @@ dependencies {
 
     annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
 
-    // ТВОЯ локальна бібліотека (це ти “вже пофіксив” — повертаю як було логічно)
+    // РўР’РћРЇ Р»РѕРєР°Р»СЊРЅР° Р±С–Р±Р»С–РѕС‚РµРєР° (С†Рµ С‚Рё вЂњРІР¶Рµ РїРѕС„С–РєСЃРёРІвЂќ вЂ” РїРѕРІРµСЂС‚Р°СЋ СЏРє Р±СѓР»Рѕ Р»РѕРіС–С‡РЅРѕ)
     implementation files("libs/Terraforged.jar")
 }
 
@@ -38,6 +38,51 @@ sourceSets {
     main {
         java {
             srcDirs += "Forge/main/java"
+            // Phase4 scope cut: KEEP files deferred until HEAD CarverChunk gains minimal hooks (no DROP).
+            exclude "**/CaveEntranceCarver.java"
+            exclude "**/CarveDecisionDiagnostics.java"
+            exclude "**/CarverColumnCache.java"
+            exclude "**/CaveEntranceClaims.java"
+            exclude "**/MegaGigaChunkCache.java"
+            exclude "**/MegaGigaZoneProbe.java"
+            exclude "**/CaveColumnScan.java"
+            exclude "**/CaveBreaches.java"
+            exclude "**/CaveLocator.java"
+            exclude "**/CaveOceanFilter.java"
+            exclude "**/CaveOpenAirCheck.java"
+            exclude "**/CaveUndergroundGuard.java"
+            exclude "**/MegaCaveStructureFilter.java"
+            exclude "**/CaveDebugInfo.java"
+            exclude "**/CaveDebugMaps.java"
+            exclude "**/CaveDebugReport.java"
+            exclude "**/CaveBiomeFeatureRunner.java"
+            exclude "**/CaveBiomeFeaturePresets.java"
+            exclude "**/CaveBiomeVanillaPass.java"
+            exclude "**/CaveBiomeVolumeDecorator.java"
+            exclude "**/CaveBiomeDecoratorRouter.java"
+            exclude "**/CaveBiomeColumnUnifier.java"
+            exclude "**/CaveBiomeVerticalFit.java"
+            exclude "**/TerraForgedOfficialCaveDecorator.java"
+            exclude "**/CaveFeaturePlan.java"
+            exclude "**/CaveFeaturePlacement.java"
+            exclude "**/CaveFeatureFilters.java"
+            exclude "**/CaveFeatureDiagnostics.java"
+            exclude "**/CaveFeatureRules.java"
+            exclude "**/CaveFeatureClassifier.java"
+            exclude "**/CaveFeatureMass.java"
+            exclude "**/ChunkScopedWorldGenLevel.java"
+            exclude "**/DynamicTreesCompat.java"
+            exclude "**/CaveDebugCommand.java"
+            exclude "**/CaveDebugSession.java"
+            exclude "**/CaveDebugScreen.java"
+            exclude "**/CaveDebugNetwork.java"
+            exclude "**/ProbeNetwork.java"
+            exclude "**/internal/probe/**"
+            exclude "**/BackgroundSearchTasks.java"
+            exclude "**/FeaturePlacement.java"
+            exclude "**/CaveSiteTags.java"
+            exclude "**/CaveCartography.java"
+            exclude "**/ModCaveBiomeFactories.java"
         }
         resources {
             srcDirs += "Forge/main/resources"

@@ -2,6 +2,7 @@ package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.registry.ModRegistry;
 import com.terraforged.mod.util.ObjectPool;
+import com.terraforged.mod.worldgen.GenerationFeatureGates;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.noise.Module;
@@ -14,6 +15,10 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
+/**
+ * Stock TF118 carve path with minimal MEGA/GIGA distribution hooks.
+ * River mask stays in {@link CarverChunk#getCarvingMask} (1 - noise * river).
+ */
 public class NoiseCaveGenerator {
    protected static final int POOL_SIZE = 32;
    protected static final float DENSITY = 0.05F;
@@ -21,12 +26,16 @@ public class NoiseCaveGenerator {
    protected static final int GLOBAL_CAVE_REPS = 2;
    protected final NoiseCave[] caves;
    protected final Module uniqueCaveNoise;
+   protected final Module megaCaveNoise;
+   protected final Module gigaCaveNoise;
    protected final Module caveBreachNoise;
    protected final ObjectPool<CarverChunk> pool;
    protected final Map<ChunkPos, CarverChunk> cache = new ConcurrentHashMap<>();
 
    public NoiseCaveGenerator(long seed, RegistryAccess access) {
       this.uniqueCaveNoise = createUniqueNoise((int)seed, 500, 0.05F);
+      this.megaCaveNoise = CaveModifiers.mega();
+      this.gigaCaveNoise = CaveModifiers.giga();
       this.caveBreachNoise = createBreachNoise((int)seed + 12, 300, 0.7F);
       this.caves = createArray(seed, access.registryOrThrow(ModRegistry.CAVE.get()));
       this.pool = new ObjectPool<>(32, this::createCarverChunk);
@@ -35,21 +44,33 @@ public class NoiseCaveGenerator {
    public NoiseCaveGenerator(long seed, NoiseCaveGenerator other) {
       this.caves = copyOf(seed, other.caves);
       this.uniqueCaveNoise = createUniqueNoise((int)seed, 500, 0.05F);
+      this.megaCaveNoise = CaveModifiers.mega();
+      this.gigaCaveNoise = CaveModifiers.giga();
       this.caveBreachNoise = createBreachNoise((int)seed + 12, 300, 0.7F);
       this.pool = new ObjectPool<>(32, this::createCarverChunk);
    }
 
    public void carve(ChunkAccess chunk, Generator generator) {
-      // TEMP diagnostics 2026-07-19: disable all NoiseCave block carving to isolate
-      // whether under-surface shafts are fill/river vs official cave carve
-      // (official getCarvingMask = 1 - breach*river → MORE carve in river channels).
-      return;
+      CarverChunk carverchunk = this.getPreCarveChunk(chunk);
+      carverchunk.mask = this.caveBreachNoise;
+      carverchunk.terrainData = generator.getChunkData(chunk.getPos());
+
+      for (NoiseCave noisecave : this.caves) {
+         if (!isCaveEnabled(noisecave)) {
+            continue;
+         }
+         carverchunk.modifier = this.getModifier(noisecave);
+         NoiseCaveCarver.carve(chunk, carverchunk, generator, noisecave, true);
+      }
    }
 
    public void decorate(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
       CarverChunk carverchunk = this.getPostCarveChunk(chunk, generator);
 
       for (NoiseCave noisecave : this.caves) {
+         if (!isCaveEnabled(noisecave)) {
+            continue;
+         }
          NoiseCaveDecorator.decorate(chunk, carverchunk, region, generator, noisecave);
       }
 
@@ -70,6 +91,9 @@ public class NoiseCaveGenerator {
          carverchunk.terrainData = generator.getChunkData(chunk.getPos());
 
          for (NoiseCave noisecave : this.caves) {
+            if (!isCaveEnabled(noisecave)) {
+               continue;
+            }
             carverchunk.modifier = this.getModifier(noisecave);
             NoiseCaveCarver.carve(chunk, carverchunk, generator, noisecave, false);
          }
@@ -82,7 +106,23 @@ public class NoiseCaveGenerator {
       return switch (cave.getType()) {
          case GLOBAL -> Source.ONE;
          case UNIQUE -> this.uniqueCaveNoise;
+         case MEGA -> this.megaCaveNoise;
+         case GIGA -> this.gigaCaveNoise;
       };
+   }
+
+   private static boolean isCaveEnabled(NoiseCave cave) {
+      if (cave == null) {
+         return false;
+      }
+      CaveType type = cave.getType();
+      if (type == CaveType.GLOBAL && !GenerationFeatureGates.synapseCavesEnabled) {
+         return false;
+      }
+      if (type != null && type.isMegaOrGiga() && !GenerationFeatureGates.megaGigaCavesEnabled) {
+         return false;
+      }
+      return true;
    }
 
    private CarverChunk createCarverChunk() {
