@@ -1,17 +1,25 @@
 package com.terraforged.mod.worldgen.cave;
 
+import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
+import com.terraforged.mod.platform.forge.TFCaveSystemConfig;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.biome.Source;
-import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
-import com.terraforged.mod.worldgen.cave.CaveType;
+import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
+import com.terraforged.mod.worldgen.terrain.TerrainData;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 
+/**
+ * Portable cave-debug helpers for TF118 stock Generator / CaveBiomeSampler.
+ * Mega/Giga classification uses layout footprint (not MegaGigaZoneProbe / column cache).
+ */
 public final class CaveDebugInfo {
     private static final int SURFACE_SHELL = 14;
 
@@ -35,46 +43,87 @@ public final class CaveDebugInfo {
         int z = pos.getZ();
         if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
             CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
-            ResourceLocation regionBiome = source.getCaveBiomeSampler().getPrimaryRegionBiomeId(seed, x, z, type);
-            if (regionBiome != null) {
-                lines.add("Cave Region: " + CaveDebugInfo.formatRegionName(regionBiome));
-                return;
+            CaveMegaGigaLayout layout = CaveDebugInfo.resolveLayout(generator, seed, x, y, z, type);
+            if (layout != null) {
+                CaveBiomeEntry entry = layout.getBiomeAt(x, z);
+                if (entry != null) {
+                    lines.add("Cave Region: " + CaveDebugInfo.formatRegionName(entry.biome()));
+                    return;
+                }
             }
         }
         if ("Surface".equals(caveSystem)) {
             return;
         }
-        Holder<Biome> caveBiome = CaveDebugInfo.sampleCaveBiome(generator, x, y, z);
+        Holder<Biome> caveBiome = CaveDebugInfo.sampleCaveBiome(generator, x, z);
         if (CaveBiomeIds.isUndergroundBiome(caveBiome)) {
             lines.add("Cave Region: " + CaveDebugInfo.formatRegionName(caveBiome));
         }
     }
 
     public static String resolveCaveSystem(Generator generator, int x, int y, int z) {
-        int surface = generator.getOceanFloorHeight(x, z);
-        byte zone = MegaGigaZoneProbe.classifyWithCarverCache(generator, x, z);
-        if (zone != MegaGigaZoneProbe.NONE) {
-            if (y <= surface - SURFACE_SHELL) {
-                return zone == MegaGigaZoneProbe.GIGA ? "Giga" : "Mega";
-            }
-            return "Mega Shell";
-        }
+        int surface = CaveDebugInfo.oceanFloorHeight(generator, x, z);
         if (y >= surface - SURFACE_SHELL) {
             return "Surface";
         }
-        Holder<Biome> caveBiome = CaveDebugInfo.sampleCaveBiome(generator, x, y, z);
+        int seed = Seeds.get(generator.getSeed());
+        if (CaveDebugInfo.inLayoutFootprint(generator, seed, x, y, z, CaveType.GIGA)) {
+            return "Giga";
+        }
+        if (CaveDebugInfo.inLayoutFootprint(generator, seed, x, y, z, CaveType.MEGA)) {
+            return "Mega";
+        }
+        Holder<Biome> caveBiome = CaveDebugInfo.sampleCaveBiome(generator, x, z);
         if (CaveBiomeIds.isUndergroundBiome(caveBiome)) {
             return y < 48 ? "Normal" : "Synapse";
         }
-        return "Surface";
+        return "Underground";
     }
 
-    private static Holder<Biome> sampleCaveBiome(Generator generator, int x, int y, int z) {
+    static boolean inLayoutFootprint(Generator generator, int seed, int x, int y, int z, CaveType type) {
+        CaveMegaGigaLayout layout = CaveDebugInfo.resolveLayout(generator, seed, x, y, z, type);
+        if (layout == null || layout.generators().isEmpty()) {
+            return false;
+        }
+        float dx = (float)x - layout.centerX();
+        float dz = (float)z - layout.centerZ();
+        float radius = type == CaveType.GIGA ? 400.0F : 250.0F;
+        return Math.sqrt(dx * dx + dz * dz) < radius * 1.05;
+    }
+
+    public static CaveMegaGigaLayout resolveLayout(Generator generator, int seed, int x, int y, int z, CaveType type) {
+        Source source = generator.getBiomeSource();
+        int surfaceY = CaveDebugInfo.oceanFloorHeight(generator, x, z);
+        Holder<Biome> surfaceBiome = source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
+        int radius = type == CaveType.GIGA ? 400 : 250;
+        int cx = Math.floorDiv(x, radius * 2) * radius * 2 + radius;
+        int cz = Math.floorDiv(z, radius * 2) * radius * 2 + radius;
+        Registry<Biome> biomes = source.getRegistries().registryOrThrow(Registry.BIOME_REGISTRY);
+        TFCaveBiomeConfig biomeCfg = TFCaveBiomeConfig.INSTANCE;
+        if (biomeCfg == null) {
+            return null;
+        }
+        CaveBiomeRegistry registry = CaveBiomeRegistryLoader.build(biomes, biomeCfg);
+        CaveSystemConfig systemCfg = TFCaveSystemConfig.INSTANCE != null
+            ? TFCaveSystemConfig.INSTANCE.toSystemConfig()
+            : CaveSystemConfig.DEFAULT;
+        ClimateSample climate = source.getBiomeSampler().getSample(x, z);
+        float oceanWeight = Math.max(0.0F, 1.0F - climate.continentNoise);
+        float riverWeight = Math.max(0.0F, 1.0F - climate.riverNoise);
+        CaveStatInitializer.CaveStatSnapshot snapshot =
+            CaveStatInitializer.initialize(surfaceBiome, y, surfaceY, oceanWeight, riverWeight, seed, x, z);
+        return CaveMegaGigaLayout.build(seed, cx, cz, radius, registry, systemCfg, type == CaveType.MEGA, snapshot);
+    }
+
+    private static Holder<Biome> sampleCaveBiome(Generator generator, int x, int z) {
         Source source = generator.getBiomeSource();
         int seed = Seeds.get(generator.getSeed());
-        int surface = generator.getOceanFloorHeight(x, z);
-        Holder<Biome> surfaceBiome = source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
-        return source.getUnderGroundBiome(seed, x, z, CaveType.GLOBAL, surfaceBiome, y, surface, x, z, 256);
+        return source.getUnderGroundBiome(seed, x, z, CaveType.GLOBAL);
+    }
+
+    public static int oceanFloorHeight(Generator generator, int x, int z) {
+        TerrainData data = generator.getChunkData(new ChunkPos(x >> 4, z >> 4));
+        return data.getHeight(x & 15, z & 15);
     }
 
     public static String formatRegionName(Holder<Biome> biome) {

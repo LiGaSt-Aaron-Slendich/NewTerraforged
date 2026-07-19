@@ -2,11 +2,13 @@ package com.terraforged.mod.platform.forge;
 
 import com.terraforged.mod.Common;
 import com.terraforged.mod.TerraForged;
+import com.terraforged.mod.command.CaveDebugSession;
 import com.terraforged.mod.command.TFCommands;
 import com.terraforged.mod.data.ModBiomes;
 import com.terraforged.mod.data.ModTags;
 import com.terraforged.mod.data.gen.DataGen;
 import com.terraforged.mod.platform.CommonAPI;
+import com.terraforged.mod.platform.forge.CaveDebugNetwork;
 import com.terraforged.mod.platform.forge.client.TFClient;
 import com.terraforged.mod.platform.forge.client.TFPreset;
 import com.terraforged.mod.platform.forge.util.ForgeRegistrar;
@@ -47,6 +49,7 @@ public class TFMain extends TerraForged {
       TFCaveBiomes.register(FMLJavaModLoadingContext.get().getModEventBus());
       CommonAPI.HOLDER.set(new TFMain.ForgeCommonAPI());
       MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
+      MinecraftForge.EVENT_BUS.register(CaveDebugSession.class);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onInit);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onGenerateData);
       FMLJavaModLoadingContext.get().getModEventBus().addGenericListener(Biome.class, this::onBiomes);
@@ -61,6 +64,7 @@ public class TFMain extends TerraForged {
       event.enqueueWork(() -> {
          Common.INSTANCE.init();
          com.terraforged.mod.compat.TerraBlenderCompat.init();
+         CaveDebugNetwork.register();
       });
    }
 

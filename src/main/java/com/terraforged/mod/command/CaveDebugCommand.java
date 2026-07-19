@@ -3,33 +3,34 @@ package com.terraforged.mod.command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.terraforged.mod.command.CaveDebugSession;
+import com.terraforged.mod.platform.forge.CaveDebugNetwork;
+import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
+import com.terraforged.mod.platform.forge.TFCaveSystemConfig;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.GeneratorPreset;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.biome.Source;
-import com.terraforged.mod.worldgen.cave.CaveBiomeClimateAffinity;
 import com.terraforged.mod.worldgen.cave.CaveBiomeCategory;
+import com.terraforged.mod.worldgen.cave.CaveBiomeClimateAffinity;
 import com.terraforged.mod.worldgen.cave.CaveBiomeEntry;
-import com.terraforged.mod.worldgen.cave.CavePlacementType;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
-import com.terraforged.mod.worldgen.cave.CaveCartography;
-import com.terraforged.mod.platform.forge.CaveDebugNetwork;
+import com.terraforged.mod.worldgen.cave.CaveBiomeRegistryLoader;
 import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
+import com.terraforged.mod.worldgen.cave.CaveDebugMaps;
 import com.terraforged.mod.worldgen.cave.CaveDebugReport;
-import com.terraforged.mod.worldgen.cave.CaveFeatureDiagnostics;
-import com.terraforged.mod.worldgen.cave.CarveDecisionDiagnostics;
 import com.terraforged.mod.worldgen.cave.CaveLayoutRegionGrid;
 import com.terraforged.mod.worldgen.cave.CaveMegaGigaLayout;
-import com.terraforged.mod.worldgen.cave.CaveSiteTags;
+import com.terraforged.mod.worldgen.cave.CavePlacementType;
 import com.terraforged.mod.worldgen.cave.CaveStatVector;
-import com.terraforged.mod.worldgen.cave.CaveSubtype;
+import com.terraforged.mod.worldgen.cave.CaveSystemConfig;
 import com.terraforged.mod.worldgen.cave.CaveType;
-import com.terraforged.mod.worldgen.noise.NoiseSample;
+import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
+import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,57 +40,85 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 
+/**
+ * TF118-portable {@code /newtf debug cave}. Feature/carve diagnostics and cartography
+ * extras that need excluded KEEP (CaveFeature*, CarveDecisionDiagnostics, MegaGigaZoneProbe)
+ * are soft-deferred with clear messages.
+ */
 public final class CaveDebugCommand {
     private CaveDebugCommand() {
     }
 
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
-        return (LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"newtf").requires(source -> source.hasPermission(0))).then(Commands.literal((String)"debug").then(((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal((String)"cave").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.FULL))).then(Commands.literal((String)"carve").executes(ctx -> CaveDebugCommand.executeCarve((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"start").executes(ctx -> CaveDebugCommand.executeStart((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"stop").executes(ctx -> CaveDebugCommand.executeStop((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"map").executes(ctx -> CaveDebugCommand.executeMap((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"save").executes(ctx -> CaveDebugCommand.executeSave((CommandContext<CommandSourceStack>)ctx)))).then(Commands.literal((String)"menu").executes(ctx -> CaveDebugCommand.executeMenu((CommandContext<CommandSourceStack>)ctx)))).then(((LiteralArgumentBuilder)Commands.literal((String)"stats").then(Commands.literal((String)"local").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.LOCAL)))).then(Commands.literal((String)"global").executes(ctx -> CaveDebugCommand.execute((CommandContext<CommandSourceStack>)ctx, Mode.GLOBAL))))));
+        return Commands.literal("newtf")
+            .requires(source -> source.hasPermission(0))
+            .then(
+                Commands.literal("debug")
+                    .then(
+                        Commands.literal("cave")
+                            .executes(ctx -> CaveDebugCommand.execute(ctx, Mode.FULL))
+                            .then(Commands.literal("carve").executes(CaveDebugCommand::executeCarve))
+                            .then(Commands.literal("start").executes(CaveDebugCommand::executeStart))
+                            .then(Commands.literal("stop").executes(CaveDebugCommand::executeStop))
+                            .then(Commands.literal("map").executes(CaveDebugCommand::executeMap))
+                            .then(Commands.literal("save").executes(CaveDebugCommand::executeSave))
+                            .then(Commands.literal("menu").executes(CaveDebugCommand::executeMenu))
+                            .then(
+                                Commands.literal("stats")
+                                    .then(Commands.literal("local").executes(ctx -> CaveDebugCommand.execute(ctx, Mode.LOCAL)))
+                                    .then(Commands.literal("global").executes(ctx -> CaveDebugCommand.execute(ctx, Mode.GLOBAL)))
+                            )
+                    )
+            );
     }
 
     private static int execute(CommandContext<CommandSourceStack> context, Mode mode) throws CommandSyntaxException {
-        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerPlayer player = context.getSource().getPlayerOrException();
         ServerLevel level = player.getLevel();
         Generator generator = GeneratorPreset.getGenerator(level);
         if (generator == null) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            context.getSource().sendFailure(new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
             return 0;
         }
         BlockPos pos = player.blockPosition();
         try {
             for (String line : CaveDebugCommand.collectLines(generator, level, pos, mode)) {
-                player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+                player.sendMessage(new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
             }
-        }
-        catch (Throwable t) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Cave debug failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+        } catch (Throwable t) {
+            context.getSource()
+                .sendFailure(
+                    new TextComponent("Cave debug failed: " + t.getClass().getSimpleName() + ": " + t.getMessage())
+                        .withStyle(ChatFormatting.RED)
+                );
             return 0;
         }
         return 1;
     }
 
     private static int executeStart(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        return CaveDebugSession.start(((CommandSourceStack)context.getSource()).getPlayerOrException());
+        return CaveDebugSession.start(context.getSource().getPlayerOrException());
     }
 
     private static int executeStop(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        return CaveDebugSession.stop(((CommandSourceStack)context.getSource()).getPlayerOrException());
+        return CaveDebugSession.stop(context.getSource().getPlayerOrException());
     }
 
     private static int executeCarve(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerPlayer player = context.getSource().getPlayerOrException();
         ServerLevel level = player.getLevel();
         Generator generator = GeneratorPreset.getGenerator(level);
         if (generator == null) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            context.getSource().sendFailure(new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
             return 0;
         }
         BlockPos pos = player.blockPosition();
@@ -97,85 +126,141 @@ public final class CaveDebugCommand {
             CaveDebugReport report = new CaveDebugReport();
             report.add("=== Carve decision replay ===");
             report.add(String.format(Locale.ROOT, "Position: %d %d %d", pos.getX(), pos.getY(), pos.getZ()));
-            CarveDecisionDiagnostics.append(generator, level, pos, report);
+            report.add("Deferred: CarveDecisionDiagnostics needs CarverColumnCache / main CarverChunk hooks.");
+            CaveDebugCommand.appendRiverMaskProbe(generator, pos, report);
             for (String line : report.lines()) {
-                player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+                player.sendMessage(new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
             }
-        }
-        catch (Throwable t) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Carve debug failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+        } catch (Throwable t) {
+            context.getSource()
+                .sendFailure(
+                    new TextComponent("Carve debug failed: " + t.getClass().getSimpleName() + ": " + t.getMessage())
+                        .withStyle(ChatFormatting.RED)
+                );
             return 0;
         }
         return 1;
     }
 
     private static int executeMap(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerPlayer player = context.getSource().getPlayerOrException();
         ServerLevel level = player.getLevel();
         Generator generator = GeneratorPreset.getGenerator(level);
         if (generator == null) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            context.getSource().sendFailure(new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
             return 0;
         }
         BlockPos pos = player.blockPosition();
         String caveSystem = CaveDebugInfo.resolveCaveSystem(generator, pos.getX(), pos.getY(), pos.getZ());
         if (!"Mega".equals(caveSystem) && !"Giga".equals(caveSystem)) {
-            player.sendMessage((Component)new TextComponent("Cartography requires Mega or Giga cave at your position.").withStyle(ChatFormatting.YELLOW), player.getUUID());
+            player.sendMessage(
+                new TextComponent("Stat maps require Mega or Giga layout at your position.").withStyle(ChatFormatting.YELLOW),
+                player.getUUID()
+            );
             return 0;
         }
         CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
         try {
-            CaveCartography.Result result = CaveCartography.render(level, generator, pos.getX(), pos.getZ(), type);
-            for (String line : result.chatLines()) {
-                player.sendMessage((Component)new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
+            int seed = Seeds.get(generator.getSeed());
+            CaveMegaGigaLayout layout = CaveDebugInfo.resolveLayout(generator, seed, pos.getX(), pos.getY(), pos.getZ(), type);
+            if (layout == null) {
+                player.sendMessage(new TextComponent("Layout unavailable.").withStyle(ChatFormatting.YELLOW), player.getUUID());
+                return 0;
             }
-        }
-        catch (Throwable t) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Cartography failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+            int radius = type == CaveType.GIGA ? 400 : 250;
+            int step = 8;
+            int size = Math.max(8, (radius * 2) / step);
+            boolean[][] footprint = new boolean[size][size];
+            int originX = (int)layout.centerX() - radius;
+            int originZ = (int)layout.centerZ() - radius;
+            for (int gz = 0; gz < size; ++gz) {
+                for (int gx = 0; gx < size; ++gx) {
+                    int wx = originX + gx * step + step / 2;
+                    int wz = originZ + gz * step + step / 2;
+                    float dx = wx - layout.centerX();
+                    float dz = wz - layout.centerZ();
+                    footprint[gz][gx] = Math.sqrt(dx * dx + dz * dz) < radius * 1.05;
+                }
+            }
+            Path dir = level.getServer()
+                .getServerDirectory()
+                .toPath()
+                .resolve("config")
+                .resolve("NewTerraForged")
+                .resolve("debug");
+            Files.createDirectories(dir);
+            String base = String.format(Locale.ROOT, "map-%s-%d_%d", type.getName(), pos.getX(), pos.getZ());
+            Registry<Biome> biomes = generator.getBiomeSource().getRegistries().registryOrThrow(Registry.BIOME_REGISTRY);
+            CaveDebugMaps.ExportResult result =
+                CaveDebugMaps.exportAll(dir, base, seed, layout, footprint, originX, originZ, step, biomes);
+            player.sendMessage(
+                new TextComponent("Wrote " + result.mapFiles().size() + " map(s) to " + dir).withStyle(ChatFormatting.GREEN),
+                player.getUUID()
+            );
+            for (Path map : result.mapFiles()) {
+                player.sendMessage(new TextComponent("  " + map.getFileName()).withStyle(ChatFormatting.GRAY), player.getUUID());
+            }
+        } catch (Throwable t) {
+            context.getSource()
+                .sendFailure(
+                    new TextComponent("Cartography failed: " + t.getClass().getSimpleName() + ": " + t.getMessage())
+                        .withStyle(ChatFormatting.RED)
+                );
             return 0;
         }
         return 1;
     }
 
     private static int executeSave(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerPlayer player = context.getSource().getPlayerOrException();
         ServerLevel level = player.getLevel();
         Generator generator = GeneratorPreset.getGenerator(level);
         if (generator == null) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            context.getSource().sendFailure(new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
             return 0;
         }
         BlockPos pos = player.blockPosition();
         try {
             CaveDebugReport report = CaveDebugCommand.collectReport(generator, level, pos, Mode.FULL);
             Path path = CaveDebugReport.save(level, pos, report);
-            player.sendMessage((Component)new TextComponent("Cave debug saved: " + path).withStyle(ChatFormatting.GREEN), player.getUUID());
-            player.sendMessage((Component)new TextComponent("HTML copy: " + path.getParent().resolve(path.getFileName().toString().replace(".txt", ".html"))).withStyle(ChatFormatting.GRAY), player.getUUID());
-        }
-        catch (Throwable t) {
-            String message = t instanceof IOException ? "Save failed: " + t.getMessage() : "Save failed: " + t.getClass().getSimpleName() + ": " + t.getMessage();
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent(message).withStyle(ChatFormatting.RED));
+            player.sendMessage(new TextComponent("Cave debug saved: " + path).withStyle(ChatFormatting.GREEN), player.getUUID());
+            player.sendMessage(
+                new TextComponent("HTML copy: " + path.getParent().resolve(path.getFileName().toString().replace(".txt", ".html")))
+                    .withStyle(ChatFormatting.GRAY),
+                player.getUUID()
+            );
+        } catch (Throwable t) {
+            String message = t instanceof IOException
+                ? "Save failed: " + t.getMessage()
+                : "Save failed: " + t.getClass().getSimpleName() + ": " + t.getMessage();
+            context.getSource().sendFailure(new TextComponent(message).withStyle(ChatFormatting.RED));
             return 0;
         }
         return 1;
     }
 
     private static int executeMenu(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer player = ((CommandSourceStack)context.getSource()).getPlayerOrException();
+        ServerPlayer player = context.getSource().getPlayerOrException();
         ServerLevel level = player.getLevel();
         Generator generator = GeneratorPreset.getGenerator(level);
         if (generator == null) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            context.getSource().sendFailure(new TextComponent("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
             return 0;
         }
         BlockPos pos = player.blockPosition();
         try {
             CaveDebugReport report = CaveDebugCommand.collectReport(generator, level, pos, Mode.FULL);
             CaveDebugNetwork.openMenu(player, report.lines());
-            player.sendMessage((Component)new TextComponent("Opened cave debug menu (scroll with mouse wheel)").withStyle(ChatFormatting.GREEN), player.getUUID());
-        }
-        catch (Throwable t) {
-            ((CommandSourceStack)context.getSource()).sendFailure((Component)new TextComponent("Menu failed: " + t.getClass().getSimpleName() + ": " + t.getMessage()).withStyle(ChatFormatting.RED));
+            player.sendMessage(
+                new TextComponent("Opened cave debug menu (scroll with mouse wheel)").withStyle(ChatFormatting.GREEN),
+                player.getUUID()
+            );
+        } catch (Throwable t) {
+            context.getSource()
+                .sendFailure(
+                    new TextComponent("Menu failed: " + t.getClass().getSimpleName() + ": " + t.getMessage())
+                        .withStyle(ChatFormatting.RED)
+                );
             return 0;
         }
         return 1;
@@ -186,14 +271,9 @@ public final class CaveDebugCommand {
         CaveDebugCommand.appendReportHeader(generator, level, pos, mode, report);
         if (mode == Mode.FULL) {
             report.add("");
-            report.add("Tip: [Biome column — decor pipeline] mirrors real decor guards (quart paint, not sampler).");
-            report.add("Tip: filter 'allowed' ≠ placed at your feet — decor runs at grid anchors during chunk gen.");
-            try {
-                CaveFeatureDiagnostics.append(generator, (LevelReader)level, pos, report);
-            }
-            catch (Throwable t) {
-                report.add("Feature diagnostics failed: " + t.getClass().getSimpleName() + ": " + t.getMessage());
-            }
+            report.add("Tip: feature diagnostics deferred until CaveFeature* KEEP compiles.");
+            report.add("Tip: carve replay deferred until CarverColumnCache hooks land.");
+            CaveDebugCommand.appendRiverMaskProbe(generator, pos, report);
         }
         report.appendFeatureTable();
         return report;
@@ -203,42 +283,64 @@ public final class CaveDebugCommand {
         return CaveDebugCommand.collectReport(generator, level, pos, mode).lines();
     }
 
+    private static void appendRiverMaskProbe(Generator generator, BlockPos pos, CaveDebugReport report) {
+        int x = pos.getX();
+        int z = pos.getZ();
+        TerrainData terrain = generator.getChunkData(new ChunkPos(x >> 4, z >> 4));
+        float river = terrain.getRiver().get(x & 15, z & 15);
+        report.add("");
+        report.add("[TF118 river mask]");
+        report.add(String.format(Locale.ROOT, "River factor @ chunk local: %.4f", river));
+        report.add("Formula: getCarvingMask = 1 - maskNoise * river (unchanged).");
+        // CarverChunk.debug* available when a live carver chunk is bound; terrain river alone is always safe.
+        CarverChunk probe = new CarverChunk(1);
+        probe.terrainData = terrain;
+        report.add(
+            String.format(
+                Locale.ROOT,
+                "debugRiverNoise(local)=%.4f (mask noise needs active carver.mask)",
+                probe.debugRiverNoise(x & 15, z & 15)
+            )
+        );
+    }
+
     private static void appendReportHeader(Generator generator, ServerLevel level, BlockPos pos, Mode mode, CaveDebugReport report) {
         int x = pos.getX();
         int y = pos.getY();
         int z = pos.getZ();
         int seed = Seeds.get(generator.getSeed());
         Source source = generator.getBiomeSource();
-        ClimateSample climateSample = source.getBiomeSampler().getSample(seed, x, z);
-        NoiseSample terrainSample = generator.getTerrainSample(x, z);
-        climateSample.terrainType = terrainSample.terrainType;
-        climateSample.baseNoise = terrainSample.baseNoise;
-        climateSample.heightNoise = terrainSample.heightNoise;
-        int surfaceY = generator.getOceanFloorHeight(x, z);
+        ClimateSample climateSample = source.getBiomeSampler().getSample(x, z);
+        int surfaceY = CaveDebugInfo.oceanFloorHeight(generator, x, z);
         Holder<Biome> surfaceBiome = source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
         String caveSystem = CaveDebugInfo.resolveCaveSystem(generator, x, y, z);
-        ArrayList<String> lineBuffer = new ArrayList<String>();
+        ArrayList<String> lineBuffer = new ArrayList<>();
         lineBuffer.add("=== NewTerraForged Cave Debug ===");
         if (mode == Mode.FULL) {
             lineBuffer.add(String.format("Position: %d %d %d (surface Y=%d)", x, y, z, surfaceY));
             lineBuffer.add("");
             lineBuffer.add("[Cave]");
             lineBuffer.add("System: " + caveSystem);
-            CaveDebugCommand.appendCaveSubtype(generator, seed, x, z, caveSystem, lineBuffer);
             CaveDebugCommand.appendRegionBiome(source, seed, x, y, z, surfaceY, caveSystem, lineBuffer);
-            CaveDebugCommand.appendPaintedBiome(source, seed, x, y, z, surfaceBiome, surfaceY, caveSystem, lineBuffer);
+            CaveDebugCommand.appendPaintedBiome(generator, seed, x, y, z, surfaceBiome, surfaceY, caveSystem, lineBuffer);
             lineBuffer.add("");
             lineBuffer.add("[Surface]");
             lineBuffer.add("Terrain: " + climateSample.terrainType.getName());
             lineBuffer.add("Climate: " + climateSample.climateType.name());
             lineBuffer.add(String.format("Ocean proximity: %.3f", Float.valueOf(1.0f - climateSample.continentNoise)));
-            lineBuffer.add(String.format("River proximity: %.3f (noise=%.3f)", Float.valueOf(1.0f - climateSample.riverNoise), Float.valueOf(climateSample.riverNoise)));
-            CaveDebugCommand.appendWaterBiomeDiagnostics(source, seed, x, z, climateSample, lineBuffer);
+            lineBuffer.add(
+                String.format(
+                    "River proximity: %.3f (noise=%.3f)",
+                    Float.valueOf(1.0f - climateSample.riverNoise),
+                    Float.valueOf(climateSample.riverNoise)
+                )
+            );
+            CaveDebugCommand.appendWaterBiomeDiagnostics(source, x, z, climateSample, lineBuffer);
             lineBuffer.add("");
         }
         if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
             CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
-            CaveMegaGigaLayout layout = CaveDebugCommand.resolveLayout(source, seed, x, y, z, type, surfaceBiome, surfaceY);
+            CaveMegaGigaLayout layout = CaveDebugInfo.resolveLayout(generator, seed, x, y, z, type);
             if (layout != null) {
                 CaveDebugCommand.appendMegaGigaStats(layout, x, z, mode, lineBuffer);
                 if (mode == Mode.FULL) {
@@ -266,83 +368,77 @@ public final class CaveDebugCommand {
         }
     }
 
-    private static void appendWaterBiomeDiagnostics(Source source, int seed, int x, int z, ClimateSample climateSample, List<String> lines) {
+    private static void appendWaterBiomeDiagnostics(Source source, int x, int z, ClimateSample climateSample, List<String> lines) {
         if (!climateSample.terrainType.isRiver() && !climateSample.terrainType.isLake()) {
             return;
         }
-        Holder<Biome> sampled = source.getBiomeSampler().sampleBiome(seed, x, z);
+        Holder<Biome> sampled = source.getBiomeSampler().sampleBiome(x, z);
         Holder<Biome> noiseBiome = source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
         lines.add("[Water biome check]");
         sampled.unwrapKey().ifPresent(key -> lines.add("Sampler biome @ block: " + key.location()));
         noiseBiome.unwrapKey().ifPresent(key -> lines.add("Climate noise biome (F3 surface): " + key.location()));
         if (climateSample.riverNoise != 0.0f) {
-            lines.add(String.format(Locale.ROOT, "River noise != 0 (%.4f) — vanilla RIVER override in BiomeSampler may NOT apply; climate biome bleeds to shores", climateSample.riverNoise));
+            lines.add(
+                String.format(
+                    Locale.ROOT,
+                    "River noise != 0 (%.4f) — vanilla RIVER override in BiomeSampler may NOT apply; climate biome bleeds to shores",
+                    climateSample.riverNoise
+                )
+            );
         } else {
             lines.add("River noise == 0 — BiomeSampler should force minecraft:river / frozen_river here");
         }
-        if (sampled.unwrapKey().map(key -> key.location().getPath().contains("plains")).orElse(false)) {
-            lines.add("WARNING: plains at water terrain — check BiomeTerrainIntegration rules or CaveSurfaceBiomeRestorer PLAINS fallback");
-        }
     }
 
-    private static void appendCaveSubtype(Generator generator, int seed, int x, int z, String caveSystem, List<String> lines) {
-        if (!"Mega".equals(caveSystem) && !"Giga".equals(caveSystem)) {
+    private static void appendRegionBiome(
+        Source source,
+        int seed,
+        int x,
+        int y,
+        int z,
+        int surfaceY,
+        String caveSystem,
+        List<String> lines
+    ) {
+        if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
             return;
         }
-        CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
-        CaveSubtype subtype = CaveSiteTags.detectSubtype(generator, type, seed, x, z);
-        if (subtype != CaveSubtype.ANY) {
-            lines.add("Subtype: " + subtype.getName());
-        }
-    }
-
-    private static void appendRegionBiome(Source source, int seed, int x, int y, int z, int surfaceY, String caveSystem, List<String> lines) {
-        Holder<Biome> surfaceBiome;
-        Holder<Biome> caveBiome;
-        if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
-            CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
-            ResourceLocation regionBiome = source.getCaveBiomeSampler().getPrimaryRegionBiomeId(seed, x, z, type);
-            if (regionBiome != null) {
-                lines.add("Region: " + CaveDebugInfo.formatRegionName(regionBiome));
-                lines.add("Region biome: " + regionBiome);
+        if (!"Surface".equals(caveSystem)) {
+            Holder<Biome> caveBiome = source.getUnderGroundBiome(seed, x, z, CaveType.GLOBAL);
+            if (CaveBiomeIds.isUndergroundBiome(caveBiome)) {
+                lines.add("Region: " + CaveDebugInfo.formatRegionName(caveBiome));
+                caveBiome.unwrapKey().ifPresent(key -> lines.add("Cave biome: " + key.location()));
             }
-            return;
-        }
-        if (!"Surface".equals(caveSystem) && CaveBiomeIds.isUndergroundBiome(caveBiome = source.getUnderGroundBiome(seed, x, z, CaveType.GLOBAL, surfaceBiome = CaveDebugCommand.surfaceBiomeFor(source, x, z), y, surfaceY, x, z, 256))) {
-            lines.add("Region: " + CaveDebugInfo.formatRegionName(caveBiome));
-            caveBiome.unwrapKey().ifPresent(key -> lines.add("Cave biome: " + key.location()));
         }
     }
 
-    private static Holder<Biome> surfaceBiomeFor(Source source, int x, int z) {
-        return source.getNoiseBiome(x >> 2, 0, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
-    }
-
-    private static void appendPaintedBiome(Source source, int seed, int x, int y, int z, Holder<Biome> surfaceBiome, int surfaceY, String caveSystem, List<String> lines) {
-        Holder<Biome> caveBiome;
+    private static void appendPaintedBiome(
+        Generator generator,
+        int seed,
+        int x,
+        int y,
+        int z,
+        Holder<Biome> surfaceBiome,
+        int surfaceY,
+        String caveSystem,
+        List<String> lines
+    ) {
         if ("Mega".equals(caveSystem) || "Giga".equals(caveSystem)) {
-            CaveBiomeEntry entry;
             CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
-            int radius = type == CaveType.GIGA ? 400 : 250;
-            int cx = Math.floorDiv(x, radius * 2) * radius * 2 + radius;
-            int cz = Math.floorDiv(z, radius * 2) * radius * 2 + radius;
-            CaveMegaGigaLayout layout = source.getCaveBiomeSampler().getMegaGigaLayout(seed, cx, cz, radius, type, surfaceBiome, y, surfaceY);
+            CaveMegaGigaLayout layout = CaveDebugInfo.resolveLayout(generator, seed, x, y, z, type);
+            CaveBiomeEntry entry;
             if (layout != null && (entry = layout.getBiomeAt(x, z)) != null) {
                 lines.add("Painted biome: " + entry.biome());
                 lines.add("Category: " + CaveDebugCommand.formatLayoutCategory(entry));
             }
             return;
         }
-        if (!"Surface".equals(caveSystem) && CaveBiomeIds.isUndergroundBiome(caveBiome = source.getUnderGroundBiome(seed, x, z, CaveType.GLOBAL, surfaceBiome, y, surfaceY, x, z, 256))) {
-            caveBiome.unwrapKey().ifPresent(key -> lines.add("Painted biome: " + key.location()));
+        if (!"Surface".equals(caveSystem)) {
+            Holder<Biome> caveBiome = generator.getBiomeSource().getUnderGroundBiome(seed, x, z, CaveType.GLOBAL);
+            if (CaveBiomeIds.isUndergroundBiome(caveBiome)) {
+                caveBiome.unwrapKey().ifPresent(key -> lines.add("Painted biome: " + key.location()));
+            }
         }
-    }
-
-    private static CaveMegaGigaLayout resolveLayout(Source source, int seed, int x, int y, int z, CaveType type, Holder<Biome> surfaceBiome, int surfaceY) {
-        int radius = type == CaveType.GIGA ? 400 : 250;
-        int cx = Math.floorDiv(x, radius * 2) * radius * 2 + radius;
-        int cz = Math.floorDiv(z, radius * 2) * radius * 2 + radius;
-        return source.getCaveBiomeSampler().getMegaGigaLayout(seed, cx, cz, radius, type, surfaceBiome, y, surfaceY);
     }
 
     private static void appendMegaGigaStats(CaveMegaGigaLayout layout, int x, int z, Mode mode, List<String> lines) {
@@ -380,12 +476,31 @@ public final class CaveDebugCommand {
         List<CaveMegaGigaLayout.GeneratorNode> generators;
         CaveLayoutRegionGrid grid = layout.regionGrid();
         if (grid != null) {
-            lines.add(String.format(Locale.ROOT, "Layout cell: ix=%d iz=%d center=(%d,%d) size=%d", grid.regionIndexX(x), grid.regionIndexZ(z), grid.snapX(x), grid.snapZ(z), grid.cellSize()));
+            lines.add(
+                String.format(
+                    Locale.ROOT,
+                    "Layout cell: ix=%d iz=%d center=(%d,%d) size=%d",
+                    grid.regionIndexX(x),
+                    grid.regionIndexZ(z),
+                    grid.snapX(x),
+                    grid.snapZ(z),
+                    grid.cellSize()
+                )
+            );
         }
         if (!(generators = layout.generators()).isEmpty()) {
             lines.add("Generators:");
             for (CaveMegaGigaLayout.GeneratorNode node : generators) {
-                lines.add(String.format(Locale.ROOT, "  - %s @ (%.0f, %.0f)%s", node.biome().biome(), Float.valueOf(node.x()), Float.valueOf(node.z()), CaveDebugCommand.generatorTags(node.biome().biome())));
+                lines.add(
+                    String.format(
+                        Locale.ROOT,
+                        "  - %s @ (%.0f, %.0f)%s",
+                        node.biome().biome(),
+                        Float.valueOf(node.x()),
+                        Float.valueOf(node.z()),
+                        CaveDebugCommand.generatorTags(node.biome().biome())
+                    )
+                );
             }
         }
     }
@@ -415,7 +530,8 @@ public final class CaveDebugCommand {
     }
 
     private static String formatLayoutCategory(CaveBiomeEntry entry) {
-        if (entry.placementType() == CavePlacementType.FULL_REGION && (entry.category() == CaveBiomeCategory.TRANSITION || entry.category() == CaveBiomeCategory.COASTAL)) {
+        if (entry.placementType() == CavePlacementType.FULL_REGION
+            && (entry.category() == CaveBiomeCategory.TRANSITION || entry.category() == CaveBiomeCategory.COASTAL)) {
             return "PRIMARY (regional shell)";
         }
         return entry.category().name();
@@ -431,24 +547,51 @@ public final class CaveDebugCommand {
     }
 
     private static void appendRegistrySummary(Source source, List<String> lines) {
-        CaveBiomeRegistry registry = source.getCaveBiomeRegistry();
         lines.add("[Cave biome registry]");
+        TFCaveBiomeConfig cfg = TFCaveBiomeConfig.INSTANCE;
+        if (cfg == null) {
+            lines.add("Mode: config not loaded");
+            return;
+        }
+        Registry<Biome> biomes = source.getRegistries().registryOrThrow(Registry.BIOME_REGISTRY);
+        CaveBiomeRegistry registry = CaveBiomeRegistryLoader.build(biomes, cfg);
         if (registry.isVanillaFallback()) {
             lines.add("Mode: vanilla fallback (no mod cave primaries resolved)");
             return;
         }
-        lines.add(String.format(Locale.ROOT, "Loaded: %d primary, %d transition, %d special, %d coastal", registry.getPrimary().size(), registry.getTransition().size(), registry.getSpecial().size(), registry.getCoastal().size()));
+        lines.add(
+            String.format(
+                Locale.ROOT,
+                "Loaded: %d primary, %d transition, %d special, %d coastal",
+                registry.getPrimary().size(),
+                registry.getTransition().size(),
+                registry.getSpecial().size(),
+                registry.getCoastal().size()
+            )
+        );
         lines.add("Primary pool:");
         for (CaveBiomeEntry entry : registry.getPrimary()) {
             lines.add("  - " + entry.biome());
         }
         lines.add("Mega/giga shell pool: " + registry.getMegaGigaShellPool().size() + " entries");
+        if (TFCaveSystemConfig.INSTANCE != null) {
+            CaveSystemConfig sys = TFCaveSystemConfig.INSTANCE.toSystemConfig();
+            lines.add(
+                String.format(
+                    Locale.ROOT,
+                    "System config: mega regions %d-%d, giga %d-%d",
+                    sys.megaRegionCountMin(),
+                    sys.megaRegionCountMax(),
+                    sys.gigaRegionCountMin(),
+                    sys.gigaRegionCountMax()
+                )
+            );
+        }
     }
 
-    public static enum Mode {
+    public enum Mode {
         FULL,
         LOCAL,
-        GLOBAL;
-
+        GLOBAL
     }
 }

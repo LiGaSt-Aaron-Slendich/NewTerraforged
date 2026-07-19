@@ -36,6 +36,7 @@ public class TFCommands {
    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
       dispatcher.register(getLocateTerrainCommand());
       dispatcher.register(getTFCommand());
+      dispatcher.register(CaveDebugCommand.register());
    }
 
    private static LiteralArgumentBuilder<CommandSourceStack> root(String name) {

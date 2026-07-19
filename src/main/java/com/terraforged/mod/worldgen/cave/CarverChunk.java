@@ -59,6 +59,16 @@ public class CarverChunk {
       return 1.0F - f * f1;
    }
 
+   /** Debug probe: cave mask noise (does not change {@link #getCarvingMask}). */
+   public float debugMaskNoise(int x, int z) {
+      return this.mask == null ? 0.0F : this.mask.getValue(x, z);
+   }
+
+   /** Debug probe: river factor used by TF118 mask {@code 1 - mask * river}. */
+   public float debugRiverNoise(int x, int z) {
+      return this.terrainData == null ? 0.0F : this.terrainData.getRiver().get(x, z);
+   }
+
    private BiomeList nextList() {
       int i = this.biomeListIndex + 1;
       if (i < this.biomeLists.length) {
