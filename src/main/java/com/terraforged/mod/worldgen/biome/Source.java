@@ -2,9 +2,13 @@ package com.terraforged.mod.worldgen.biome;
 
 import com.mojang.serialization.Codec;
 import com.terraforged.engine.util.pos.PosUtil;
+import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
 import com.terraforged.mod.util.map.LongCache;
 import com.terraforged.mod.util.map.LossyCache;
 import com.terraforged.mod.worldgen.biome.util.BiomeMapManager;
+import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
+import com.terraforged.mod.worldgen.cave.CaveBiomeRegistryLoader;
+import com.terraforged.mod.worldgen.cave.CaveSystemConfig;
 import com.terraforged.mod.worldgen.cave.CaveType;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -46,7 +50,11 @@ public class Source extends BiomeSource {
       this.biomeMapManager = new BiomeMapManager(access);
       this.possibleBiomes = new ObjectLinkedOpenHashSet(this.biomeMapManager.getOverworldBiomes());
       this.biomeSampler = new BiomeSampler(noise, this.biomeMapManager);
-      this.caveBiomeSampler = new CaveBiomeSampler(seed, 800, this.biomeMapManager);
+      CaveBiomeRegistry registry = null;
+      if (TFCaveBiomeConfig.INSTANCE != null) {
+         registry = CaveBiomeRegistryLoader.build(this.biomeMapManager.getBiomes(), TFCaveBiomeConfig.INSTANCE);
+      }
+      this.caveBiomeSampler = new CaveBiomeSampler(seed, 800, this.biomeMapManager, registry, CaveSystemConfig.DEFAULT);
    }
 
    public Set<Holder<Biome>> possibleBiomes() {
@@ -77,8 +85,29 @@ public class Source extends BiomeSource {
       return this.caveBiomeSampler;
    }
 
+   public CaveBiomeRegistry getCaveBiomeRegistry() {
+      return this.caveBiomeSampler.getRegistry();
+   }
+
    public Holder<Biome> getUnderGroundBiome(int seed, int x, int z, CaveType type) {
       return this.caveBiomeSampler.getUnderGroundBiome(seed, x, z, type);
+   }
+
+   public Holder<Biome> getUnderGroundBiome(
+      int seed,
+      int x,
+      int z,
+      CaveType type,
+      Holder<Biome> surfaceBiome,
+      int blockY,
+      int surfaceY,
+      int caveCenterX,
+      int caveCenterZ,
+      int caveRadius
+   ) {
+      return this.caveBiomeSampler.getUnderGroundBiome(
+         seed, x, z, type, surfaceBiome, blockY, surfaceY, caveCenterX, caveCenterZ, caveRadius
+      );
    }
 
    public Registry<Biome> getRegistry() {
