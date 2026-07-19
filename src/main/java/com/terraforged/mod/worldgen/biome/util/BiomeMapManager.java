@@ -102,9 +102,21 @@ public class BiomeMapManager {
 
       while (objectiterator.hasNext()) {
          it.unimi.dsi.fastutil.objects.Object2FloatMap.Entry<ResourceLocation> entry = (it.unimi.dsi.fastutil.objects.Object2FloatMap.Entry<ResourceLocation>)objectiterator.next();
-         ResourceKey<Biome> resourcekey = (ResourceKey<Biome>)biomes.getResourceKey((Biome)biomes.getOptional((ResourceLocation)entry.getKey()).orElseThrow())
-            .orElseThrow();
-         Holder<Biome> holder = biomes.getHolderOrThrow(resourcekey);
+         ResourceLocation id = entry.getKey();
+         // Skip missing biomes (standalone / optional biome mods) instead of crashing.
+         var optionalBiome = biomes.getOptional(id);
+         if (optionalBiome.isEmpty()) {
+            continue;
+         }
+         var optionalKey = biomes.getResourceKey(optionalBiome.get());
+         if (optionalKey.isEmpty()) {
+            continue;
+         }
+         var optionalHolder = biomes.getHolder(optionalKey.get());
+         if (optionalHolder.isEmpty()) {
+            continue;
+         }
+         Holder<Biome> holder = optionalHolder.get();
          object2floatmap.put(holder, entry.getFloatValue());
          registered.accept(holder);
       }
@@ -122,7 +134,11 @@ public class BiomeMapManager {
          while (objectiterator.hasNext()) {
             ResourceLocation resourcelocation = (ResourceLocation)objectiterator.next();
             ResourceKey<Biome> resourcekey = ResourceKey.create(Registry.BIOME_REGISTRY, resourcelocation);
-            Holder<Biome> holder = biomes.getHolderOrThrow(resourcekey);
+            var optionalHolder = biomes.getHolder(resourcekey);
+            if (optionalHolder.isEmpty()) {
+               continue;
+            }
+            Holder<Biome> holder = optionalHolder.get();
             if (objectopenhashset.add(holder)) {
                list.add(holder);
             }
