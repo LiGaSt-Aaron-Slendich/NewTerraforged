@@ -2,7 +2,8 @@ package com.terraforged.mod;
 
 public interface Environment {
    boolean DEV_ENV = hasFlag("dev");
-   boolean PROFILING = DEV_ENV || hasFlag("profiling");
+   /** Only enabled via explicit {@code -Dprofiling}; no longer implied by {@code -Ddev}. */
+   boolean PROFILING = hasFlag("profiling");
    boolean UNLIMITED = DEV_ENV || hasFlag("unlimited");
    boolean DEBUGGING = DEV_ENV || hasFlag("debugging");
    boolean DATA_GEN = hasFlag("datagen");
