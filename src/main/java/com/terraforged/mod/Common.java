@@ -26,10 +26,14 @@ public class Common extends Init {
       com.terraforged.mod.compat.WwooCompat.init();
       TerraForged.LOG.info("Registering world-gen core codecs");
       Registry.register(Registry.BIOME_SOURCE, TerraForged.location("climate"), Source.CODEC);
-      // Product id first; legacy terraforged:generator uses a distinct Codec instance to avoid Forge "duplicate value".
+      // MapCodecCodec for product id — must be Generator.CODEC so dispatch flattens fields (no "value" wrapper).
       Registry.register(Registry.CHUNK_GENERATOR, new net.minecraft.resources.ResourceLocation("newterraforged", "generator"), Generator.CODEC);
-      Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("generator"),
-         Generator.CODEC.xmap(g -> g, g -> g));
+      // Legacy id — separate Codec instance to avoid Forge duplicate-value warn.
+      Registry.register(
+         Registry.CHUNK_GENERATOR,
+         TerraForged.location("generator"),
+         com.mojang.serialization.Codec.of(Generator.CODEC, Generator.CODEC)
+      );
       // Profiler registration disabled: GeneratorProfiler.CODEC wraps ChunkGenerator.CODEC (circular with dispatch)
       // and nulls WorldGenSettings encode during CreateWorldScreen datapack validation.
       TerraForged.LOG.info("Registering world-gen component codecs");

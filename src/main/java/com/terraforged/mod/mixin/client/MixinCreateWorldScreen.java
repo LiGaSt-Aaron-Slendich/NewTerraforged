@@ -50,13 +50,21 @@ public abstract class MixinCreateWorldScreen {
       if (ScreenUtil.isPresetEnabled((CreateWorldScreen)(Object)this)) {
          WorldGenSettings settings = this.worldGenSettingsComponent.makeSettings(this.hardCore);
          DynamicOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, this.worldGenSettingsComponent.registryHolder());
-         DataResult<JsonElement> result = WorldGenSettings.CODEC.encodeStart(ops, settings);
+         DataResult<JsonElement> encoded = WorldGenSettings.CODEC.encodeStart(ops, settings);
          TerraForged.LOG.error(
             "PRE-PACK WorldGenSettings encode: success={} value={} error={}",
-            result.result().isPresent(),
-            result.result().orElse(null),
-            result.error()
+            encoded.result().isPresent(),
+            encoded.result().orElse(null),
+            encoded.error()
          );
+         encoded.result().ifPresent(json -> {
+            DataResult<WorldGenSettings> sameOps = WorldGenSettings.CODEC.parse(ops, json);
+            TerraForged.LOG.error(
+               "PRE-PACK same-ops roundtrip: success={} error={}",
+               sameOps.result().isPresent(),
+               sameOps.error().map(Object::toString).orElse("none")
+            );
+         });
 
          this.dataPacks = DataPackExporter.setup(this.getTempDataPackDir(), this.dataPacks);
          PackRepository packrepository = (PackRepository)this.getDataPackSelectionSettings().getSecond();

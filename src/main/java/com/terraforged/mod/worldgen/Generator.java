@@ -2,10 +2,7 @@ package com.terraforged.mod.worldgen;
 
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.codec.WorldGenCodec;
 import com.terraforged.mod.worldgen.biome.BiomeGenerator;
 import com.terraforged.mod.worldgen.biome.Source;
@@ -54,7 +51,12 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureMana
 import org.jetbrains.annotations.Nullable;
 
 public class Generator extends ChunkGenerator implements IGenerator {
-   private static final Codec<Generator> BASE_CODEC = RecordCodecBuilder.create(
+   /**
+    * Must stay a RecordCodecBuilder / MapCodecCodec result — wrapping in an anonymous {@link Codec}
+    * makes KeyDispatchCodec nest fields under {@code "value"} and breaks WorldGenSettings parse
+    * after datapack reload (Not a JSON object: null).
+    */
+   public static final Codec<Generator> CODEC = RecordCodecBuilder.create(
       instance -> instance.group(
             Codec.LONG.optionalFieldOf("seed", 0L).forGetter(g -> g.seed),
             TerrainLevels.CODEC.optionalFieldOf("levels", TerrainLevels.DEFAULT.get()).forGetter(g -> g.levels),
@@ -62,33 +64,6 @@ public class Generator extends ChunkGenerator implements IGenerator {
          )
          .apply(instance, instance.stable(GeneratorPreset::build))
    );
-   /** Codec with encode diagnostics so world-create LevelStem failures are visible in logs. */
-   public static final Codec<Generator> CODEC = new Codec<Generator>() {
-      @Override
-      public <T> DataResult<T> encode(Generator input, DynamicOps<T> ops, T prefix) {
-         DataResult<T> result = BASE_CODEC.encode(input, ops, prefix);
-         if (result.result().isPresent()) {
-            TerraForged.LOG.error("Generator.CODEC encode OK: {}", result.result().get());
-         } else {
-            TerraForged.LOG.error(
-               "Generator.CODEC encode FAILED: {}",
-               result.error().map(e -> e.message()).orElse("unknown")
-            );
-         }
-
-         return result;
-      }
-
-      @Override
-      public <T> DataResult<Pair<Generator, T>> decode(DynamicOps<T> ops, T input) {
-         return BASE_CODEC.decode(ops, input);
-      }
-
-      @Override
-      public String toString() {
-         return "Generator.CODEC";
-      }
-   };
    protected final long seed;
    protected final Source biomeSource;
    protected final TerrainLevels levels;
