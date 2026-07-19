@@ -169,3 +169,32 @@ Extend stock `CaveType` / `NoiseCaveGenerator` carefully: **keep TF118 river mas
 ## Later bases
 
 Same KEEP/DROP tables apply when hanging the layer on TerraForged **1.19** and **1.16** sources; only adapters (mappings, registry, generator hooks) change.
+
+---
+
+## Status on from-tf-118-decompile
+
+Branch HEAD after identity + config + climate + WWOO warn + portable `/newtf debug cave`.
+
+### Layered (compiled / wired)
+
+| Area | What’s on the branch |
+|------|----------------------|
+| Identity | `newterraforged` modId, mixins, lang, preset, config paths |
+| Gates / Forge config | `GenerationFeatureGates`, `TFConfigs` / cave / surface / terrain-integrator TOMLs |
+| Soft compat | TerraBlender no-op-if-absent; `WwooCompat` WARN when WWOO loaded with TF/NewTF generator |
+| Climate + integrator | `SurfaceBiomeClimate`, `BiomeTerrainIntegration` (+ config) |
+| Cave stats / MEGA-GIGA types | `CaveType` MEGA/GIGA; `CaveMegaGigaLayout`, registry, stats, region helpers (layout build via config, not full sampler wiring) |
+| Carver | Stock TF118 `CarverChunk` / river mask **`1 - mask * river`** preserved; debug probes only (`debugMaskNoise` / `debugRiverNoise`) |
+| Debug (portable) | `CaveDebugCommand` / `Session` / `Screen` / `Network` / `Info` / `Maps` / `Report` compiled + registered (`/newtf debug cave`, save, menu, live session, stat maps) |
+
+### Deferred (still excluded or soft-stubbed)
+
+| Area | Why deferred |
+|------|----------------|
+| `MegaGigaZoneProbe`, `MegaGigaChunkCache`, `CarverColumnCache` | Need main-style column-cache hooks on carver (KEEP; not DROP) |
+| `CarveDecisionDiagnostics` | Soft-deferred in `/newtf debug cave carve` until column-cache hooks |
+| `CaveFeature*` + decor pipeline (`CaveBiomeFeature*`, official decorator, …) | Phase4 gradle excludes; needs carver/decor hooks — feature table / feature map layers stubbed |
+| `CaveCartography`, `CaveSiteTags`, entrances / filters / probe package | Excluded KEEP/REVIEW until carver hooks |
+| DROP stack | Void-fill, integrity, tunnel-river, quart paint, hybrid/legacy, mass budgets — **never** |
+| Full `CaveBiomeSampler` mega API | Stock TF118 sampler (no `getMegaGigaLayout` / region-id helpers); debug builds layout via `CaveMegaGigaLayout.build` + registry loader instead |
