@@ -1,6 +1,5 @@
 package com.terraforged.mod.worldgen;
 
-import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.data.ModTerrains;
 import com.terraforged.mod.util.TranslationUtil;
 import com.terraforged.mod.worldgen.asset.TerrainNoise;
@@ -25,7 +24,8 @@ import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.synth.NormalNoise.NoiseParameters;
 
 public class GeneratorPreset {
-   public static final ResourceLocation PRESET_NAME = TerraForged.location("preset");
+   /** Create-world map type id / lang key: {@code generator.newterraforged.newterraforged}. */
+   public static final ResourceLocation PRESET_NAME = new ResourceLocation("newterraforged", "newterraforged");
    public static final String TRANSLATION_KEY = TranslationUtil.key("generator", PRESET_NAME);
 
    public static Generator build(long seed, TerrainLevels levels, RegistryAccess registries) {

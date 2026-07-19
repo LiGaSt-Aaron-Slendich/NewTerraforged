@@ -30,15 +30,15 @@ public class TFPreset implements IBasicChunkGeneratorFactory {
          public Component getDisplayName() {
             return new TranslatableComponent(this.getTranslationKey()).withStyle(s -> s.withColor(ChatFormatting.GREEN));
          }
-      }, "terraforged");
+      }, "newterraforged");
    }
 
    public static void makeDefault() {
       if (!Files.exists(DataPackExporter.CONFIG_DIR)) {
          String s = (String)ForgeConfig.COMMON.defaultWorldType.get();
-         if (s.isEmpty() || s.equals("default")) {
+         if (s.isEmpty() || s.equals("default") || s.equals("terraforged")) {
             ConfigValue configvalue = ForgeConfig.COMMON.defaultWorldType;
-            configvalue.set("terraforged");
+            configvalue.set("newterraforged");
          }
       }
    }

@@ -44,7 +44,7 @@ public class ScreenUtil {
    }
 
    private static Predicate<String> createKeyPredicate(String name) {
-      if (name.equals("terraforged")) {
+      if (name.equals("terraforged") || name.equals("newterraforged")) {
          return TF_PRESET;
       } else {
          ResourceLocation resourcelocation = new ResourceLocation(name);
