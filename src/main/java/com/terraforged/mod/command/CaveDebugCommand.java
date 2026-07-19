@@ -16,6 +16,7 @@ import com.terraforged.mod.worldgen.cave.CaveBiomeEntry;
 import com.terraforged.mod.worldgen.cave.CaveBiomeIds;
 import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
 import com.terraforged.mod.worldgen.cave.CaveBiomeRegistryLoader;
+import com.terraforged.mod.worldgen.cave.CaveCartography;
 import com.terraforged.mod.worldgen.cave.CaveDebugInfo;
 import com.terraforged.mod.worldgen.cave.CaveDebugMaps;
 import com.terraforged.mod.worldgen.cave.CaveDebugReport;
@@ -154,51 +155,16 @@ public final class CaveDebugCommand {
         String caveSystem = CaveDebugInfo.resolveCaveSystem(generator, pos.getX(), pos.getY(), pos.getZ());
         if (!"Mega".equals(caveSystem) && !"Giga".equals(caveSystem)) {
             player.sendMessage(
-                new TextComponent("Stat maps require Mega or Giga layout at your position.").withStyle(ChatFormatting.YELLOW),
+                new TextComponent("Cartography requires Mega or Giga cave at your position.").withStyle(ChatFormatting.YELLOW),
                 player.getUUID()
             );
             return 0;
         }
         CaveType type = "Giga".equals(caveSystem) ? CaveType.GIGA : CaveType.MEGA;
         try {
-            int seed = Seeds.get(generator.getSeed());
-            CaveMegaGigaLayout layout = CaveDebugInfo.resolveLayout(generator, seed, pos.getX(), pos.getY(), pos.getZ(), type);
-            if (layout == null) {
-                player.sendMessage(new TextComponent("Layout unavailable.").withStyle(ChatFormatting.YELLOW), player.getUUID());
-                return 0;
-            }
-            int radius = type == CaveType.GIGA ? 400 : 250;
-            int step = 8;
-            int size = Math.max(8, (radius * 2) / step);
-            boolean[][] footprint = new boolean[size][size];
-            int originX = (int)layout.centerX() - radius;
-            int originZ = (int)layout.centerZ() - radius;
-            for (int gz = 0; gz < size; ++gz) {
-                for (int gx = 0; gx < size; ++gx) {
-                    int wx = originX + gx * step + step / 2;
-                    int wz = originZ + gz * step + step / 2;
-                    float dx = wx - layout.centerX();
-                    float dz = wz - layout.centerZ();
-                    footprint[gz][gx] = Math.sqrt(dx * dx + dz * dz) < radius * 1.05;
-                }
-            }
-            Path dir = level.getServer()
-                .getServerDirectory()
-                .toPath()
-                .resolve("config")
-                .resolve("NewTerraForged")
-                .resolve("debug");
-            Files.createDirectories(dir);
-            String base = String.format(Locale.ROOT, "map-%s-%d_%d", type.getName(), pos.getX(), pos.getZ());
-            Registry<Biome> biomes = generator.getBiomeSource().getRegistries().registryOrThrow(Registry.BIOME_REGISTRY);
-            CaveDebugMaps.ExportResult result =
-                CaveDebugMaps.exportAll(dir, base, seed, layout, footprint, originX, originZ, step, biomes);
-            player.sendMessage(
-                new TextComponent("Wrote " + result.mapFiles().size() + " map(s) to " + dir).withStyle(ChatFormatting.GREEN),
-                player.getUUID()
-            );
-            for (Path map : result.mapFiles()) {
-                player.sendMessage(new TextComponent("  " + map.getFileName()).withStyle(ChatFormatting.GRAY), player.getUUID());
+            CaveCartography.Result result = CaveCartography.render(level, generator, pos.getX(), pos.getZ(), type);
+            for (String line : result.chatLines()) {
+                player.sendMessage(new TextComponent(line).withStyle(ChatFormatting.GRAY), player.getUUID());
             }
         } catch (Throwable t) {
             context.getSource()

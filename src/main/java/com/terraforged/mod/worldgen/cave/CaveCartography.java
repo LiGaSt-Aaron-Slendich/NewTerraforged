@@ -50,9 +50,12 @@ public final class CaveCartography {
         if (layout == null) {
             return new Result(List.of("Cartography: no mega/giga layout at this position."), null, null, null);
         }
-        NoiseCave caveConfig = CaveLocator.findConfig(generator, type);
+        NoiseCave caveConfig = CaveCartography.findCaveConfig(generator, type);
         Module modifier = type == CaveType.GIGA ? CaveModifiers.giga() : CaveModifiers.mega();
         CaveBiomeRegistry registry = source.getCaveBiomeRegistry();
+        if (registry == null) {
+            return new Result(List.of("Cartography: cave biome registry unavailable."), null, null, null);
+        }
         int layoutCx = Math.round(layout.centerX());
         int layoutCz = Math.round(layout.centerZ());
         int step = FOOTPRINT_BLOCK_STEP;
@@ -308,5 +311,28 @@ public final class CaveCartography {
         int g = 64 + (hash >> 8 & 0x7F);
         int b = 64 + (hash & 0x7F);
         return new Color(r, g, b);
+    }
+
+    private static NoiseCave findCaveConfig(Generator generator, CaveType type) {
+        try {
+            net.minecraft.core.Registry<NoiseCave> registry =
+                generator.getBiomeSource().getRegistries().registryOrThrow(com.terraforged.mod.registry.ModRegistry.CAVE.get());
+            NoiseCave fallback = null;
+            for (Holder<NoiseCave> holder : registry.holders().toList()) {
+                NoiseCave cave = holder.value();
+                if (cave.getType() != type) {
+                    continue;
+                }
+                if (fallback == null) {
+                    fallback = cave;
+                }
+                if (holder.unwrapKey().map(k -> k.location().getPath().equals("giga") || k.location().getPath().equals("mega")).orElse(false)) {
+                    return cave;
+                }
+            }
+            return fallback;
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 }

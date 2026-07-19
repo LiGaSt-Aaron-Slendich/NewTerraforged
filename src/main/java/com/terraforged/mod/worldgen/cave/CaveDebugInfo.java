@@ -18,7 +18,6 @@ import net.minecraft.world.level.biome.Biome;
 
 /**
  * Portable cave-debug helpers for TF118 stock Generator / CaveBiomeSampler.
- * Mega/Giga classification uses layout footprint (not MegaGigaZoneProbe / column cache).
  */
 public final class CaveDebugInfo {
     private static final int SURFACE_SHELL = 14;
@@ -66,6 +65,13 @@ public final class CaveDebugInfo {
         if (y >= surface - SURFACE_SHELL) {
             return "Surface";
         }
+        byte zone = MegaGigaZoneProbe.classifyWithCarverCache(generator, x, z);
+        if (zone == MegaGigaZoneProbe.GIGA) {
+            return "Giga";
+        }
+        if (zone == MegaGigaZoneProbe.MEGA) {
+            return "Mega";
+        }
         int seed = Seeds.get(generator.getSeed());
         if (CaveDebugInfo.inLayoutFootprint(generator, seed, x, y, z, CaveType.GIGA)) {
             return "Giga";
@@ -85,8 +91,8 @@ public final class CaveDebugInfo {
         if (layout == null || layout.generators().isEmpty()) {
             return false;
         }
-        float dx = (float)x - layout.centerX();
-        float dz = (float)z - layout.centerZ();
+        float dx = (float) x - layout.centerX();
+        float dz = (float) z - layout.centerZ();
         float radius = type == CaveType.GIGA ? 400.0F : 250.0F;
         return Math.sqrt(dx * dx + dz * dz) < radius * 1.05;
     }
@@ -98,6 +104,11 @@ public final class CaveDebugInfo {
         int radius = type == CaveType.GIGA ? 400 : 250;
         int cx = Math.floorDiv(x, radius * 2) * radius * 2 + radius;
         int cz = Math.floorDiv(z, radius * 2) * radius * 2 + radius;
+        CaveMegaGigaLayout fromSampler =
+            source.getCaveBiomeSampler().getMegaGigaLayout(seed, cx, cz, radius, type, surfaceBiome, y, surfaceY);
+        if (fromSampler != null) {
+            return fromSampler;
+        }
         Registry<Biome> biomes = source.getRegistries().registryOrThrow(Registry.BIOME_REGISTRY);
         TFCaveBiomeConfig biomeCfg = TFCaveBiomeConfig.INSTANCE;
         if (biomeCfg == null) {
@@ -122,8 +133,12 @@ public final class CaveDebugInfo {
     }
 
     public static int oceanFloorHeight(Generator generator, int x, int z) {
-        TerrainData data = generator.getChunkData(new ChunkPos(x >> 4, z >> 4));
-        return data.getHeight(x & 15, z & 15);
+        try {
+            return generator.getOceanFloorHeight(x, z);
+        } catch (Throwable ignored) {
+            TerrainData data = generator.getChunkData(new ChunkPos(x >> 4, z >> 4));
+            return data.getHeight(x & 15, z & 15);
+        }
     }
 
     public static String formatRegionName(Holder<Biome> biome) {

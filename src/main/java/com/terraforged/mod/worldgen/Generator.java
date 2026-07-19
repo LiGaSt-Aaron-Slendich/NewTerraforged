@@ -137,6 +137,21 @@ public class Generator extends ChunkGenerator implements IGenerator {
       return this.biomeSource;
    }
 
+   @Nullable
+   public com.terraforged.mod.worldgen.cave.CarverChunk peekCaveCarver(ChunkPos pos) {
+      return this.biomeGenerator.peekCaveCarver(pos);
+   }
+
+   public NoiseSample getTerrainSample(int x, int z) {
+      return this.terrainCache.getSample(x, z);
+   }
+
+   public int getOceanFloorHeight(int x, int z) {
+      NoiseSample sample = this.terrainCache.getSample(x, z);
+      float scaledHeight = this.levels.getScaledHeight(sample.heightNoise);
+      return this.levels.getHeight(scaledHeight) + 1;
+   }
+
    public Sampler climateSampler() {
       return Source.NOOP_CLIMATE_SAMPLER;
    }

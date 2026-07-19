@@ -30,7 +30,7 @@ dependencies {
 
     annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
 
-    // Р СћР вЂ™Р С›Р Р‡ Р В»Р С•Р С”Р В°Р В»РЎРЉР Р…Р В° Р В±РЎвЂ“Р В±Р В»РЎвЂ“Р С•РЎвЂљР ВµР С”Р В° (РЎвЂ Р Вµ РЎвЂљР С‘ РІР‚СљР Р†Р В¶Р Вµ Р С—Р С•РЎвЂћРЎвЂ“Р С”РЎРѓР С‘Р Р†РІР‚Сњ РІР‚вЂќ Р С—Р С•Р Р†Р ВµРЎР‚РЎвЂљР В°РЎР‹ РЎРЏР С” Р В±РЎС“Р В»Р С• Р В»Р С•Р С–РЎвЂ“РЎвЂЎР Р…Р С•)
+    // РўР’РћРЇ Р»РѕРєР°Р»СЊРЅР° Р±С–Р±Р»С–РѕС‚РµРєР° (С†Рµ С‚Рё вЂњРІР¶Рµ РїРѕС„С–РєСЃРёРІвЂќ вЂ” РїРѕРІРµСЂС‚Р°СЋ СЏРє Р±СѓР»Рѕ Р»РѕРіС–С‡РЅРѕ)
     implementation files("libs/Terraforged.jar")
 }
 
@@ -72,7 +72,7 @@ sourceSets {
             exclude "**/BackgroundSearchTasks.java"
             exclude "**/FeaturePlacement.java"
             exclude "**/CaveSiteTags.java"
-            exclude "**/CaveCartography.java"
+            // CaveCartography enabled (land-shaped footprint maps)
             exclude "**/ModCaveBiomeFactories.java"
         }
         resources {
