@@ -72,6 +72,27 @@ public class NoiseCave implements ContextSeedable<NoiseCave> {
       return getScaleValue(x, z, 1.0F, 0, size, this.floor);
    }
 
+   public int getMinY() {
+      return this.minY;
+   }
+
+   public int getMaxY() {
+      return this.maxY;
+   }
+
+   public static int calcCeilingPatchHeight(int caveHeight, float patchMin, float patchMax, float factor) {
+      float pct = patchMin + factor * (patchMax - patchMin);
+      return Math.max(1, NoiseUtil.floor(caveHeight * pct));
+   }
+
+   public static int calcIslandRadius(float maxRadiusChunks) {
+      return Math.max(1, NoiseUtil.floor(maxRadiusChunks * 16.0F));
+   }
+
+   public static int calcIslandHeight(int radiusBlocks) {
+      return Math.max(1, (int)(radiusBlocks * 3.0F));
+   }
+
    @Override
    public String toString() {
       return "NoiseCave{type="

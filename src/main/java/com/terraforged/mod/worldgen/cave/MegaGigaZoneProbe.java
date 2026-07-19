@@ -6,7 +6,7 @@ import com.terraforged.noise.Module;
 import net.minecraft.world.level.ChunkPos;
 
 /**
- * Shared mega/giga column classification — thresholds and merged noise match {@link CarverColumnCache}.
+ * Shared mega/giga column classification — thresholds match {@link CarverColumnCache}.
  */
 public final class MegaGigaZoneProbe {
     public static final byte NONE = 0;
@@ -21,7 +21,9 @@ public final class MegaGigaZoneProbe {
     public static byte classify(Generator generator, int x, int z) {
         int seed = Seeds.get(generator.getSeed());
         Module giga = CaveModifiers.giga();
-        if (giga != null && CaveNoise.sampleMerged(giga, seed, x, z) > GIGA_THRESHOLD && CaveReliefFilter.qualifiesGigaTerrain(generator, x, z)) {
+        if (giga != null
+            && CaveNoise.sampleMerged(giga, seed, x, z) > GIGA_THRESHOLD
+            && CaveReliefFilter.qualifiesGigaTerrain(generator, x, z)) {
             return GIGA;
         }
         Module mega = CaveModifiers.mega();

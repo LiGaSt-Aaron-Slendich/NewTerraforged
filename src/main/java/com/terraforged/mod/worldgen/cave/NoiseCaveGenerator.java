@@ -54,14 +54,25 @@ public class NoiseCaveGenerator {
       CarverChunk carverchunk = this.getPreCarveChunk(chunk);
       carverchunk.mask = this.caveBreachNoise;
       carverchunk.terrainData = generator.getChunkData(chunk.getPos());
-
-      for (NoiseCave noisecave : this.caves) {
-         if (!isCaveEnabled(noisecave)) {
-            continue;
+      carverchunk.megaModifier = this.megaCaveNoise;
+      carverchunk.gigaModifier = this.gigaCaveNoise;
+      carverchunk.prepareColumnCache(com.terraforged.mod.worldgen.Seeds.get(generator.getSeed()), chunk, generator);
+      MegaGigaChunkCache.begin(generator, chunk, 8, carverchunk.columnCache());
+      try {
+         for (NoiseCave noisecave : this.caves) {
+            if (!isCaveEnabled(noisecave)) {
+               continue;
+            }
+            carverchunk.modifier = this.getModifier(noisecave);
+            NoiseCaveCarver.carve(chunk, carverchunk, generator, noisecave, true);
          }
-         carverchunk.modifier = this.getModifier(noisecave);
-         NoiseCaveCarver.carve(chunk, carverchunk, generator, noisecave, true);
+      } finally {
+         MegaGigaChunkCache.end();
       }
+   }
+
+   public CarverChunk peekCarver(ChunkPos pos) {
+      return this.cache.get(pos);
    }
 
    public void decorate(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
@@ -89,6 +100,9 @@ public class NoiseCaveGenerator {
          carverchunk = this.pool.take().reset();
          carverchunk.mask = this.caveBreachNoise;
          carverchunk.terrainData = generator.getChunkData(chunk.getPos());
+         carverchunk.megaModifier = this.megaCaveNoise;
+         carverchunk.gigaModifier = this.gigaCaveNoise;
+         carverchunk.prepareColumnCache(com.terraforged.mod.worldgen.Seeds.get(generator.getSeed()), chunk, generator);
 
          for (NoiseCave noisecave : this.caves) {
             if (!isCaveEnabled(noisecave)) {
