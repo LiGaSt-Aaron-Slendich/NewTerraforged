@@ -78,6 +78,7 @@ public class Generator extends ChunkGenerator implements IGenerator {
       this.biomeGenerator = biomeGenerator;
       this.noiseGenerator = noiseGenerator;
       this.terrainCache = new TerrainCache(levels, noiseGenerator);
+      com.terraforged.mod.compat.WwooCompat.onGeneratorActive();
    }
 
    public long getSeed() {

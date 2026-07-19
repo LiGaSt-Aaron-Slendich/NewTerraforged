@@ -24,6 +24,7 @@ public class Common extends Init {
 
    @Override
    protected void doInit() {
+      com.terraforged.mod.compat.WwooCompat.init();
       TerraForged.LOG.info("Registering world-gen core codecs");
       Registry.register(Registry.BIOME_SOURCE, TerraForged.location("climate"), Source.CODEC);
       Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("generator"), Generator.CODEC);
