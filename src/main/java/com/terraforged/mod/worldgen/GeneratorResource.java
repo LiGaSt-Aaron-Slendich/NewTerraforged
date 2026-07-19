@@ -7,6 +7,8 @@ import net.minecraft.world.level.biome.Biome;
 
 public class GeneratorResource {
    public final Holder<Biome>[] biomeBuffer2D = create(16);
+
+   /** Prefer {@link com.terraforged.mod.worldgen.util.ChunkUtil#getFullSection()} for fills — this field is a template only. */
    public final FriendlyByteBuf fullSection = ChunkUtil.getFullSection();
 
    public static Holder<Biome>[] create(int size) {

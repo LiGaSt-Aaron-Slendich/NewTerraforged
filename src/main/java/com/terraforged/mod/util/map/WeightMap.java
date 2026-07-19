@@ -26,17 +26,23 @@ public class WeightMap<T> {
    }
 
    public T getValue(float noise) {
+      if (this.values.length == 0) {
+         return null;
+      }
       noise *= this.sumWeight;
       if (noise < this.zeroWeight) {
          return this.values[0];
       } else {
          for (int i = 1; i < this.weights.length; i++) {
             if (noise < this.weights[i]) {
-               return this.values[i];
+               T value = this.values[i];
+               return value != null ? value : this.values[0];
             }
          }
 
-         return null;
+         // Never fall through to null — empty/edge noise must still yield a palette entry.
+         T last = this.values[this.values.length - 1];
+         return last != null ? last : this.values[0];
       }
    }
 

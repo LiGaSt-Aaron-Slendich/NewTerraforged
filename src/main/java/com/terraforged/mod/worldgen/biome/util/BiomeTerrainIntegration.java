@@ -12,6 +12,9 @@ public final class BiomeTerrainIntegration {
     }
 
     public static Holder<Biome> filter(Holder<Biome> candidate, String terrainName, WeightMap<Holder<Biome>> climatePool) {
+        if (candidate == null) {
+            return null;
+        }
         TFBiomeTerrainIntegrationConfig cfg = TFBiomeTerrainIntegrationConfig.INSTANCE;
         if (cfg == null || terrainName == null || terrainName.isBlank()) {
             return candidate;
@@ -28,6 +31,9 @@ public final class BiomeTerrainIntegration {
             return candidate;
         }
         Holder<Biome> fallback = climatePool.find(b -> {
+            if (b == null) {
+                return false;
+            }
             ResourceLocation biomeId = BiomeTerrainIntegration.biomeId(b);
             return biomeId != null && rules.isAllowed(biomeId);
         });
@@ -35,6 +41,9 @@ public final class BiomeTerrainIntegration {
             return fallback;
         }
         for (Holder<Biome> option : climatePool.getValues()) {
+            if (option == null) {
+                continue;
+            }
             ResourceLocation biomeId = BiomeTerrainIntegration.biomeId(option);
             if (biomeId != null && rules.isAllowed(biomeId)) {
                 return option;
@@ -44,6 +53,9 @@ public final class BiomeTerrainIntegration {
     }
 
     private static ResourceLocation biomeId(Holder<Biome> biome) {
+        if (biome == null) {
+            return null;
+        }
         return biome.unwrapKey().map(ResourceKey::location).orElse(null);
     }
 }

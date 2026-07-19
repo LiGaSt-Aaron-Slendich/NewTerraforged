@@ -49,6 +49,10 @@ public class BiomeGenerator {
       this.noiseCaveGenerator.carve(chunk, generator);
    }
 
+   public com.terraforged.mod.worldgen.cave.CarverChunk peekCaveCarver(net.minecraft.world.level.ChunkPos pos) {
+      return this.noiseCaveGenerator.peekCarver(pos);
+   }
+
    public void decorate(ChunkAccess chunk, WorldGenLevel region, StructureFeatureManager structures, Generator generator) {
       CompletableFuture<TerrainData> completablefuture = generator.getChunkDataAsync(chunk.getPos());
       this.featureDecorator.decorate(chunk, region, structures, completablefuture, generator);

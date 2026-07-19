@@ -29,7 +29,11 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
 
    private Holder<Biome> getInitialBiome(float noise, BiomeType climateType) {
       WeightMap<Holder<Biome>> weightmap = this.biomeMapManager.getBiomeMap().get(climateType);
-      return weightmap != null && !weightmap.isEmpty() ? weightmap.getValue(noise) : this.biomeMapManager.getBiomes().getHolderOrThrow(Biomes.PLAINS);
+      if (weightmap == null || weightmap.isEmpty()) {
+         return this.biomeMapManager.getBiomes().getHolderOrThrow(Biomes.PLAINS);
+      }
+      Holder<Biome> holder = weightmap.getValue(noise);
+      return holder != null ? holder : this.biomeMapManager.getBiomes().getHolderOrThrow(Biomes.PLAINS);
    }
 
    protected Holder<Biome> getBiomeOverride(Holder<Biome> input, ClimateSample sample) {

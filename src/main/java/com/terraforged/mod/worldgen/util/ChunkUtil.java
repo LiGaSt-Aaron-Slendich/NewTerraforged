@@ -40,10 +40,17 @@ public class ChunkUtil {
       int j = QuartPos.fromBlock(chunkpos.getMinBlockZ());
       LevelHeightAccessor levelheightaccessor = chunk.getHeightAccessorForGeneration();
       Holder<Biome>[] holder = resource.biomeBuffer2D;
+      Holder<Biome> plainsFallback = null;
 
       for (int k = 0; k < 4; k++) {
          for (int l = 0; l < 4; l++) {
             Holder<Biome> holder1 = source.getNoiseBiome(i + l, -1, j + k, sampler);
+            if (holder1 == null) {
+               if (plainsFallback == null && source instanceof com.terraforged.mod.worldgen.biome.Source tfSource) {
+                  plainsFallback = tfSource.getRegistry().getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
+               }
+               holder1 = plainsFallback;
+            }
             holder[k << 2 | l] = holder1;
          }
       }
@@ -61,6 +68,9 @@ public class ChunkUtil {
       for (int i = 0; i < 4; i++) {
          for (int j = 0; j < 4; j++) {
             Holder<Biome> holder = biomeBuffer[i << 2 | j];
+            if (holder == null) {
+               continue;
+            }
 
             for (int k = 0; k < 4; k++) {
                palettedcontainer.getAndSetUnchecked(j, k, i, holder);
@@ -72,23 +82,31 @@ public class ChunkUtil {
    }
 
    public static void fillChunk(int seaLevel, ChunkAccess chunk, TerrainData terrainData, ChunkUtil.FillerBlock filler, GeneratorResource resource) {
-      int i = chunk.getMaxBuildHeight();
-      int j = Math.min(i, getLowestSection(terrainData));
-      int k = Math.min(i, getHighestSection(terrainData));
-      FriendlyByteBuf friendlybytebuf = resource.fullSection;
+      int minBuild = chunk.getMinBuildHeight();
+      int maxSectionStart = minBuild + (chunk.getSectionsCount() - 1) * 16;
+      int min = Math.max(minBuild, getLowestSection(terrainData));
+      int max = Math.min(maxSectionStart, getHighestSection(terrainData));
+      // Fresh copy per fill — shared FriendlyByteBuf reader index is not safe under concurrent worldgen.
+      FriendlyByteBuf friendlybytebuf = ChunkUtil.getFullSection();
 
-      for (int l = chunk.getMinBuildHeight(); l < j; l += 16) {
-         int i1 = chunk.getSectionIndex(l);
-         LevelChunkSection levelchunksection = chunk.getSection(i1);
+      for (int sy = minBuild; sy < min; sy += 16) {
+         int index = chunk.getSectionIndex(sy);
+         if (index < 0 || index >= chunk.getSectionsCount()) {
+            continue;
+         }
+         LevelChunkSection levelchunksection = chunk.getSection(index);
          friendlybytebuf.resetReaderIndex();
          levelchunksection.getStates().read(friendlybytebuf);
          levelchunksection.recalcBlockCounts();
       }
 
-      for (int j1 = j; j1 <= k; j1 += 16) {
-         int k1 = chunk.getSectionIndex(j1);
-         LevelChunkSection levelchunksection1 = chunk.getSection(k1);
-         fillSection(j1, seaLevel, terrainData, chunk, levelchunksection1, filler);
+      for (int sy = min; sy <= max; sy += 16) {
+         int index = chunk.getSectionIndex(sy);
+         if (index < 0 || index >= chunk.getSectionsCount()) {
+            continue;
+         }
+         LevelChunkSection levelchunksection1 = chunk.getSection(index);
+         fillSection(sy, seaLevel, terrainData, chunk, levelchunksection1, filler);
       }
    }
 
