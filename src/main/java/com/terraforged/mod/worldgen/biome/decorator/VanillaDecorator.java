@@ -82,7 +82,11 @@ public class VanillaDecorator {
    ) {
       for (int i = 0; i < features.size(); i++) {
          random.setFeatureSeed(seed, offset + i, stage);
-         PlacedFeature placedfeature = (PlacedFeature)features.get(i).value();
+         Holder<PlacedFeature> holder = features.get(i);
+         if (com.terraforged.mod.compat.WwooCompat.shouldSkipSurfaceFeature(holder)) {
+            continue;
+         }
+         PlacedFeature placedfeature = (PlacedFeature)holder.value();
          placedfeature.placeWithBiomeCheck(level, generator, random, origin);
       }
    }

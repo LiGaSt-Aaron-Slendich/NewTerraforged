@@ -46,8 +46,7 @@ public class GeneratorPreset {
    public static VanillaGen getVanillaGen(long seed, BiomeSource biomes, RegistryAccess access) {
       Registry<StructureSet> registry = access.ownedRegistryOrThrow(Registry.STRUCTURE_SET_REGISTRY);
       Registry<NoiseParameters> registry1 = access.registryOrThrow(Registry.NOISE_REGISTRY);
-      Holder<NoiseGeneratorSettings> holder = access.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY)
-         .getHolderOrThrow(NoiseGeneratorSettings.OVERWORLD);
+      Holder<NoiseGeneratorSettings> holder = com.terraforged.mod.compat.WwooCompat.resolveOverworldNoiseSettings(access);
       return new VanillaGen(seed, biomes, holder, registry1, registry);
    }
 

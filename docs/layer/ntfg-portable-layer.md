@@ -152,7 +152,10 @@ Extend stock `CaveType` / `NoiseCaveGenerator` carefully: **keep TF118 river mas
 3. Layer must detect WWOO and, when overworld uses TF/`newterraforged` generator, suppress WWOO noise/carver injection (compat class + docs).
 4. Never “fix” WWOO shafts with void-fill.
 
-**Implementation (this branch):** `com.terraforged.mod.compat.WwooCompat` — `ModList.isLoaded("wwoo_forge")`; on common setup / generator-active logs WARN recommending WWOO be disabled with NewTF/TF. Soft warn only (no hard dependency).
+**Implementation (this branch):** `com.terraforged.mod.compat.WwooCompat` — when `wwoo_forge` is loaded and TF/NewTF generator is active:
+1. Pin `NoiseGeneratorSettings` to **builtin vanilla** overworld (ignore WWOO datapack noise/surface_rule).
+2. Skip subsurface carve-like `VanillaDecorator` features (`lake_lava*`, `monster_room*`, `spring_*`, `underwater_magma`, `geode`).
+Soft optional dep (no hard dependency). Never void-fill.
 
 ---
 
@@ -182,7 +185,7 @@ Branch HEAD after identity + config + climate + WWOO warn + portable `/newtf deb
 |------|----------------------|
 | Identity | `newterraforged` modId, mixins, lang, preset, config paths |
 | Gates / Forge config | `GenerationFeatureGates`, `TFConfigs` / cave / surface / terrain-integrator TOMLs |
-| Soft compat | TerraBlender no-op-if-absent; `WwooCompat` WARN when WWOO loaded with TF/NewTF generator |
+| Soft compat | TerraBlender no-op-if-absent; `WwooCompat` **suppresses** WWOO noise-settings + subsurface VanillaDecorator features when TF/NewTF generator active |
 | Climate + integrator | `SurfaceBiomeClimate`, `BiomeTerrainIntegration` (+ config) |
 | Chunk fill / biome null | `ChunkUtil.fillChunk` + `WeightMap` / biome null guards hardened against render holes |
 | Cave stats / MEGA-GIGA types | `CaveType` MEGA/GIGA; `CaveMegaGigaLayout`, registry, stats, region helpers |
