@@ -4,12 +4,12 @@ import com.terraforged.mod.client.Client;
 import com.terraforged.mod.client.gui.screen.ConfigScreen;
 import com.terraforged.mod.client.screen.ScreenUtil;
 import com.terraforged.mod.platform.ClientAPI;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraftforge.client.ForgeWorldPresetScreens;
 import net.minecraftforge.client.event.ScreenEvent.InitScreenEvent.Post;
 import net.minecraftforge.common.ForgeConfig;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.world.ForgeWorldPreset;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -24,6 +24,23 @@ public class TFClient {
    void onClientInit(FMLClientSetupEvent event) {
       event.enqueueWork(Client.INSTANCE::init);
       event.enqueueWork(TFPreset::makeDefault);
+      event.enqueueWork(this::registerCustomizeEditor);
+   }
+
+   /**
+    * Hooks the vanilla More World Options {@code Customize} button under World Type
+    * (same slot as Flat/Amplified editors).
+    */
+   private void registerCustomizeEditor() {
+      ForgeWorldPreset preset = TFPreset.INSTANCE;
+      if (preset == null) {
+         return;
+      }
+      try {
+         ForgeWorldPresetScreens.registerPresetEditor(preset, (createWorldScreen, worldGenSettings) -> new ConfigScreen(createWorldScreen));
+      } catch (IllegalStateException already) {
+         // Client re-init / dual-load — ignore duplicate registration.
+      }
    }
 
    void onScreenOpen(Post event) {
@@ -32,11 +49,6 @@ public class TFClient {
       }
       String s = (String)ForgeConfig.COMMON.defaultWorldType.get();
       ScreenUtil.enforceDefaultPreset(createworldscreen, s);
-      if (ScreenUtil.isPresetEnabled(createworldscreen)) {
-         int x = createworldscreen.width / 2 + 5;
-         int y = createworldscreen.height - 52;
-         event.addListener(new Button(x, y, 150, 20, new TranslatableComponent("newterraforged.gui.config.customize"), b -> ConfigScreen.open(createworldscreen)));
-      }
    }
 
    private static class ForgeClientAPI implements ClientAPI {

@@ -17,12 +17,15 @@ import net.minecraftforge.common.world.ForgeWorldPreset;
 import net.minecraftforge.common.world.ForgeWorldPreset.IBasicChunkGeneratorFactory;
 
 public class TFPreset implements IBasicChunkGeneratorFactory {
+   /** Registered world-type instance (client uses this for Customize editor). */
+   public static ForgeWorldPreset INSTANCE;
+
    public ChunkGenerator createChunkGenerator(RegistryAccess registryAccess, long seed) {
       return GeneratorPreset.build(seed, TerrainLevels.DEFAULT.get(), registryAccess);
    }
 
    public static ForgeWorldPreset create() {
-      return ForgeUtil.withName(new ForgeWorldPreset(new TFPreset()) {
+      INSTANCE = ForgeUtil.withName(new ForgeWorldPreset(new TFPreset()) {
          public String getTranslationKey() {
             return GeneratorPreset.TRANSLATION_KEY;
          }
@@ -31,6 +34,7 @@ public class TFPreset implements IBasicChunkGeneratorFactory {
             return new TranslatableComponent(this.getTranslationKey()).withStyle(s -> s.withColor(ChatFormatting.GREEN));
          }
       }, "newterraforged");
+      return INSTANCE;
    }
 
    public static void makeDefault() {
