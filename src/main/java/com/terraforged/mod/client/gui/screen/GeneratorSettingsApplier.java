@@ -1,7 +1,6 @@
 package com.terraforged.mod.client.gui.screen;
 
 import com.terraforged.mod.TerraForged;
-import com.terraforged.mod.client.screen.ScreenUtil;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.GeneratorPreset;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
@@ -39,8 +38,15 @@ public final class GeneratorSettingsApplier {
         );
         WorldGenSettings updated = new WorldGenSettings(seed, current.generateFeatures(), current.generateBonusChest(), dimensions);
         screen.worldGenSettingsComponent.updateSettings(updated);
-        ScreenUtil.enforceDefaultPreset(screen, "newterraforged");
-        TerraForged.LOG.info("Applied NewTF generator settings (seed={}, continentScale={})", seed, draft.settings().world.continent.continentScale);
+        // Do NOT call CycleButton.onPress / enforce via rebuild here — that recreates the
+        // generator from TFPreset factory and wipes Customize settings. Screen re-init uses
+        // ScreenUtil.enforceDefaultPreset which preserves an existing NewTF Generator.
+        TerraForged.LOG.info(
+                "Applied NewTF generator settings (seed={}, continentScale={}, seaLevel={})",
+                seed,
+                draft.settings().world.continent.continentScale,
+                draft.levels().seaLevel
+        );
     }
 
     private static void writeSeed(CreateWorldScreen screen, int seed) {

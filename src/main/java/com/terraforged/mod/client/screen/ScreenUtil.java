@@ -12,25 +12,46 @@ import net.minecraft.client.gui.screens.worldselection.WorldPreset;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 public class ScreenUtil {
-   private static final String WORLD_TYPE = "selectWorld.mapType";
-   private static final String DEFAULT_PRESET_KEY = "generator.default";
    private static final Predicate<String> TF_PRESET = s -> s.equals(GeneratorPreset.TRANSLATION_KEY);
    private static final Predicate<String> DEFAULT_PRESET = s -> s.equals("generator.default");
 
+   /**
+    * Align the World Type cycle button with {@code name}.
+    * <p>
+    * Critical: {@link CycleButton#onPress()} rebuilds {@link WorldGenSettings} from the preset
+    * factory and would wipe Customize → Done settings. If the overworld is already a NewTF
+    * {@link com.terraforged.mod.worldgen.Generator}, we never keep those factory defaults —
+    * restore the previous settings after any UI sync.
+    */
    public static void enforceDefaultPreset(CreateWorldScreen screen, String name) {
       CycleButton<?> cyclebutton = getPresetButton(screen);
-      if (cyclebutton != null) {
-         Object object = cyclebutton.getValue();
-         Predicate<String> predicate = createKeyPredicate(name);
+      if (cyclebutton == null) {
+         return;
+      }
 
-         while (!isPresetSelected(cyclebutton, predicate)) {
-            cyclebutton.onPress();
-            if (cyclebutton.getValue() == object) {
-               return;
-            }
+      WorldGenSettings before = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+      boolean keepCustomTf = GeneratorPreset.isTerraForgedWorld(before);
+      // Applied NewTF generator must stay NewTF in the UI — never demote to forge "default".
+      Predicate<String> target = keepCustomTf ? TF_PRESET : createKeyPredicate(name);
+
+      if (isPresetSelected(cyclebutton, target)) {
+         return;
+      }
+
+      Object start = cyclebutton.getValue();
+      while (!isPresetSelected(cyclebutton, target)) {
+         cyclebutton.onPress();
+         if (cyclebutton.getValue() == start) {
+            break;
          }
+      }
+
+      if (keepCustomTf) {
+         // onPress replaced the chunk generator with factory defaults — put Customize back.
+         screen.worldGenSettingsComponent.updateSettings(before);
       }
    }
 
@@ -59,8 +80,34 @@ public class ScreenUtil {
    }
 
    private static boolean isPresetSelected(CycleButton<?> button, Predicate<String> predicate) {
-      WorldPreset worldpreset = (WorldPreset)button.getValue();
-      return worldpreset.description() instanceof TranslatableComponent translatablecomponent ? predicate.test(translatablecomponent.getKey()) : false;
+      Object value = button.getValue();
+      if (!(value instanceof WorldPreset worldpreset)) {
+         return false;
+      }
+      return matchesPreset(worldpreset, predicate);
+   }
+
+   private static boolean matchesPreset(WorldPreset worldpreset, Predicate<String> predicate) {
+      return walkTranslationKeys(worldpreset.description(), predicate);
+   }
+
+   private static boolean walkTranslationKeys(Component component, Predicate<String> predicate) {
+      if (component instanceof TranslatableComponent tc) {
+         if (predicate.test(tc.getKey())) {
+            return true;
+         }
+         for (Object arg : tc.getArgs()) {
+            if (arg instanceof Component child && walkTranslationKeys(child, predicate)) {
+               return true;
+            }
+         }
+      }
+      for (Component sibling : component.getSiblings()) {
+         if (walkTranslationKeys(sibling, predicate)) {
+            return true;
+         }
+      }
+      return false;
    }
 
    private static CycleButton<?> getPresetButton(Screen screen) {

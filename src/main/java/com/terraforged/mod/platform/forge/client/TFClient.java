@@ -47,7 +47,13 @@ public class TFClient {
       if (!(event.getScreen() instanceof CreateWorldScreen createworldscreen)) {
          return;
       }
+      // Returning from Customize re-inits this screen. Prefer keeping an applied NewTF
+      // generator over Forge's defaultWorldType (often still "default"), which would
+      // otherwise CycleButton.onPress() back to vanilla and drop all Customize settings.
       String s = (String)ForgeConfig.COMMON.defaultWorldType.get();
+      if (s == null || s.isEmpty() || "default".equals(s) || "terraforged".equals(s)) {
+         s = "newterraforged";
+      }
       ScreenUtil.enforceDefaultPreset(createworldscreen, s);
    }
 
