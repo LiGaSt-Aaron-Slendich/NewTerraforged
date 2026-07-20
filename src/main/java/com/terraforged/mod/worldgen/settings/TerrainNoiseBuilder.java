@@ -32,7 +32,7 @@ public final class TerrainNoiseBuilder {
     public static TerrainNoise[] build(RegistryAccess access, Settings settings) {
         TerrainSettings terrain = copyTerrain(settings.terrain);
         Seed seed = new RandSeed(9712416L + (long) terrain.general.terrainSeedOffset, 500000);
-        LandForms forms = new LandForms(terrain, new Levels(settings.world.properties.seaLevel, 255), Source.ZERO);
+        LandForms forms = new LandForms(terrain, new Levels(settings.world), Source.ZERO);
 
         return new TerrainNoise[]{
                 of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.steppe.weight, forms::steppe, seed),

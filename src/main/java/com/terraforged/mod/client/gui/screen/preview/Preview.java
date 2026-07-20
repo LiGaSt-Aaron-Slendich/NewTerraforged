@@ -40,6 +40,12 @@ public final class Preview extends AbstractWidget {
     private static final int FACTOR = 4;
     public static final int SIZE = Size.chunkToBlock(1 << FACTOR);
     private static final float[] LEGEND_SCALES = {1.0F, 0.9F, 0.75F, 0.6F};
+    /**
+     * Heightmap is water-relative: regenerating with a new sea level yields the same
+     * continent paint. Generate tiles at a fixed reference sea, then flood-paint with
+     * the user's real sea level so the slider is visible.
+     */
+    private static final int PREVIEW_REF_SEA = 62;
 
     private final int offsetX;
     private final int offsetZ;
@@ -53,14 +59,16 @@ public final class Preview extends AbstractWidget {
     private Tile tile;
     private LazyCallable<Tile> task;
     private CompoundTag lastWorldSettings;
+    private CompoundTag lastShapeSettings;
     private CompoundTag lastPreviewSettings;
+    private int lastZoom = -1;
 
     private Settings settings = new Settings();
     private final MutableVeci center = new MutableVeci();
 
     private String hoveredCoords = "";
-    private final String[] values = {"", "", ""};
-    private final String[] labels = {"Area", "Terrain", "Biome"};
+    private final String[] values = {"", "", "", ""};
+    private final String[] labels = {"Area", "Sea", "Terrain", "Biome"};
 
     public Preview(int seed) {
         super(0, 0, SIZE, SIZE, new TextComponent("Preview"));
@@ -80,7 +88,9 @@ public final class Preview extends AbstractWidget {
     public void regenerate() {
         this.seed = this.random.nextInt();
         this.lastWorldSettings = null;
+        this.lastShapeSettings = null;
         this.lastPreviewSettings = null;
+        this.lastZoom = -1;
     }
 
     public void close() {
@@ -146,11 +156,25 @@ public final class Preview extends AbstractWidget {
         }
 
         this.lastUpdate = time;
+        DataUtils.fromNBT(prevSettings, this.previewSettings);
+        settings.world.seed = this.seed;
+        this.settings = settings;
+
+        CompoundTag shapeSettings = shapeKey(settings);
+        int zoom = this.previewSettings.zoom;
+        boolean shapeSame = Objects.equals(this.lastShapeSettings, shapeSettings);
+        boolean zoomSame = this.lastZoom == zoom;
         this.lastWorldSettings = worldSettings;
         this.lastPreviewSettings = previewSnap;
 
-        DataUtils.fromNBT(prevSettings, this.previewSettings);
-        settings.world.seed = this.seed;
+        // Sea level / display mode: recolor only. Zoom / continents / seed: regenerate.
+        if (shapeSame && zoomSame && this.tile != null && this.task == null) {
+            this.renderTile(this.tile);
+            return;
+        }
+
+        this.lastShapeSettings = shapeSettings;
+        this.lastZoom = zoom;
         this.task = this.generate(settings, prevSettings);
     }
 
@@ -197,8 +221,9 @@ public final class Preview extends AbstractWidget {
         settings.world.seed = this.seed;
         this.settings = settings;
 
+        Settings genSettings = copyForGeneration(settings);
         CacheManager.get().clear();
-        GeneratorContext context = GeneratorContext.createNoCache(settings);
+        GeneratorContext context = GeneratorContext.createNoCache(genSettings);
         if (settings.world.properties.spawnType == SpawnType.CONTINENT_CENTER) {
             long centerPos = context.worldGenerator.get().getHeightmap().getContinent().getNearestCenter(this.offsetX, this.offsetZ);
             this.center.x = PosUtil.unpackLeft(centerPos);
@@ -219,6 +244,20 @@ public final class Preview extends AbstractWidget {
         return renderer.getTile(this.center.x, this.center.z, this.getZoom(), false);
     }
 
+    /** Compact settings with sea forced to {@link #PREVIEW_REF_SEA} — shape identity for the tile. */
+    private static CompoundTag shapeKey(Settings settings) {
+        Settings shape = copyForGeneration(settings);
+        return DataUtils.toCompactNBT(shape);
+    }
+
+    private static Settings copyForGeneration(Settings settings) {
+        Settings copy = new Settings();
+        DataUtils.fromNBT(DataUtils.toCompactNBT(settings), copy);
+        copy.world.seed = settings.world.seed;
+        copy.world.properties.seaLevel = PREVIEW_REF_SEA;
+        return copy;
+    }
+
     private boolean updateLegend(int mx, int my) {
         if (this.tile == null) {
             return false;
@@ -230,14 +269,15 @@ public final class Preview extends AbstractWidget {
         int width = Math.max(1, this.tile.getBlockSize().size * zoom);
         int height = Math.max(1, this.tile.getBlockSize().size * zoom);
         this.values[0] = width + "x" + height;
+        this.values[1] = "Y " + this.settings.world.properties.seaLevel;
         if (mx >= left && mx <= left + size && my >= top && my <= top + size) {
             float fx = (mx - left) / size;
             float fz = (my - top) / size;
             int ix = NoiseUtil.round(fx * this.tile.getBlockSize().size);
             int iz = NoiseUtil.round(fz * this.tile.getBlockSize().size);
             Cell cell = this.tile.getCell(ix, iz);
-            this.values[1] = getTerrainName(cell);
-            this.values[2] = getBiomeName(cell);
+            this.values[2] = getTerrainName(cell);
+            this.values[3] = getBiomeName(cell);
             int dx = (ix - this.tile.getBlockSize().size / 2) * zoom;
             int dz = (iz - this.tile.getBlockSize().size / 2) * zoom;
             this.hoveredCoords = (this.center.x + dx) + ":" + (this.center.z + dz);
@@ -258,7 +298,7 @@ public final class Preview extends AbstractWidget {
     private void renderLegend(PoseStack pose, int mx, int my, String[] labels, String[] values, int left, int top, int lineHeight, int color) {
         float scale = this.getLegendScale();
         pose.pushPose();
-        pose.translate(left + 3.75F * scale, top - lineHeight * (3.2F * scale), 0.0D);
+        pose.translate(left + 3.75F * scale, top - lineHeight * (4.2F * scale), 0.0D);
         pose.scale(scale, scale, 1.0F);
 
         Font font = Minecraft.getInstance().font;

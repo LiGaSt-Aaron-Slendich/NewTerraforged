@@ -1,5 +1,6 @@
 package com.terraforged.mod.client.gui.screen;
 
+import com.terraforged.engine.serialization.serializer.Serializer;
 import com.terraforged.engine.settings.Settings;
 import com.terraforged.mod.client.gui.util.DataUtils;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
@@ -21,6 +22,7 @@ public final class SettingsDraft {
         this.levels = TerrainLevels.DEFAULT.get().copy();
         this.settings = createFactorySettings(this.seed, this.levels);
         this.settingsData = DataUtils.toNBT(this.settings);
+        patchWorldPropertyRanges(this.settingsData, this.levels);
     }
 
     public int seed() {
@@ -57,16 +59,21 @@ public final class SettingsDraft {
         DataUtils.fromNBT(this.settingsData, this.settings);
         this.settings.world.seed = this.seed;
         this.syncLevelsFromSettings();
+        // Keep NBT in sync with clamped TerrainLevels (slider may have out-of-range values).
+        this.settingsData.getCompound("world").getCompound("properties").putInt("seaLevel", this.levels.seaLevel);
+        this.settingsData.getCompound("world").getCompound("properties").putInt("worldHeight", this.levels.maxY);
     }
 
     public void resetDefaults() {
         this.levels = TerrainLevels.DEFAULT.get().copy();
         this.settings = createFactorySettings(this.seed, this.levels);
         this.settingsData = DataUtils.toNBT(this.settings);
+        patchWorldPropertyRanges(this.settingsData, this.levels);
     }
 
     public void refreshNbt() {
         this.settingsData = DataUtils.toNBT(this.settings);
+        patchWorldPropertyRanges(this.settingsData, this.levels);
     }
 
     public GeneratorSettings toGeneratorSettings() {
@@ -88,6 +95,46 @@ public final class SettingsDraft {
         );
         this.settings.world.properties.seaLevel = this.levels.seaLevel;
         this.settings.world.properties.worldHeight = this.levels.maxY;
+    }
+
+    /**
+     * Engine {@code @Range} caps worldHeight at 256 / seaLevel at 255, but NewTF uses
+     * maxY=480 and sea up to maxY/2. Widen slider metadata so the UI can express that.
+     */
+    private static void patchWorldPropertyRanges(CompoundTag root, TerrainLevels levels) {
+        CompoundTag world = root.getCompound("world");
+        if (world.isEmpty()) {
+            return;
+        }
+        CompoundTag props = world.getCompound("properties");
+        if (props.isEmpty()) {
+            return;
+        }
+        int maxY = Math.max(levels.maxY, props.getInt("worldHeight"));
+        int maxSea = Math.max(32, maxY >> 1);
+        putBoundMax(props, "worldHeight", maxY);
+        putBoundMax(props, "seaLevel", maxSea);
+        // Ensure values themselves are not silently clamped by a 0–256 slider.
+        if (props.getInt("worldHeight") < levels.maxY) {
+            props.putInt("worldHeight", levels.maxY);
+        }
+        if (props.contains("seaLevel")) {
+            int sea = props.getInt("seaLevel");
+            if (sea < 32) {
+                props.putInt("seaLevel", 32);
+            } else if (sea > maxSea) {
+                props.putInt("seaLevel", maxSea);
+            }
+        }
+    }
+
+    private static void putBoundMax(CompoundTag props, String field, int max) {
+        CompoundTag meta = props.getCompound(Serializer.META_PREFIX + field);
+        if (meta.isEmpty()) {
+            return;
+        }
+        meta.putInt(Serializer.BOUND_MAX, max);
+        props.put(Serializer.META_PREFIX + field, meta);
     }
 
     /** Engine WorldSettings defaults + NewTF sea/height + erosion 350. */

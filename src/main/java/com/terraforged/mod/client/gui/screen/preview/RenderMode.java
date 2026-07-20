@@ -15,6 +15,12 @@ public enum RenderMode {
 
         @Override
         public int getColor(Cell cell, Levels levels, float scale, float bias) {
+            // Flood by absolute water line first — otherwise DEEP/SHALLOW_OCEAN
+            // categories hide sea-level changes (heights are water-relative).
+            Integer flooded = floodColor(cell, levels);
+            if (flooded != null) {
+                return flooded;
+            }
             switch (cell.terrain.getCategory()) {
                 case DEEP_OCEAN:
                     return rgba(0.63F, 0.65F, 0.8F);
@@ -23,9 +29,6 @@ public enum RenderMode {
                 case BEACH:
                     return rgba(0.2F, 0.4F, 0.75F);
                 default:
-                    if (cell.value < levels.water) {
-                        return getWaterColor();
-                    }
                     Color color = cell.biome.getColor();
                     float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), new float[3]);
                     return rgba(hsb[0], hsb[1], hsb[2] * scale + bias);
@@ -40,6 +43,10 @@ public enum RenderMode {
 
         @Override
         public int getColor(Cell cell, Levels levels, float scale, float bias) {
+            Integer flooded = floodColor(cell, levels);
+            if (flooded != null) {
+                return flooded;
+            }
             switch (cell.terrain.getCategory()) {
                 case DEEP_OCEAN:
                     return rgba(0.63F, 0.65F, 0.8F);
@@ -110,6 +117,21 @@ public enum RenderMode {
     public RenderMode next() {
         RenderMode[] values = values();
         return values[(this.ordinal() + 1) % values.length];
+    }
+
+    /** Water when cell height is below the current sea line; deep vs shallow by depth. */
+    private static Integer floodColor(Cell cell, Levels levels) {
+        if (cell.value >= levels.water) {
+            return null;
+        }
+        float depth = levels.water - cell.value;
+        if (depth > 0.05F) {
+            return rgba(0.63F, 0.65F, 0.8F);
+        }
+        if (depth > 0.015F) {
+            return rgba(0.6F, 0.6F, 0.8F);
+        }
+        return getWaterColor();
     }
 
     private static int getWaterColor() {
