@@ -12,6 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.IdMapper;
 import net.minecraft.core.QuartPos;
+import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
@@ -40,28 +41,30 @@ public class ChunkUtil {
       int j = QuartPos.fromBlock(chunkpos.getMinBlockZ());
       LevelHeightAccessor levelheightaccessor = chunk.getHeightAccessorForGeneration();
       Holder<Biome>[] holder = resource.biomeBuffer2D;
-      Holder<Biome> plainsFallback = null;
+      Registry<Biome> biomes = resolveBiomeRegistry(source);
+      Holder<Biome> plainsFallback = ChunkBiomePaint.plains(biomes);
 
       for (int k = 0; k < 4; k++) {
          for (int l = 0; l < 4; l++) {
             Holder<Biome> holder1 = source.getNoiseBiome(i + l, -1, j + k, sampler);
-            if (holder1 == null) {
-               if (plainsFallback == null && source instanceof com.terraforged.mod.worldgen.biome.Source tfSource) {
-                  plainsFallback = tfSource.getRegistry().getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
-               }
-               holder1 = plainsFallback;
-            }
-            holder[k << 2 | l] = holder1;
+            holder[k << 2 | l] = ChunkBiomePaint.sanitize(holder1, biomes);
          }
       }
 
       for (int i1 = levelheightaccessor.getMinSection(); i1 < levelheightaccessor.getMaxSection(); i1++) {
          LevelChunkSection levelchunksection = chunk.getSection(chunk.getSectionIndexFromSectionY(i1));
-         fillNoiseBiomes(levelchunksection, holder);
+         fillNoiseBiomes(levelchunksection, holder, biomes, plainsFallback);
       }
    }
 
-   private static void fillNoiseBiomes(LevelChunkSection section, Holder<Biome>[] biomeBuffer) {
+   private static Registry<Biome> resolveBiomeRegistry(BiomeSource source) {
+      if (source instanceof com.terraforged.mod.worldgen.biome.Source tfSource) {
+         return tfSource.getRegistry();
+      }
+      return net.minecraft.data.BuiltinRegistries.BIOME;
+   }
+
+   private static void fillNoiseBiomes(LevelChunkSection section, Holder<Biome>[] biomeBuffer, Registry<Biome> biomes, Holder<Biome> plainsFallback) {
       PalettedContainer<Holder<Biome>> palettedcontainer = section.getBiomes();
       palettedcontainer.acquire();
 
@@ -69,11 +72,12 @@ public class ChunkUtil {
          for (int j = 0; j < 4; j++) {
             Holder<Biome> holder = biomeBuffer[i << 2 | j];
             if (holder == null) {
-               continue;
+               holder = plainsFallback;
             }
+            Holder<Biome> safe = ChunkBiomePaint.sanitize(holder, biomes);
 
             for (int k = 0; k < 4; k++) {
-               palettedcontainer.getAndSetUnchecked(j, k, i, holder);
+               palettedcontainer.getAndSetUnchecked(j, k, i, safe);
             }
          }
       }

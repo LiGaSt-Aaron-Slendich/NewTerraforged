@@ -20,7 +20,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class CaveEntranceCarver {
@@ -816,12 +815,16 @@ public final class CaveEntranceCarver {
     }
 
     private static void setBiomeQuart(ChunkAccess chunk, int dx, int cy, int dz, Holder<Biome> biome) {
-        int biomeX = dx >> 2;
-        int biomeZ = dz >> 2;
-        int biomeY = (cy & 0xF) >> 2;
+        if (biome == null || biome.unwrapKey().isEmpty()) {
+            return;
+        }
         int sectionIndex = chunk.getSectionIndex(cy);
+        if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) {
+            return;
+        }
         LevelChunkSection section = chunk.getSection(sectionIndex);
-        PalettedContainer container = section.getBiomes();
-        container.set(biomeX, biomeY, biomeZ, biome);
+        // Prefer key rebind via ChunkBiomePaint when registry is available through biome itself —
+        // entrance paint already receives sanitized Holders from CarverChunk.getBiome.
+        section.getBiomes().getAndSetUnchecked(dx >> 2, (cy & 0xF) >> 2, dz >> 2, biome);
     }
 }

@@ -2,13 +2,13 @@ package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
+import com.terraforged.mod.worldgen.util.ChunkBiomePaint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.chunk.PalettedContainer;
 
 /**
  * Paints one layout biome for the full air column in mega/giga caves.
@@ -59,7 +59,7 @@ public final class CaveBiomeColumnUnifier {
                     if (!chunk.getBlockState(pos).isAir()) {
                         continue;
                     }
-                    CaveBiomeColumnUnifier.setBiomeQuart(chunk, lx, y, lz, biome);
+                    CaveBiomeColumnUnifier.setBiomeQuart(chunk, lx, y, lz, biome, generator);
                 }
                 carver.markBiomeRestoreColumn(lx, lz);
             }
@@ -70,16 +70,12 @@ public final class CaveBiomeColumnUnifier {
         return ceilY - floorY >= OPEN_CHAMBER_HEIGHT;
     }
 
-    private static void setBiomeQuart(ChunkAccess chunk, int lx, int ly, int lz, Holder<Biome> biome) {
-        int biomeX = lx >> 2;
-        int biomeZ = lz >> 2;
-        int biomeY = (ly & 0xF) >> 2;
+    private static void setBiomeQuart(ChunkAccess chunk, int lx, int ly, int lz, Holder<Biome> biome, Generator generator) {
         int sectionIndex = chunk.getSectionIndex(ly);
         if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) {
             return;
         }
         LevelChunkSection section = chunk.getSection(sectionIndex);
-        PalettedContainer container = section.getBiomes();
-        container.set(biomeX, biomeY, biomeZ, biome);
+        ChunkBiomePaint.set(section, lx >> 2, (ly & 0xF) >> 2, lz >> 2, biome, generator.getBiomeSource().getRegistry());
     }
 }

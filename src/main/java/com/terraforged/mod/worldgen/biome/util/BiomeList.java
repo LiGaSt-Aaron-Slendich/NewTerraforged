@@ -36,6 +36,9 @@ public class BiomeList {
    }
 
    public void add(Holder<Biome> biome) {
+      if (biome == null) {
+         return;
+      }
       if (!this.contains(biome)) {
          this.grow(this.size + 1);
          this.biomes[this.size] = biome;

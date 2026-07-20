@@ -5,10 +5,12 @@ import com.terraforged.mod.worldgen.asset.NoiseCave;
 import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.biome.util.BiomeList;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
+import com.terraforged.mod.worldgen.util.ChunkBiomePaint;
 import com.terraforged.noise.Module;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
@@ -82,24 +84,26 @@ public class CarverChunk {
    public Holder<Biome> getBiome(int x, int z, int blockY, NoiseCave config, Generator generator) {
       int i = x >> 2;
       int j = z >> 2;
+      Registry<Biome> biomes = generator.getBiomeSource().getRegistry();
       if (this.cached == null || i != this.cachedX || j != this.cachedZ || this.cachedConfig != config) {
          int surfaceY = this.getSurfaceY(x, z);
          Holder<Biome> surfaceBiome = generator.getBiomeSource().getNoiseBiome(x >> 2, surfaceY >> 2, z >> 2, Source.NOOP_CLIMATE_SAMPLER);
          int cx = snapToCaveGrid(x, config);
          int cz = snapToCaveGrid(z, config);
          int radius = estimateCaveRadius(config);
-         this.cached = generator.getBiomeSource()
+         Holder<Biome> sampled = generator.getBiomeSource()
             .getUnderGroundBiome(config.getSeed(), x, z, config.getType(), surfaceBiome, blockY, surfaceY, cx, cz, radius);
-         if (this.cached == null) {
-            this.cached = generator.getBiomeSource().getUnderGroundBiome(config.getSeed(), x, z, config.getType());
+         if (sampled == null) {
+            sampled = generator.getBiomeSource().getUnderGroundBiome(config.getSeed(), x, z, config.getType());
          }
+         this.cached = ChunkBiomePaint.sanitize(sampled, biomes);
          this.cachedX = i;
          this.cachedZ = j;
          this.cachedConfig = config;
          this.biomes.computeIfAbsent(config, c -> this.nextList()).add(this.cached);
       }
 
-      return this.cached;
+      return this.cached != null ? this.cached : ChunkBiomePaint.plains(biomes);
    }
 
    private int getSurfaceY(int x, int z) {

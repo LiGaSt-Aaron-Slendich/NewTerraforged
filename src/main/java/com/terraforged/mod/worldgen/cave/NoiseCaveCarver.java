@@ -4,8 +4,10 @@ import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
+import com.terraforged.mod.worldgen.util.ChunkBiomePaint;
 import com.terraforged.noise.util.NoiseUtil;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
@@ -30,6 +32,7 @@ public class NoiseCaveCarver {
          carver.prepareColumnCache(seed, chunk, generator);
       }
       CarverColumnCache columns = carver.columnCache();
+      Registry<Biome> biomes = generator.getBiomeSource().getRegistry();
 
       for (int l = 0; l < 256; l++) {
          int i1 = l & 15;
@@ -56,16 +59,18 @@ public class NoiseCaveCarver {
             int j3 = MathUtil.clamp(j2 - l2, i, i2);
             if (i3 - j3 >= 2) {
                int sampleY = (j3 + i3) >> 1;
-               Holder<Biome> holder = carver.getBiome(k1, l1, sampleY, config, generator);
+               Holder<Biome> holder = ChunkBiomePaint.sanitize(carver.getBiome(k1, l1, sampleY, config, generator), biomes);
                if (carve) {
-                  carve(chunk, holder, i1, j1, j3, i3, i2, mutableblockpos);
+                  carve(chunk, holder, i1, j1, j3, i3, i2, mutableblockpos, biomes);
                }
             }
          }
       }
    }
 
-   private static void carve(ChunkAccess chunk, Holder<Biome> biome, int dx, int dz, int bottom, int top, int surface, MutableBlockPos pos) {
+   private static void carve(
+      ChunkAccess chunk, Holder<Biome> biome, int dx, int dz, int bottom, int top, int surface, MutableBlockPos pos, Registry<Biome> biomes
+   ) {
       BlockState blockstate = Blocks.AIR.defaultBlockState();
       int i = dx >> 2;
       int j = dz >> 2;
@@ -75,13 +80,11 @@ public class NoiseCaveCarver {
          if (chunk.getBlockState(pos).getFluidState().isEmpty()) {
             chunk.setBlockState(pos, blockstate, false);
             // Paint every carved quart in the column (floor + edges + body), not only deep quarts.
-            if (biome != null) {
-               int i1 = (l & 15) >> 2;
-               int j1 = chunk.getSectionIndex(l);
-               if (j1 >= 0 && j1 < chunk.getSectionsCount()) {
-                  LevelChunkSection levelchunksection = chunk.getSection(j1);
-                  levelchunksection.getBiomes().getAndSetUnchecked(i, i1, j, biome);
-               }
+            int i1 = (l & 15) >> 2;
+            int j1 = chunk.getSectionIndex(l);
+            if (j1 >= 0 && j1 < chunk.getSectionsCount()) {
+               LevelChunkSection levelchunksection = chunk.getSection(j1);
+               ChunkBiomePaint.set(levelchunksection, i, i1, j, biome, biomes);
             }
          }
       }
