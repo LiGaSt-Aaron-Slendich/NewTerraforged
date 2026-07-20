@@ -21,6 +21,8 @@ public final class PreviewPage implements Page {
     public PreviewPage(SettingsDraft draft) {
         this.draft = draft;
         this.preview = new Preview(draft.seed());
+        // Start more zoomed-in so MULTI continents read as landmasses, not island soup.
+        this.preview.previewSettings().zoom = 78;
     }
 
     public Preview getPreviewWidget() {
@@ -38,7 +40,10 @@ public final class PreviewPage implements Page {
 
     @Override
     public void init(ConfigScreen screen, int left, int top, int width, int height) {
-        int controlsH = 24;
+        int gap = 2;
+        int btnH = 20;
+        int row2Y = top + btnH + gap;
+        int controlsH = btnH * 2 + gap + 4;
         int legendPad = 36;
         int mapSize = Math.min(Preview.SIZE, Math.min(width, Math.max(96, height - controlsH - legendPad)));
         int mapLeft = left + Math.max(0, (width - mapSize) / 2);
@@ -48,29 +53,43 @@ public final class PreviewPage implements Page {
         this.preview.setWidth(mapSize);
         this.preview.setHeight(mapSize);
 
-        int bw = Math.min(90, Math.max(56, (width - 8) / 3));
-        screen.addRenderableWidget(new Button(mapLeft, top, bw, 20, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
+        // Two rows fully inside [left, left+width] — never overflow the right edge.
+        int half = Math.max(40, (width - gap) / 2);
+        int zoomHalf = Math.max(28, (width - gap) / 2);
+
+        screen.addRenderableWidget(new Button(left, top, half, btnH, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
             this.preview.regenerate();
             this.draft.setSeed(this.preview.getSeed());
             this.refresh();
         }));
-        screen.addRenderableWidget(new Button(mapLeft + bw + 2, top, bw, 20, new TextComponent(this.preview.previewSettings().display.name()), b -> {
+        screen.addRenderableWidget(new Button(left + half + gap, top, width - half - gap, btnH, new TextComponent(shortMode(this.preview.previewSettings().display)), b -> {
             this.preview.previewSettings().display = this.preview.previewSettings().display.next();
-            b.setMessage(new TextComponent(this.preview.previewSettings().display.name()));
+            b.setMessage(new TextComponent(shortMode(this.preview.previewSettings().display)));
             this.refresh();
         }));
-        int zoomW = Math.max(28, (width - (bw + 2) * 2 - 4) / 2);
-        screen.addRenderableWidget(new Button(mapLeft + (bw + 2) * 2, top, zoomW, 20, new TextComponent("−"), b -> {
+        screen.addRenderableWidget(new Button(left, row2Y, zoomHalf, btnH, new TextComponent("Zoom −"), b -> {
             this.preview.previewSettings().zoom = Math.max(1, this.preview.previewSettings().zoom - 8);
             this.refresh();
         }));
-        screen.addRenderableWidget(new Button(mapLeft + (bw + 2) * 2 + zoomW + 2, top, zoomW, 20, new TextComponent("+"), b -> {
+        screen.addRenderableWidget(new Button(left + zoomHalf + gap, row2Y, width - zoomHalf - gap, btnH, new TextComponent("Zoom +"), b -> {
             this.preview.previewSettings().zoom = Math.min(100, this.preview.previewSettings().zoom + 8);
             this.refresh();
         }));
 
         screen.addRenderableWidget(this.preview);
         this.refresh();
+    }
+
+    private static String shortMode(RenderMode mode) {
+        return switch (mode) {
+            case BIOME_TYPE -> "Biomes";
+            case TRANSITION_POINTS -> "Edges";
+            case TEMPERATURE -> "Temp";
+            case MOISTURE -> "Wet";
+            case BIOME -> "BiomeId";
+            case MACRO_NOISE -> "Macro";
+            case TERRAIN_REGION -> "Terrain";
+        };
     }
 
     public void refresh() {

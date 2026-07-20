@@ -3,6 +3,7 @@ package com.terraforged.mod.worldgen.settings;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.terraforged.engine.settings.Settings;
+import com.terraforged.engine.settings.WorldSettings;
 import com.terraforged.engine.world.continent.SpawnType;
 import com.terraforged.mod.util.serialization.DataUtils;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
@@ -19,12 +20,12 @@ public final class GeneratorSettings {
 
     private static final Codec<WorldSlice> WORLD_CODEC = RecordCodecBuilder.create(
             i -> i.group(
-                            Codec.INT.optionalFieldOf("continent_scale", 400).forGetter(s -> s.continentScale),
-                            Codec.FLOAT.optionalFieldOf("deep_ocean", 0.05F).forGetter(s -> s.deepOcean),
-                            Codec.FLOAT.optionalFieldOf("shallow_ocean", 0.3F).forGetter(s -> s.shallowOcean),
-                            Codec.FLOAT.optionalFieldOf("beach", 0.45F).forGetter(s -> s.beach),
-                            Codec.FLOAT.optionalFieldOf("coast", 0.75F).forGetter(s -> s.coast),
-                            Codec.FLOAT.optionalFieldOf("inland", 0.8F).forGetter(s -> s.inland),
+                            Codec.INT.optionalFieldOf("continent_scale", 3000).forGetter(s -> s.continentScale),
+                            Codec.FLOAT.optionalFieldOf("deep_ocean", 0.1F).forGetter(s -> s.deepOcean),
+                            Codec.FLOAT.optionalFieldOf("shallow_ocean", 0.25F).forGetter(s -> s.shallowOcean),
+                            Codec.FLOAT.optionalFieldOf("beach", 0.327F).forGetter(s -> s.beach),
+                            Codec.FLOAT.optionalFieldOf("coast", 0.448F).forGetter(s -> s.coast),
+                            Codec.FLOAT.optionalFieldOf("inland", 0.502F).forGetter(s -> s.inland),
                             Codec.INT.optionalFieldOf("sea_level", 62).forGetter(s -> s.seaLevel),
                             Codec.INT.optionalFieldOf("world_height", 480).forGetter(s -> s.worldHeight),
                             Codec.STRING.optionalFieldOf("spawn_type", SpawnType.CONTINENT_CENTER.name()).forGetter(s -> s.spawnType)
@@ -308,40 +309,17 @@ public final class GeneratorSettings {
         return new FiltersSlice(erosionDroplets, erosionLifetime, erosionRate, depositRate);
     }
 
-    /** Hardcodes matching historic {@code NoiseGenerator.createContinentNoise} + erosion 350. */
+    /** Engine-aligned defaults (continentScale 3000) + NewTF erosion 350. */
     public static GeneratorSettings factoryDefaults() {
         TerrainLevels levels = TerrainLevels.DEFAULT.get();
-        GeneratorSettings typed = new GeneratorSettings(
-                400,
-                0.05F,
-                0.3F,
-                0.45F,
-                0.75F,
-                0.8F,
-                levels.seaLevel,
-                levels.maxY,
-                SpawnType.CONTINENT_CENTER.name(),
-                220,
-                2,
-                0.1F,
-                6,
-                1,
-                -0.05F,
-                6,
-                1200,
-                0.98F,
-                1.0F,
-                true,
-                8,
-                5,
-                8,
-                20,
-                350,
-                12,
-                0.5F,
-                0.5F
-        );
-        return fromEngine(typed.toEngine(0L, levels));
+        Settings engine = new Settings();
+        engine.world.seed = 0L;
+        engine.world.properties.seaLevel = levels.seaLevel;
+        engine.world.properties.worldHeight = levels.maxY;
+        // Keep classic TF continent feel: large landmasses, not island soup.
+        engine.world.continent.continentScale = WorldSettings.DEFAULT_CONTINENT_SCALE;
+        engine.filters.erosion.dropletsPerChunk = 350;
+        return fromEngine(engine);
     }
 
     public static GeneratorSettings fromEngine(Settings settings) {

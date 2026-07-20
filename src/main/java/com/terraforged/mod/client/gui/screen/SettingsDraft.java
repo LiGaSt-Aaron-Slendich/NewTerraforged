@@ -90,12 +90,14 @@ public final class SettingsDraft {
         this.settings.world.properties.worldHeight = this.levels.maxY;
     }
 
-    /** Same hardcodes as historic {@code NoiseGenerator.createContinentNoise}. */
+    /** Engine WorldSettings defaults + NewTF sea/height + erosion 350. */
     public static Settings createFactorySettings(long seed, TerrainLevels levels) {
-        Settings settings = GeneratorSettings.DEFAULT.toEngine(seed, levels);
+        Settings settings = new Settings();
         settings.world.seed = seed;
+        settings.world.continent.continentScale = com.terraforged.engine.settings.WorldSettings.DEFAULT_CONTINENT_SCALE;
         settings.world.properties.seaLevel = levels.seaLevel;
         settings.world.properties.worldHeight = levels.maxY;
+        settings.filters.erosion.dropletsPerChunk = 350;
         return settings;
     }
 }
