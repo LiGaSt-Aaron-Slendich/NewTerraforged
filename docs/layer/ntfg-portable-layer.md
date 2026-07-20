@@ -69,6 +69,17 @@ Stock `TerrainBlender` is **upstream TF**, not “ours”.
 
 Extend stock `CaveType` / `NoiseCaveGenerator` carefully: **keep TF118 river mask** `1 - noise * river`; mega must respect river. Do **not** copy NewTF carver regressions from `main`.
 
+### Create-world Generator Settings (scaffold)
+
+| Class | Role |
+|-------|------|
+| `client.gui.screen.ConfigScreen` | Customize overlay from Create World |
+| `client.gui.screen.preview.Preview` / `PreviewPage` | Live climate map (`ClimateNoise`) |
+| `client.gui.screen.preview.RenderMode` | BIOME_TYPE / TEMP / MOISTURE / HEIGHT |
+| Stub pages | Presets/World/Climate/Terrain/Rivers/Filters placeholders |
+
+Entry: Create World → NewTF preset → **Customize NewTF…** (`TFClient`). Full TerraSettings Done-apply still TODO.
+
 ### Debug / probe
 
 | Class | Role |
