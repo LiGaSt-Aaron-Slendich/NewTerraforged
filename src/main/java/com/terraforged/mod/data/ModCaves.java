@@ -21,6 +21,8 @@ interface ModCaves extends ModRegistry {
       ModRegistries.register(CAVE, "synapse_low", ModCaves.Factory.synapse(randseed.next(), 1.2F, -32, 128));
       ModRegistries.register(CAVE, "mega", ModCaves.Factory.mega(randseed.next(), 1.0F, -16, 64));
       ModRegistries.register(CAVE, "mega_deep", ModCaves.Factory.mega(randseed.next(), 1.2F, -32, 48));
+      ModRegistries.register(CAVE, "giga", ModCaves.Factory.giga(randseed.next(), 1.0F, -24, 72));
+      ModRegistries.register(CAVE, "giga_deep", ModCaves.Factory.giga(randseed.next(), 1.25F, -40, 56));
    }
 
    static NoiseCave[] getCaves(RegistryAccess access) {
@@ -38,7 +40,19 @@ interface ModCaves extends ModRegistry {
          Module module = Source.simplex(++seed, i, 2).map(0.3, 0.7);
          Module module1 = Source.simplex(++seed, j, 3).bias(-0.5).abs().scale(2.0).invert().clamp(0.75, 1.0).map(0.0, 1.0);
          Module module2 = Source.simplex(++seed, k, 2).clamp(0.0, 0.3).map(0.0, 1.0);
-         return new NoiseCave(seed, CaveType.UNIQUE, module, module1, module2, l, minY, maxY);
+         return new NoiseCave(seed, CaveType.MEGA, module, module1, module2, l, minY, maxY);
+      }
+
+      /** Large rare systems — bigger vertical size / flatter elevation band than mega. */
+      static NoiseCave giga(int seed, float scale, int minY, int maxY) {
+         int i = NoiseUtil.floor(280.0F * scale);
+         int j = NoiseUtil.floor(360.0F * scale);
+         int k = NoiseUtil.floor(70.0F * scale);
+         int l = NoiseUtil.floor(48.0F * scale);
+         Module module = Source.simplex(++seed, i, 2).map(0.25, 0.65);
+         Module module1 = Source.simplex(++seed, j, 3).bias(-0.5).abs().scale(2.0).invert().clamp(0.7, 1.0).map(0.0, 1.0);
+         Module module2 = Source.simplex(++seed, k, 2).clamp(0.0, 0.35).map(0.0, 1.0);
+         return new NoiseCave(seed, CaveType.GIGA, module, module1, module2, l, minY, maxY);
       }
 
       static NoiseCave synapse(int seed, float scale, int minY, int maxY) {
@@ -61,7 +75,9 @@ interface ModCaves extends ModRegistry {
             synapse(randseed.next(), 1.0F, 0, 256),
             synapse(randseed.next(), 1.2F, -32, 128),
             mega(randseed.next(), 1.0F, -16, 64),
-            mega(randseed.next(), 1.2F, -32, 48)
+            mega(randseed.next(), 1.2F, -32, 48),
+            giga(randseed.next(), 1.0F, -24, 72),
+            giga(randseed.next(), 1.25F, -40, 56)
          };
       }
    }

@@ -188,7 +188,7 @@ Branch HEAD after identity + config + climate + WWOO warn + portable `/newtf deb
 | Soft compat | TerraBlender no-op-if-absent; `WwooCompat` **suppresses** WWOO noise-settings + subsurface VanillaDecorator features when TF/NewTF generator active |
 | Climate + integrator | `SurfaceBiomeClimate`, `BiomeTerrainIntegration` (+ config) |
 | Chunk fill / biome null | `ChunkUtil.fillChunk` + `WeightMap` / biome null guards hardened against render holes |
-| Cave stats / MEGA-GIGA types | `CaveType` MEGA/GIGA; `CaveMegaGigaLayout`, registry, stats, region helpers |
+| Cave stats / MEGA-GIGA types | `CaveType` MEGA/GIGA; `CaveMegaGigaLayout`, registry, stats, region helpers; datapack `mega*`/`giga*` typed as mega/giga (not unique) |
 | `CaveBiomeSampler` + registry | Mega/region API wired; Source registry `WeightMap` for UNIQUE/GLOBAL/synapse biomes |
 | Footprint carve | `CarverColumnCache`, `MegaGigaZoneProbe`, `MegaGigaChunkCache` compiled; `CarverChunk` MEGA biome layout for footprint activation |
 | Carver | Stock TF118 `CarverChunk` / river mask **`1 - mask * river`** preserved; debug probes (`debugMaskNoise` / `debugRiverNoise`) |

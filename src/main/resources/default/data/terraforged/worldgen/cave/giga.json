@@ -1,26 +1,27 @@
 {
-  "type": "mega",
-  "max_y": 48,
-  "seed": 247699,
-  "size": 36,
+  "type": "giga",
+  "max_y": 72,
+  "min_y": -24,
+  "seed": 81234,
+  "size": 48,
   "elevation": {
     "type": "Map",
     "max": {
       "type": "Const",
-      "value": 0.7
+      "value": 0.65
     },
     "min": {
       "type": "Const",
-      "value": 0.3
+      "value": 0.25
     },
     "source": {
       "interpolation": "CURVE3",
       "type": "Simplex",
-      "frequency": 0.004,
+      "frequency": 0.0035,
       "gain": 0.5,
       "lacunarity": 2,
       "octaves": 2,
-      "seed": 247697
+      "seed": 81230
     }
   },
   "floor": {
@@ -37,7 +38,7 @@
       "type": "Clamp",
       "max": {
         "type": "Const",
-        "value": 0.3
+        "value": 0.35
       },
       "min": {
         "type": "Const",
@@ -46,11 +47,11 @@
       "source": {
         "interpolation": "CURVE3",
         "type": "Simplex",
-        "frequency": 0.017,
+        "frequency": 0.015,
         "gain": 0.5,
         "lacunarity": 2,
         "octaves": 2,
-        "seed": 247699
+        "seed": 81234
       }
     }
   },
@@ -72,7 +73,7 @@
       },
       "min": {
         "type": "Const",
-        "value": 0.75
+        "value": 0.7
       },
       "source": {
         "type": "Invert",
@@ -93,11 +94,11 @@
               "source": {
                 "interpolation": "CURVE3",
                 "type": "Simplex",
-                "frequency": 0.003,
+                "frequency": 0.0028,
                 "gain": 0.5,
                 "lacunarity": 2,
                 "octaves": 3,
-                "seed": 247698
+                "seed": 81231
               }
             }
           }

@@ -21,8 +21,8 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 
 public final class CaveLocator {
-    private static final float GIGA_THRESHOLD = 0.12f;
-    private static final float MEGA_THRESHOLD = 0.3f;
+    private static final float GIGA_THRESHOLD = 0.07f;
+    private static final float MEGA_THRESHOLD = 0.08f;
     private static final float GROTTO_GATE = 0.82f;
     private static final float ENTRANCE_GATE = 0.72f;
     private static final float ENTRANCE_BREACH = 0.55f;
@@ -197,7 +197,7 @@ public final class CaveLocator {
             for (int dz = -radius; dz <= radius; dz += coarseStep) {
                 int x = originX + dx;
                 int z = originZ + dz;
-                float strength = CaveNoise.sample(modifier, worldSeed, x, z);
+                float strength = CaveNoise.sampleMerged(modifier, worldSeed, x, z);
                 if (strength <= threshold) {
                     continue;
                 }
@@ -222,7 +222,7 @@ public final class CaveLocator {
         int[] refined = CaveLocator.refine(modifier, worldSeed, best.x, best.z, step / 2, generator, type, subtype);
         int bestX = refined[0];
         int bestZ = refined[1];
-        float strength = CaveNoise.sample(modifier, worldSeed, bestX, bestZ);
+        float strength = CaveNoise.sampleMerged(modifier, worldSeed, bestX, bestZ);
         if (strength <= threshold || !CaveLocator.passesFilters(generator, type, subtype, worldSeed, bestX, bestZ)) {
             return null;
         }
@@ -243,7 +243,7 @@ public final class CaveLocator {
     }
 
     private static boolean cheapCellHasType(Module modifier, int worldSeed, CaveType type, float threshold, Generator generator, int cx, int cz) {
-        if (CaveNoise.sample(modifier, worldSeed, cx, cz) <= threshold) {
+        if (CaveNoise.sampleMerged(modifier, worldSeed, cx, cz) <= threshold) {
             return false;
         }
         return type != CaveType.GIGA || CaveReliefFilter.qualifiesGigaTerrain(generator, cx, cz);
@@ -333,14 +333,14 @@ public final class CaveLocator {
     }
 
     private static int[] refine(Module modifier, int seed, int x, int z, int range, Generator generator, CaveType type, CaveSubtype subtype) {
-        float best = CaveNoise.sample(modifier, seed, x, z);
+        float best = CaveNoise.sampleMerged(modifier, seed, x, z);
         int bestX = x;
         int bestZ = z;
         for (int dx = -range; dx <= range; dx += 8) {
             for (int dz = -range; dz <= range; dz += 8) {
                 int px = x + dx;
                 int pz = z + dz;
-                float v = CaveNoise.sample(modifier, seed, px, pz);
+                float v = CaveNoise.sampleMerged(modifier, seed, px, pz);
                 if (!(v > best)) {
                     continue;
                 }
@@ -355,7 +355,7 @@ public final class CaveLocator {
                     float v;
                     int px = x + dx;
                     int pz = z + dz;
-                    if (!CaveLocator.passesFilters(generator, type, subtype, seed, px, pz) || !((v = CaveNoise.sample(modifier, seed, px, pz)) > best)) {
+                    if (!CaveLocator.passesFilters(generator, type, subtype, seed, px, pz) || !((v = CaveNoise.sampleMerged(modifier, seed, px, pz)) > best)) {
                         continue;
                     }
                     best = v;
