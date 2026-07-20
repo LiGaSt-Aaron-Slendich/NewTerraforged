@@ -47,7 +47,6 @@ weight = 1.0
 id = "biomesoplenty:wooded_wasteland"
 weight = 1.0
 
-
 # byg
 [[desert]]
 id = "byg:atacama_desert"
@@ -62,17 +61,12 @@ id = "byg:sierra_badlands"
 weight = 1.0
 
 [[desert]]
-id = "byg:warped_desert"
-weight = 1.0
-
-[[desert]]
 id = "byg:windswept_desert"
 weight = 1.0
 
 [[desert]]
 id = "byg:windswept_dunes"
 weight = 1.0
-
 
 # regions_unexplored
 [[desert]]
@@ -102,7 +96,6 @@ weight = 1.0
 [[desert]]
 id = "regions_unexplored:wooded_arid_mountains"
 weight = 1.0
-
 
 # terralith
 [[desert]]
@@ -168,7 +161,6 @@ weight = 1.0
 id = "biomesoplenty:lush_savanna"
 weight = 1.0
 
-
 # byg
 [[savanna]]
 id = "byg:araucaria_savanna"
@@ -178,12 +170,10 @@ weight = 1.0
 id = "byg:baobab_savanna"
 weight = 1.0
 
-
 # regions_unexplored
 [[savanna]]
 id = "regions_unexplored:baobab_savanna"
 weight = 1.0
-
 
 # terralith
 [[savanna]]
@@ -241,7 +231,6 @@ weight = 1.0
 id = "biomesoplenty:woodland"
 weight = 1.0
 
-
 # byg
 [[tropical_rainforest]]
 id = "byg:bayou"
@@ -258,7 +247,6 @@ weight = 1.0
 [[tropical_rainforest]]
 id = "byg:white_mangrove_marshes"
 weight = 1.0
-
 
 # regions_unexplored
 [[tropical_rainforest]]
@@ -288,7 +276,6 @@ weight = 1.0
 [[tropical_rainforest]]
 id = "regions_unexplored:tropics"
 weight = 1.0
-
 
 # terralith
 [[tropical_rainforest]]
@@ -342,7 +329,6 @@ weight = 1.0
 id = "biomesoplenty:snowy_fir_clearing"
 weight = 1.0
 
-
 # byg
 [[taiga]]
 id = "byg:autumnal_taiga"
@@ -369,17 +355,12 @@ id = "byg:frosted_taiga"
 weight = 1.0
 
 [[taiga]]
-id = "byg:imparius_grove"
-weight = 1.0
-
-[[taiga]]
 id = "byg:maple_taiga"
 weight = 1.0
 
 [[taiga]]
 id = "byg:temperate_grove"
 weight = 1.0
-
 
 # regions_unexplored
 [[taiga]]
@@ -413,7 +394,6 @@ weight = 1.0
 [[taiga]]
 id = "regions_unexplored:temperate_grove"
 weight = 1.0
-
 
 # terralith
 [[taiga]]
@@ -451,12 +431,10 @@ weight = 1.0
 id = "biomesoplenty:tundra"
 weight = 1.0
 
-
 # byg
 [[tundra]]
 id = "byg:cardinal_tundra"
 weight = 1.0
-
 
 # regions_unexplored
 [[tundra]]
@@ -470,7 +448,6 @@ weight = 1.0
 [[tundra]]
 id = "regions_unexplored:icy_heights"
 weight = 1.0
-
 
 # terralith
 [[tundra]]
@@ -532,7 +509,6 @@ weight = 1.0
 id = "biomesoplenty:pumpkin_patch"
 weight = 1.0
 
-
 # byg
 [[temperate_forest]]
 id = "byg:aspen_forest"
@@ -559,15 +535,7 @@ id = "byg:jacaranda_forest"
 weight = 1.0
 
 [[temperate_forest]]
-id = "byg:nightshade_forest"
-weight = 1.0
-
-[[temperate_forest]]
 id = "byg:red_oak_forest"
-weight = 1.0
-
-[[temperate_forest]]
-id = "byg:shulkren_forest"
 weight = 1.0
 
 [[temperate_forest]]
@@ -577,7 +545,6 @@ weight = 1.0
 [[temperate_forest]]
 id = "byg:zelkova_forest"
 weight = 1.0
-
 
 # regions_unexplored
 [[temperate_forest]]
@@ -623,7 +590,6 @@ weight = 1.0
 [[temperate_forest]]
 id = "regions_unexplored:wooded_steppe"
 weight = 1.0
-
 
 # terralith
 [[temperate_forest]]
@@ -693,7 +659,6 @@ weight = 1.0
 id = "biomesoplenty:wetland"
 weight = 1.0
 
-
 # byg
 [[temperate_rainforest]]
 id = "byg:autumnal_forest"
@@ -720,10 +685,6 @@ id = "byg:cypress_swamplands"
 weight = 1.0
 
 [[temperate_rainforest]]
-id = "byg:embur_bog"
-weight = 1.0
-
-[[temperate_rainforest]]
 id = "byg:guiana_shield"
 weight = 1.0
 
@@ -742,7 +703,6 @@ weight = 1.0
 [[temperate_rainforest]]
 id = "byg:weeping_mire"
 weight = 1.0
-
 
 # regions_unexplored
 [[temperate_rainforest]]
@@ -788,7 +748,6 @@ weight = 1.0
 [[temperate_rainforest]]
 id = "regions_unexplored:sparse_redwoods"
 weight = 1.0
-
 
 # terralith
 [[temperate_rainforest]]
@@ -846,30 +805,10 @@ weight = 1.0
 id = "biomesoplenty:undergrowth"
 weight = 1.0
 
-[[grassland]]
-id = "biomesoplenty:visceral_heap"
-weight = 1.0
-
-[[grassland]]
-id = "biomesoplenty:withered_abyss"
-weight = 1.0
-
-
 # byg
-[[grassland]]
-id = "byg:arisian_undergrowth"
-weight = 1.0
 
 [[grassland]]
 id = "byg:basalt_barrera"
-weight = 1.0
-
-[[grassland]]
-id = "byg:bulbis_gardens"
-weight = 1.0
-
-[[grassland]]
-id = "byg:cryptic_wastes"
 weight = 1.0
 
 [[grassland]]
@@ -885,18 +824,6 @@ id = "byg:dead_sea"
 weight = 1.0
 
 [[grassland]]
-id = "byg:ethereal_islands"
-weight = 1.0
-
-[[grassland]]
-id = "byg:glowstone_gardens"
-weight = 1.0
-
-[[grassland]]
-id = "byg:magma_wastes"
-weight = 1.0
-
-[[grassland]]
 id = "byg:rainbow_beach"
 weight = 1.0
 
@@ -905,17 +832,8 @@ id = "byg:skyris_vale"
 weight = 1.0
 
 [[grassland]]
-id = "byg:viscal_isles"
-weight = 1.0
-
-[[grassland]]
-id = "byg:wailing_garth"
-weight = 1.0
-
-[[grassland]]
 id = "byg:windswept_beach"
 weight = 1.0
-
 
 # regions_unexplored
 [[grassland]]
@@ -954,11 +872,6 @@ weight = 1.0
 id = "regions_unexplored:pine_slopes"
 weight = 1.0
 
-[[grassland]]
-id = "regions_unexplored:redstone_hell"
-weight = 1.0
-
-
 # terralith
 [[grassland]]
 id = "terralith:skylands"
@@ -987,7 +900,6 @@ weight = 1.0
 id = "biomesoplenty:shrubland"
 weight = 1.0
 
-
 # regions_unexplored
 [[cold_steppe]]
 id = "regions_unexplored:shrubland"
@@ -996,7 +908,6 @@ weight = 1.0
 [[cold_steppe]]
 id = "regions_unexplored:steppe"
 weight = 1.0
-
 
 # terralith
 [[cold_steppe]]
@@ -1050,7 +961,6 @@ weight = 1.0
 id = "biomesoplenty:prairie"
 weight = 1.0
 
-
 # byg
 [[steppe]]
 id = "byg:allium_fields"
@@ -1062,10 +972,6 @@ weight = 1.0
 
 [[steppe]]
 id = "byg:coconino_meadow"
-weight = 1.0
-
-[[steppe]]
-id = "byg:ivis_fields"
 weight = 1.0
 
 [[steppe]]
@@ -1083,7 +989,6 @@ weight = 1.0
 [[steppe]]
 id = "byg:twilight_meadow"
 weight = 1.0
-
 
 # regions_unexplored
 [[steppe]]
@@ -1121,7 +1026,6 @@ weight = 1.0
 [[steppe]]
 id = "regions_unexplored:prairie"
 weight = 1.0
-
 
 # terralith
 [[steppe]]
@@ -1163,7 +1067,6 @@ weight = 0.7
 id = "biomesoplenty:volcano"
 weight = 1.0
 
-
 # byg
 [[alpine]]
 id = "byg:crag_gardens"
@@ -1172,11 +1075,6 @@ weight = 1.0
 [[alpine]]
 id = "byg:howling_peaks"
 weight = 1.0
-
-[[alpine]]
-id = "byg:sythian_torrids"
-weight = 1.0
-
 
 # regions_unexplored
 [[alpine]]
@@ -1198,7 +1096,6 @@ weight = 0.7
 [[alpine]]
 id = "regions_unexplored:towering_cliffs"
 weight = 1.0
-
 
 # terralith
 [[alpine]]

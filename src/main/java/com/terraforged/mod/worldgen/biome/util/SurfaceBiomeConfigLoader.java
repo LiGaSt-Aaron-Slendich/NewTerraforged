@@ -45,6 +45,11 @@ public final class SurfaceBiomeConfigLoader {
                 }
                 if (!biomes.containsKey(loc)) continue;
                 Holder holder = biomes.getHolderOrThrow(ResourceKey.create(Registry.BIOME_REGISTRY, (ResourceLocation)loc));
+                // Surface climate lists must never pull Nether/End biomes (dimension category).
+                Biome.BiomeCategory category = Biome.getBiomeCategory(holder);
+                if (category == Biome.BiomeCategory.NETHER || category == Biome.BiomeCategory.THEEND) {
+                    continue;
+                }
                 explicit.computeIfAbsent(type, t -> new Object2FloatLinkedOpenHashMap()).put(holder, parsed.weight());
                 configured.add((Holder<Biome>)holder);
                 ++added;
