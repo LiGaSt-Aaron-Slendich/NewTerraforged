@@ -44,9 +44,7 @@ sourceSets {
             // CarverColumnCache / MegaGiga* enabled for footprint activation
             exclude "**/CaveEntranceClaims.java"
             exclude "**/CaveColumnScan.java"
-            exclude "**/CaveBreaches.java"
-            exclude "**/CaveLocator.java"
-            exclude "**/CaveOceanFilter.java"
+            // CaveLocator + ocean/breach filters enabled for /locatecave (entrance carver still deferred)
             exclude "**/CaveOpenAirCheck.java"
             exclude "**/CaveUndergroundGuard.java"
             exclude "**/MegaCaveStructureFilter.java"
@@ -69,8 +67,8 @@ sourceSets {
             exclude "**/DynamicTreesCompat.java"
             exclude "**/ProbeNetwork.java"
             exclude "**/internal/probe/**"
-            exclude "**/BackgroundSearchTasks.java"
             exclude "**/FeaturePlacement.java"
+            // CaveSiteTags / entrance carver deferred — CaveLocator SYSTEM+grotto soft-stubs entrance subtypes
             exclude "**/CaveSiteTags.java"
             // CaveCartography enabled (land-shaped footprint maps)
             exclude "**/ModCaveBiomeFactories.java"

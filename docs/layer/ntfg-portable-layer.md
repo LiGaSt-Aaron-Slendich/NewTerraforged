@@ -24,7 +24,7 @@ Related audits: `docs/exploration/ntfg-transfer-map.md`, `docs/audit/appendix-nt
 | Config dir | `config/NewTerraForged/` (+ legacy `NewTerraforged`) | `config/terraforged/` |
 | Defaultconfigs | `defaultconfigs/NewTerraForged/{Cave_configs,Terrain}/*.toml` | (TF pack under `default/`) |
 | World / generator | `newterraforged` preset / NBT | `terraforged:generator` |
-| Debug commands | `/newtf`, `/newtf debug cave`, `/newtf ix` | stock TF locate only |
+| Debug commands | `/newtf debug cave`, `/locateterrain`, `/locatecave`, `/stopprocess`, `/tf …` | stock TF `/locateterrain` only |
 
 Port rule: product identity stays **NewTerraForged**; packages may remain `com.terraforged.*` for API proximity to upstream TF.
 

@@ -1,6 +1,5 @@
 package com.terraforged.mod.worldgen.cave;
 
-import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.command.BackgroundSearchTasks;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.Seeds;
@@ -9,7 +8,6 @@ import com.terraforged.mod.worldgen.cave.CaveBreaches;
 import com.terraforged.mod.worldgen.cave.CaveModifiers;
 import com.terraforged.mod.worldgen.cave.CaveNoise;
 import com.terraforged.mod.worldgen.cave.CaveOceanFilter;
-import com.terraforged.mod.worldgen.cave.CaveSiteTags;
 import com.terraforged.mod.worldgen.cave.CaveSubtype;
 import com.terraforged.mod.worldgen.cave.CaveType;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
@@ -229,82 +227,19 @@ public final class CaveLocator {
             return null;
         }
         NoiseCave cave = CaveLocator.findConfig(generator, type);
-        int y = cave != null ? cave.getHeight(worldSeed, bestX, bestZ) : 32;
-        CaveSubtype detected = CaveSiteTags.detectSubtype(generator, type, worldSeed, bestX, bestZ);
+        int y = cave != null ? cave.getHeight(bestX, bestZ) : 32;
+        CaveSubtype detected = CaveSubtype.ANY;
         return new Result(bestX, bestZ, y, strength, type, detected, LocateMode.SYSTEM, EntranceKind.SYSTEM);
     }
 
     private static Result findNearestEntrance(Generator generator, CaveType type, CaveSubtype subtype, int originX, int originZ, int radius) {
-        int worldSeed = Seeds.get(generator.getSeed());
-        int r = CaveSystemGrid.caveRadius(type);
-        int cell = r * 2;
-        long radiusSq = (long)radius * radius;
-        Module modifier = CaveModifiers.get(type);
-        float threshold = type == CaveType.GIGA ? GIGA_THRESHOLD : MEGA_THRESHOLD;
-        NoiseCave config = CaveLocator.findConfig(generator, type);
-        int startCx = Math.floorDiv(originX - radius - r, cell) * cell + r;
-        int endCx = originX + radius;
-        int startCz = Math.floorDiv(originZ - radius - r, cell) * cell + r;
-        int endCz = originZ + radius;
-        List<CellCandidate> cells = new ArrayList<>();
-        for (int cx = startCx; cx <= endCx; cx += cell) {
-            for (int cz = startCz; cz <= endCz; cz += cell) {
-                double d = CaveLocator.distSq(originX, originZ, cx, cz);
-                if (d > radiusSq) {
-                    continue;
-                }
-                cells.add(new CellCandidate(cx, cz, d));
-            }
-        }
-        cells.sort(Comparator.comparingDouble(c -> c.distSq));
-        int checked = 0;
-        for (CellCandidate cellCenter : cells) {
-            if (BackgroundSearchTasks.isCancelRequested()) {
-                return null;
-            }
-            if (++checked > MAX_ENTRANCE_CELL_CHECKS) {
-                break;
-            }
-            if (!CaveLocator.cheapCellHasType(modifier, worldSeed, type, threshold, generator, cellCenter.cx, cellCenter.cz)) {
-                continue;
-            }
-            int[] mouth = CaveSystemGrid.resolveTunnelMouthAnchor(worldSeed, type, cellCenter.cx, cellCenter.cz);
-            Result hit = CaveLocator.tryEntranceAt(generator, type, subtype, worldSeed, originX, originZ, mouth[0], mouth[1], config, modifier);
-            if (hit != null) {
-                return hit;
-            }
-            if (subtype.isTunnel() || subtype == CaveSubtype.ANY) {
-                CaveEntranceClaims.TunnelAxis axis = generator.getCaveEntranceClaims().tunnelAxis(CaveSystemGrid.systemKey(cellCenter.cx, cellCenter.cz, type));
-                if (axis == null) {
-                    axis = CaveSiteTags.prospectiveTunnelAxis(worldSeed, type, cellCenter.cx, cellCenter.cz);
-                }
-                if (axis != null && CaveLocator.cheapTunnelAxis(worldSeed, axis) && CaveSiteTags.validatesTunnelAxis(generator, worldSeed, type, axis)) {
-                    hit = CaveLocator.tryEntranceAt(generator, type, CaveSubtype.TUNNEL, worldSeed, originX, originZ, axis.exitX(), axis.exitZ(), config, modifier);
-                    if (hit != null) {
-                        return hit;
-                    }
-                }
-            }
-        }
+        // Entrance anchors need CaveSiteTags / CaveEntranceCarver (still deferred on TF118 layer).
+        // SYSTEM + grotto locate remain available.
         return null;
     }
 
     private static Result tryEntranceAt(Generator generator, CaveType type, CaveSubtype subtype, int worldSeed, int originX, int originZ, int x, int z, NoiseCave config, Module modifier) {
-        if (!CaveLocator.cheapEntranceAnchorGate(worldSeed, x, z)) {
-            return null;
-        }
-        EntranceKind kind = CaveLocator.classifyEntrance(generator, type, subtype, worldSeed, x, z, config, modifier);
-        if (kind == null) {
-            return null;
-        }
-        int y = generator.getOceanFloorHeight(x, z);
-        float strength = CaveNoise.sample(modifier, worldSeed, x, z);
-        CaveSubtype detected = switch (kind) {
-            case COASTAL -> CaveSubtype.COASTAL;
-            case TUNNEL_MOUTH, TUNNEL_EXIT -> CaveSubtype.TUNNEL;
-            default -> subtype;
-        };
-        return new Result(x, z, y, strength, type, detected, LocateMode.ENTRANCE, kind);
+        return null;
     }
 
     private static boolean cheapCellHasType(Module modifier, int worldSeed, CaveType type, float threshold, Generator generator, int cx, int cz) {
@@ -320,98 +255,6 @@ public final class CaveLocator {
             return false;
         }
         return CaveBreaches.sample(worldSeed, x, z) >= ENTRANCE_BREACH;
-    }
-
-    private static boolean cheapTunnelAxis(int worldSeed, CaveEntranceClaims.TunnelAxis axis) {
-        if (!CaveReliefFilter.validatesTunnelSpan(axis.mouthX(), axis.mouthZ(), axis.exitX(), axis.exitZ())) {
-            return false;
-        }
-        return CaveLocator.cheapEntranceAnchorGate(worldSeed, axis.mouthX(), axis.mouthZ())
-                || CaveLocator.cheapEntranceAnchorGate(worldSeed, axis.exitX(), axis.exitZ());
-    }
-
-    private static EntranceKind classifyEntrance(Generator generator, CaveType type, CaveSubtype subtype, int worldSeed, int x, int z, NoiseCave config, Module modifier) {
-        if (subtype.isCoastal()) {
-            return CaveSiteTags.qualifiesCoastalMegaGiga(generator, type, worldSeed, x, z) ? EntranceKind.COASTAL : null;
-        }
-        if (subtype.isTunnel()) {
-            if (!CaveSiteTags.qualifiesProspectiveTunnel(generator, worldSeed, x, z)) {
-                return null;
-            }
-            CaveEntranceClaims.TunnelAxis axis = CaveLocator.resolveAxis(generator, worldSeed, type, x, z);
-            if (axis == null) {
-                return null;
-            }
-            if (CaveLocator.isNear(x, z, axis.mouthX(), axis.mouthZ(), 4)) {
-                return EntranceKind.TUNNEL_MOUTH;
-            }
-            if (CaveLocator.isNear(x, z, axis.exitX(), axis.exitZ(), 5)) {
-                return EntranceKind.TUNNEL_EXIT;
-            }
-            return null;
-        }
-        if (CaveSiteTags.qualifiesCoastalMegaGiga(generator, type, worldSeed, x, z)) {
-            return EntranceKind.COASTAL;
-        }
-        CaveEntranceClaims.TunnelAxis axis = CaveLocator.resolveAxis(generator, worldSeed, type, x, z);
-        if (axis != null && CaveSiteTags.qualifiesProspectiveTunnel(generator, worldSeed, x, z)) {
-            if (CaveLocator.isNear(x, z, axis.mouthX(), axis.mouthZ(), 4)) {
-                return EntranceKind.TUNNEL_MOUTH;
-            }
-            if (CaveLocator.isNear(x, z, axis.exitX(), axis.exitZ(), 5)) {
-                return EntranceKind.TUNNEL_EXIT;
-            }
-        }
-        if (CaveLocator.qualifiesMassifEntrance(generator, type, worldSeed, x, z, config, modifier)) {
-            return EntranceKind.MASSIF;
-        }
-        return null;
-    }
-
-    private static CaveEntranceClaims.TunnelAxis resolveAxis(Generator generator, int worldSeed, CaveType type, int x, int z) {
-        long key = CaveSystemGrid.systemKey(x, z, type);
-        CaveEntranceClaims.TunnelAxis axis = generator.getCaveEntranceClaims().tunnelAxis(key);
-        if (axis == null) {
-            axis = CaveSiteTags.prospectiveTunnelAxis(worldSeed, type, x, z);
-        }
-        return axis;
-    }
-
-    private static boolean qualifiesMassifEntrance(Generator generator, CaveType type, int worldSeed, int x, int z, NoiseCave config, Module modifier) {
-        if (CaveSystemGrid.dominantType(generator, worldSeed, x, z) != type) {
-            return false;
-        }
-        if (type == CaveType.GIGA && !CaveReliefFilter.qualifiesGigaTerrain(generator, x, z)) {
-            return false;
-        }
-        if (!CaveSystemGrid.isEntranceAnchorColumn(worldSeed, x, z, type)) {
-            return false;
-        }
-        if (!CaveMassifCache.qualifiesMountainMassif(generator, worldSeed, x, z)) {
-            return false;
-        }
-        int sea = generator.getSeaLevel();
-        if (generator.getOceanFloorHeight(x, z) <= sea + 6) {
-            return false;
-        }
-        if (CaveOceanFilter.isSurfaceWaterColumn(generator, x, z)) {
-            return false;
-        }
-        if (CaveOceanFilter.isNearSea(generator, x, z)) {
-            return false;
-        }
-        if (CaveOceanFilter.isBlockedForMegaGiga(generator, type, x, z)) {
-            return false;
-        }
-        if (config == null) {
-            return false;
-        }
-        float value = CaveNoise.sample(modifier, worldSeed, x, z);
-        int cavern = config.getCavernSize(worldSeed, x, z, value);
-        if (cavern < CaveEntranceCarver.minCavernForEntrance()) {
-            return false;
-        }
-        return true;
     }
 
     private static boolean qualifiesGrottoSite(Generator generator, int seed, int x, int z) {
@@ -471,10 +314,11 @@ public final class CaveLocator {
         if (CaveOceanFilter.isBlockedForMegaGiga(generator, type, x, z)) {
             return false;
         }
-        if (subtype.isCoastal() && !CaveSiteTags.qualifiesCoastalMegaGiga(generator, type, worldSeed, x, z)) {
+        // Coastal/tunnel subtype filters need CaveSiteTags (deferred) — only ANY works for SYSTEM locate.
+        if (subtype != null && subtype != CaveSubtype.ANY) {
             return false;
         }
-        return !subtype.isTunnel() || CaveSiteTags.qualifiesProspectiveTunnel(generator, worldSeed, x, z);
+        return true;
     }
 
     private static int searchStep(CaveType type, int radius) {
@@ -524,7 +368,7 @@ public final class CaveLocator {
     }
 
     public static NoiseCave findConfig(Generator generator, CaveType type) {
-        Registry<NoiseCave> registry = generator.getBiomeSource().getRegistries().registryOrThrow(TerraForged.CAVES.get());
+        Registry<NoiseCave> registry = generator.getBiomeSource().getRegistries().registryOrThrow(com.terraforged.mod.registry.ModRegistry.CAVE.get());
         NoiseCave fallback = null;
         for (Holder<NoiseCave> holder : registry.holders().toList()) {
             NoiseCave cave = (NoiseCave)holder.value();
