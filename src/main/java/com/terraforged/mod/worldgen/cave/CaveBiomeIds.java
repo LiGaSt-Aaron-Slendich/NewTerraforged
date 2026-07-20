@@ -587,6 +587,46 @@ public final class CaveBiomeIds {
         return CaveBiomeIds.isUndergroundJungleBiome(a) && CaveBiomeIds.isThermalThemedBiome(b) || CaveBiomeIds.isUndergroundJungleBiome(b) && CaveBiomeIds.isThermalThemedBiome(a);
     }
 
+    /** Plant / lush-style caves — transitions against aggressive neighbours. */
+    public static boolean isPlantLikeCaveBiome(ResourceLocation id) {
+        if (id == null || CaveBiomeIds.isAggressiveCaveBiome(id)) {
+            return false;
+        }
+        if (CaveBiomeIds.isFungalCaveBiome(id) || CaveBiomeIds.isUndergroundJungleBiome(id) || CaveBiomeIds.isSteamingJungleBiome(id)) {
+            return true;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("mossy") || path.contains("lush") || path.contains("undergarden")
+                || path.contains("glowing_grotto") || path.contains("bioshroom") || path.contains("glowshroom")
+                || path.contains("mycotoxic") || path.contains("bloom");
+    }
+
+    public static boolean isPlantLikeCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isPlantLikeCaveBiome(key.location())).orElse(false);
+    }
+
+    /** Hostile / heat-aggressive caves — transitions against plant-like neighbours. */
+    public static boolean isAggressiveCaveBiome(ResourceLocation id) {
+        if (id == null || CaveBiomeIds.isThermalSpringsBiome(id)) {
+            return false;
+        }
+        if (CaveBiomeIds.isScorchingCaveBiome(id) || CaveBiomeIds.isVolcanicCaveBiome(id) || CaveBiomeIds.isHeatShellCaveBiome(id)) {
+            return true;
+        }
+        String path = id.getPath().toLowerCase();
+        return path.contains("mantle") || path.contains("brimstone") || path.contains("magma")
+                || path.contains("infernal") || path.contains("ash") && path.contains("cave");
+    }
+
+    public static boolean isAggressiveCaveBiome(Holder<Biome> biome) {
+        return biome.unwrapKey().map(key -> CaveBiomeIds.isAggressiveCaveBiome(key.location())).orElse(false);
+    }
+
+    public static boolean isPlantAggressivePair(ResourceLocation a, ResourceLocation b) {
+        return CaveBiomeIds.isPlantLikeCaveBiome(a) && CaveBiomeIds.isAggressiveCaveBiome(b)
+                || CaveBiomeIds.isPlantLikeCaveBiome(b) && CaveBiomeIds.isAggressiveCaveBiome(a);
+    }
+
     public static boolean isThermalThemedBiome(ResourceLocation id) {
         if (id == null) {
             return false;

@@ -29,7 +29,6 @@ import com.terraforged.mod.worldgen.cave.CaveType;
 import com.terraforged.mod.worldgen.cave.CarverChunk;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
-import com.terraforged.noise.util.NoiseUtil;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -410,7 +409,6 @@ public final class CaveDebugCommand {
     private static void appendMegaGigaStats(CaveMegaGigaLayout layout, int x, int z, Mode mode, List<String> lines) {
         CaveStatVector global = layout.globalPool();
         CaveStatVector local = layout.statsAt(x, z);
-        float cropFactor = CaveDebugCommand.cropGrowthFactor(local);
         if (mode == Mode.GLOBAL || mode == Mode.FULL) {
             if (mode == Mode.FULL) {
                 lines.add("[Mega/Giga - global pool]");
@@ -434,7 +432,7 @@ public final class CaveDebugCommand {
             lines.add(CaveDebugCommand.formatStatLine("Temperature", local.temperature()));
             lines.add(CaveDebugCommand.formatStatLine("Moisture", local.moisture()));
             lines.add(CaveDebugCommand.formatStatLine("Fertility", local.fertility()));
-            lines.add(String.format(Locale.ROOT, "Crop growth factor: %.2fx", Float.valueOf(cropFactor)));
+            lines.add("Crop/feature scaling: disabled (stats layout-only)");
         }
     }
 
@@ -483,12 +481,6 @@ public final class CaveDebugCommand {
             tags.append(" [cold]");
         }
         return tags.toString();
-    }
-
-    private static float cropGrowthFactor(CaveStatVector stats) {
-        float moistureBoost = 1.0f + stats.moisture() * 0.04f;
-        float fertilityBoost = 1.0f + stats.fertility() * 0.05f;
-        return NoiseUtil.clamp(moistureBoost * fertilityBoost, 0.25f, 2.5f);
     }
 
     private static String formatStatLine(String label, float value) {

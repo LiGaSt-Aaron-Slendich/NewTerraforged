@@ -1,6 +1,7 @@
 # NewTerraForged — cave generation (mega / giga / synapse)
 # Path: config/NewTerraForged/Cave_configs/caves.toml
-# region_count_min/max = radial biome shells per mega/giga system (both enforced)
+# region_count_min/max = PRIMARY regions per mega/giga (one biome each)
+# island_max_per_region = max island_patch biomes inside one PRIMARY region
 # Restart the game after editing.
 
 [mega]
@@ -10,8 +11,8 @@ transition_per_region = 2
 scale = 1.0
 
 [giga]
-region_count_min = 7
-region_count_max = 10
+region_count_min = 5
+region_count_max = 8
 transition_per_region = 3
 scale = 2.0
 
@@ -19,6 +20,7 @@ scale = 2.0
 max_biomes_per_system = 2
 transition_max_width_blocks = 40
 island_max_radius_chunks = 3
+island_max_per_region = 4
 # false = mega/giga only (no synapse column caves)
 enable_synapse_caves = true
 

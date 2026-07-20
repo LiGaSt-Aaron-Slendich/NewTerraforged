@@ -61,8 +61,9 @@ Stock `TerrainBlender` is **upstream TF**, not “ours”.
 | `CaveBiomeStats`, `CaveBiomeStatDefaults`, `CaveBiomeClimateAffinity` | Biome↔stat affinity |
 | `CaveBiomeRegistry`, `CaveBiomeRegistryLoader`, `CaveBiomeAutoRegistry`, `CaveBiomeEntry`, `CaveBiomeIds`, `CaveBiomeCategory` | Registry |
 | `CaveBiomeDecoratorRouter`, `CaveBiomeFeatureRunner`, `CaveBiomeFeaturePresets`, `CaveBiomeVolumeDecorator`, `CaveBiomeVanillaPass`, `CaveBiomeColumnUnifier`, `CaveBiomeVerticalFit` | Official-path decor invoke |
-| `CaveMegaGigaLayout`, `MegaGigaChunkCache`, `MegaGigaZoneProbe` | MEGA/GIGA layout |
+| `CaveMegaGigaLayout`, `MegaGigaChunkCache`, `MegaGigaZoneProbe` | MEGA/GIGA layout (regions, transitions, islands) |
 | `CaveRegionMap`, `CaveSystemGrid`, `CaveLayoutRegionGrid` | Region distribution |
+| See also | `docs/layer/cave-region-system.md` |
 | `TerraForgedOfficialCaveDecorator` | TF-0.3-style feature place |
 | `ModCaveBiomeFactories` | Data factories |
 

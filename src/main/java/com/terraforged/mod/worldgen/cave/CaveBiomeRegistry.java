@@ -177,6 +177,12 @@ public class CaveBiomeRegistry {
     }
 
     public boolean needsTransitionBuffer(CaveBiomeEntry a, CaveBiomeEntry b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        if (CaveBiomeIds.isPlantAggressivePair(a.biome(), b.biome())) {
+            return true;
+        }
         return Math.abs(a.caveTemperature() - b.caveTemperature()) > 0.4f;
     }
 

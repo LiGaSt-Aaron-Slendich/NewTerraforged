@@ -3,6 +3,7 @@ package com.terraforged.mod.worldgen.biome;
 import com.mojang.serialization.Codec;
 import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
+import com.terraforged.mod.platform.forge.TFCaveSystemConfig;
 import com.terraforged.mod.util.map.LongCache;
 import com.terraforged.mod.util.map.LossyCache;
 import com.terraforged.mod.worldgen.biome.util.BiomeMapManager;
@@ -54,7 +55,10 @@ public class Source extends BiomeSource {
       if (TFCaveBiomeConfig.INSTANCE != null) {
          registry = CaveBiomeRegistryLoader.build(this.biomeMapManager.getBiomes(), TFCaveBiomeConfig.INSTANCE);
       }
-      this.caveBiomeSampler = new CaveBiomeSampler(seed, 800, this.biomeMapManager, registry, CaveSystemConfig.DEFAULT);
+      CaveSystemConfig systemConfig = TFCaveSystemConfig.INSTANCE != null
+         ? TFCaveSystemConfig.INSTANCE.toSystemConfig()
+         : CaveSystemConfig.DEFAULT;
+      this.caveBiomeSampler = new CaveBiomeSampler(seed, 800, this.biomeMapManager, registry, systemConfig);
    }
 
    public Set<Holder<Biome>> possibleBiomes() {

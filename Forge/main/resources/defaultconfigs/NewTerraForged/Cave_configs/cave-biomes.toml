@@ -8,7 +8,8 @@ config_version = 4
 # ── Format ───────────────────────────────────────────────────────────────────
 # Each [[primary]] / [[transition]] / [[special]] / [[coastal]] entry:
 #   id, temperature (0..1 cave climate), vegetation_density, weight, placement_type
-#   stat_role = "generator"  — radial stat source in mega/giga (optional)
+#   stat_role = "generator"  — radial climate source in mega/giga (optional; does NOT scale features)
+#   island_patch specials: up to island_max_per_region (caves.toml) nested in each PRIMARY region
 #
 # Stats block (-10..10) goes RIGHT AFTER the entry it belongs to:
 #   [primary.stats.conditions]   — minimum pool values required to spawn this biome
