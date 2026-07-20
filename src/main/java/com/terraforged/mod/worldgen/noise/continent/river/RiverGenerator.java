@@ -25,6 +25,7 @@ public class RiverGenerator {
    private static final int RIVER_CACHE_SIZE = 1024;
    private final int seed;
    private final float lakeDensity;
+   private final float riverDensity;
    private final ContinentGenerator continent;
    private final RiverCarver riverCarver;
    private final Domain riverWarp;
@@ -36,6 +37,7 @@ public class RiverGenerator {
       this.continent = continent;
       this.seed = config.rivers.seed;
       this.lakeDensity = config.rivers.lakeDensity;
+      this.riverDensity = config.rivers.riverDensity;
       this.riverCarver = new RiverCarver(continent.levels, config);
       this.riverWarp = Domain.warp(
          Source.builder().seed(this.seed + 8657124).frequency(30.0).simplex(),
@@ -165,6 +167,12 @@ public class RiverGenerator {
    }
 
    private void addRiverNodes(CellPoint a, CellPoint b, float ah, float bh, float ar, float br, int hash, RiverPieces pieces) {
+      if (this.riverDensity <= 0.0F) {
+         return;
+      }
+      if (this.riverDensity < 1.0F && MathUtil.rand(this.seed + 99173, hash) > this.riverDensity) {
+         return;
+      }
       float f = (a.px + b.px) * 0.5F;
       float f1 = (a.py + b.py) * 0.5F;
       float f2 = (ar + br) * 0.5F;

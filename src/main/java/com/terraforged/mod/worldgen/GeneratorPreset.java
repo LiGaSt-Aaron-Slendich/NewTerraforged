@@ -1,6 +1,5 @@
 package com.terraforged.mod.worldgen;
 
-import com.terraforged.mod.data.ModTerrains;
 import com.terraforged.mod.util.TranslationUtil;
 import com.terraforged.mod.worldgen.asset.TerrainNoise;
 import com.terraforged.mod.worldgen.biome.BiomeGenerator;
@@ -9,6 +8,7 @@ import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseGenerator;
 import com.terraforged.mod.worldgen.profiler.GeneratorProfiler;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
+import com.terraforged.mod.worldgen.settings.TerrainNoiseBuilder;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import com.terraforged.engine.settings.Settings;
 import net.minecraft.core.Holder;
@@ -35,9 +35,9 @@ public class GeneratorPreset {
    }
 
    public static Generator build(long seed, TerrainLevels levels, GeneratorSettings generatorSettings, RegistryAccess registries) {
-      TerrainNoise[] aterrainnoise = ModTerrains.getTerrain(registries);
-      BiomeGenerator biomegenerator = new BiomeGenerator(seed, registries);
       Settings settings = generatorSettings.toEngine(seed, levels);
+      TerrainNoise[] aterrainnoise = TerrainNoiseBuilder.build(registries, settings);
+      BiomeGenerator biomegenerator = new BiomeGenerator(seed, registries);
       INoiseGenerator inoisegenerator = new NoiseGenerator(seed, levels, aterrainnoise, settings).withErosion();
       Source source = new Source(seed, inoisegenerator, registries);
       VanillaGen vanillagen = getVanillaGen(seed, source, registries);

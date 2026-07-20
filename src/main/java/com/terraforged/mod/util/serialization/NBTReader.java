@@ -1,4 +1,4 @@
-package com.terraforged.mod.client.gui.util;
+package com.terraforged.mod.util.serialization;
 
 import com.terraforged.engine.serialization.serializer.Reader;
 import java.util.Collection;

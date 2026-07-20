@@ -17,6 +17,8 @@ public class ContinentConfig {
    public static class Rivers {
       public int seed = 0;
       public float lakeDensity = 0.75F;
+      /** 1.0 = place every drainage link (default riverCount=8). 0 = none. */
+      public float riverDensity = 1.0F;
       public final RiverConfig rivers = new RiverConfig();
       public final RiverConfig lakes = RiverConfig.lake();
    }

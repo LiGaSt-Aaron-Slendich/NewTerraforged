@@ -4,11 +4,15 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.terraforged.engine.settings.Settings;
 import com.terraforged.engine.world.continent.SpawnType;
+import com.terraforged.mod.util.serialization.DataUtils;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
+import net.minecraft.nbt.CompoundTag;
 
 /**
- * Codec-friendly snapshot of the key engine {@link Settings} fields used by NoiseGenerator.
+ * Codec-friendly snapshot of engine {@link Settings} used by NoiseGenerator.
  * Persisted on {@code Generator} as {@code generator_settings}.
+ * Typed slices cover the common knobs; {@code engine_settings} keeps the full GUI tree
+ * (per-type terrain weights/scales, branch rivers, lakes, wetlands, smoothing, …).
  */
 public final class GeneratorSettings {
     public static final GeneratorSettings DEFAULT = factoryDefaults();
@@ -77,7 +81,8 @@ public final class GeneratorSettings {
                             CLIMATE_CODEC.optionalFieldOf("climate", DEFAULT.climate()).forGetter(GeneratorSettings::climate),
                             TERRAIN_CODEC.optionalFieldOf("terrain", DEFAULT.terrain()).forGetter(GeneratorSettings::terrain),
                             RIVERS_CODEC.optionalFieldOf("rivers", DEFAULT.rivers()).forGetter(GeneratorSettings::rivers),
-                            FILTERS_CODEC.optionalFieldOf("filters", DEFAULT.filters()).forGetter(GeneratorSettings::filters)
+                            FILTERS_CODEC.optionalFieldOf("filters", DEFAULT.filters()).forGetter(GeneratorSettings::filters),
+                            CompoundTag.CODEC.optionalFieldOf("engine_settings", new CompoundTag()).forGetter(g -> g.engineSettings)
                     )
                     .apply(instance, GeneratorSettings::new)
     );
@@ -110,8 +115,21 @@ public final class GeneratorSettings {
     public final int erosionLifetime;
     public final float erosionRate;
     public final float depositRate;
+    /** Full engine Settings tree from the customize GUI (may be empty for legacy worlds). */
+    public final CompoundTag engineSettings;
 
     public GeneratorSettings(WorldSlice world, ClimateSlice climate, TerrainSlice terrain, RiversSlice rivers, FiltersSlice filters) {
+        this(world, climate, terrain, rivers, filters, new CompoundTag());
+    }
+
+    public GeneratorSettings(
+            WorldSlice world,
+            ClimateSlice climate,
+            TerrainSlice terrain,
+            RiversSlice rivers,
+            FiltersSlice filters,
+            CompoundTag engineSettings
+    ) {
         this(
                 world.continentScale,
                 world.deepOcean,
@@ -140,7 +158,8 @@ public final class GeneratorSettings {
                 filters.erosionDroplets,
                 filters.erosionLifetime,
                 filters.erosionRate,
-                filters.depositRate
+                filters.depositRate,
+                engineSettings
         );
     }
 
@@ -174,6 +193,70 @@ public final class GeneratorSettings {
             float erosionRate,
             float depositRate
     ) {
+        this(
+                continentScale,
+                deepOcean,
+                shallowOcean,
+                beach,
+                coast,
+                inland,
+                seaLevel,
+                worldHeight,
+                spawnType,
+                biomeSize,
+                temperatureFalloff,
+                temperatureBias,
+                temperatureScale,
+                moistureFalloff,
+                moistureBias,
+                moistureScale,
+                terrainRegionSize,
+                globalVerticalScale,
+                globalHorizontalScale,
+                fancyMountains,
+                riverCount,
+                mainRiverBedDepth,
+                mainRiverBedWidth,
+                mainRiverBankWidth,
+                erosionDroplets,
+                erosionLifetime,
+                erosionRate,
+                depositRate,
+                new CompoundTag()
+        );
+    }
+
+    public GeneratorSettings(
+            int continentScale,
+            float deepOcean,
+            float shallowOcean,
+            float beach,
+            float coast,
+            float inland,
+            int seaLevel,
+            int worldHeight,
+            String spawnType,
+            int biomeSize,
+            int temperatureFalloff,
+            float temperatureBias,
+            int temperatureScale,
+            int moistureFalloff,
+            float moistureBias,
+            int moistureScale,
+            int terrainRegionSize,
+            float globalVerticalScale,
+            float globalHorizontalScale,
+            boolean fancyMountains,
+            int riverCount,
+            int mainRiverBedDepth,
+            int mainRiverBedWidth,
+            int mainRiverBankWidth,
+            int erosionDroplets,
+            int erosionLifetime,
+            float erosionRate,
+            float depositRate,
+            CompoundTag engineSettings
+    ) {
         this.continentScale = continentScale;
         this.deepOcean = deepOcean;
         this.shallowOcean = shallowOcean;
@@ -202,6 +285,7 @@ public final class GeneratorSettings {
         this.erosionLifetime = erosionLifetime;
         this.erosionRate = erosionRate;
         this.depositRate = depositRate;
+        this.engineSettings = engineSettings == null ? new CompoundTag() : engineSettings.copy();
     }
 
     public WorldSlice world() {
@@ -227,7 +311,7 @@ public final class GeneratorSettings {
     /** Hardcodes matching historic {@code NoiseGenerator.createContinentNoise} + erosion 350. */
     public static GeneratorSettings factoryDefaults() {
         TerrainLevels levels = TerrainLevels.DEFAULT.get();
-        return new GeneratorSettings(
+        GeneratorSettings typed = new GeneratorSettings(
                 400,
                 0.05F,
                 0.3F,
@@ -257,6 +341,7 @@ public final class GeneratorSettings {
                 0.5F,
                 0.5F
         );
+        return fromEngine(typed.toEngine(0L, levels));
     }
 
     public static GeneratorSettings fromEngine(Settings settings) {
@@ -288,7 +373,8 @@ public final class GeneratorSettings {
                 settings.filters.erosion.dropletsPerChunk,
                 settings.filters.erosion.dropletLifetime,
                 settings.filters.erosion.erosionRate,
-                settings.filters.erosion.depositeRate
+                settings.filters.erosion.depositeRate,
+                DataUtils.toCompactNBT(settings)
         );
     }
 
@@ -299,15 +385,25 @@ public final class GeneratorSettings {
     }
 
     public void applyTo(Settings settings, long seed, TerrainLevels levels) {
+        if (!this.engineSettings.isEmpty()) {
+            DataUtils.fromNBT(this.engineSettings, settings);
+        } else {
+            applyTypedFields(settings);
+        }
         settings.world.seed = seed;
+        settings.world.properties.seaLevel = levels != null ? levels.seaLevel : this.seaLevel;
+        settings.world.properties.worldHeight = levels != null ? levels.maxY : this.worldHeight;
+    }
+
+    private void applyTypedFields(Settings settings) {
         settings.world.continent.continentScale = this.continentScale;
         settings.world.controlPoints.deepOcean = this.deepOcean;
         settings.world.controlPoints.shallowOcean = this.shallowOcean;
         settings.world.controlPoints.beach = this.beach;
         settings.world.controlPoints.coast = this.coast;
         settings.world.controlPoints.inland = this.inland;
-        settings.world.properties.seaLevel = levels != null ? levels.seaLevel : this.seaLevel;
-        settings.world.properties.worldHeight = levels != null ? levels.maxY : this.worldHeight;
+        settings.world.properties.seaLevel = this.seaLevel;
+        settings.world.properties.worldHeight = this.worldHeight;
         try {
             settings.world.properties.spawnType = SpawnType.valueOf(this.spawnType);
         } catch (IllegalArgumentException ignored) {

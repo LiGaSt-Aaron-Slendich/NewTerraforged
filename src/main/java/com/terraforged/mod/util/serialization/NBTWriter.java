@@ -1,13 +1,13 @@
-package com.terraforged.mod.client.gui.util;
+package com.terraforged.mod.util.serialization;
 
 import com.terraforged.engine.serialization.serializer.AbstractWriter;
+import net.minecraft.nbt.ByteTag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.FloatTag;
 import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.ByteTag;
 
 /** {@link AbstractWriter} backed by Mojang {@link CompoundTag} / {@link ListTag}. */
 public final class NBTWriter extends AbstractWriter<Tag, CompoundTag, ListTag, NBTWriter> {

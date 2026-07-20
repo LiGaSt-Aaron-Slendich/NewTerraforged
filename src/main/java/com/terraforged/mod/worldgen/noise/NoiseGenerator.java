@@ -43,7 +43,7 @@ public class NoiseGenerator implements INoiseGenerator {
       settings.world.properties.seaLevel = levels.seaLevel;
       settings.world.properties.worldHeight = levels.maxY;
       this.ocean = createOceanTerrain(seed);
-      this.land = createLandTerrain(seed, terrainNoises);
+      this.land = createLandTerrain(seed, terrainNoises, settings);
       this.continent = createContinentNoise(seed, levels, settings);
       this.controlPoints = this.continent.getControlPoints();
    }
@@ -248,7 +248,15 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected static TerrainBlender createLandTerrain(long seed, TerrainNoise[] terrainNoises) {
-      return new TerrainBlender(seed, 800, 0.8F, 0.4F, terrainNoises);
+      return createLandTerrain(seed, terrainNoises, GeneratorSettings.DEFAULT.toEngine(seed, null));
+   }
+
+   protected static TerrainBlender createLandTerrain(long seed, TerrainNoise[] terrainNoises, Settings settings) {
+      int regionSize = settings.terrain.general.terrainRegionSize;
+      float horizontal = settings.terrain.general.globalHorizontalScale;
+      int scale = Math.round(regionSize * horizontal);
+      scale = Math.max(125, Math.min(5000, scale));
+      return new TerrainBlender(seed, scale, 0.8F, 0.4F, terrainNoises);
    }
 
    protected static IContinentNoise createContinentNoise(long seed, TerrainLevels levels) {
