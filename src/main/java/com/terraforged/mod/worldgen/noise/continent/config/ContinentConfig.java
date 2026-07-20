@@ -31,6 +31,10 @@ public class ContinentConfig {
       public float threshold = 0.525F;
       public float baseFalloffMin = 0.01F;
       public float baseFalloffMax = 0.25F;
+      public int noiseOctaves = 2;
+      public float noiseGain = 0.3F;
+      public float noiseLacunarity = 2.75F;
+      public float sizeVariance = 0.25F;
       public CellShape cellShape = CellShape.SQUARE;
       public CellSource cellSource = CellSource.PERLIN;
    }

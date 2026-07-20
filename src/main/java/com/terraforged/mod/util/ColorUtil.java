@@ -41,11 +41,13 @@ public class ColorUtil {
 
    public static int getColor(ClimateSample sample, float shade) {
       if (sample.continentNoise <= 0.25F) {
-         return 26333;
+         // Deep ocean — opaque blue (was missing alpha → transparent)
+         return rgb(34, 85, 170);
       } else if (sample.continentNoise <= 0.5F) {
-         return 39389;
+         // Shallow ocean / coast water
+         return rgb(64, 140, 200);
       } else {
-         return sample.riverNoise <= 0.0F ? 39389 : shade(sample.climateType.getColor(), shade);
+         return sample.riverNoise <= 0.0F ? rgb(64, 140, 200) : shade(sample.climateType.getColor(), shade);
       }
    }
 }

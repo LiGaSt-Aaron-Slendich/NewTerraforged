@@ -101,9 +101,14 @@ public class ScrollPage implements Page {
 
     @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+        int bottom = this.top + this.height;
         for (AbstractWidget widget : this.widgets) {
-            int wy = widget.y;
-            widget.visible = wy + widget.getHeight() > this.top && wy < this.top + this.height;
+            boolean inView = widget.y + widget.getHeight() > this.top && widget.y < bottom;
+            widget.visible = inView;
+            // Keep inactive when scrolled away so they cannot steal Done/Cancel clicks.
+            if (!inView) {
+                widget.active = false;
+            }
         }
     }
 

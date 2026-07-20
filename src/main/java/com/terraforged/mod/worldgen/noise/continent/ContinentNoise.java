@@ -7,6 +7,7 @@ import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
 import com.terraforged.mod.worldgen.settings.ContinentRiverWiring;
+import com.terraforged.mod.worldgen.settings.ContinentShapeWiring;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import com.terraforged.noise.Source;
 import com.terraforged.noise.domain.Domain;
@@ -72,6 +73,7 @@ public class ContinentNoise implements IContinentNoise {
       continentconfig.shape.scale = context.settings.world.continent.continentScale;
       continentconfig.shape.seed0 = context.seed.next();
       continentconfig.shape.seed1 = context.seed.next();
+      ContinentShapeWiring.apply(continentconfig, context.settings);
       ContinentRiverWiring.apply(continentconfig, context.settings);
       return new ContinentGenerator(continentconfig, levels, controlPoints);
    }

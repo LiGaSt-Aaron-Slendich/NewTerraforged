@@ -53,7 +53,7 @@ public abstract class TFSlider extends ForgeSlider implements Element {
 
     @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
-        this.active = this.binding.isValid();
+        this.active = this.visible && this.binding.isValid();
         super.render(pose, mouseX, mouseY, partialTick);
     }
 

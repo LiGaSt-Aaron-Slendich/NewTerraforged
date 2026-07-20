@@ -1,30 +1,34 @@
 package com.terraforged.mod.client.gui.screen.preview;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.terraforged.mod.client.gui.Page;
 import com.terraforged.mod.client.gui.screen.ConfigScreen;
 import com.terraforged.mod.client.gui.screen.SettingsDraft;
+import com.terraforged.mod.util.serialization.DataUtils;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 
-/** Right-column preview controls + map. */
+/**
+ * Port of TerraForged 0.2.x {@code PreviewPage}, adapted to NewTF {@link ConfigScreen} / {@link SettingsDraft}.
+ */
 public final class PreviewPage implements Page {
     private final SettingsDraft draft;
-    private final PreviewSettings previewSettings = new PreviewSettings();
     private final Preview preview;
 
     public PreviewPage(SettingsDraft draft) {
         this.draft = draft;
-        this.preview = new Preview(draft, this.previewSettings);
+        this.preview = new Preview(draft.seed());
     }
 
-    public Preview preview() {
+    public Preview getPreviewWidget() {
         return this.preview;
     }
 
-    public PreviewSettings settings() {
-        return this.previewSettings;
+    public int getSeed() {
+        return this.preview.getSeed();
     }
 
     @Override
@@ -34,41 +38,59 @@ public final class PreviewPage implements Page {
 
     @Override
     public void init(ConfigScreen screen, int left, int top, int width, int height) {
-        int mapLeft = left + Math.max(0, (width - Preview.SIZE) / 2);
+        int controlsH = 24;
+        int legendPad = 36;
+        int mapSize = Math.min(Preview.SIZE, Math.min(width, Math.max(96, height - controlsH - legendPad)));
+        int mapLeft = left + Math.max(0, (width - mapSize) / 2);
+
         this.preview.x = mapLeft;
-        this.preview.y = top + 48;
-        this.preview.setWidth(Preview.SIZE);
-        this.preview.setHeight(Preview.SIZE);
+        this.preview.y = top + controlsH;
+        this.preview.setWidth(mapSize);
+        this.preview.setHeight(mapSize);
+
+        int bw = Math.min(90, Math.max(56, (width - 8) / 3));
+        screen.addRenderableWidget(new Button(mapLeft, top, bw, 20, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
+            this.preview.regenerate();
+            this.draft.setSeed(this.preview.getSeed());
+            this.refresh();
+        }));
+        screen.addRenderableWidget(new Button(mapLeft + bw + 2, top, bw, 20, new TextComponent(this.preview.previewSettings().display.name()), b -> {
+            this.preview.previewSettings().display = this.preview.previewSettings().display.next();
+            b.setMessage(new TextComponent(this.preview.previewSettings().display.name()));
+            this.refresh();
+        }));
+        int zoomW = Math.max(28, (width - (bw + 2) * 2 - 4) / 2);
+        screen.addRenderableWidget(new Button(mapLeft + (bw + 2) * 2, top, zoomW, 20, new TextComponent("−"), b -> {
+            this.preview.previewSettings().zoom = Math.max(1, this.preview.previewSettings().zoom - 8);
+            this.refresh();
+        }));
+        screen.addRenderableWidget(new Button(mapLeft + (bw + 2) * 2 + zoomW + 2, top, zoomW, 20, new TextComponent("+"), b -> {
+            this.preview.previewSettings().zoom = Math.min(100, this.preview.previewSettings().zoom + 8);
+            this.refresh();
+        }));
+
         screen.addRenderableWidget(this.preview);
-
-        screen.addRenderableWidget(new Button(mapLeft, top, 100, 20, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
-            this.draft.randomizeSeed();
-            this.refresh();
-        }));
-        screen.addRenderableWidget(new Button(mapLeft + 104, top, 100, 20, new TextComponent(this.previewSettings.display.name()), b -> {
-            this.previewSettings.display = this.previewSettings.display.next();
-            b.setMessage(new TextComponent(this.previewSettings.display.name()));
-            this.refresh();
-        }));
-        screen.addRenderableWidget(new Button(mapLeft + 208, top, 48, 20, new TextComponent("−"), b -> {
-            this.previewSettings.zoom = Math.max(1, this.previewSettings.zoom - 8);
-            this.refresh();
-        }));
-        screen.addRenderableWidget(new Button(mapLeft + 258, top, 48, 20, new TextComponent("+"), b -> {
-            this.previewSettings.zoom = Math.min(100, this.previewSettings.zoom + 8);
-            this.refresh();
-        }));
-
         this.refresh();
     }
 
     public void refresh() {
         this.draft.applyToSettings();
-        this.preview.requestUpdate();
+        CompoundTag previewNbt = DataUtils.toCompactNBT(this.preview.previewSettings());
+        this.preview.update(this.draft.settings(), previewNbt);
+    }
+
+    @Override
+    public void save() {
+        this.draft.applyToSettings();
+        this.draft.setSeed(this.preview.getSeed());
     }
 
     @Override
     public void close() {
         this.preview.close();
+    }
+
+    @Override
+    public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
     }
 }

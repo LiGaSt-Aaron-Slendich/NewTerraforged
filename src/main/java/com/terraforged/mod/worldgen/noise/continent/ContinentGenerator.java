@@ -26,6 +26,10 @@ public class ContinentGenerator {
    public final int seed;
    public final float jitter;
    public final int sampleSeed;
+   public final int noiseOctaves;
+   public final float noiseGain;
+   public final float noiseLacunarity;
+   public final float sizeVariance;
    public final NoiseLevels levels;
    public final ControlPoints controlPoints;
    public final CellShape cellShape;
@@ -41,6 +45,10 @@ public class ContinentGenerator {
       this.seed = config.shape.seed0;
       this.sampleSeed = config.shape.seed1 + 6569;
       this.jitter = config.shape.jitter;
+      this.noiseOctaves = Math.max(1, config.shape.noiseOctaves);
+      this.noiseGain = config.shape.noiseGain;
+      this.noiseLacunarity = config.shape.noiseLacunarity;
+      this.sizeVariance = config.shape.sizeVariance;
       this.cellShape = config.shape.cellShape;
       this.cellSource = config.shape.cellSource;
       this.riverGenerator = new RiverGenerator(this, config);
@@ -113,8 +121,9 @@ public class ContinentGenerator {
       cell.px = f;
       cell.py = f1;
       float f2 = 4000.0F;
-      float f3 = 400.0F / f2;
-      sampleCell(this.sampleSeed, f, f1, this.cellSource, 2, f3, 2.75F, 0.3F, cell);
+      float variance = 1.0F + this.sizeVariance;
+      float f3 = 400.0F / f2 * variance;
+      sampleCell(this.sampleSeed, f, f1, this.cellSource, this.noiseOctaves, f3, this.noiseLacunarity, this.noiseGain, cell);
       return cell;
    }
 

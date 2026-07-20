@@ -1,6 +1,7 @@
 package com.terraforged.mod.client.gui.screen;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.client.gui.Page;
 import com.terraforged.mod.client.gui.screen.page.PresetsPage;
 import com.terraforged.mod.client.gui.screen.page.ScrollPage;
@@ -21,6 +22,9 @@ import net.minecraft.world.level.levelgen.WorldGenSettings;
  * TerraForged-style Generator Settings screen (1.18.2 official mappings).
  */
 public final class ConfigScreen extends Screen {
+    private static final int BOTTOM_BAR = 28;
+    private static final int BOTTOM_GAP = 10;
+
     private final CreateWorldScreen parent;
     private final SettingsDraft draft;
     private final PreviewPage previewPage;
@@ -64,12 +68,15 @@ public final class ConfigScreen extends Screen {
     @Override
     protected void init() {
         this.clearWidgets();
-        int pad = 12;
-        int leftWidth = Math.min(220, this.width / 2 - 24);
+        int pad = 8;
+        int bottomReserve = BOTTOM_BAR + BOTTOM_GAP;
+        int contentTop = 28;
+        int contentHeight = Math.max(80, this.height - contentTop - bottomReserve);
+
+        // Left column ~40%, right preview gets the rest — never force half-screen overflow.
+        int leftWidth = Math.min(240, Math.max(160, this.width * 2 / 5));
         int rightLeft = leftWidth + pad * 2;
-        int rightWidth = this.width - rightLeft - pad;
-        int contentTop = 32;
-        int contentHeight = this.height - 70;
+        int rightWidth = Math.max(120, this.width - rightLeft - pad);
 
         Page page = this.pages[this.pageIndex];
         page.init(this, pad, contentTop, leftWidth, contentHeight);
@@ -77,7 +84,7 @@ public final class ConfigScreen extends Screen {
             this.previewPage.init(this, rightLeft, contentTop, rightWidth, contentHeight);
         }
 
-        int cy = this.height - 28;
+        int cy = this.height - BOTTOM_BAR;
         int bw = 50;
         int mid = this.width / 2;
         this.addRenderableWidget(new Button(mid - bw * 2 - 4, cy, bw, 20, new TextComponent("<<"), b -> {
@@ -99,9 +106,12 @@ public final class ConfigScreen extends Screen {
     @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(pose);
-        drawCenteredString(pose, this.font, this.title, this.width / 2, 10, 0xFFFFFF);
-        drawString(pose, this.font, this.pages[this.pageIndex].title(), 12, 18, 0xE0E0E0);
+        drawCenteredString(pose, this.font, this.title, this.width / 2, 8, 0xFFFFFF);
+        drawString(pose, this.font, this.pages[this.pageIndex].title(), 8, 16, 0xE0E0E0);
         this.pages[this.pageIndex].render(pose, mouseX, mouseY, partialTick);
+        if (this.pageIndex > 0) {
+            this.previewPage.render(pose, mouseX, mouseY, partialTick);
+        }
         super.render(pose, mouseX, mouseY, partialTick);
     }
 
@@ -124,11 +134,17 @@ public final class ConfigScreen extends Screen {
     }
 
     private void applyAndClose() {
-        for (Page page : this.pages) {
-            page.save();
+        try {
+            for (Page page : this.pages) {
+                page.save();
+            }
+            this.previewPage.save();
+            GeneratorSettingsApplier.apply(this.parent, this.draft);
+            this.onClose();
+        } catch (Throwable t) {
+            TerraForged.LOG.error("Failed to apply NewTF generator settings", t);
+            Minecraft.getInstance().gui.getChat().addMessage(new TextComponent("NewTF: failed to apply settings — see log"));
         }
-        GeneratorSettingsApplier.apply(this.parent, this.draft);
-        this.onClose();
     }
 
     private static int readSeed(CreateWorldScreen screen) {
