@@ -43,11 +43,10 @@ final class CarverColumnCache {
             int dz = i >> 4;
             int x = startX + dx;
             int z = startZ + dz;
-            int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
-            if (terrain != null) {
-                int terrainH = terrain.getHeight(dx, dz);
-                surface = Math.max(surface, Math.min(terrainH, surface + MAX_TERRAIN_INFLATION));
-            }
+            // Use solid floor, never water-top (MOTION_BLOCKING). Carving to water-top
+            // punches air under standing water and floods every chamber below sea level.
+            int oceanFloor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+            int surface = solidCarveSurface(oceanFloor, terrain, dx, dz);
             this.surfaceY[i] = surface;
             byte flags = ZONE_NONE;
             if (carver.megaModifier != null) {
@@ -65,7 +64,7 @@ final class CarverColumnCache {
                 }
             }
             this.zone[i] = flags;
-            this.oceanBlocked[i] = surface <= sea;
+            this.oceanBlocked[i] = oceanFloor <= sea;
         }
 
         this.ensureMegaGigaCoverage(seed, chunk, carver, sea);
@@ -97,12 +96,8 @@ final class CarverColumnCache {
                     flags = (byte) (flags | ZONE_MEGA);
                     this.zone[i] = flags;
                     this.megaPresent = true;
-                    int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
-                    if (terrain != null) {
-                        int terrainH = terrain.getHeight(dx, dz);
-                        surface = Math.max(surface, Math.min(terrainH, surface + MAX_TERRAIN_INFLATION));
-                    }
-                    this.oceanBlocked[i] = surface <= sea;
+                    int oceanFloor = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
+                    this.oceanBlocked[i] = oceanFloor <= sea;
                 }
             }
             if (!this.gigaPresent && carver.gigaModifier != null && (this.zone[i] & ZONE_GIGA) == 0) {
@@ -288,6 +283,18 @@ final class CarverColumnCache {
             }
         }
         return false;
+    }
+
+    /**
+     * Carve ceiling from solid ocean-floor height, optionally inflated toward terrain
+     * height — never toward the water surface.
+     */
+    private static int solidCarveSurface(int oceanFloor, TerrainData terrain, int dx, int dz) {
+        if (terrain == null) {
+            return oceanFloor;
+        }
+        int terrainH = terrain.getHeight(dx, dz);
+        return Math.max(oceanFloor, Math.min(terrainH, oceanFloor + MAX_TERRAIN_INFLATION));
     }
 
     private int index(int dx, int dz) {

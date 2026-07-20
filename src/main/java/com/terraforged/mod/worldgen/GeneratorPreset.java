@@ -40,7 +40,7 @@ public class GeneratorPreset {
       BiomeGenerator biomegenerator = new BiomeGenerator(seed, registries);
       INoiseGenerator inoisegenerator = new NoiseGenerator(seed, levels, aterrainnoise, settings).withErosion();
       Source source = new Source(seed, inoisegenerator, registries);
-      VanillaGen vanillagen = getVanillaGen(seed, source, registries);
+      VanillaGen vanillagen = getVanillaGen(seed, source, registries, levels.seaLevel);
       return new Generator(seed, levels, vanillagen, source, biomegenerator, inoisegenerator, generatorSettings);
    }
 
@@ -51,10 +51,14 @@ public class GeneratorPreset {
    }
 
    public static VanillaGen getVanillaGen(long seed, BiomeSource biomes, RegistryAccess access) {
+      return getVanillaGen(seed, biomes, access, TerrainLevels.DEFAULT.get().seaLevel);
+   }
+
+   public static VanillaGen getVanillaGen(long seed, BiomeSource biomes, RegistryAccess access, int seaLevel) {
       Registry<StructureSet> registry = access.ownedRegistryOrThrow(Registry.STRUCTURE_SET_REGISTRY);
       Registry<NoiseParameters> registry1 = access.registryOrThrow(Registry.NOISE_REGISTRY);
       Holder<NoiseGeneratorSettings> holder = com.terraforged.mod.compat.WwooCompat.resolveOverworldNoiseSettings(access);
-      return new VanillaGen(seed, biomes, holder, registry1, registry);
+      return new VanillaGen(seed, biomes, holder, registry1, registry, seaLevel);
    }
 
    public static boolean isTerraForgedWorld(WorldGenSettings settings) {

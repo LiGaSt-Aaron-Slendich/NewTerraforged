@@ -24,6 +24,8 @@ public class SurfaceDecorator {
       SurfaceSystem surfacesystem = generator.getVanillaGen().getSurfaceSystem();
       RuleSource rulesource = ((NoiseGeneratorSettings)generator.getVanillaGen().getSettings().value()).surfaceRule();
       surfacesystem.buildSurface(biomemanager, registry, false, worldgenerationcontext, chunk, noisechunk, rulesource);
+      // Raised/lowered sea leaves terrestrial tops (podzol/grass) under water — normalize them.
+      Surface.fixUnderwaterSurface(chunk, generator);
    }
 
    public void decoratePost(ChunkAccess chunk, Generator generator) {

@@ -764,7 +764,11 @@ public final class CaveEntranceCarver {
         if (lx >= 0 && lx <= 15 && lz >= 0 && lz <= 15) {
             return CaveEntranceCarver.resolveSurface(chunk, generator, carver, lx, lz, wx, wz);
         }
-        return Math.max(chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Math.floorMod(lx, 16), Math.floorMod(lz, 16)), generator.getOceanFloorHeight(wx, wz));
+        // Solid floor only — water-top heightmaps open entrances into flooded columns.
+        return Math.max(
+                chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, Math.floorMod(lx, 16), Math.floorMod(lz, 16)),
+                generator.getOceanFloorHeight(wx, wz)
+        );
     }
 
     private static void buildSeawallBasin(ChunkAccess chunk, int seed, int sea, int surface, int mouthY, int dx, int dz, float ux, float uz, int baseRadius, float breachMask) {
@@ -807,9 +811,11 @@ public final class CaveEntranceCarver {
     }
 
     private static int resolveSurface(ChunkAccess chunk, Generator generator, CarverChunk carver, int dx, int dz, int x, int z) {
-        int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, dx, dz);
+        int surface = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, dx, dz);
         if (carver.terrainData != null) {
-            surface = Math.max(surface, carver.terrainData.getHeight(dx, dz));
+            int terrainH = carver.terrainData.getHeight(dx, dz);
+            // Inflate toward terrain solid height, not past a sealed ocean-floor lid.
+            surface = Math.max(surface, Math.min(terrainH, surface + 12));
         }
         return Math.max(surface, generator.getOceanFloorHeight(x, z));
     }

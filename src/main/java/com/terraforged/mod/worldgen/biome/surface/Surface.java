@@ -3,6 +3,7 @@ package com.terraforged.mod.worldgen.biome.surface;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.tags.BlockTags;
@@ -40,6 +41,69 @@ public class Surface {
             }
          }
       }
+   }
+
+   /**
+    * When sea level floods land biomes, vanilla surface rules often leave grass/podzol/mycelium
+    * on the solid floor under water. Replace those with dirt/gravel/sand by depth.
+    */
+   public static void fixUnderwaterSurface(ChunkAccess chunk, ChunkGenerator generator) {
+      int sea = generator.getSeaLevel();
+      MutableBlockPos pos = new MutableBlockPos();
+
+      for (int dz = 0; dz < 16; dz++) {
+         for (int dx = 0; dx < 16; dx++) {
+            int floor = chunk.getHeight(Types.OCEAN_FLOOR_WG, dx, dz);
+            if (floor >= sea || floor < chunk.getMinBuildHeight()) {
+               continue;
+            }
+            BlockState fluid = chunk.getBlockState(pos.set(dx, floor + 1, dz));
+            if (fluid.getFluidState().isEmpty()) {
+               // No water directly above — may still be a dry ledge under a flooded overhang.
+               boolean watered = false;
+               int maxY = Math.min(sea, floor + 8);
+               for (int y = floor + 1; y <= maxY; y++) {
+                  if (!chunk.getBlockState(pos.set(dx, y, dz)).getFluidState().isEmpty()) {
+                     watered = true;
+                     break;
+                  }
+               }
+               if (!watered) {
+                  continue;
+               }
+            }
+
+            BlockState top = chunk.getBlockState(pos.set(dx, floor, dz));
+            BlockState replacement = underwaterReplacement(top, sea - floor);
+            if (replacement != null) {
+               chunk.setBlockState(pos, replacement, false);
+            }
+         }
+      }
+   }
+
+   @Nullable
+   protected static BlockState underwaterReplacement(BlockState top, int depthBelowSea) {
+      if (top.is(Blocks.GRASS_BLOCK)
+         || top.is(Blocks.PODZOL)
+         || top.is(Blocks.MYCELIUM)
+         || top.is(Blocks.DIRT_PATH)
+         || top.is(Blocks.FARMLAND)
+         || top.is(Blocks.SNOW_BLOCK)
+         || top.is(Blocks.SNOW)) {
+         if (depthBelowSea >= 8) {
+            return Blocks.GRAVEL.defaultBlockState();
+         }
+         if (depthBelowSea >= 3) {
+            return Blocks.DIRT.defaultBlockState();
+         }
+         return Blocks.SAND.defaultBlockState();
+      }
+      // Coarse dirt / rooted dirt also look wrong as an exposed seafloor.
+      if (top.is(Blocks.COARSE_DIRT) || top.is(Blocks.ROOTED_DIRT)) {
+         return depthBelowSea >= 5 ? Blocks.GRAVEL.defaultBlockState() : Blocks.DIRT.defaultBlockState();
+      }
+      return null;
    }
 
    public static void applyPost(ChunkAccess chunk, TerrainData terrainData, ChunkGenerator generator) {

@@ -23,6 +23,8 @@ public class VanillaGen {
    protected final NoiseBasedChunkGenerator vanillaGenerator;
    protected final Holder<NoiseGeneratorSettings> settings;
    protected final Registry<NoiseParameters> parameters;
+   /** NewTF sea level (may differ from {@link NoiseGeneratorSettings#seaLevel()}). */
+   protected final int seaLevel;
    protected final int lavaLevel;
    protected final FluidStatus fluidStatus1;
    protected final FluidStatus fluidStatus2;
@@ -30,23 +32,35 @@ public class VanillaGen {
    protected final SurfaceSystem surfaceSystem;
 
    public VanillaGen(long seed, BiomeSource biomeSource, VanillaGen other) {
-      this(seed, biomeSource, other.settings, other.parameters, other.structureSets);
+      this(seed, biomeSource, other.settings, other.parameters, other.structureSets, other.seaLevel);
    }
 
    public VanillaGen(
       long seed, BiomeSource biomeSource, Holder<NoiseGeneratorSettings> settings, Registry<NoiseParameters> parameters, Registry<StructureSet> structures
    ) {
+      this(seed, biomeSource, settings, parameters, structures, settings.value().seaLevel());
+   }
+
+   public VanillaGen(
+      long seed,
+      BiomeSource biomeSource,
+      Holder<NoiseGeneratorSettings> settings,
+      Registry<NoiseParameters> parameters,
+      Registry<StructureSet> structures,
+      int seaLevel
+   ) {
+      NoiseGeneratorSettings ngs = settings.value();
       this.settings = settings;
       this.parameters = parameters;
       this.structureSets = structures;
-      this.lavaLevel = Math.min(-54, ((NoiseGeneratorSettings)settings.value()).seaLevel());
+      this.seaLevel = seaLevel > 0 ? seaLevel : ngs.seaLevel();
+      this.lavaLevel = Math.min(-54, this.seaLevel);
       this.fluidStatus1 = new FluidStatus(-54, Blocks.LAVA.defaultBlockState());
-      this.fluidStatus2 = new FluidStatus(((NoiseGeneratorSettings)settings.value()).seaLevel(), ((NoiseGeneratorSettings)settings.value()).defaultFluid());
+      this.fluidStatus2 = new FluidStatus(this.seaLevel, ngs.defaultFluid());
       this.globalFluidPicker = (x, y, z) -> y < this.lavaLevel ? this.fluidStatus1 : this.fluidStatus2;
-      int i = ((NoiseGeneratorSettings)settings.value()).seaLevel();
-      BlockState blockstate = ((NoiseGeneratorSettings)settings.value()).defaultBlock();
-      Algorithm algorithm = ((NoiseGeneratorSettings)settings.value()).getRandomSource();
-      this.surfaceSystem = new SurfaceSystem(parameters, blockstate, i, seed, algorithm);
+      BlockState blockstate = ngs.defaultBlock();
+      Algorithm algorithm = ngs.getRandomSource();
+      this.surfaceSystem = new SurfaceSystem(parameters, blockstate, this.seaLevel, seed, algorithm);
       this.vanillaGenerator = new NoiseBasedChunkGenerator(structures, parameters, biomeSource, seed, settings);
    }
 
@@ -56,6 +70,10 @@ public class VanillaGen {
 
    public Registry<StructureSet> getStructureSets() {
       return this.structureSets;
+   }
+
+   public int getSeaLevel() {
+      return this.seaLevel;
    }
 
    public FluidPicker getGlobalFluidPicker() {
