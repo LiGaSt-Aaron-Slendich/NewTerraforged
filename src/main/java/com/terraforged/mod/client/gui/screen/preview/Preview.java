@@ -52,13 +52,15 @@ public final class Preview extends AbstractWidget {
             return;
         }
         this.lastRequestMs = now;
+        this.draft.applyToSettings();
         int gen = this.generation.incrementAndGet();
         int seed = this.draft.seed();
+        com.terraforged.engine.settings.Settings settingsSnap = copyEngineSettings(this.draft.settings());
         PreviewSettings snap = this.copySettings();
         if (this.task != null) {
             this.task.cancel(true);
         }
-        this.task = CompletableFuture.runAsync(() -> this.paint(gen, seed, snap), WORKERS);
+        this.task = CompletableFuture.runAsync(() -> this.paint(gen, seed, settingsSnap, snap), WORKERS);
     }
 
     public void close() {
@@ -98,9 +100,9 @@ public final class Preview extends AbstractWidget {
         return false;
     }
 
-    private void paint(int gen, int seed, PreviewSettings snap) {
+    private void paint(int gen, int seed, com.terraforged.engine.settings.Settings settings, PreviewSettings snap) {
         try {
-            PreviewSampler sampler = PreviewSampler.create(seed);
+            PreviewSampler sampler = PreviewSampler.createFromSettings(seed, this.draft.levels().copy(), settings);
             NativeImage image = this.texture.getPixels();
             if (image == null || gen != this.generation.get()) {
                 return;
@@ -126,6 +128,14 @@ public final class Preview extends AbstractWidget {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    private static com.terraforged.engine.settings.Settings copyEngineSettings(com.terraforged.engine.settings.Settings src) {
+        com.terraforged.engine.settings.Settings copy = new com.terraforged.engine.settings.Settings();
+        net.minecraft.nbt.CompoundTag nbt = com.terraforged.mod.client.gui.util.DataUtils.toCompactNBT(src);
+        com.terraforged.mod.client.gui.util.DataUtils.fromNBT(nbt, copy);
+        copy.world.seed = src.world.seed;
+        return copy;
     }
 
     private void fillPlaceholder() {

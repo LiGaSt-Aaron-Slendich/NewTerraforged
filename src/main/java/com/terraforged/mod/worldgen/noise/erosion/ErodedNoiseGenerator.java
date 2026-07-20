@@ -33,8 +33,11 @@ public class ErodedNoiseGenerator implements INoiseGenerator {
    protected final LongCache<CompletableFuture<float[]>> cache;
 
    public ErodedNoiseGenerator(long seed, NoiseTileSize tileSize, NoiseGenerator generator) {
-      FilterSettings.Erosion filtersettings$erosion = new FilterSettings.Erosion();
-      filtersettings$erosion.dropletsPerChunk = 350;
+      this(seed, tileSize, generator, defaultErosion());
+   }
+
+   public ErodedNoiseGenerator(long seed, NoiseTileSize tileSize, NoiseGenerator generator, FilterSettings.Erosion erosionSettings) {
+      FilterSettings.Erosion filtersettings$erosion = erosionSettings != null ? erosionSettings : defaultErosion();
       this.tileSize = tileSize;
       this.generator = generator;
       this.erosion = new ErosionFilter((int)seed, tileSize.regionLength, filtersettings$erosion);
@@ -42,6 +45,12 @@ public class ErodedNoiseGenerator implements INoiseGenerator {
       this.localResource = ThreadLocal.withInitial(() -> new NoiseResource(tileSize));
       this.pool = ObjectPool.forCacheSize(256, CHUNK_ALLOCATOR);
       this.cache = LossyCache.concurrent(256, CHUNK_TASK_ALLOCATOR, this::restore);
+   }
+
+   private static FilterSettings.Erosion defaultErosion() {
+      FilterSettings.Erosion erosion = new FilterSettings.Erosion();
+      erosion.dropletsPerChunk = 350;
+      return erosion;
    }
 
    @Override

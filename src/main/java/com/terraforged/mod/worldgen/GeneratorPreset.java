@@ -8,7 +8,9 @@ import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseGenerator;
 import com.terraforged.mod.worldgen.profiler.GeneratorProfiler;
+import com.terraforged.mod.worldgen.settings.GeneratorSettings;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
+import com.terraforged.engine.settings.Settings;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -29,12 +31,17 @@ public class GeneratorPreset {
    public static final String TRANSLATION_KEY = TranslationUtil.key("generator", PRESET_NAME);
 
    public static Generator build(long seed, TerrainLevels levels, RegistryAccess registries) {
+      return build(seed, levels, GeneratorSettings.DEFAULT, registries);
+   }
+
+   public static Generator build(long seed, TerrainLevels levels, GeneratorSettings generatorSettings, RegistryAccess registries) {
       TerrainNoise[] aterrainnoise = ModTerrains.getTerrain(registries);
       BiomeGenerator biomegenerator = new BiomeGenerator(seed, registries);
-      INoiseGenerator inoisegenerator = new NoiseGenerator(seed, levels, aterrainnoise).withErosion();
+      Settings settings = generatorSettings.toEngine(seed, levels);
+      INoiseGenerator inoisegenerator = new NoiseGenerator(seed, levels, aterrainnoise, settings).withErosion();
       Source source = new Source(seed, inoisegenerator, registries);
       VanillaGen vanillagen = getVanillaGen(seed, source, registries);
-      return new Generator(seed, levels, vanillagen, source, biomegenerator, inoisegenerator);
+      return new Generator(seed, levels, vanillagen, source, biomegenerator, inoisegenerator, generatorSettings);
    }
 
    public static LevelStem getDefault(RegistryAccess registries) {

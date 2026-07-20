@@ -1,18 +1,17 @@
 package com.terraforged.mod.client.gui.screen.preview;
 
+import com.terraforged.engine.settings.Settings;
 import com.terraforged.mod.data.ModTerrains;
 import com.terraforged.mod.util.ColorUtil;
 import com.terraforged.mod.worldgen.noise.NoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.climate.ClimateNoise;
-import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import com.terraforged.mod.worldgen.noise.continent.ContinentPreview;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Thin sampler for create-world preview — same path as {@link ContinentPreview}, later
- * replaced/extended with full TileGenerator + TerraSettings.
+ * Create-world preview sampler driven by engine {@link Settings}.
  */
 public final class PreviewSampler {
     private final ContinentPreview.Noise noise;
@@ -22,14 +21,28 @@ public final class PreviewSampler {
     }
 
     public static PreviewSampler create(int seed) {
-        TerrainLevels levels = new TerrainLevels();
-        NoiseGenerator generator = new NoiseGenerator(seed, levels, ModTerrains.Factory.getDefault(null));
+        TerrainLevels levels = TerrainLevels.DEFAULT.get().copy();
+        Settings settings = com.terraforged.mod.client.gui.screen.SettingsDraft.createFactorySettings(seed, levels);
+        return createFromSettings(seed, levels, settings);
+    }
+
+    public static PreviewSampler createFromSettings(Settings settings) {
+        long seed = settings.world.seed;
+        TerrainLevels levels = TerrainLevels.DEFAULT.get().copy();
+        return createFromSettings((int)seed, levels, settings);
+    }
+
+    public static PreviewSampler createFromSettings(int seed, TerrainLevels levels, Settings settings) {
+        settings.world.seed = seed;
+        settings.world.properties.seaLevel = levels.seaLevel;
+        settings.world.properties.worldHeight = levels.maxY;
+        NoiseGenerator generator = new NoiseGenerator(seed, levels, ModTerrains.Factory.getDefault(null), settings);
         ClimateNoise climate = new ClimateNoise(generator.getContinent().getContext());
         return new PreviewSampler(new ContinentPreview.Noise(generator, climate));
     }
 
     public int color(float worldX, float worldZ, RenderMode mode) {
-        ClimateSample sample = this.noise.getSample(worldX, worldZ);
+        var sample = this.noise.getSample(worldX, worldZ);
         return switch (mode) {
             case TEMPERATURE -> heatMap(1.0F - sample.temperature);
             case MOISTURE -> heatMap(sample.moisture);

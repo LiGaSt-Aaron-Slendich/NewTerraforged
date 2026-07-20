@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 
-/** Right-column preview controls + map (0.2.x PreviewPage scaffold). */
+/** Right-column preview controls + map. */
 public final class PreviewPage implements Page {
     private final SettingsDraft draft;
     private final PreviewSettings previewSettings = new PreviewSettings();
@@ -43,26 +43,27 @@ public final class PreviewPage implements Page {
 
         screen.addRenderableWidget(new Button(mapLeft, top, 100, 20, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
             this.draft.randomizeSeed();
-            this.preview.requestUpdate();
+            this.refresh();
         }));
         screen.addRenderableWidget(new Button(mapLeft + 104, top, 100, 20, new TextComponent(this.previewSettings.display.name()), b -> {
             this.previewSettings.display = this.previewSettings.display.next();
             b.setMessage(new TextComponent(this.previewSettings.display.name()));
-            this.preview.requestUpdate();
+            this.refresh();
         }));
         screen.addRenderableWidget(new Button(mapLeft + 208, top, 48, 20, new TextComponent("−"), b -> {
             this.previewSettings.zoom = Math.max(1, this.previewSettings.zoom - 8);
-            this.preview.requestUpdate();
+            this.refresh();
         }));
         screen.addRenderableWidget(new Button(mapLeft + 258, top, 48, 20, new TextComponent("+"), b -> {
             this.previewSettings.zoom = Math.min(100, this.previewSettings.zoom + 8);
-            this.preview.requestUpdate();
+            this.refresh();
         }));
 
-        this.preview.requestUpdate();
+        this.refresh();
     }
 
     public void refresh() {
+        this.draft.applyToSettings();
         this.preview.requestUpdate();
     }
 

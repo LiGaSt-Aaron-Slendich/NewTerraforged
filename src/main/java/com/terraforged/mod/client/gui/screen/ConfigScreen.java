@@ -2,7 +2,9 @@ package com.terraforged.mod.client.gui.screen;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.terraforged.mod.client.gui.Page;
-import com.terraforged.mod.client.gui.screen.page.StubPage;
+import com.terraforged.mod.client.gui.screen.page.PresetsPage;
+import com.terraforged.mod.client.gui.screen.page.ScrollPage;
+import com.terraforged.mod.client.gui.screen.page.SettingsSectionPage;
 import com.terraforged.mod.client.gui.screen.preview.PreviewPage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
@@ -16,8 +18,7 @@ import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 /**
- * Scaffold of TerraForged 0.2.x Generator Settings ({@code ConfigScreen}).
- * Live climate preview works; TerraSettings sliders / Done→WorldGenSettings apply come next.
+ * TerraForged-style Generator Settings screen (1.18.2 official mappings).
  */
 public final class ConfigScreen extends Screen {
     private final CreateWorldScreen parent;
@@ -31,18 +32,28 @@ public final class ConfigScreen extends Screen {
         this.parent = parent;
         this.draft = new SettingsDraft(readSeed(parent));
         this.previewPage = new PreviewPage(this.draft);
+        Runnable refresh = this.previewPage::refresh;
         this.pages = new Page[]{
-                new StubPage("newterraforged.gui.page.presets", "newterraforged.gui.page.presets.body"),
-                new StubPage("newterraforged.gui.page.world", "newterraforged.gui.page.world.body"),
-                new StubPage("newterraforged.gui.page.climate", "newterraforged.gui.page.climate.body"),
-                new StubPage("newterraforged.gui.page.terrain", "newterraforged.gui.page.terrain.body"),
-                new StubPage("newterraforged.gui.page.rivers", "newterraforged.gui.page.rivers.body"),
-                new StubPage("newterraforged.gui.page.filters", "newterraforged.gui.page.filters.body"),
+                new PresetsPage(this.draft, refresh),
+                new SettingsSectionPage("newterraforged.gui.page.world", this.draft, "world", () -> this.draft.settings().world, refresh),
+                new SettingsSectionPage("newterraforged.gui.page.climate", this.draft, "climate", () -> this.draft.settings().climate, refresh),
+                new SettingsSectionPage("newterraforged.gui.page.terrain", this.draft, "terrain", () -> this.draft.settings().terrain, refresh),
+                new SettingsSectionPage("newterraforged.gui.page.rivers", this.draft, "rivers", () -> this.draft.settings().rivers, refresh),
+                new SettingsSectionPage("newterraforged.gui.page.filters", this.draft, "filters", () -> this.draft.settings().filters, refresh),
         };
     }
 
     public static void open(CreateWorldScreen parent) {
         Minecraft.getInstance().setScreen(new ConfigScreen(parent));
+    }
+
+    public SettingsDraft draft() {
+        return this.draft;
+    }
+
+    /** Re-run {@link #init()} after draft resets (pages cannot call protected init). */
+    public void reloadPages() {
+        this.init();
     }
 
     /** Expose addRenderableWidget to pages in this package tree. */
@@ -95,6 +106,15 @@ public final class ConfigScreen extends Screen {
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        Page page = this.pages[this.pageIndex];
+        if (page instanceof ScrollPage scrollPage && scrollPage.mouseScrolled(mouseX, mouseY, delta)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
+    @Override
     public void onClose() {
         for (Page page : this.pages) {
             page.close();
@@ -107,8 +127,7 @@ public final class ConfigScreen extends Screen {
         for (Page page : this.pages) {
             page.save();
         }
-        // Scaffold: sync seed into Create World seed box when present. Full WorldGenSettings apply later.
-        writeSeed(this.parent, this.draft.seed());
+        GeneratorSettingsApplier.apply(this.parent, this.draft);
         this.onClose();
     }
 
@@ -129,17 +148,9 @@ public final class ConfigScreen extends Screen {
         }
     }
 
-    private static void writeSeed(CreateWorldScreen screen, int seed) {
-        EditBox box = findSeedBox(screen);
-        if (box != null) {
-            box.setValue(String.valueOf(seed));
-        }
-    }
-
     private static EditBox findSeedBox(CreateWorldScreen screen) {
         for (GuiEventListener child : screen.children()) {
             if (child instanceof EditBox box) {
-                // Seed field is the EditBox under more-options; prefer any numeric-looking empty/long field.
                 String value = box.getValue();
                 if (value.isEmpty()) {
                     return box;

@@ -9,6 +9,7 @@ import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
+import com.terraforged.mod.worldgen.settings.GeneratorSettings;
 import com.terraforged.mod.worldgen.terrain.TerrainCache;
 import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
@@ -60,6 +61,7 @@ public class Generator extends ChunkGenerator implements IGenerator {
       instance -> instance.group(
             Codec.LONG.optionalFieldOf("seed", 0L).forGetter(g -> g.seed),
             TerrainLevels.CODEC.optionalFieldOf("levels", TerrainLevels.DEFAULT.get()).forGetter(g -> g.levels),
+            GeneratorSettings.CODEC.optionalFieldOf("generator_settings", GeneratorSettings.DEFAULT).forGetter(g -> g.generatorSettings),
             WorldGenCodec.CODEC.forGetter(Generator::getRegistries)
          )
          .apply(instance, instance.stable(GeneratorPreset::build))
@@ -67,6 +69,7 @@ public class Generator extends ChunkGenerator implements IGenerator {
    protected final long seed;
    protected final Source biomeSource;
    protected final TerrainLevels levels;
+   protected final GeneratorSettings generatorSettings;
    protected final VanillaGen vanillaGen;
    protected final BiomeGenerator biomeGenerator;
    protected final INoiseGenerator noiseGenerator;
@@ -74,9 +77,22 @@ public class Generator extends ChunkGenerator implements IGenerator {
    protected final ThreadLocal<GeneratorResource> localResource = ThreadLocal.withInitial(GeneratorResource::new);
 
    public Generator(long seed, TerrainLevels levels, VanillaGen vanillaGen, Source biomeSource, BiomeGenerator biomeGenerator, INoiseGenerator noiseGenerator) {
+      this(seed, levels, vanillaGen, biomeSource, biomeGenerator, noiseGenerator, GeneratorSettings.DEFAULT);
+   }
+
+   public Generator(
+      long seed,
+      TerrainLevels levels,
+      VanillaGen vanillaGen,
+      Source biomeSource,
+      BiomeGenerator biomeGenerator,
+      INoiseGenerator noiseGenerator,
+      GeneratorSettings generatorSettings
+   ) {
       super(vanillaGen.getStructureSets(), Optional.empty(), biomeSource, biomeSource, seed);
       this.seed = seed;
       this.levels = levels;
+      this.generatorSettings = generatorSettings != null ? generatorSettings : GeneratorSettings.DEFAULT;
       this.vanillaGen = vanillaGen;
       this.biomeSource = biomeSource;
       this.biomeGenerator = biomeGenerator;
@@ -118,7 +134,11 @@ public class Generator extends ChunkGenerator implements IGenerator {
       Source source = new Source(seed, inoisegenerator, this.biomeSource);
       VanillaGen vanillagen = new VanillaGen(seed, source, this.vanillaGen);
       BiomeGenerator biomegenerator = new BiomeGenerator(seed, this.biomeGenerator);
-      return new Generator(seed, this.levels, vanillagen, source, biomegenerator, inoisegenerator);
+      return new Generator(seed, this.levels, vanillagen, source, biomegenerator, inoisegenerator, this.generatorSettings);
+   }
+
+   public GeneratorSettings getGeneratorSettings() {
+      return this.generatorSettings;
    }
 
    public int getMinY() {

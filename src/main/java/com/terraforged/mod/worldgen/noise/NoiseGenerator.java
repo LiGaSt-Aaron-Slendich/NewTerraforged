@@ -11,6 +11,7 @@ import com.terraforged.mod.worldgen.asset.TerrainNoise;
 import com.terraforged.mod.worldgen.noise.continent.ContinentNoise;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
+import com.terraforged.mod.worldgen.settings.GeneratorSettings;
 import com.terraforged.mod.worldgen.terrain.TerrainBlender;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import com.terraforged.noise.Module;
@@ -22,6 +23,7 @@ public class NoiseGenerator implements INoiseGenerator {
    protected final float heightMultiplier = 1.2F;
    protected final long seed;
    protected final TerrainLevels levels;
+   protected final Settings settings;
    protected final Module ocean;
    protected final TerrainBlender land;
    protected final IContinentNoise continent;
@@ -30,25 +32,41 @@ public class NoiseGenerator implements INoiseGenerator {
    protected final ThreadLocal<NoiseSample> localSample = ThreadLocal.withInitial(NoiseSample::new);
 
    public NoiseGenerator(long seed, TerrainLevels levels, TerrainNoise[] terrainNoises) {
+      this(seed, levels, terrainNoises, GeneratorSettings.DEFAULT.toEngine(seed, levels));
+   }
+
+   public NoiseGenerator(long seed, TerrainLevels levels, TerrainNoise[] terrainNoises, Settings settings) {
       this.seed = seed;
       this.levels = levels;
+      this.settings = settings;
+      settings.world.seed = seed;
+      settings.world.properties.seaLevel = levels.seaLevel;
+      settings.world.properties.worldHeight = levels.maxY;
       this.ocean = createOceanTerrain(seed);
       this.land = createLandTerrain(seed, terrainNoises);
-      this.continent = createContinentNoise(seed, levels);
+      this.continent = createContinentNoise(seed, levels, settings);
       this.controlPoints = this.continent.getControlPoints();
    }
 
    public NoiseGenerator(long seed, TerrainLevels levels, NoiseGenerator other) {
       this.seed = seed;
       this.levels = levels;
+      this.settings = other.settings;
+      this.settings.world.seed = seed;
+      this.settings.world.properties.seaLevel = levels.seaLevel;
+      this.settings.world.properties.worldHeight = levels.maxY;
       this.land = other.land.withSeed(seed);
       this.ocean = createOceanTerrain(seed);
-      this.continent = createContinentNoise(seed, levels);
+      this.continent = createContinentNoise(seed, levels, this.settings);
       this.controlPoints = this.continent.getControlPoints();
    }
 
    public NoiseGenerator with(long seed, TerrainLevels levels) {
       return new NoiseGenerator(seed, levels, this);
+   }
+
+   public Settings getSettings() {
+      return this.settings;
    }
 
    @Override
@@ -123,7 +141,7 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    public INoiseGenerator withErosion() {
-      return new ErodedNoiseGenerator(this.seed, getNoiseTileSize(), this);
+      return new ErodedNoiseGenerator(this.seed, getNoiseTileSize(), this, this.settings.filters.erosion.copy());
    }
 
    public TerrainBlender.Blender getBlenderResource() {
@@ -234,22 +252,14 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected static IContinentNoise createContinentNoise(long seed, TerrainLevels levels) {
-      Settings settings = new Settings();
+      return createContinentNoise(seed, levels, GeneratorSettings.DEFAULT.toEngine(seed, levels));
+   }
+
+   protected static IContinentNoise createContinentNoise(long seed, TerrainLevels levels, Settings settings) {
       settings.world.seed = seed;
       settings.world.properties.seaLevel = levels.seaLevel;
       settings.world.properties.worldHeight = levels.maxY;
-      settings.climate.biomeShape.biomeSize = 220;
-      settings.climate.temperature.falloff = 2;
-      settings.climate.temperature.bias = 0.1F;
-      settings.climate.moisture.falloff = 1;
-      settings.climate.moisture.bias = -0.05F;
       GeneratorContext generatorcontext = new GeneratorContext(settings);
-      settings.world.continent.continentScale = 400;
-      settings.world.controlPoints.deepOcean = 0.05F;
-      settings.world.controlPoints.shallowOcean = 0.3F;
-      settings.world.controlPoints.beach = 0.45F;
-      settings.world.controlPoints.coast = 0.75F;
-      settings.world.controlPoints.inland = 0.8F;
       return new ContinentNoise(levels, generatorcontext);
    }
 }
