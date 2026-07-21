@@ -18,7 +18,7 @@ public final class IslandFeatureOverlay {
     public static final int LAGUNA_MAX_DEPTH = 15;
     private static final int ARCHIPELAGO_CELL = 3200;
     /** Sparse mid-ocean volcanic spacing — chance scales density, not a solid fill. */
-    private static final int VOLCANIC_OCEAN_CELL = 4200;
+    private static final int VOLCANIC_OCEAN_CELL = 9000;
 
     private final int seed;
     private final float coastalChance;
@@ -56,10 +56,10 @@ public final class IslandFeatureOverlay {
         float roll = hash01(this.seed, ix >> 2, iz >> 2);
 
         // Disjoint bands so volcanic chance never blocks coastal islands.
-        float volcanicBand = this.volcanicChance * 0.40F;
+        float volcanicBand = this.volcanicChance * 0.14F;
         if (this.volcanicChance > 0.0F && roll < volcanicBand) {
             float local = hash01(this.seed ^ 31, ix >> 1, iz >> 1);
-            if (local < 0.45F) {
+            if (local < 0.20F) {
                 this.paintVolcanoCone(worldX, worldZ, sample, ix, iz, 55.0F + local * 90.0F);
             }
             return;
@@ -79,8 +79,8 @@ public final class IslandFeatureOverlay {
         int cx = NoiseUtil.floor(worldX / cell);
         int cz = NoiseUtil.floor(worldZ / cell);
         float place = hash01(this.seed ^ 0xB01C, cx, cz);
-        // Possibility across open ocean; default chance ≈ sparse (not spam).
-        if (place > this.volcanicChance * 0.55F) {
+        // Moderate open-ocean density (default chance 0.15 → ~3% of cells place a candidate).
+        if (place > this.volcanicChance * 0.22F) {
             return;
         }
         float centerX = (cx + 0.5F) * cell + (hash01(this.seed, cx, cz) - 0.5F) * cell * 0.35F;

@@ -42,7 +42,7 @@ public class ContinentConfig {
       public boolean guaranteedContinentsEnabled = true;
       public float continentsSpread = 0.5F;
       public float coastalIslandsChance = 0.45F;
-      public float volcanicIslandsChance = 0.25F;
+      public float volcanicIslandsChance = 0.15F;
       public boolean scatteredArchipelago = true;
       public float scatteredArchipelagoChance = 0.35F;
    }

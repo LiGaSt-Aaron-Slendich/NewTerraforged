@@ -415,7 +415,7 @@ public final class GeneratorSettings {
         // Keep classic TF continent feel: large landmasses, not island soup.
         engine.world.continent.continentScale = WorldSettings.DEFAULT_CONTINENT_SCALE;
         engine.filters.erosion.dropletsPerChunk = 350;
-        engine.terrain.volcano.weight = 0.35F;
+        engine.terrain.volcano.weight = 0.85F;
         return fromEngine(engine);
     }
 
@@ -471,6 +471,9 @@ public final class GeneratorSettings {
         long resolved = this.seed != -1L ? this.seed : seed;
         settings.world.seed = resolved;
         ContinentGuarantee.syncIslandsMirror(settings.world);
+        if (settings.terrain.volcano.weight > 1.5F) {
+            settings.terrain.volcano.weight = 0.85F;
+        }
         settings.world.properties.seaLevel = levels != null ? levels.seaLevel : this.seaLevel;
         settings.world.properties.worldHeight = levels != null ? levels.maxY : this.worldHeight;
     }

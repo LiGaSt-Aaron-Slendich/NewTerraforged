@@ -16,7 +16,7 @@ import com.terraforged.noise.util.NoiseUtil;
  */
 public final class PreviewIslandPainter {
     private static final int ARCH_CELL = 3200;
-    private static final int VOLC_CELL = 4200;
+    private static final int VOLC_CELL = 9000;
 
     private PreviewIslandPainter() {
     }
@@ -60,9 +60,12 @@ public final class PreviewIslandPainter {
                 return;
             }
             float roll = hash01(seed ^ 0x51ED, worldX >> 2, worldZ >> 2);
-            float volcanicBand = volcanic * 0.35F;
+            float volcanicBand = volcanic * 0.14F;
             if (volcanic > 0.0F && roll < volcanicBand) {
-                paintVolcanoCone(cell, worldX, worldZ, seed, water, 70.0F + hash01(seed, worldX >> 4, worldZ >> 4) * 90.0F);
+                float local = hash01(seed ^ 31, worldX >> 1, worldZ >> 1);
+                if (local < 0.20F) {
+                    paintVolcanoCone(cell, worldX, worldZ, seed, water, 70.0F + hash01(seed, worldX >> 4, worldZ >> 4) * 90.0F);
+                }
             } else if (coastal > 0.0F && roll < volcanicBand + coastal * 0.50F) {
                 float local = hash01(seed ^ 17, worldX >> 1, worldZ >> 1);
                 if (local < 0.35F) {
@@ -120,7 +123,7 @@ public final class PreviewIslandPainter {
     private static void paintOceanVolcano(Cell cell, int worldX, int worldZ, int seed, float chance, float water) {
         int cx = NoiseUtil.floor(worldX / (float) VOLC_CELL);
         int cz = NoiseUtil.floor(worldZ / (float) VOLC_CELL);
-        if (hash01(seed ^ 0xB01C, cx, cz) > chance * 0.55F) {
+        if (hash01(seed ^ 0xB01C, cx, cz) > chance * 0.22F) {
             return;
         }
         float centerX = (cx + 0.5F) * VOLC_CELL + (hash01(seed, cx, cz) - 0.5F) * VOLC_CELL * 0.35F;

@@ -35,10 +35,10 @@ public class WorldSettings {
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
-                "Chance to form volcanic islands anywhere in the ocean (cone + crater).",
-                "0 = never, 1 = denser when eligible — not a solid spam."
+                "Chance to form volcanic islands in the ocean (cone + crater). Also keep Terrain→Volcano weight moderate.",
+                "0 = never, 1 = denser when eligible — default is sparse, not spam."
         })
-        public float volcanicIslandsChance = 0.25f;
+        public float volcanicIslandsChance = 0.15f;
 
         @Comment(value = {
                 "Enable Scattered Archipelago features: one large island plus many small ones",

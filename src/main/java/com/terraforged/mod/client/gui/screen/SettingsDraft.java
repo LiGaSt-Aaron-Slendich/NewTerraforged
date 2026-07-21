@@ -97,11 +97,14 @@ public final class SettingsDraft {
     public void applyToSettings() {
         DataUtils.fromNBT(this.settingsData, this.settings);
         this.settings.world.seed = this.seed;
+        normalizeVolcanoWeight(this.settings);
         com.terraforged.mod.worldgen.settings.ContinentGuarantee.syncIslandsMirror(this.settings.world);
         this.syncLevelsFromSettings();
         // Keep NBT in sync with clamped TerrainLevels (slider may have out-of-range values).
         this.settingsData.getCompound("world").getCompound("properties").putInt("seaLevel", this.levels.seaLevel);
         this.settingsData.getCompound("world").getCompound("properties").putInt("worldHeight", this.levels.maxY);
+        // Mirror clamped volcano weight back into NBT so the Terrain slider shows the new value.
+        this.settingsData.getCompound("terrain").getCompound("volcano").putFloat("weight", this.settings.terrain.volcano.weight);
     }
 
     public void resetDefaults() {
@@ -117,6 +120,7 @@ public final class SettingsDraft {
         }
         this.settings = generatorSettings.toEngine(this.seed, null);
         this.settings.world.seed = this.seed;
+        normalizeVolcanoWeight(this.settings);
         com.terraforged.mod.worldgen.settings.ContinentGuarantee.migrateFromLegacyIslands(
                 this.settings.world, generatorSettings.engineSettings);
         com.terraforged.mod.worldgen.settings.ContinentGuarantee.syncIslandsMirror(this.settings.world);
@@ -213,9 +217,16 @@ public final class SettingsDraft {
         settings.world.properties.seaLevel = levels.seaLevel;
         settings.world.properties.worldHeight = levels.maxY;
         settings.filters.erosion.dropletsPerChunk = 350;
-        // Stock TF default volcano weight=5 floods continents; keep mainland volcanoes rare.
-        // Ocean volcanic islands come from Islands.volcanicIslandsChance instead.
-        settings.terrain.volcano.weight = 0.35F;
+        // Stock TF default volcano weight=5 floods continents. Moderate mainland presence;
+        // ocean volcanic islands come from Islands.volcanicIslandsChance.
+        settings.terrain.volcano.weight = 0.85F;
         return settings;
+    }
+
+    /** Cap legacy / stock volcano spam when opening Customize. */
+    public static void normalizeVolcanoWeight(Settings settings) {
+        if (settings != null && settings.terrain != null && settings.terrain.volcano.weight > 1.5F) {
+            settings.terrain.volcano.weight = 0.85F;
+        }
     }
 }
