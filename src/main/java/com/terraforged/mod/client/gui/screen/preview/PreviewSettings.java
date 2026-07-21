@@ -13,8 +13,8 @@ public class PreviewSettings {
     public static boolean showCoords = false;
 
     @Range(min = 1, max = 100)
-    @Comment("Controls the zoom level of the preview map")
-    public int zoom = 100 - 32;
+    @Comment("Controls the zoom level of the preview map (1 = 640000 blocks, 100 = closest)")
+    public int zoom = 82;
 
     @NoName
     @Comment("Controls the rendering mode on the preview map")

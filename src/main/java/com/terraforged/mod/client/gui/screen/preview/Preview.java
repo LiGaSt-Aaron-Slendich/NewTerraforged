@@ -39,6 +39,12 @@ import net.minecraft.network.chat.TextComponent;
 public final class Preview extends AbstractWidget {
     private static final int FACTOR = 4;
     public static final int SIZE = Size.chunkToBlock(1 << FACTOR);
+    /** Farthest zoom-out (blocks across the preview). */
+    public static final int MAX_AREA = 640_000;
+    /** Default preview coverage. */
+    public static final int DEFAULT_AREA = 128_000;
+    /** Closest zoom-in. */
+    public static final int MIN_AREA = 16_000;
     private static final float[] LEGEND_SCALES = {1.0F, 0.9F, 0.75F, 0.6F};
     /**
      * Heightmap is water-relative: regenerating with a new sea level yields the same
@@ -73,12 +79,24 @@ public final class Preview extends AbstractWidget {
     private String hoveredCoords = "";
     private final String[] values = {"", "", "", ""};
     private final String[] labels = {"Area", "Sea", "Terrain", "Biome"};
+    private boolean showLegend = true;
 
     public Preview(int seed) {
         super(0, 0, SIZE, SIZE, new TextComponent("Preview"));
         this.seed = seed == -1 ? this.random.nextInt() : seed;
         this.offsetX = 0;
         this.offsetZ = 0;
+        this.previewSettings.zoom = zoomSettingForArea(DEFAULT_AREA);
+    }
+
+    public void setShowLegend(boolean showLegend) {
+        this.showLegend = showLegend;
+    }
+
+    /** Slider zoom (1=farthest … 100=closest) for a target world Area. */
+    public static int zoomSettingForArea(int areaBlocks) {
+        float t = (areaBlocks - MAX_AREA) / (float) (MIN_AREA - MAX_AREA);
+        return NoiseUtil.round(NoiseUtil.clamp(1.0F + t * 99.0F, 1.0F, 100.0F));
     }
 
     public int getSeed() {
@@ -137,8 +155,10 @@ public final class Preview extends AbstractWidget {
         );
         blit(pose, this.x, this.y, 0, 0, this.width, this.height, this.width, this.height);
 
-        this.updateLegend(mx, my);
-        this.renderLegend(pose, mx, my, this.labels, this.values, this.x, this.y + this.width, 10, 0xFFFFFF);
+        if (this.showLegend) {
+            this.updateLegend(mx, my);
+            this.renderLegend(pose, mx, my, this.labels, this.values, this.x, this.y + this.width, 10, 0xFFFFFF);
+        }
     }
 
     @Override
@@ -338,7 +358,15 @@ public final class Preview extends AbstractWidget {
     }
 
     private int getZoom() {
-        return NoiseUtil.round(1.5F * (101 - this.previewSettings.zoom));
+        // Map slider 1..100 → world Area MAX_AREA..MIN_AREA, then to tile zoom factor.
+        float t = (this.previewSettings.zoom - 1) / 99.0F;
+        int area = NoiseUtil.round(MAX_AREA + t * (MIN_AREA - MAX_AREA));
+        if (area < MIN_AREA) {
+            area = MIN_AREA;
+        } else if (area > MAX_AREA) {
+            area = MAX_AREA;
+        }
+        return Math.max(1, NoiseUtil.round(area / (float) SIZE));
     }
 
     private static String getTerrainName(Cell cell) {

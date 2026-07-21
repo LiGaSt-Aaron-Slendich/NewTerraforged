@@ -21,8 +21,7 @@ public final class PreviewPage implements Page {
     public PreviewPage(SettingsDraft draft) {
         this.draft = draft;
         this.preview = new Preview((int) draft.seed());
-        // Start more zoomed-in so MULTI continents read as landmasses, not island soup.
-        this.preview.previewSettings().zoom = 78;
+        this.preview.previewSettings().zoom = Preview.zoomSettingForArea(Preview.DEFAULT_AREA);
     }
 
     public Preview getPreviewWidget() {
