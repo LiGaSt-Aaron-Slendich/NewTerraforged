@@ -141,6 +141,10 @@ public class Generator extends ChunkGenerator implements IGenerator {
       return this.generatorSettings;
    }
 
+   public TerrainLevels getTerrainLevels() {
+      return this.levels;
+   }
+
    public int getMinY() {
       return this.levels.minY;
    }

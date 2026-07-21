@@ -17,6 +17,7 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
+import javax.annotation.Nullable;
 
 /**
  * TerraForged-style Generator Settings screen (1.18.2 official mappings).
@@ -32,9 +33,20 @@ public final class ConfigScreen extends Screen {
     private int pageIndex;
 
     public ConfigScreen(CreateWorldScreen parent) {
+        this(parent, null);
+    }
+
+    /**
+     * @param existingSettings Pass the current {@link WorldGenSettings} so we restore any
+     *                         previously applied Customize settings rather than starting fresh.
+     */
+    public ConfigScreen(CreateWorldScreen parent, @Nullable WorldGenSettings existingSettings) {
         super(new TranslatableComponent("newterraforged.gui.config.title"));
         this.parent = parent;
-        this.draft = new SettingsDraft(readSeed(parent));
+        int seed = readSeed(parent);
+        this.draft = SettingsDraft.fromWorldSettings(seed, existingSettings != null
+                ? existingSettings
+                : safeCurrentSettings(parent));
         this.previewPage = new PreviewPage(this.draft);
         Runnable refresh = this.previewPage::refresh;
         this.pages = new Page[]{
@@ -144,6 +156,16 @@ public final class ConfigScreen extends Screen {
         } catch (Throwable t) {
             TerraForged.LOG.error("Failed to apply NewTF generator settings", t);
             Minecraft.getInstance().gui.getChat().addMessage(new TextComponent("NewTF: failed to apply settings — see log"));
+        }
+    }
+
+    /** Safely read current WorldGenSettings without throwing (screen may not be fully inited). */
+    @Nullable
+    private static WorldGenSettings safeCurrentSettings(CreateWorldScreen screen) {
+        try {
+            return screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 

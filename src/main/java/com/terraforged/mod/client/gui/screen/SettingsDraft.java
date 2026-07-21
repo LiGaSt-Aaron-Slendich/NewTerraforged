@@ -3,9 +3,12 @@ package com.terraforged.mod.client.gui.screen;
 import com.terraforged.engine.serialization.serializer.Serializer;
 import com.terraforged.engine.settings.Settings;
 import com.terraforged.mod.client.gui.util.DataUtils;
+import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 /**
  * Mutable create-world draft: engine {@link Settings} + {@link TerrainLevels},
@@ -17,12 +20,41 @@ public final class SettingsDraft {
     private TerrainLevels levels;
     private CompoundTag settingsData;
 
+    /** Fresh draft with factory defaults. */
     public SettingsDraft(int seed) {
         this.seed = seed == -1 ? (int)System.currentTimeMillis() : seed;
         this.levels = TerrainLevels.DEFAULT.get().copy();
         this.settings = createFactorySettings(this.seed, this.levels);
         this.settingsData = DataUtils.toNBT(this.settings);
         patchWorldPropertyRanges(this.settingsData, this.levels);
+    }
+
+    /**
+     * Draft restored from a previously applied {@link Generator}.
+     * Keeps all Customize settings so re-opening the screen shows what was last applied.
+     */
+    public SettingsDraft(int seed, Generator generator) {
+        this.seed = seed == -1 ? (int) System.currentTimeMillis() : seed;
+        this.levels = generator.getTerrainLevels().copy();
+        GeneratorSettings gs = generator.getGeneratorSettings();
+        this.settings = gs.toEngine(this.seed, this.levels);
+        this.settings.world.seed = this.seed;
+        this.settingsData = DataUtils.toNBT(this.settings);
+        patchWorldPropertyRanges(this.settingsData, this.levels);
+    }
+
+    /**
+     * Try to restore from the current {@link WorldGenSettings}. Falls back to factory defaults
+     * when the overworld generator is not a NewTF {@link Generator}.
+     */
+    public static SettingsDraft fromWorldSettings(int seed, WorldGenSettings wgs) {
+        if (wgs != null) {
+            ChunkGenerator cg = wgs.overworld();
+            if (cg instanceof Generator gen) {
+                return new SettingsDraft(seed, gen);
+            }
+        }
+        return new SettingsDraft(seed);
     }
 
     public int seed() {
