@@ -49,7 +49,11 @@ public final class Preview extends AbstractWidget {
 
     private final int offsetX;
     private final int offsetZ;
-    private final ThreadPool threadPool = ThreadPools.createDefault();
+    /**
+     * Shared managed pool from {@link ThreadPools#createDefault()}. Another Preview.close()
+     * can shut this down — always re-resolve before submitting work.
+     */
+    private ThreadPool threadPool = ThreadPools.createDefault();
     private final Random random = new Random(System.currentTimeMillis());
     private final PreviewSettings previewSettings = new PreviewSettings();
     private final DynamicTexture texture = new DynamicTexture(new NativeImage(SIZE, SIZE, true));
@@ -95,8 +99,17 @@ public final class Preview extends AbstractWidget {
 
     public void close() {
         this.texture.close();
-        this.threadPool.shutdown();
+        try {
+            this.threadPool.shutdown();
+        } catch (Throwable ignored) {
+        }
         CacheManager.get().clear();
+    }
+
+    /** Re-acquire the live shared pool (a sibling Preview.close() may have terminated ours). */
+    private ThreadPool pool() {
+        this.threadPool = ThreadPools.createDefault();
+        return this.threadPool;
     }
 
     public boolean click(double mx, double my) {
@@ -236,7 +249,7 @@ public final class Preview extends AbstractWidget {
         TileFactory renderer = TileGenerator.builder()
                 .factory(context.worldGenerator.get())
                 .size(FACTOR, 0)
-                .pool(this.threadPool)
+                .pool(this.pool())
                 .batch(6)
                 .build()
                 .async();
