@@ -97,6 +97,7 @@ public final class SettingsDraft {
     public void applyToSettings() {
         DataUtils.fromNBT(this.settingsData, this.settings);
         this.settings.world.seed = this.seed;
+        com.terraforged.mod.worldgen.settings.ContinentGuarantee.syncIslandsMirror(this.settings.world);
         this.syncLevelsFromSettings();
         // Keep NBT in sync with clamped TerrainLevels (slider may have out-of-range values).
         this.settingsData.getCompound("world").getCompound("properties").putInt("seaLevel", this.levels.seaLevel);
@@ -111,8 +112,14 @@ public final class SettingsDraft {
     }
 
     public void loadGeneratorSettings(GeneratorSettings generatorSettings) {
+        if (generatorSettings.seed != -1L) {
+            this.seed = generatorSettings.seed;
+        }
         this.settings = generatorSettings.toEngine(this.seed, null);
         this.settings.world.seed = this.seed;
+        com.terraforged.mod.worldgen.settings.ContinentGuarantee.migrateFromLegacyIslands(
+                this.settings.world, generatorSettings.engineSettings);
+        com.terraforged.mod.worldgen.settings.ContinentGuarantee.syncIslandsMirror(this.settings.world);
         this.syncLevelsFromSettings();
         this.refreshNbt();
     }

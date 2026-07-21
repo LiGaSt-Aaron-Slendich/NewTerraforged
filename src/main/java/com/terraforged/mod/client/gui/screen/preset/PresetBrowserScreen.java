@@ -145,8 +145,10 @@ public final class PresetBrowserScreen extends Screen {
         this.authorText = entry.displayAuthor();
         try {
             GeneratorSettings settings = entry.loadSettings();
-            SettingsDraft previewDraft = new SettingsDraft(this.draft.seed());
+            long previewSeed = settings.seed != -1L ? settings.seed : this.draft.seed();
+            SettingsDraft previewDraft = new SettingsDraft(previewSeed);
             previewDraft.loadGeneratorSettings(settings);
+            this.preview.setSeed((int) previewSeed);
             this.preview.update(previewDraft.settings(), DataUtils.toCompactNBT(this.previewSettings));
         } catch (IOException e) {
             this.authorText = PresetFormat.UNKNOWN_CREATOR;

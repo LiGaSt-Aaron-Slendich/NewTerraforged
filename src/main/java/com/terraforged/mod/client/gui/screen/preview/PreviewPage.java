@@ -62,12 +62,13 @@ public final class PreviewPage implements Page {
         this.infoY = this.preview.y + mapSize + mapPad;
         this.infoW = mapSize;
 
-        int btnW = Math.max(24, (width - gap * 3) / 4);
+        int btnW = Math.max(20, (width - gap * 4) / 5);
         int x0 = left;
         int x1 = left + btnW + gap;
         int x2 = left + (btnW + gap) * 2;
         int x3 = left + (btnW + gap) * 3;
-        int lastW = Math.max(24, width - (btnW + gap) * 3);
+        int x4 = left + (btnW + gap) * 4;
+        int lastW = Math.max(20, width - (btnW + gap) * 4);
 
         screen.addRenderableWidget(new Button(x0, top, btnW, btnH, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
             this.preview.regenerate();
@@ -79,17 +80,44 @@ public final class PreviewPage implements Page {
             b.setMessage(new TextComponent(shortMode(this.preview.previewSettings().display)));
             this.refresh();
         }));
-        screen.addRenderableWidget(new Button(x2, top, btnW, btnH, new TextComponent("Zoom -"), b -> {
+        screen.addRenderableWidget(new Button(x2, top, btnW, btnH, new TextComponent(shortFilter(this.preview.previewSettings().terrainFilter)), b -> {
+            this.preview.previewSettings().terrainFilter = nextTerrainFilter(this.preview.previewSettings().terrainFilter);
+            b.setMessage(new TextComponent(shortFilter(this.preview.previewSettings().terrainFilter)));
+            this.refresh();
+        }));
+        screen.addRenderableWidget(new Button(x3, top, btnW, btnH, new TextComponent("Zoom -"), b -> {
             this.preview.previewSettings().zoom = Math.max(1, this.preview.previewSettings().zoom - 8);
             this.refresh();
         }));
-        screen.addRenderableWidget(new Button(x3, top, lastW, btnH, new TextComponent("Zoom +"), b -> {
+        screen.addRenderableWidget(new Button(x4, top, lastW, btnH, new TextComponent("Zoom +"), b -> {
             this.preview.previewSettings().zoom = Math.min(100, this.preview.previewSettings().zoom + 8);
             this.refresh();
         }));
 
         screen.addRenderableWidget(this.preview);
         this.refresh();
+    }
+
+    private static final String[] TERRAIN_FILTERS = {
+            "", "archipelago", "volcano", "volcano_pipe", "coast", "laguna", "dolomites", "mountains", "plains", "badlands"
+    };
+
+    private static String nextTerrainFilter(String current) {
+        String cur = current == null ? "" : current;
+        for (int i = 0; i < TERRAIN_FILTERS.length; i++) {
+            if (TERRAIN_FILTERS[i].equalsIgnoreCase(cur)) {
+                return TERRAIN_FILTERS[(i + 1) % TERRAIN_FILTERS.length];
+            }
+        }
+        return TERRAIN_FILTERS[0];
+    }
+
+    private static String shortFilter(String filter) {
+        if (filter == null || filter.isBlank()) {
+            return "Find:Off";
+        }
+        String f = filter.length() > 8 ? filter.substring(0, 8) : filter;
+        return "F:" + f;
     }
 
     private static String shortMode(RenderMode mode) {

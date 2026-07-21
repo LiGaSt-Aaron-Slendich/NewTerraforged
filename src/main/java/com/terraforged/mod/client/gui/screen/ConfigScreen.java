@@ -146,6 +146,10 @@ public final class ConfigScreen extends Screen {
         Minecraft.getInstance().setScreen(this.parent);
     }
 
+    public void flushPreviewSeed() {
+        this.previewPage.save();
+    }
+
     private void applyAndClose() {
         try {
             for (Page page : this.pages) {

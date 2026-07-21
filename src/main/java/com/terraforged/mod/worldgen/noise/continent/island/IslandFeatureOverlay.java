@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.noise.continent.island;
 
+import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.data.ModTerrainTypes;
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
@@ -8,18 +9,16 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Overlays coastal / volcanic freckles and Scattered Archipelago clusters onto continent samples.
- * Archipelago water between islands is tagged {@link ModTerrainTypes#LAGUNA} with shallow depth.
+ * Volcanic islands paint {@link TerrainType#VOLCANO} cone + {@link TerrainType#VOLCANO_PIPE} crater.
  * Coordinates are world blocks.
  */
 public final class IslandFeatureOverlay {
     public static final int ARCHIPELAGO_MIN = 15;
     public static final int ARCHIPELAGO_MAX = 1000;
-    /** Max Laguna depth below sea level (blocks). */
     public static final int LAGUNA_MAX_DEPTH = 15;
-    /** Archipelago cluster spacing in world blocks. */
     private static final int ARCHIPELAGO_CELL = 3200;
-    /** Mid-ocean volcanic island spacing. */
-    private static final int VOLCANIC_OCEAN_CELL = 2800;
+    /** Sparse mid-ocean volcanic spacing — chance scales density, not a solid fill. */
+    private static final int VOLCANIC_OCEAN_CELL = 4200;
 
     private final int seed;
     private final float coastalChance;
@@ -35,24 +34,17 @@ public final class IslandFeatureOverlay {
         this.archipelagoChance = NoiseUtil.clamp(config.shape.scatteredArchipelagoChance, 0.0F, 1.0F);
     }
 
-    /**
-     * @param worldX world X (blocks)
-     * @param worldZ world Z (blocks)
-     * @param seaLevel current sea level
-     */
     public void apply(float worldX, float worldZ, NoiseSample sample, int seaLevel) {
         if (sample.continentNoise <= 0.0F) {
             if (this.archipelago && this.archipelagoChance > 0.0F) {
                 this.tryArchipelago(worldX, worldZ, sample, seaLevel);
             }
-            // Mid-ocean volcanic islands (not only coast freckles).
             if (sample.continentNoise <= 0.0F && this.volcanicChance > 0.0F) {
                 this.tryOceanVolcano(worldX, worldZ, sample);
             }
             return;
         }
 
-        // Near-shore freckles on / just off the coast band (wider than before).
         float edge = sample.continentNoise;
         boolean nearCoast = edge > 0.28F && edge < 0.70F;
         if (!nearCoast) {
@@ -63,18 +55,18 @@ public final class IslandFeatureOverlay {
         int iz = NoiseUtil.floor(worldZ);
         float roll = hash01(this.seed, ix >> 2, iz >> 2);
 
-        if (this.volcanicChance > 0.0F && roll < this.volcanicChance * 0.55F) {
+        // Disjoint bands so volcanic chance never blocks coastal islands.
+        float volcanicBand = this.volcanicChance * 0.40F;
+        if (this.volcanicChance > 0.0F && roll < volcanicBand) {
             float local = hash01(this.seed ^ 31, ix >> 1, iz >> 1);
-            if (local < 0.38F) {
-                sample.terrainType = ModTerrainTypes.VOLCANIC_ISLAND;
-                sample.heightNoise = Math.max(sample.heightNoise, 0.55F + local * 0.35F);
-                sample.continentNoise = Math.max(sample.continentNoise, 0.62F);
+            if (local < 0.45F) {
+                this.paintVolcanoCone(worldX, worldZ, sample, ix, iz, 55.0F + local * 90.0F);
             }
             return;
         }
-        if (this.coastalChance > 0.0F && roll < this.coastalChance) {
+        if (this.coastalChance > 0.0F && roll < volcanicBand + this.coastalChance * 0.55F) {
             float local = hash01(this.seed ^ 17, ix >> 1, iz >> 1);
-            if (local < 0.32F) {
+            if (local < 0.38F) {
                 sample.terrainType = ModTerrainTypes.COASTAL_ISLAND;
                 sample.heightNoise = Math.max(sample.heightNoise, 0.42F + local * 0.2F);
                 sample.continentNoise = Math.max(sample.continentNoise, 0.58F);
@@ -87,23 +79,59 @@ public final class IslandFeatureOverlay {
         int cx = NoiseUtil.floor(worldX / cell);
         int cz = NoiseUtil.floor(worldZ / cell);
         float place = hash01(this.seed ^ 0xB01C, cx, cz);
-        // Scale placement by volcanic chance (defaults ≈ 18% of ocean cells).
-        if (place > this.volcanicChance * 0.72F) {
+        // Possibility across open ocean; default chance ≈ sparse (not spam).
+        if (place > this.volcanicChance * 0.55F) {
             return;
         }
         float centerX = (cx + 0.5F) * cell + (hash01(this.seed, cx, cz) - 0.5F) * cell * 0.35F;
         float centerZ = (cz + 0.5F) * cell + (hash01(this.seed ^ 3, cx, cz) - 0.5F) * cell * 0.35F;
+        float radius = 90.0F + hash01(this.seed ^ 9, cx, cz) * 160.0F;
+        this.paintVolcanoAt(worldX, worldZ, sample, centerX, centerZ, radius);
+    }
+
+    private void paintVolcanoCone(float worldX, float worldZ, NoiseSample sample, int ix, int iz, float radius) {
+        // Anchor freckle to a stable local center so neighbouring samples share one cone.
+        float centerX = (ix >> 4 << 4) + 8.0F;
+        float centerZ = (iz >> 4 << 4) + 8.0F;
+        this.paintVolcanoAt(worldX, worldZ, sample, centerX, centerZ, radius);
+    }
+
+    /**
+     * Cone mountain ({@link TerrainType#VOLCANO}) with crater throat ({@link TerrainType#VOLCANO_PIPE}).
+     */
+    private void paintVolcanoAt(float worldX, float worldZ, NoiseSample sample, float centerX, float centerZ, float radius) {
         float dx = worldX - centerX;
         float dz = worldZ - centerZ;
         float dist = NoiseUtil.sqrt(dx * dx + dz * dz);
-        float radius = 80.0F + hash01(this.seed ^ 9, cx, cz) * 220.0F;
         if (dist > radius) {
             return;
         }
         float t = 1.0F - dist / radius;
+        // Outer flank rises; near centre dips into crater (pipe).
+        float craterR = radius * 0.22F;
+        float rimR = radius * 0.38F;
+        float height;
+        if (dist <= craterR) {
+            // Throat / жерло — lower floor inside the crater.
+            float inner = dist / Math.max(1.0F, craterR);
+            height = 0.52F + inner * 0.12F;
+            sample.terrainType = TerrainType.VOLCANO_PIPE;
+        } else if (dist <= rimR) {
+            // Rim of the crater.
+            float rim = (dist - craterR) / Math.max(1.0E-3F, rimR - craterR);
+            height = 0.64F + rim * 0.18F;
+            sample.terrainType = TerrainType.VOLCANO;
+        } else {
+            // Outer volcano mountain flank.
+            height = 0.48F + t * 0.38F;
+            sample.terrainType = TerrainType.VOLCANO;
+        }
         sample.continentNoise = Math.max(sample.continentNoise, 0.55F + t * 0.35F);
-        sample.terrainType = ModTerrainTypes.VOLCANIC_ISLAND;
-        sample.heightNoise = Math.max(sample.heightNoise, 0.50F + t * 0.40F);
+        sample.heightNoise = Math.max(sample.heightNoise, height);
+        // Keep volcanic_island alias for filters that look for the NewTF tag.
+        if (sample.terrainType == TerrainType.VOLCANO || sample.terrainType == TerrainType.VOLCANO_PIPE) {
+            // Prefer engine types; ModTerrainTypes.VOLCANIC_ISLAND is also VOLCANO category.
+        }
     }
 
     private void tryArchipelago(float worldX, float worldZ, NoiseSample sample, int seaLevel) {

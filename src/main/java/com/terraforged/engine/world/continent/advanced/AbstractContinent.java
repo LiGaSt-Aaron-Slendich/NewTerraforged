@@ -36,9 +36,12 @@ public abstract class AbstractContinent implements SimpleContinent {
         this.hasSkipping = this.skipThreshold > 0.0f;
         this.controlPoints = new ControlPoints(settings.controlPoints);
         this.riverCache = new RiverCache(new SimpleRiverGenerator(this, context));
-        // Engine MULTI cells span ~continentScale*4 world blocks.
         int pitch = Math.max(100, this.continentScale * 4);
-        this.guaranteeMask = GuaranteedContinentMask.create(settings.islands, this.seed, pitch);
+        com.terraforged.mod.worldgen.settings.ContinentGuarantee.syncIslandsMirror(settings);
+        this.guaranteeMask = GuaranteedContinentMask.create(
+                com.terraforged.mod.worldgen.settings.ContinentGuarantee.asIslandsView(settings),
+                this.seed,
+                pitch);
     }
 
     @Override

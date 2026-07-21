@@ -10,6 +10,8 @@ public final class PresetWidgets {
     }
 
     public static void save(ConfigScreen screen, SettingsDraft draft) {
+        // Preview seed lives on PreviewPage until page.save(); flush it into the draft.
+        screen.flushPreviewSeed();
         Minecraft.getInstance().setScreen(new SavePresetScreen(screen, draft));
     }
 

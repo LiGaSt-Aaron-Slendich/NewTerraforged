@@ -245,7 +245,9 @@ public class NoiseGenerator implements INoiseGenerator {
       if (terrain == ModTerrainTypes.VOLCANIC_ISLAND
             || terrain == ModTerrainTypes.COASTAL_ISLAND
             || terrain == ModTerrainTypes.SCATTERED_ARCHIPELAGO
-            || terrain == ModTerrainTypes.LAGUNA) {
+            || terrain == ModTerrainTypes.LAGUNA
+            || terrain == TerrainType.VOLCANO
+            || terrain == TerrainType.VOLCANO_PIPE) {
          return terrain;
       }
       return null;

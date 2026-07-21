@@ -26,20 +26,6 @@ public class WorldSettings {
 
     @Serializable
     public static class Islands {
-        @Comment(value = {
-                "When ON, about Guaranteed Continents (±1) landmasses are forced inside the 640000x640000 window.",
-                "Cut zones stay mostly ocean but keep islands / archipelago freckles (soft cut).",
-                "When OFF, continent count follows normal noise / skipping (no guarantee)."
-        })
-        public boolean guaranteedContinentsEnabled = true;
-
-        @Range(min = 1.0f, max = 16.0f)
-        @Comment(value = {
-                "Target number of continents inside the 640000x640000 preview/guarantee window.",
-                "Actual count may be target−1, target, or target+1. Only used when Guaranteed Continents Enabled is ON."
-        })
-        public int guaranteedContinents = 3;
-
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
                 "Chance to form coastal islands near mainland shores",
@@ -49,17 +35,10 @@ public class WorldSettings {
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
-                "Chance to form volcanic islands (volcano + shore only).",
-                "0 = never, 1 = always when eligible."
+                "Chance to form volcanic islands anywhere in the ocean (cone + crater).",
+                "0 = never, 1 = denser when eligible — not a solid spam."
         })
         public float volcanicIslandsChance = 0.25f;
-
-        @Range(min = 0.0f, max = 1.0f)
-        @Comment(value = {
-                "How scattered continents are across the ocean.",
-                "0 = clustered, 1 = widely spread."
-        })
-        public float continentsSpread = 0.5f;
 
         @Comment(value = {
                 "Enable Scattered Archipelago features: one large island plus many small ones",
@@ -73,6 +52,16 @@ public class WorldSettings {
                 "Water between member islands is Laguna (shallow, max 15 blocks deep)."
         })
         public float scatteredArchipelagoChance = 0.35f;
+
+        /** @deprecated UI moved to Continent; kept transient for in-memory mirror only. */
+        @Deprecated
+        public transient boolean guaranteedContinentsEnabled = true;
+        /** @deprecated UI moved to Continent; kept transient for in-memory mirror only. */
+        @Deprecated
+        public transient int guaranteedContinents = 3;
+        /** @deprecated UI moved to Continent; kept transient for in-memory mirror only. */
+        @Deprecated
+        public transient float continentsSpread = 0.5f;
 
         /** @deprecated kept for NBT compat; prefer {@link #coastalIslandsChance}. */
         @Deprecated
@@ -130,6 +119,27 @@ public class WorldSettings {
 
     @Serializable
     public static class Continent {
+        @Comment(value = {
+                "When ON, about Guaranteed Continents (±1) landmasses are forced inside the 640000x640000 window.",
+                "Cut zones stay mostly ocean but keep islands / archipelago freckles (soft cut).",
+                "When OFF, continent count follows normal noise / skipping (no guarantee)."
+        })
+        public boolean guaranteedContinentsEnabled = true;
+
+        @Range(min = 1.0f, max = 16.0f)
+        @Comment(value = {
+                "Target number of continents inside the 640000x640000 preview/guarantee window.",
+                "Actual count may be target−1, target, or target+1. Only used when Guaranteed Continents Enabled is ON."
+        })
+        public int guaranteedContinents = 3;
+
+        @Range(min = 0.0f, max = 1.0f)
+        @Comment(value = {
+                "How scattered continents are across the ocean.",
+                "0 = clustered, 1 = widely spread."
+        })
+        public float continentsSpread = 0.5f;
+
         @Comment(value = {"Controls the continent generator type"})
         public ContinentType continentType = ContinentType.MULTI_IMPROVED;
         @Restricted(name = "continentType", value = {"MULTI", "SINGLE"})

@@ -26,7 +26,7 @@ public final class ContinentShapeWiring {
 
     public static void apply(ContinentConfig config, WorldSettings.Continent continent, WorldSettings.Islands islands) {
         config.shape.scale = Math.max(100, continent.continentScale);
-        float spread = NoiseUtil.clamp(islands.continentsSpread, 0.0F, 1.0F);
+        float spread = NoiseUtil.clamp(continent.continentsSpread, 0.0F, 1.0F);
         float baseJitter = NoiseUtil.clamp(continent.continentJitter, 0.0F, 1.0F);
         config.shape.jitter = NoiseUtil.clamp(NoiseUtil.lerp(baseJitter * 0.85F, Math.max(baseJitter, 0.95F), spread), 0.0F, 1.0F);
 
@@ -42,8 +42,8 @@ public final class ContinentShapeWiring {
         config.noise.continentNoiseFalloff = 1.0F + config.shape.sizeVariance * 0.75F;
         config.noise.baseNoiseFalloff = 1.5F + config.shape.sizeVariance * 0.5F;
 
-        config.shape.guaranteedContinents = Math.max(1, Math.min(16, islands.guaranteedContinents));
-        config.shape.guaranteedContinentsEnabled = islands.guaranteedContinentsEnabled;
+        config.shape.guaranteedContinents = Math.max(1, Math.min(16, continent.guaranteedContinents));
+        config.shape.guaranteedContinentsEnabled = continent.guaranteedContinentsEnabled;
         config.shape.continentsSpread = spread;
         config.shape.coastalIslandsChance = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
         config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
@@ -59,15 +59,14 @@ public final class ContinentShapeWiring {
         if (settings == null || settings.world == null) {
             return;
         }
+        ContinentGuarantee.syncIslandsMirror(settings.world);
         WorldSettings.Islands islands = settings.world.islands != null ? settings.world.islands : new WorldSettings.Islands();
         WorldSettings.Continent c = settings.world.continent;
-        float spread = NoiseUtil.clamp(islands.continentsSpread, 0.0F, 1.0F);
+        float spread = NoiseUtil.clamp(c.continentsSpread, 0.0F, 1.0F);
         c.continentJitter = NoiseUtil.clamp(NoiseUtil.lerp(c.continentJitter * 0.85F, Math.max(c.continentJitter, 0.95F), spread), 0.0F, 1.0F);
         float coastal = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
         float volcanic = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
         float arch = islands.scatteredArchipelago ? NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F) : 0.0F;
-        // Soft-cut density is driven by GuaranteedContinentMask from island chances.
-        // Outside the window, nudge skipping slightly so island-heavy presets stay livelier.
         float islandPressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
         if (islandPressure > 0.15F) {
             c.continentSkipping = NoiseUtil.clamp(c.continentSkipping - islandPressure * 0.06F, 0.0F, 1.0F);

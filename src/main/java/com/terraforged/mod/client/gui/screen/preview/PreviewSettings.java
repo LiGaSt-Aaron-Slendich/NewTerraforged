@@ -19,4 +19,10 @@ public class PreviewSettings {
     @NoName
     @Comment("Controls the rendering mode on the preview map")
     public RenderMode display = RenderMode.BIOME_TYPE;
+
+    /**
+     * Highlight filter for terrain names (substring match, empty = off).
+     * Cycled from the preview UI (e.g. archipelago, volcano, coastal).
+     */
+    public String terrainFilter = "";
 }

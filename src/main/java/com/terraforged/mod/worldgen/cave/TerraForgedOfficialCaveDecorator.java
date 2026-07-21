@@ -49,7 +49,7 @@ public final class TerraForgedOfficialCaveDecorator {
     private static final int MAX_FLOOR_ORIGINS_MEGA = 12;
     private static final int MAX_CEILING_ORIGINS_MEGA = 4;
     private static final int MAX_FLOOR_ORIGINS_VANILLA = 4;
-    private static final int FUNGAL_GIANT_MIN_CHAMBER = 3;
+    private static final int FUNGAL_GIANT_MIN_CHAMBER = 2;
 
     private TerraForgedOfficialCaveDecorator() {
     }
@@ -195,7 +195,8 @@ public final class TerraForgedOfficialCaveDecorator {
             return 6;
         }
         if (CaveBiomeIds.isFungalCaveBiome(biome) || CaveBiomeIds.isCrystalCaveBiome(biome) || CaveBiomeIds.isPrismachasmBiome(biome)) {
-            return megaGiga ? 4 : 2;
+            // Bioshroom / fungal: denser origins so huge mushrooms roll more often.
+            return megaGiga ? 2 : 1;
         }
         if (CaveBiomeIds.isScorchingCaveBiome(biome) || CaveBiomeIds.isVolcanicCaveBiome(biome)) {
             return 2;
@@ -480,6 +481,8 @@ public final class TerraForgedOfficialCaveDecorator {
     /** Original TF 0.3.x floor decorate — all cave stages except surface hazards. */
     private static void decorateFloor(BlockPos pos, WorldGenLevel region, Generator generator, CarverChunk carver, BiomeGenerationSettings settings, WorldgenRandom random, ChunkAccess chunk, Holder<Biome> biome, int chamberSpan, boolean megaGiga) {
         if (CaveBiomeIds.isFungalCaveBiome(biome)) {
+            // Extra LARGE pass for bioshroom / fungal huge mushrooms.
+            TerraForgedOfficialCaveDecorator.decorateFloorPass(pos, region, generator, carver, settings, random, chunk, biome, chamberSpan, megaGiga, true);
             TerraForgedOfficialCaveDecorator.decorateFloorPass(pos, region, generator, carver, settings, random, chunk, biome, chamberSpan, megaGiga, true);
             TerraForgedOfficialCaveDecorator.decorateFloorPass(pos, region, generator, carver, settings, random, chunk, biome, chamberSpan, megaGiga, false);
             return;
@@ -627,6 +630,8 @@ public final class TerraForgedOfficialCaveDecorator {
         }
         String path = id.getPath().toLowerCase();
         return path.contains("giant") || path.contains("huge_") || path.contains("big_") || path.contains("mega_")
+                || path.contains("bioshroom") && (path.contains("tree") || path.contains("tall") || path.contains("large") || path.contains("giant") || path.contains("huge"))
+                || path.contains("shroom") && (path.contains("giant") || path.contains("huge") || path.contains("big") || path.contains("tall"))
                 || CaveFeatureClassifier.isCaveFloorLarge(placed);
     }
 

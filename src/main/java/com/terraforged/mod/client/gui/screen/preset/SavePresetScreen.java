@@ -38,6 +38,8 @@ public final class SavePresetScreen extends Screen {
 
     private void save() {
         try {
+            // Sync preview seed into draft before encoding the preset.
+            this.draft.applyToSettings();
             var path = PresetLibrary.saveUserPreset(this.nameBox.getValue(), this.draft.toGeneratorSettings());
             this.minecraft.getToasts().addToast(SystemToast.multiline(
                     this.minecraft,

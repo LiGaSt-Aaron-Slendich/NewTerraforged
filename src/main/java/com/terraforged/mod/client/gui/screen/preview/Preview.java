@@ -129,6 +129,14 @@ public final class Preview extends AbstractWidget {
         return this.seed;
     }
 
+    public void setSeed(int seed) {
+        this.seed = seed;
+        this.lastWorldSettings = null;
+        this.lastShapeSettings = null;
+        this.lastPreviewSettings = null;
+        this.lastZoom = -1;
+    }
+
     public PreviewSettings previewSettings() {
         return this.previewSettings;
     }
@@ -269,10 +277,34 @@ public final class Preview extends AbstractWidget {
             if (x < stroke || z < stroke || x >= width - stroke || z >= width - stroke) {
                 image.setPixelRGBA(x, z, Color.BLACK.getRGB());
             } else {
-                image.setPixelRGBA(x, z, renderer.getColor(cell, levels));
+                int argb = renderer.getColor(cell, levels);
+                argb = applyTerrainFilter(cell, argb);
+                image.setPixelRGBA(x, z, argb);
             }
         });
         this.texture.upload();
+    }
+
+    private int applyTerrainFilter(Cell cell, int argb) {
+        String filter = this.previewSettings.terrainFilter;
+        if (filter == null || filter.isBlank()) {
+            return argb;
+        }
+        String name = cell.terrain != null ? cell.terrain.getName() : "";
+        boolean match = name.toLowerCase().contains(filter.toLowerCase());
+        if (match) {
+            // Bright yellow highlight.
+            return 0xFF00FFFF;
+        }
+        // Dim non-matching cells.
+        int a = (argb >>> 24) & 0xFF;
+        int r = (argb >>> 16) & 0xFF;
+        int g = (argb >>> 8) & 0xFF;
+        int b = argb & 0xFF;
+        r = (r * 35) / 100;
+        g = (g * 35) / 100;
+        b = (b * 35) / 100;
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private LazyCallable<Tile> generate(Settings settings, CompoundTag prevSettings) {
