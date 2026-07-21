@@ -69,13 +69,13 @@ public final class PresetBrowserScreen extends Screen {
         this.panelTop = 54;
         this.panelBottom = this.height - 36;
         this.listLeft = 12;
-        this.listWidth = Mth.clamp(this.width / 3, 190, 280);
 
-        // Img on the right — as large as space allows.
+        // Sketch: Img fixed on the right; Names expands into the remaining middle (green box).
         int rightPad = 16;
-        int imgMax = this.panelBottom - this.panelTop - 40;
-        int imgByWidth = this.width - (this.listLeft + this.listWidth + 24) - rightPad;
-        this.previewSize = Mth.clamp(Math.min(imgMax, imgByWidth), 120, 220);
+        int gap = 16;
+        int infoReserve = 44;
+        int imgMaxH = this.panelBottom - this.panelTop - infoReserve;
+        this.previewSize = Mth.clamp(Math.min(imgMaxH, this.width / 4), 140, 220);
 
         this.preview = new Preview((int) this.draft.seed());
         this.preview.setShowLegend(false);
@@ -87,18 +87,23 @@ public final class PresetBrowserScreen extends Screen {
         this.preview.setHeight(this.previewSize);
         this.addRenderableWidget(this.preview);
 
+        // Names panel stretches from left pad to just before Img.
+        this.listWidth = Math.max(220, this.preview.x - gap - this.listLeft);
+
         this.list = new PresetList(this.listWidth, this.panelTop, this.height - this.panelBottom);
         this.addWidget(this.list);
         this.reloadList();
 
+        // Tabs sit on top of Names and span its full width (folder tabs, green lines).
         int tabY = 28;
-        int tabH = 24;
-        int tab1W = 120;
-        int tab2W = 150;
+        int tabH = 26;
+        int tabGap = 2;
+        int tab1W = (this.listWidth - tabGap) / 2;
+        int tab2W = this.listWidth - tabGap - tab1W;
         this.addRenderableWidget(new TabButton(this.listLeft, tabY, tab1W, tabH,
                 new TranslatableComponent("newterraforged.gui.presets.tab.default"),
                 PresetBrowserScreen.Tab.DEFAULT));
-        this.addRenderableWidget(new TabButton(this.listLeft + tab1W + 2, tabY, tab2W, tabH,
+        this.addRenderableWidget(new TabButton(this.listLeft + tab1W + tabGap, tabY, tab2W, tabH,
                 new TranslatableComponent("newterraforged.gui.presets.tab.user"),
                 PresetBrowserScreen.Tab.USER));
 
