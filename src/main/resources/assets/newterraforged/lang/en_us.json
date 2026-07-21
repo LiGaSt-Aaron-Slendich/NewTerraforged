@@ -18,5 +18,12 @@
   "newterraforged.gui.page.filters.body": "Smoothing / erosion filters — coming next.",
   "newterraforged.gui.presets.reset": "Reset defaults",
   "newterraforged.gui.presets.save": "Save",
-  "newterraforged.gui.presets.import": "Import Settings"
+  "newterraforged.gui.presets.import": "Import Settings",
+  "newterraforged.gui.presets.browser.title": "Import NewTF Preset",
+  "newterraforged.gui.presets.tab.default": "Default Presets",
+  "newterraforged.gui.presets.tab.user": "My / Imported Presets",
+  "newterraforged.gui.presets.author": "Author: %s",
+  "newterraforged.gui.presets.save.title": "Save Preset",
+  "newterraforged.gui.presets.save.name": "Preset name",
+  "newterraforged.gui.presets.save.hint": "Saved to: %s"
 }

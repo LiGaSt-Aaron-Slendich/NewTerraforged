@@ -46,7 +46,7 @@ public final class PresetsPage implements Page {
                 buttonWidth,
                 20,
                 new TranslatableComponent("newterraforged.gui.presets.save"),
-                b -> PresetWidgets.save(this.draft)
+                b -> PresetWidgets.save(screen, this.draft)
         ));
         screen.addRenderableWidget(new Button(
                 left,
@@ -54,12 +54,10 @@ public final class PresetsPage implements Page {
                 buttonWidth,
                 20,
                 new TranslatableComponent("newterraforged.gui.presets.import"),
-                b -> {
-                    if (PresetWidgets.load(this.draft)) {
-                        this.onChange.run();
-                        screen.reloadPages();
-                    }
-                }
+                b -> PresetWidgets.openImport(screen, this.draft, () -> {
+                    this.onChange.run();
+                    screen.reloadPages();
+                })
         ));
     }
 }
