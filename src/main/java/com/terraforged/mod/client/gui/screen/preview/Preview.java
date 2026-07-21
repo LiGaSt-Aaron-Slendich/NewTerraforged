@@ -93,6 +93,30 @@ public final class Preview extends AbstractWidget {
         this.showLegend = showLegend;
     }
 
+    /** Update Area/Sea/Terrain/Biome values from mouse position over the map. */
+    public void updateHoverLegend(int mx, int my) {
+        this.updateLegend(mx, my);
+    }
+
+    /** Draw legend lines into an external Inf panel (red zone). */
+    public void renderLegendAt(PoseStack pose, int left, int top, int maxWidth, int color) {
+        Font font = Minecraft.getInstance().font;
+        int spacing = 0;
+        for (String s : this.labels) {
+            spacing = Math.max(spacing, font.width(s));
+        }
+        spacing += 6;
+        for (int i = 0; i < this.labels.length && i < this.values.length; i++) {
+            String label = this.labels[i];
+            String value = this.values[i];
+            while (!value.isEmpty() && spacing + font.width(value) > maxWidth) {
+                value = value.substring(0, value.length() - 1);
+            }
+            drawString(pose, font, label, left, top + i * 10, color);
+            drawString(pose, font, value, left + spacing, top + i * 10, color);
+        }
+    }
+
     /** Slider zoom (1=farthest … 100=closest) for a target world Area. */
     public static int zoomSettingForArea(int areaBlocks) {
         float t = (areaBlocks - MAX_AREA) / (float) (MIN_AREA - MAX_AREA);

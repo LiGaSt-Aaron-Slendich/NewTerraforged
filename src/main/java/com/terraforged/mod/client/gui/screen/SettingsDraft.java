@@ -139,6 +139,7 @@ public final class SettingsDraft {
     /**
      * Engine {@code @Range} caps worldHeight at 256 / seaLevel at 255, but NewTF uses
      * maxY=480 and sea up to maxY/2. Widen slider metadata so the UI can express that.
+     * Also raises continent / climate scale caps beyond stock TerraForged.
      */
     private static void patchWorldPropertyRanges(CompoundTag root, TerrainLevels levels) {
         CompoundTag world = root.getCompound("world");
@@ -146,28 +147,42 @@ public final class SettingsDraft {
             return;
         }
         CompoundTag props = world.getCompound("properties");
-        if (props.isEmpty()) {
-            return;
-        }
-        int maxY = Math.max(levels.maxY, props.getInt("worldHeight"));
-        int maxSea = Math.max(32, maxY >> 1);
-        putBoundMax(props, "worldHeight", maxY);
-        putBoundMax(props, "seaLevel", maxSea);
-        // Ensure values themselves are not silently clamped by a 0–256 slider.
-        if (props.getInt("worldHeight") < levels.maxY) {
-            props.putInt("worldHeight", levels.maxY);
-        }
-        if (props.contains("seaLevel")) {
-            int sea = props.getInt("seaLevel");
-            if (sea < 32) {
-                props.putInt("seaLevel", 32);
-            } else if (sea > maxSea) {
-                props.putInt("seaLevel", maxSea);
+        if (!props.isEmpty()) {
+            int maxY = Math.max(levels.maxY, props.getInt("worldHeight"));
+            int maxSea = Math.max(32, maxY >> 1);
+            putBoundMax(props, "worldHeight", maxY);
+            putBoundMax(props, "seaLevel", maxSea);
+            // Ensure values themselves are not silently clamped by a 0–256 slider.
+            if (props.getInt("worldHeight") < levels.maxY) {
+                props.putInt("worldHeight", levels.maxY);
             }
+            if (props.contains("seaLevel")) {
+                int sea = props.getInt("seaLevel");
+                if (sea < 32) {
+                    props.putInt("seaLevel", 32);
+                } else if (sea > maxSea) {
+                    props.putInt("seaLevel", maxSea);
+                }
+            }
+        }
+        CompoundTag continent = world.getCompound("continent");
+        if (!continent.isEmpty()) {
+            putBoundMax(continent, "continentScale", 50000);
+        }
+
+        CompoundTag climate = root.getCompound("climate");
+        if (!climate.isEmpty()) {
+            putBoundMax(climate.getCompound("temperature"), "scale", 80);
+            putBoundMax(climate.getCompound("moisture"), "scale", 80);
+            putBoundMax(climate.getCompound("biomeShape"), "biomeSize", 8000);
+            putBoundMax(climate.getCompound("biomeShape"), "macroNoiseSize", 40);
         }
     }
 
     private static void putBoundMax(CompoundTag props, String field, int max) {
+        if (props == null || props.isEmpty()) {
+            return;
+        }
         CompoundTag meta = props.getCompound(Serializer.META_PREFIX + field);
         if (meta.isEmpty()) {
             return;

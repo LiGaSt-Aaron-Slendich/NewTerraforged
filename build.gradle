@@ -135,6 +135,11 @@ jar {
         exclude "META-INF/*.DSA"
         exclude "META-INF/*.RSA"
         exclude "module-info.class"
+        // NewTF overrides of engine settings (wider ranges + Islands section).
+        exclude "com/terraforged/engine/settings/WorldSettings.class"
+        exclude "com/terraforged/engine/settings/WorldSettings\$*.class"
+        exclude "com/terraforged/engine/settings/ClimateSettings.class"
+        exclude "com/terraforged/engine/settings/ClimateSettings\$*.class"
     }
     // Mod classes must win over anything bundled from Terraforged.jar
     from(sourceSets.main.output)

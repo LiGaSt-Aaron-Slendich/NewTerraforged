@@ -70,12 +70,13 @@ public final class PresetBrowserScreen extends Screen {
         this.panelBottom = this.height - 36;
         this.listLeft = 12;
 
-        // Sketch: Img fixed on the right; Names expands into the remaining middle (green box).
+        // Sketch: Img (green) on the right — large; Inf (red) under it; Names fills the rest.
         int rightPad = 16;
         int gap = 16;
-        int infoReserve = 44;
-        int imgMaxH = this.panelBottom - this.panelTop - infoReserve;
-        this.previewSize = Mth.clamp(Math.min(imgMaxH, this.width / 4), 140, 220);
+        int infoH = 56;
+        int imgMaxH = this.panelBottom - this.panelTop - infoH - 8;
+        int imgByWidth = Math.max(160, this.width / 3);
+        this.previewSize = Mth.clamp(Math.min(imgMaxH, imgByWidth), 160, 280);
 
         this.preview = new Preview((int) this.draft.seed());
         this.preview.setShowLegend(false);
@@ -87,14 +88,13 @@ public final class PresetBrowserScreen extends Screen {
         this.preview.setHeight(this.previewSize);
         this.addRenderableWidget(this.preview);
 
-        // Names panel stretches from left pad to just before Img.
         this.listWidth = Math.max(220, this.preview.x - gap - this.listLeft);
 
         this.list = new PresetList(this.listWidth, this.panelTop, this.height - this.panelBottom);
         this.addWidget(this.list);
         this.reloadList();
 
-        // Tabs sit on top of Names and span its full width (folder tabs, green lines).
+        // Tabs sit on top of Names and span its full width (folder tabs).
         int tabY = 28;
         int tabH = 26;
         int tabGap = 2;
@@ -198,6 +198,24 @@ public final class PresetBrowserScreen extends Screen {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // Prefer list hit-testing so presets are selectable by mouse, not only arrows.
+        if (this.list != null && this.list.mouseClicked(mouseX, mouseY, button)) {
+            this.setFocused(this.list);
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.list != null && this.list.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(pose);
 
@@ -218,15 +236,21 @@ public final class PresetBrowserScreen extends Screen {
         this.list.render(pose, mouseX, mouseY, partialTick);
         drawCenteredString(pose, this.font, this.title, this.width / 2, 8, 0xFFFFFF);
 
-        // Inf under Img.
+        // Red Inf zone under green Img: name + author.
+        int infoX = this.preview.x;
+        int infoY = this.preview.y + this.previewSize + 6;
+        int infoH = 40;
+        fill(pose, infoX - 4, infoY - 4, infoX + this.previewSize + 4, infoY + infoH, 0x88000000);
+        hLine(pose, infoX - 4, infoX + this.previewSize + 3, infoY - 4, 0xFFB05050);
+        hLine(pose, infoX - 4, infoX + this.previewSize + 3, infoY + infoH - 1, 0xFFB05050);
+        vLine(pose, infoX - 4, infoY - 4, infoY + infoH - 1, 0xFFB05050);
+        vLine(pose, infoX + this.previewSize + 3, infoY - 4, infoY + infoH - 1, 0xFFB05050);
         if (this.selected != null) {
-            int infoX = this.preview.x;
-            int infoY = this.preview.y + this.previewSize + 8;
-            fill(pose, infoX - 4, infoY - 4, infoX + this.previewSize + 4, infoY + 34, 0x88000000);
             String name = this.font.plainSubstrByWidth(this.selected.displayName(), this.previewSize);
             drawString(pose, this.font, name, infoX, infoY, 0xFFFFFF);
             drawString(pose, this.font, new TranslatableComponent("newterraforged.gui.presets.author", this.authorText), infoX, infoY + 14, 0xC0C0C0);
         }
+
         super.render(pose, mouseX, mouseY, partialTick);
     }
 
