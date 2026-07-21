@@ -73,4 +73,20 @@ public abstract class MixinCreateWorldScreen {
          TerraForged.LOG.info("Applied datapacks: {}", packrepository.getSelectedIds());
       }
    }
+
+   @Inject(
+      method = {"onCreate()V"},
+      at = {@At("TAIL")}
+   )
+   private void resetSessionAfterCreate(CallbackInfo ci) {
+      ScreenUtil.resetCreateWorldSession((CreateWorldScreen)(Object)this);
+   }
+
+   @Inject(
+      method = {"popScreen()V"},
+      at = {@At("HEAD")}
+   )
+   private void resetSessionOnCancel(CallbackInfo ci) {
+      ScreenUtil.resetCreateWorldSession((CreateWorldScreen)(Object)this);
+   }
 }
