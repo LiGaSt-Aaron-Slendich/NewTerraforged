@@ -1,7 +1,10 @@
 package com.terraforged.mod.client.screen;
 
+import com.terraforged.mod.client.gui.screen.AppliedCustomizeState;
 import com.terraforged.mod.platform.ClientAPI;
 import com.terraforged.mod.worldgen.GeneratorPreset;
+import com.terraforged.mod.worldgen.settings.GeneratorSettings;
+import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import java.util.function.Predicate;
 import net.minecraft.Util;
 import net.minecraft.client.gui.components.CycleButton;
@@ -9,9 +12,12 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldPreset;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 public class ScreenUtil {
@@ -26,8 +32,7 @@ public class ScreenUtil {
    }
 
    public static void resetCreateWorldSession(CreateWorldScreen screen) {
-      // Reserved hook for Create World exit points.
-      // NewTF does not keep a cross-screen draft anymore, so leaving the menu is enough.
+      AppliedCustomizeState.clear();
    }
 
    /**
@@ -36,7 +41,8 @@ public class ScreenUtil {
     * Critical: {@link CycleButton#onPress()} rebuilds {@link WorldGenSettings} from the preset
     * factory and would wipe Customize → Done settings. If the overworld is already a NewTF
     * {@link com.terraforged.mod.worldgen.Generator}, we never keep those factory defaults —
-    * restore the previous settings after any UI sync.
+    * restore the previous settings after any UI sync. Also re-applies
+    * {@link AppliedCustomizeState} when present.
     */
    public static void enforceDefaultPreset(CreateWorldScreen screen, String name) {
       CycleButton<?> cyclebutton = getPresetButton(screen);
@@ -45,26 +51,55 @@ public class ScreenUtil {
       }
 
       WorldGenSettings before = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
-      boolean keepCustomTf = GeneratorPreset.isTerraForgedWorld(before);
+      boolean keepCustomTf = GeneratorPreset.isTerraForgedWorld(before) || AppliedCustomizeState.present();
       // Applied NewTF generator must stay NewTF in the UI — never demote to forge "default".
       Predicate<String> target = keepCustomTf ? TF_PRESET : createKeyPredicate(name);
 
-      if (isPresetSelected(cyclebutton, target)) {
-         return;
-      }
-
-      Object start = cyclebutton.getValue();
-      while (!isPresetSelected(cyclebutton, target)) {
-         cyclebutton.onPress();
-         if (cyclebutton.getValue() == start) {
-            break;
+      if (!isPresetSelected(cyclebutton, target)) {
+         Object start = cyclebutton.getValue();
+         while (!isPresetSelected(cyclebutton, target)) {
+            cyclebutton.onPress();
+            if (cyclebutton.getValue() == start) {
+               break;
+            }
          }
       }
 
       if (keepCustomTf) {
-         // onPress replaced the chunk generator with factory defaults — put Customize back.
-         screen.worldGenSettingsComponent.updateSettings(before);
+         // onPress may have replaced the chunk generator with factory defaults — put Customize back.
+         if (GeneratorPreset.isTerraForgedWorld(before)) {
+            screen.worldGenSettingsComponent.updateSettings(before);
+         } else if (AppliedCustomizeState.present()) {
+            reapplyStored(screen);
+         }
       }
+   }
+
+   private static void reapplyStored(CreateWorldScreen screen) {
+      GeneratorSettings gs = AppliedCustomizeState.settings();
+      TerrainLevels levels = AppliedCustomizeState.levels();
+      if (gs == null || levels == null) {
+         return;
+      }
+      long seed = AppliedCustomizeState.seed();
+      if (seed == -1L) {
+         try {
+            seed = screen.worldGenSettingsComponent.makeSettings(screen.hardCore).seed();
+         } catch (Throwable ignored) {
+            seed = 0L;
+         }
+      }
+      RegistryAccess access = screen.worldGenSettingsComponent.registryHolder();
+      WorldGenSettings current = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+      Generator generator = GeneratorPreset.build(seed, levels, gs, access);
+      Registry<LevelStem> dimensions = WorldGenSettings.withOverworld(
+              access.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY),
+              current.dimensions(),
+              generator
+      );
+      screen.worldGenSettingsComponent.updateSettings(
+              new WorldGenSettings(seed, current.generateFeatures(), current.generateBonusChest(), dimensions)
+      );
    }
 
    public static boolean isPresetEnabled(CreateWorldScreen screen) {

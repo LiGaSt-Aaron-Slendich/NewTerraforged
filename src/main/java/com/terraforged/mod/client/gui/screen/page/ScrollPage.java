@@ -106,9 +106,8 @@ public class ScrollPage implements Page {
             boolean inView = widget.y + widget.getHeight() > this.top && widget.y < bottom;
             widget.visible = inView;
             // Keep inactive when scrolled away so they cannot steal Done/Cancel clicks.
-            if (!inView) {
-                widget.active = false;
-            }
+            // Must re-enable when scrolled back (TFSlider does this itself; checkboxes do not).
+            widget.active = inView;
         }
     }
 

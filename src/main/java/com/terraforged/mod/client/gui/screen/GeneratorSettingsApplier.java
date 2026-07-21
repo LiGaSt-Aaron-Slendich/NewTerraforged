@@ -34,6 +34,7 @@ public final class GeneratorSettingsApplier {
         );
         WorldGenSettings updated = new WorldGenSettings(seed, current.generateFeatures(), current.generateBonusChest(), dimensions);
         screen.worldGenSettingsComponent.updateSettings(updated);
+        AppliedCustomizeState.store(generatorSettings, draft.levels(), seed);
         // Do NOT call CycleButton.onPress / enforce via rebuild here — that recreates the
         // generator from TFPreset factory and wipes Customize settings. Screen re-init uses
         // ScreenUtil.enforceDefaultPreset which preserves an existing NewTF Generator.

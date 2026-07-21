@@ -63,7 +63,7 @@ public class ClimateSettings {
         @Rand
         @Comment(value = {"A seed offset used to randomise climate distribution"})
         public int seedOffset = 0;
-        @Range(min = 1.0f, max = 80.0f)
+        @Range(min = 1.0f, max = 100.0f)
         @Comment(value = {"The horizontal scale"})
         public int scale = 7;
         @Range(min = 1.0f, max = 20.0f)

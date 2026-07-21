@@ -16,6 +16,7 @@ import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 import javax.annotation.Nullable;
 
@@ -60,7 +61,7 @@ public final class ConfigScreen extends Screen {
     }
 
     public static void open(CreateWorldScreen parent) {
-        Minecraft.getInstance().setScreen(new ConfigScreen(parent));
+        Minecraft.getInstance().setScreen(new ConfigScreen(parent, safeCurrentSettings(parent)));
     }
 
     public SettingsDraft draft() {
@@ -85,10 +86,10 @@ public final class ConfigScreen extends Screen {
         int contentTop = 28;
         int contentHeight = Math.max(80, this.height - contentTop - bottomReserve);
 
-        // Left column ~40%, right preview gets the rest — never force half-screen overflow.
-        int leftWidth = Math.min(240, Math.max(160, this.width * 2 / 5));
+        // Left ~38% of width, right preview gets the rest — scales with window size.
+        int leftWidth = Mth.clamp(this.width * 38 / 100, 140, Math.max(140, this.width / 2 - pad * 2));
         int rightLeft = leftWidth + pad * 2;
-        int rightWidth = Math.max(120, this.width - rightLeft - pad);
+        int rightWidth = Math.max(100, this.width - rightLeft - pad);
 
         Page page = this.pages[this.pageIndex];
         page.init(this, pad, contentTop, leftWidth, contentHeight);

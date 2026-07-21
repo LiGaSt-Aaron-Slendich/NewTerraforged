@@ -28,8 +28,8 @@ public class WorldSettings {
     public static class Islands {
         @Range(min = 1.0f, max = 16.0f)
         @Comment(value = {
-                "How many continents should appear inside the preview coverage area.",
-                "Higher values push the generator toward more landmasses in view."
+                "Target number of continents inside the farthest preview window (640000x640000 blocks).",
+                "Aims for about this many landmasses — not fewer and not many more."
         })
         public int guaranteedContinents = 3;
 

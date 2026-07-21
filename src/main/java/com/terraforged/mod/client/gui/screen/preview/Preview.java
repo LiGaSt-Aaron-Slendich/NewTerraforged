@@ -106,14 +106,16 @@ public final class Preview extends AbstractWidget {
             spacing = Math.max(spacing, font.width(s));
         }
         spacing += 6;
+        int lineH = 10;
         for (int i = 0; i < this.labels.length && i < this.values.length; i++) {
             String label = this.labels[i];
             String value = this.values[i];
-            while (!value.isEmpty() && spacing + font.width(value) > maxWidth) {
-                value = value.substring(0, value.length() - 1);
+            int valueMax = Math.max(8, maxWidth - spacing);
+            if (font.width(value) > valueMax) {
+                value = font.plainSubstrByWidth(value, valueMax);
             }
-            drawString(pose, font, label, left, top + i * 10, color);
-            drawString(pose, font, value, left + spacing, top + i * 10, color);
+            drawString(pose, font, label, left, top + i * lineH, color);
+            drawString(pose, font, value, left + spacing, top + i * lineH, color);
         }
     }
 
@@ -312,6 +314,8 @@ public final class Preview extends AbstractWidget {
         DataUtils.fromNBT(DataUtils.toCompactNBT(settings), copy);
         copy.world.seed = settings.world.seed;
         copy.world.properties.seaLevel = PREVIEW_REF_SEA;
+        // Preview TileGenerator only reads continent.*; bake Islands knobs into those fields.
+        com.terraforged.mod.worldgen.settings.ContinentShapeWiring.bakeIslandsIntoEngine(copy);
         return copy;
     }
 

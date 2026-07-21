@@ -54,6 +54,13 @@ public final class SettingsDraft {
                 return new SettingsDraft(seed, gen);
             }
         }
+        // Customize → Done stash: World Type cycle may have replaced the generator briefly.
+        if (AppliedCustomizeState.present() && AppliedCustomizeState.settings() != null) {
+            long stashSeed = AppliedCustomizeState.seed();
+            SettingsDraft draft = new SettingsDraft(stashSeed != -1L ? stashSeed : seed);
+            draft.loadGeneratorSettings(AppliedCustomizeState.settings());
+            return draft;
+        }
         return new SettingsDraft(seed);
     }
 
@@ -172,8 +179,8 @@ public final class SettingsDraft {
 
         CompoundTag climate = root.getCompound("climate");
         if (!climate.isEmpty()) {
-            putBoundMax(climate.getCompound("temperature"), "scale", 80);
-            putBoundMax(climate.getCompound("moisture"), "scale", 80);
+            putBoundMax(climate.getCompound("temperature"), "scale", 100);
+            putBoundMax(climate.getCompound("moisture"), "scale", 100);
             putBoundMax(climate.getCompound("biomeShape"), "biomeSize", 8000);
             putBoundMax(climate.getCompound("biomeShape"), "macroNoiseSize", 40);
         }

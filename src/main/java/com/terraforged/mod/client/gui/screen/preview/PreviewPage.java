@@ -10,19 +10,18 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.util.Mth;
 
 /**
- * Port of TerraForged 0.2.x {@code PreviewPage}, adapted to NewTF {@link ConfigScreen} / {@link SettingsDraft}.
- * Layout: yellow control row → green Img → red Inf (legend).
+ * Layout: yellow control row → green Img → red Inf (legend). Sizes are relative to the column.
  */
 public final class PreviewPage implements Page {
-    private static final int INFO_H = 52;
-
     private final SettingsDraft draft;
     private final Preview preview;
     private int infoX;
     private int infoY;
     private int infoW;
+    private int infoH;
 
     public PreviewPage(SettingsDraft draft) {
         this.draft = draft;
@@ -46,11 +45,12 @@ public final class PreviewPage implements Page {
 
     @Override
     public void init(ConfigScreen screen, int left, int top, int width, int height) {
-        int gap = 2;
-        int btnH = 20;
-        // Yellow zone: four controls in one row across the full preview column width.
-        int controlsH = btnH + 4;
-        int mapSize = Math.min(Preview.SIZE, Math.min(width, Math.max(96, height - controlsH - INFO_H - 4)));
+        int gap = Math.max(1, width / 120);
+        int btnH = Mth.clamp(height / 22, 16, 20);
+        int controlsH = btnH + Math.max(2, height / 80);
+        this.infoH = Mth.clamp(height / 12, 40, 56);
+        int mapPad = Math.max(2, height / 100);
+        int mapSize = Math.min(Preview.SIZE, Math.min(width, Math.max(64, height - controlsH - this.infoH - mapPad)));
         int mapLeft = left + Math.max(0, (width - mapSize) / 2);
 
         this.preview.x = mapLeft;
@@ -59,15 +59,15 @@ public final class PreviewPage implements Page {
         this.preview.setHeight(mapSize);
 
         this.infoX = mapLeft;
-        this.infoY = this.preview.y + mapSize + 4;
+        this.infoY = this.preview.y + mapSize + mapPad;
         this.infoW = mapSize;
 
-        int btnW = Math.max(28, (width - gap * 3) / 4);
+        int btnW = Math.max(24, (width - gap * 3) / 4);
         int x0 = left;
         int x1 = left + btnW + gap;
         int x2 = left + (btnW + gap) * 2;
         int x3 = left + (btnW + gap) * 3;
-        int lastW = Math.max(28, width - (btnW + gap) * 3);
+        int lastW = Math.max(24, width - (btnW + gap) * 3);
 
         screen.addRenderableWidget(new Button(x0, top, btnW, btnH, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
             this.preview.regenerate();
@@ -79,7 +79,7 @@ public final class PreviewPage implements Page {
             b.setMessage(new TextComponent(shortMode(this.preview.previewSettings().display)));
             this.refresh();
         }));
-        screen.addRenderableWidget(new Button(x2, top, btnW, btnH, new TextComponent("Zoom −"), b -> {
+        screen.addRenderableWidget(new Button(x2, top, btnW, btnH, new TextComponent("Zoom -"), b -> {
             this.preview.previewSettings().zoom = Math.max(1, this.preview.previewSettings().zoom - 8);
             this.refresh();
         }));
@@ -123,14 +123,13 @@ public final class PreviewPage implements Page {
 
     @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
-        // Red Inf zone under the green Img.
-        if (this.infoW <= 0) {
+        if (this.infoW <= 0 || this.infoH <= 0) {
             return;
         }
         int x0 = this.infoX - 2;
         int y0 = this.infoY - 2;
         int x1 = this.infoX + this.infoW + 2;
-        int y1 = this.infoY + INFO_H;
+        int y1 = this.infoY + this.infoH;
         fill(pose, x0, y0, x1, y1, 0x88000000);
         fill(pose, x0, y0, x1, y0 + 1, 0xFFB05050);
         fill(pose, x0, y1 - 1, x1, y1, 0xFFB05050);

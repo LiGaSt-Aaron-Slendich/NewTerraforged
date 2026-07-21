@@ -55,7 +55,12 @@ public class TFCheckBox extends Button implements Element {
 
     @Override
     public void renderButton(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+        // Keep clickable whenever visible (ScrollPage may have toggled active for cull).
+        if (this.visible) {
+            this.active = true;
+        }
         boolean wasActive = this.active;
+        // Grey "checked" look without permanently disabling the widget.
         this.active = !this.checked;
         super.renderButton(pose, mouseX, mouseY, partialTick);
         this.active = wasActive;

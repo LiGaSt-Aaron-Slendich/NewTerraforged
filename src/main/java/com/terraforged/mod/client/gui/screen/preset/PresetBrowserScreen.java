@@ -66,17 +66,20 @@ public final class PresetBrowserScreen extends Screen {
     @Override
     protected void init() {
         this.previewClosed = false;
-        this.panelTop = 54;
-        this.panelBottom = this.height - 36;
-        this.listLeft = 12;
+        // Relative layout so Img+Inf always sit above the bottom buttons.
+        int bottomBar = Mth.clamp(this.height / 16, 28, 40);
+        int topPad = Mth.clamp(this.height / 18, 24, 36);
+        this.panelTop = topPad + Mth.clamp(this.height / 24, 22, 30);
+        this.panelBottom = this.height - bottomBar - 4;
+        this.listLeft = Mth.clamp(this.width / 64, 8, 16);
 
-        // Sketch: Img (green) on the right — large; Inf (red) under it; Names fills the rest.
-        int rightPad = 16;
-        int gap = 16;
-        int infoH = 56;
-        int imgMaxH = this.panelBottom - this.panelTop - infoH - 8;
-        int imgByWidth = Math.max(160, this.width / 3);
-        this.previewSize = Mth.clamp(Math.min(imgMaxH, imgByWidth), 160, 280);
+        int rightPad = Mth.clamp(this.width / 60, 10, 20);
+        int gap = Mth.clamp(this.width / 60, 10, 20);
+        int infoH = Mth.clamp(this.height / 16, 36, 48);
+        int availH = Math.max(64, this.panelBottom - this.panelTop - infoH - 8);
+        int availW = Math.max(96, this.width / 3);
+        // Never force a size larger than remaining space (old min=160 caused Cancel overlap).
+        this.previewSize = Math.max(64, Math.min(availH, Math.min(availW, this.height * 2 / 5)));
 
         this.preview = new Preview((int) this.draft.seed());
         this.preview.setShowLegend(false);
@@ -88,15 +91,14 @@ public final class PresetBrowserScreen extends Screen {
         this.preview.setHeight(this.previewSize);
         this.addRenderableWidget(this.preview);
 
-        this.listWidth = Math.max(220, this.preview.x - gap - this.listLeft);
+        this.listWidth = Math.max(Mth.clamp(this.width / 4, 160, 320), this.preview.x - gap - this.listLeft);
 
         this.list = new PresetList(this.listWidth, this.panelTop, this.height - this.panelBottom);
         this.addWidget(this.list);
         this.reloadList();
 
-        // Tabs sit on top of Names and span its full width (folder tabs).
-        int tabY = 28;
-        int tabH = 26;
+        int tabY = topPad;
+        int tabH = Mth.clamp(this.height / 28, 20, 26);
         int tabGap = 2;
         int tab1W = (this.listWidth - tabGap) / 2;
         int tab2W = this.listWidth - tabGap - tab1W;
@@ -107,10 +109,11 @@ public final class PresetBrowserScreen extends Screen {
                 new TranslatableComponent("newterraforged.gui.presets.tab.user"),
                 PresetBrowserScreen.Tab.USER));
 
-        int cy = this.height - 28;
-        this.importButton = this.addRenderableWidget(new Button(this.width / 2 - 155, cy, 150, 20,
+        int btnW = Mth.clamp(this.width / 5, 120, 160);
+        int cy = this.height - bottomBar + 4;
+        this.importButton = this.addRenderableWidget(new Button(this.width / 2 - btnW - 4, cy, btnW, 20,
                 new TranslatableComponent("newterraforged.gui.presets.import"), b -> this.importSelected()));
-        this.addRenderableWidget(new Button(this.width / 2 + 5, cy, 150, 20, CommonComponents.GUI_CANCEL, b -> this.onClose()));
+        this.addRenderableWidget(new Button(this.width / 2 + 4, cy, btnW, 20, CommonComponents.GUI_CANCEL, b -> this.onClose()));
         this.updateImportEnabled();
     }
 
@@ -236,16 +239,20 @@ public final class PresetBrowserScreen extends Screen {
         this.list.render(pose, mouseX, mouseY, partialTick);
         drawCenteredString(pose, this.font, this.title, this.width / 2, 8, 0xFFFFFF);
 
-        // Red Inf zone under green Img: name + author.
+        // Red Inf zone under green Img: name + author (height relative; always above bottom bar).
         int infoX = this.preview.x;
-        int infoY = this.preview.y + this.previewSize + 6;
-        int infoH = 40;
+        int infoY = this.preview.y + this.previewSize + Math.max(4, this.height / 80);
+        int infoH = Mth.clamp(this.height / 16, 32, 44);
+        int maxInfoBottom = this.height - Mth.clamp(this.height / 16, 28, 40) - 2;
+        if (infoY + infoH > maxInfoBottom) {
+            infoH = Math.max(24, maxInfoBottom - infoY);
+        }
         fill(pose, infoX - 4, infoY - 4, infoX + this.previewSize + 4, infoY + infoH, 0x88000000);
         hLine(pose, infoX - 4, infoX + this.previewSize + 3, infoY - 4, 0xFFB05050);
         hLine(pose, infoX - 4, infoX + this.previewSize + 3, infoY + infoH - 1, 0xFFB05050);
         vLine(pose, infoX - 4, infoY - 4, infoY + infoH - 1, 0xFFB05050);
         vLine(pose, infoX + this.previewSize + 3, infoY - 4, infoY + infoH - 1, 0xFFB05050);
-        if (this.selected != null) {
+        if (this.selected != null && infoH >= 28) {
             String name = this.font.plainSubstrByWidth(this.selected.displayName(), this.previewSize);
             drawString(pose, this.font, name, infoX, infoY, 0xFFFFFF);
             drawString(pose, this.font, new TranslatableComponent("newterraforged.gui.presets.author", this.authorText), infoX, infoY + 14, 0xC0C0C0);
