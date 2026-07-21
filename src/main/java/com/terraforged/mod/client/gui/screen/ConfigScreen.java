@@ -43,7 +43,7 @@ public final class ConfigScreen extends Screen {
     public ConfigScreen(CreateWorldScreen parent, @Nullable WorldGenSettings existingSettings) {
         super(new TranslatableComponent("newterraforged.gui.config.title"));
         this.parent = parent;
-        int seed = readSeed(parent);
+        long seed = readSeed(parent);
         this.draft = SettingsDraft.fromWorldSettings(seed, existingSettings != null
                 ? existingSettings
                 : safeCurrentSettings(parent));
@@ -169,18 +169,18 @@ public final class ConfigScreen extends Screen {
         }
     }
 
-    private static int readSeed(CreateWorldScreen screen) {
+    private static long readSeed(CreateWorldScreen screen) {
         EditBox box = findSeedBox(screen);
         if (box == null || box.getValue().isEmpty()) {
             try {
                 WorldGenSettings settings = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
-                return (int)settings.seed();
+                return settings.seed();
             } catch (Throwable ignored) {
                 return -1;
             }
         }
         try {
-            return (int)Long.parseLong(box.getValue());
+            return Long.parseLong(box.getValue());
         } catch (NumberFormatException e) {
             return box.getValue().hashCode();
         }

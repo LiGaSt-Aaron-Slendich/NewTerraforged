@@ -15,14 +15,14 @@ import net.minecraft.world.level.levelgen.WorldGenSettings;
  * with an NBT mirror for slider binding.
  */
 public final class SettingsDraft {
-    private int seed;
+    private long seed;
     private Settings settings;
     private TerrainLevels levels;
     private CompoundTag settingsData;
 
     /** Fresh draft with factory defaults. */
-    public SettingsDraft(int seed) {
-        this.seed = seed == -1 ? (int)System.currentTimeMillis() : seed;
+    public SettingsDraft(long seed) {
+        this.seed = seed == -1L ? System.currentTimeMillis() : seed;
         this.levels = TerrainLevels.DEFAULT.get().copy();
         this.settings = createFactorySettings(this.seed, this.levels);
         this.settingsData = DataUtils.toNBT(this.settings);
@@ -33,8 +33,8 @@ public final class SettingsDraft {
      * Draft restored from a previously applied {@link Generator}.
      * Keeps all Customize settings so re-opening the screen shows what was last applied.
      */
-    public SettingsDraft(int seed, Generator generator) {
-        this.seed = seed == -1 ? (int) System.currentTimeMillis() : seed;
+    public SettingsDraft(long seed, Generator generator) {
+        this.seed = seed == -1L ? System.currentTimeMillis() : seed;
         this.levels = generator.getTerrainLevels().copy();
         GeneratorSettings gs = generator.getGeneratorSettings();
         this.settings = gs.toEngine(this.seed, this.levels);
@@ -47,7 +47,7 @@ public final class SettingsDraft {
      * Try to restore from the current {@link WorldGenSettings}. Falls back to factory defaults
      * when the overworld generator is not a NewTF {@link Generator}.
      */
-    public static SettingsDraft fromWorldSettings(int seed, WorldGenSettings wgs) {
+    public static SettingsDraft fromWorldSettings(long seed, WorldGenSettings wgs) {
         if (wgs != null) {
             ChunkGenerator cg = wgs.overworld();
             if (cg instanceof Generator gen) {
@@ -57,17 +57,17 @@ public final class SettingsDraft {
         return new SettingsDraft(seed);
     }
 
-    public int seed() {
+    public long seed() {
         return this.seed;
     }
 
-    public void setSeed(int seed) {
+    public void setSeed(long seed) {
         this.seed = seed;
         this.settings.world.seed = seed;
     }
 
     public void randomizeSeed() {
-        this.setSeed(java.util.concurrent.ThreadLocalRandom.current().nextInt());
+        this.setSeed(java.util.concurrent.ThreadLocalRandom.current().nextLong());
     }
 
     public Settings settings() {
@@ -101,6 +101,13 @@ public final class SettingsDraft {
         this.settings = createFactorySettings(this.seed, this.levels);
         this.settingsData = DataUtils.toNBT(this.settings);
         patchWorldPropertyRanges(this.settingsData, this.levels);
+    }
+
+    public void loadGeneratorSettings(GeneratorSettings generatorSettings) {
+        this.settings = generatorSettings.toEngine(this.seed, null);
+        this.settings.world.seed = this.seed;
+        this.syncLevelsFromSettings();
+        this.refreshNbt();
     }
 
     public void refreshNbt() {

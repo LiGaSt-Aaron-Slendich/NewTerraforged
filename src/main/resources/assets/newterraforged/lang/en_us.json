@@ -16,5 +16,7 @@
   "newterraforged.gui.page.rivers.body": "River controls — coming next.",
   "newterraforged.gui.page.filters": "Filters",
   "newterraforged.gui.page.filters.body": "Smoothing / erosion filters — coming next.",
-  "newterraforged.gui.presets.reset": "Reset defaults"
+  "newterraforged.gui.presets.reset": "Reset defaults",
+  "newterraforged.gui.presets.save": "Save",
+  "newterraforged.gui.presets.import": "Import Settings"
 }

@@ -37,7 +37,7 @@ public class TFClient {
          return;
       }
       try {
-         ForgeWorldPresetScreens.registerPresetEditor(preset, (createWorldScreen, worldGenSettings) -> new ConfigScreen(createWorldScreen));
+         ForgeWorldPresetScreens.registerPresetEditor(preset, ConfigScreen::new);
       } catch (IllegalStateException already) {
          // Client re-init / dual-load — ignore duplicate registration.
       }
@@ -54,7 +54,7 @@ public class TFClient {
       if (s == null || s.isEmpty() || "default".equals(s) || "terraforged".equals(s)) {
          s = "newterraforged";
       }
-      ScreenUtil.enforceDefaultPreset(createworldscreen, s);
+      ScreenUtil.prepareCreateWorldScreen(createworldscreen, s);
    }
 
    private static class ForgeClientAPI implements ClientAPI {

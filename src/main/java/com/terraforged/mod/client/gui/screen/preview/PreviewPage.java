@@ -20,7 +20,7 @@ public final class PreviewPage implements Page {
 
     public PreviewPage(SettingsDraft draft) {
         this.draft = draft;
-        this.preview = new Preview(draft.seed());
+        this.preview = new Preview((int) draft.seed());
         // Start more zoomed-in so MULTI continents read as landmasses, not island soup.
         this.preview.previewSettings().zoom = 78;
     }
@@ -59,7 +59,7 @@ public final class PreviewPage implements Page {
 
         screen.addRenderableWidget(new Button(left, top, half, btnH, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
             this.preview.regenerate();
-            this.draft.setSeed(this.preview.getSeed());
+            this.draft.setSeed(Integer.toUnsignedLong(this.preview.getSeed()));
             this.refresh();
         }));
         screen.addRenderableWidget(new Button(left + half + gap, top, width - half - gap, btnH, new TextComponent(shortMode(this.preview.previewSettings().display)), b -> {
@@ -101,7 +101,7 @@ public final class PreviewPage implements Page {
     @Override
     public void save() {
         this.draft.applyToSettings();
-        this.draft.setSeed(this.preview.getSeed());
+        this.draft.setSeed(Integer.toUnsignedLong(this.preview.getSeed()));
     }
 
     @Override

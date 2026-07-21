@@ -23,11 +23,7 @@ public final class GeneratorSettingsApplier {
 
         RegistryAccess access = screen.worldGenSettingsComponent.registryHolder();
         WorldGenSettings current = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
-        long seed = Integer.toUnsignedLong(draft.seed());
-        // Prefer seed already written into the edit box / current settings when present.
-        if (current.seed() != 0L && draft.seed() == (int) current.seed()) {
-            seed = current.seed();
-        }
+        long seed = draft.seed();
         GeneratorSettings generatorSettings = draft.toGeneratorSettings();
         Generator generator = GeneratorPreset.build(seed, draft.levels(), generatorSettings, access);
 
@@ -49,7 +45,7 @@ public final class GeneratorSettingsApplier {
         );
     }
 
-    private static void writeSeed(CreateWorldScreen screen, int seed) {
+    private static void writeSeed(CreateWorldScreen screen, long seed) {
         // Prefer the seed box (selectWorld.enterSeed) over other numeric fields.
         EditBox seedBox = null;
         for (GuiEventListener child : screen.children()) {
@@ -74,7 +70,7 @@ public final class GeneratorSettingsApplier {
             }
         }
         if (seedBox != null) {
-            seedBox.setValue(String.valueOf(Integer.toUnsignedLong(seed)));
+            seedBox.setValue(String.valueOf(seed));
         }
     }
 }

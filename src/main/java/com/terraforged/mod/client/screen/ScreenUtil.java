@@ -1,22 +1,45 @@
 package com.terraforged.mod.client.screen;
 
 import com.terraforged.mod.platform.ClientAPI;
+import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.GeneratorPreset;
+import com.terraforged.mod.worldgen.settings.GeneratorSettings;
+import com.terraforged.mod.worldgen.terrain.TerrainLevels;
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import net.minecraft.Util;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.client.gui.screens.worldselection.WorldPreset;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 public class ScreenUtil {
    private static final Predicate<String> TF_PRESET = s -> s.equals(GeneratorPreset.TRANSLATION_KEY);
    private static final Predicate<String> DEFAULT_PRESET = s -> s.equals("generator.default");
+   private static final Set<CreateWorldScreen> INITIALIZED_SCREENS = Collections.newSetFromMap(new WeakHashMap<>());
+
+   /**
+    * Initialize a newly opened Create World screen once per screen instance.
+    * Returning from Customize reuses the same screen object and should keep applied settings;
+    * opening Create World again from menus should start from fresh NewTF defaults.
+    */
+   public static void prepareCreateWorldScreen(CreateWorldScreen screen, String name) {
+      boolean firstOpen = INITIALIZED_SCREENS.add(screen);
+      enforceDefaultPreset(screen, name);
+      if (firstOpen && isNewTerraForgedName(name)) {
+         resetNewTerraForgedSettings(screen);
+      }
+   }
 
    /**
     * Align the World Type cycle button with {@code name}.
@@ -62,6 +85,23 @@ public class ScreenUtil {
       } else {
          return !ClientAPI.get().hasPreset() ? isPresetSelected(cyclebutton, DEFAULT_PRESET) : isPresetSelected(cyclebutton, TF_PRESET);
       }
+   }
+
+   private static void resetNewTerraForgedSettings(CreateWorldScreen screen) {
+      RegistryAccess access = screen.worldGenSettingsComponent.registryHolder();
+      WorldGenSettings current = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+      Generator generator = GeneratorPreset.build(current.seed(), TerrainLevels.DEFAULT.get().copy(), GeneratorSettings.DEFAULT, access);
+      Registry<LevelStem> dimensions = WorldGenSettings.withOverworld(
+         access.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY),
+         current.dimensions(),
+         generator
+      );
+      WorldGenSettings reset = new WorldGenSettings(current.seed(), current.generateFeatures(), current.generateBonusChest(), dimensions);
+      screen.worldGenSettingsComponent.updateSettings(reset);
+   }
+
+   private static boolean isNewTerraForgedName(String name) {
+      return "terraforged".equals(name) || "newterraforged".equals(name) || GeneratorPreset.TRANSLATION_KEY.equals(name);
    }
 
    private static Predicate<String> createKeyPredicate(String name) {
