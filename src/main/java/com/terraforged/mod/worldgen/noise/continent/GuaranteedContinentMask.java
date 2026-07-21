@@ -20,9 +20,7 @@ public final class GuaranteedContinentMask {
     private final int cellMin;
     private final int cellMax;
     private final boolean active;
-    /** Fraction of cut-zone cells that stay skipped (engine shouldSkip). Higher = emptier. */
     private final float softSkipThreshold;
-    /** Noise below this is forced ocean in NewTF cells; peaks above become island-scale land. */
     private final float softNoiseThreshold;
 
     private GuaranteedContinentMask(
@@ -44,12 +42,13 @@ public final class GuaranteedContinentMask {
      * @param worldBlocksPerCell approximate world blocks spanned by one continent cell
      *                           (engine MULTI ≈ continentScale×4, NewTF ≈ continentScale)
      */
-    public static GuaranteedContinentMask create(WorldSettings.Islands islands, int seed, int worldBlocksPerCell) {
-        if (islands == null || !islands.guaranteedContinentsEnabled) {
+    public static GuaranteedContinentMask create(WorldSettings world, int seed, int worldBlocksPerCell) {
+        if (world == null || world.continent == null || !world.continent.guaranteedContinentsEnabled) {
             return inactive();
         }
-        int n = Math.max(1, Math.min(16, islands.guaranteedContinents));
-        // Allow ±1 continent vs the slider (clamped to 1..16).
+        WorldSettings.Continent continent = world.continent;
+        WorldSettings.Islands islands = world.islands != null ? world.islands : new WorldSettings.Islands();
+        int n = Math.max(1, Math.min(16, continent.guaranteedContinents));
         int delta = Math.floorMod(MathUtil.hash(seed, 0xC0117, n), 3) - 1;
         n = Math.max(1, Math.min(16, n + delta));
 
@@ -64,7 +63,7 @@ public final class GuaranteedContinentMask {
         }
 
         LongSet land = new LongOpenHashSet(n * 2);
-        float spread = clamp01(islands.continentsSpread);
+        float spread = clamp01(continent.continentsSpread);
         int minSep = Math.max(1, (int) (span / (Math.sqrt(n) * (2.2F - spread))));
 
         int attempts = 0;
@@ -98,6 +97,20 @@ public final class GuaranteedContinentMask {
         return new GuaranteedContinentMask(land, cellMin, cellMax, true, softSkip, softNoise);
     }
 
+    /** @deprecated prefer {@link #create(WorldSettings, int, int)} */
+    @Deprecated
+    public static GuaranteedContinentMask create(WorldSettings.Islands islands, int seed, int worldBlocksPerCell) {
+        WorldSettings world = new WorldSettings();
+        if (islands != null) {
+            world.islands = islands;
+            // Legacy callers stuffed guarantee knobs onto Islands — map what we can from Continent defaults.
+            world.continent.guaranteedContinentsEnabled = true;
+            world.continent.guaranteedContinents = 3;
+            world.continent.continentsSpread = 0.5F;
+        }
+        return create(world, seed, worldBlocksPerCell);
+    }
+
     public static GuaranteedContinentMask inactive() {
         return new GuaranteedContinentMask(new LongOpenHashSet(), 0, 0, false, 1.0F, 1.0F);
     }
@@ -110,20 +123,14 @@ public final class GuaranteedContinentMask {
         return cellX >= this.cellMin && cellX <= this.cellMax && cellY >= this.cellMin && cellY <= this.cellMax;
     }
 
-    /** Inside the window: true = must be a full continent landmass. */
     public boolean isGuaranteedLand(int cellX, int cellY) {
         return this.landCells.contains(PosUtil.pack(cellX, cellY));
     }
 
-    /**
-     * Soft-cut skip threshold for non-guaranteed in-window cells.
-     * Skip when {@code skipValue < softSkipThreshold()} (same convention as continentSkipping).
-     */
     public float softSkipThreshold() {
         return this.softSkipThreshold;
     }
 
-    /** NewTF cell noise below this becomes ocean; above becomes island-scale land. */
     public float softNoiseThreshold() {
         return this.softNoiseThreshold;
     }
@@ -137,7 +144,6 @@ public final class GuaranteedContinentMask {
         float volcanic = clamp01(islands.volcanicIslandsChance);
         float arch = islands.scatteredArchipelago ? clamp01(islands.scatteredArchipelagoChance) : 0.0F;
         float pressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
-        // Defaults ≈ 0.87 — ~13% of cut cells keep island-scale land in the engine preview.
         return clamp(0.97F - pressure * 0.24F, 0.78F, 0.97F);
     }
 
@@ -146,7 +152,6 @@ public final class GuaranteedContinentMask {
         float volcanic = clamp01(islands.volcanicIslandsChance);
         float arch = islands.scatteredArchipelago ? clamp01(islands.scatteredArchipelagoChance) : 0.0F;
         float pressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
-        // Lower threshold → more island peaks survive the soft cut.
         return clamp(0.92F - pressure * 0.20F, 0.70F, 0.92F);
     }
 

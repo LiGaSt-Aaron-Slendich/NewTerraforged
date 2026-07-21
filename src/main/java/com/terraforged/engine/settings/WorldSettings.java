@@ -53,16 +53,6 @@ public class WorldSettings {
         })
         public float scatteredArchipelagoChance = 0.35f;
 
-        /** @deprecated UI moved to Continent; kept transient for in-memory mirror only. */
-        @Deprecated
-        public transient boolean guaranteedContinentsEnabled = true;
-        /** @deprecated UI moved to Continent; kept transient for in-memory mirror only. */
-        @Deprecated
-        public transient int guaranteedContinents = 3;
-        /** @deprecated UI moved to Continent; kept transient for in-memory mirror only. */
-        @Deprecated
-        public transient float continentsSpread = 0.5f;
-
         /** @deprecated kept for NBT compat; prefer {@link #coastalIslandsChance}. */
         @Deprecated
         public boolean coastalIslands = true;

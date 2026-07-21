@@ -253,6 +253,13 @@ public final class Preview extends AbstractWidget {
         if (this.task != null && this.task.isDone()) {
             try {
                 this.tile = this.task.get();
+                PreviewIslandPainter.apply(
+                        this.tile,
+                        this.settings,
+                        this.seed,
+                        this.center.x,
+                        this.center.z,
+                        this.getZoom());
                 this.renderTile(this.tile);
             } catch (Throwable t) {
                 t.printStackTrace();

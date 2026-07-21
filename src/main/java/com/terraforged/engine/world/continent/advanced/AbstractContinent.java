@@ -38,10 +38,7 @@ public abstract class AbstractContinent implements SimpleContinent {
         this.riverCache = new RiverCache(new SimpleRiverGenerator(this, context));
         int pitch = Math.max(100, this.continentScale * 4);
         com.terraforged.mod.worldgen.settings.ContinentGuarantee.syncIslandsMirror(settings);
-        this.guaranteeMask = GuaranteedContinentMask.create(
-                com.terraforged.mod.worldgen.settings.ContinentGuarantee.asIslandsView(settings),
-                this.seed,
-                pitch);
+        this.guaranteeMask = GuaranteedContinentMask.create(settings, this.seed, pitch);
     }
 
     @Override

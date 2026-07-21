@@ -55,15 +55,15 @@ public class ContinentGenerator {
       this.cellSource = config.shape.cellSource;
       this.riverGenerator = new RiverGenerator(this, config);
       this.shapeGenerator = new ShapeGenerator(this, config, controlPoints);
-      WorldSettings.Islands islands = new WorldSettings.Islands();
-      islands.guaranteedContinents = config.shape.guaranteedContinents;
-      islands.guaranteedContinentsEnabled = config.shape.guaranteedContinentsEnabled;
-      islands.continentsSpread = config.shape.continentsSpread;
-      islands.coastalIslandsChance = config.shape.coastalIslandsChance;
-      islands.volcanicIslandsChance = config.shape.volcanicIslandsChance;
-      islands.scatteredArchipelago = config.shape.scatteredArchipelago;
-      islands.scatteredArchipelagoChance = config.shape.scatteredArchipelagoChance;
-      this.guaranteeMask = GuaranteedContinentMask.create(islands, this.seed, Math.max(100, config.shape.scale));
+      WorldSettings world = new WorldSettings();
+      world.continent.guaranteedContinents = config.shape.guaranteedContinents;
+      world.continent.guaranteedContinentsEnabled = config.shape.guaranteedContinentsEnabled;
+      world.continent.continentsSpread = config.shape.continentsSpread;
+      world.islands.coastalIslandsChance = config.shape.coastalIslandsChance;
+      world.islands.volcanicIslandsChance = config.shape.volcanicIslandsChance;
+      world.islands.scatteredArchipelago = config.shape.scatteredArchipelago;
+      world.islands.scatteredArchipelagoChance = config.shape.scatteredArchipelagoChance;
+      this.guaranteeMask = GuaranteedContinentMask.create(world, this.seed, Math.max(100, config.shape.scale));
    }
 
    public Vec2f getWorldOffset() {

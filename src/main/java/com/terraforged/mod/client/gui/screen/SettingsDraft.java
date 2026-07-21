@@ -213,6 +213,9 @@ public final class SettingsDraft {
         settings.world.properties.seaLevel = levels.seaLevel;
         settings.world.properties.worldHeight = levels.maxY;
         settings.filters.erosion.dropletsPerChunk = 350;
+        // Stock TF default volcano weight=5 floods continents; keep mainland volcanoes rare.
+        // Ocean volcanic islands come from Islands.volcanicIslandsChance instead.
+        settings.terrain.volcano.weight = 0.35F;
         return settings;
     }
 }

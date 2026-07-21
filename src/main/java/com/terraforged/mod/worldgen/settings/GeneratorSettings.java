@@ -415,6 +415,7 @@ public final class GeneratorSettings {
         // Keep classic TF continent feel: large landmasses, not island soup.
         engine.world.continent.continentScale = WorldSettings.DEFAULT_CONTINENT_SCALE;
         engine.filters.erosion.dropletsPerChunk = 350;
+        engine.terrain.volcano.weight = 0.35F;
         return fromEngine(engine);
     }
 
