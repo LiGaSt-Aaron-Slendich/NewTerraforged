@@ -59,6 +59,10 @@ public class ContinentGenerator {
       islands.guaranteedContinents = config.shape.guaranteedContinents;
       islands.guaranteedContinentsEnabled = config.shape.guaranteedContinentsEnabled;
       islands.continentsSpread = config.shape.continentsSpread;
+      islands.coastalIslandsChance = config.shape.coastalIslandsChance;
+      islands.volcanicIslandsChance = config.shape.volcanicIslandsChance;
+      islands.scatteredArchipelago = config.shape.scatteredArchipelago;
+      islands.scatteredArchipelagoChance = config.shape.scatteredArchipelagoChance;
       this.guaranteeMask = GuaranteedContinentMask.create(islands, this.seed, Math.max(100, config.shape.scale));
    }
 
@@ -131,9 +135,20 @@ public class ContinentGenerator {
       float variance = 1.0F + this.sizeVariance;
       float f3 = 400.0F / f2 * variance;
       sampleCell(this.sampleSeed, f, f1, this.cellSource, this.noiseOctaves, f3, this.noiseLacunarity, this.noiseGain, cell);
-      // Exact-N land/ocean inside the 640k guarantee window.
+      // N±1 landmasses inside the 640k window; other cells soft-cut to island peaks / ocean.
       if (this.guaranteeMask != null && this.guaranteeMask.active() && this.guaranteeMask.inWindow(i, j)) {
-         cell.noise = this.guaranteeMask.isGuaranteedLand(i, j) ? 1.0F : 0.0F;
+         if (this.guaranteeMask.isGuaranteedLand(i, j)) {
+            cell.noise = 1.0F;
+         } else {
+            float soft = this.guaranteeMask.softNoiseThreshold();
+            if (cell.noise < soft) {
+               cell.noise = 0.0F;
+            } else {
+               float t = (cell.noise - soft) / Math.max(1.0E-3F, 1.0F - soft);
+               // Remap surviving peaks to island-scale land (not full continents).
+               cell.noise = 0.32F + t * 0.48F;
+            }
+         }
          cell.noise0 = cell.noise;
       }
       return cell;

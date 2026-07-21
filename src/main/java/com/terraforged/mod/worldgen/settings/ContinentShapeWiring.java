@@ -8,8 +8,7 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Maps engine {@link WorldSettings.Continent} / {@link WorldSettings.Islands} onto NewTF
- * {@link ContinentConfig}. Exact continent count is enforced by {@link GuaranteedContinentMask}
- * (not by skip density alone).
+ * {@link ContinentConfig}. Continent count uses {@link GuaranteedContinentMask} (N±1 + soft cut).
  */
 public final class ContinentShapeWiring {
     public static final int GUARANTEE_AREA = GuaranteedContinentMask.AREA;
@@ -54,7 +53,7 @@ public final class ContinentShapeWiring {
 
     /**
      * Preview TileGenerator only reads continent.*; bake island chances into skip/jitter
-     * and rely on overridden {@code AbstractContinent.shouldSkip} for exact-N.
+     * and rely on overridden {@code AbstractContinent.shouldSkip} for N±1 + soft cut.
      */
     public static void bakeIslandsIntoEngine(Settings settings) {
         if (settings == null || settings.world == null) {
@@ -64,15 +63,18 @@ public final class ContinentShapeWiring {
         WorldSettings.Continent c = settings.world.continent;
         float spread = NoiseUtil.clamp(islands.continentsSpread, 0.0F, 1.0F);
         c.continentJitter = NoiseUtil.clamp(NoiseUtil.lerp(c.continentJitter * 0.85F, Math.max(c.continentJitter, 0.95F), spread), 0.0F, 1.0F);
-        // Outside-window density: leave user skipping mostly intact.
-        // Exact-N inside the window is handled by AbstractContinent + GuaranteedContinentMask.
         float coastal = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
         float volcanic = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
-        if (coastal <= 0.01F) {
-            c.continentSkipping = NoiseUtil.clamp(c.continentSkipping + 0.04F, 0.0F, 1.0F);
+        float arch = islands.scatteredArchipelago ? NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F) : 0.0F;
+        // Soft-cut density is driven by GuaranteedContinentMask from island chances.
+        // Outside the window, nudge skipping slightly so island-heavy presets stay livelier.
+        float islandPressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
+        if (islandPressure > 0.15F) {
+            c.continentSkipping = NoiseUtil.clamp(c.continentSkipping - islandPressure * 0.06F, 0.0F, 1.0F);
+            c.continentNoiseGain = NoiseUtil.clamp(c.continentNoiseGain + islandPressure * 0.05F, 0.0F, 1.0F);
         }
-        if (volcanic <= 0.01F) {
-            c.continentNoiseGain = NoiseUtil.clamp(c.continentNoiseGain * 0.9F, 0.0F, 1.0F);
+        if (coastal <= 0.01F && volcanic <= 0.01F && arch <= 0.01F) {
+            c.continentSkipping = NoiseUtil.clamp(c.continentSkipping + 0.04F, 0.0F, 1.0F);
         }
     }
 

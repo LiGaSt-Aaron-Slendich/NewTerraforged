@@ -41,8 +41,10 @@ public class ContinentNoise implements IContinentNoise {
 
    @Override
    public void sampleContinent(float x, float y, NoiseSample sample) {
-      float worldX = x;
-      float worldZ = y;
+      // x/y are noise coords (block * levels.frequency); overlay needs world blocks.
+      float freq = this.levels.noiseLevels.frequency;
+      float worldX = freq > 1.0E-6F ? x / freq : x;
+      float worldZ = freq > 1.0E-6F ? y / freq : y;
       x *= this.frequency;
       y *= this.frequency;
       float f = this.warp.getX(x, y);

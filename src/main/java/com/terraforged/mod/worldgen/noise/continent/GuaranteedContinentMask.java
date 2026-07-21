@@ -7,8 +7,9 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 /**
- * Places exactly {@code N} continent cell centres inside a fixed world window
- * ({@link #AREA}×{@link #AREA} blocks). Inside that window every other cell is ocean;
+ * Places {@code N±1} continent cell centres inside a fixed world window
+ * ({@link #AREA}×{@link #AREA} blocks). Inside that window non-selected cells use a
+ * soft cut (mostly ocean, rare island-scale land) so cut zones are not empty;
  * outside the window the caller keeps its normal density logic.
  */
 public final class GuaranteedContinentMask {
@@ -19,12 +20,24 @@ public final class GuaranteedContinentMask {
     private final int cellMin;
     private final int cellMax;
     private final boolean active;
+    /** Fraction of cut-zone cells that stay skipped (engine shouldSkip). Higher = emptier. */
+    private final float softSkipThreshold;
+    /** Noise below this is forced ocean in NewTF cells; peaks above become island-scale land. */
+    private final float softNoiseThreshold;
 
-    private GuaranteedContinentMask(LongSet landCells, int cellMin, int cellMax, boolean active) {
+    private GuaranteedContinentMask(
+            LongSet landCells,
+            int cellMin,
+            int cellMax,
+            boolean active,
+            float softSkipThreshold,
+            float softNoiseThreshold) {
         this.landCells = landCells;
         this.cellMin = cellMin;
         this.cellMax = cellMax;
         this.active = active;
+        this.softSkipThreshold = softSkipThreshold;
+        this.softNoiseThreshold = softNoiseThreshold;
     }
 
     /**
@@ -36,6 +49,10 @@ public final class GuaranteedContinentMask {
             return inactive();
         }
         int n = Math.max(1, Math.min(16, islands.guaranteedContinents));
+        // Allow ±1 continent vs the slider (clamped to 1..16).
+        int delta = Math.floorMod(MathUtil.hash(seed, 0xC0117, n), 3) - 1;
+        n = Math.max(1, Math.min(16, n + delta));
+
         int pitch = Math.max(100, worldBlocksPerCell);
         int halfCells = Math.max(2, HALF / pitch);
         int cellMin = -halfCells;
@@ -47,7 +64,6 @@ public final class GuaranteedContinentMask {
         }
 
         LongSet land = new LongOpenHashSet(n * 2);
-        // Minimum spacing grows with Continents Spread so N landmasses stay distinct.
         float spread = clamp01(islands.continentsSpread);
         int minSep = Math.max(1, (int) (span / (Math.sqrt(n) * (2.2F - spread))));
 
@@ -65,7 +81,6 @@ public final class GuaranteedContinentMask {
             land.add(PosUtil.pack(cx, cy));
             placed++;
         }
-        // If spacing was too strict, fill remaining without spacing so count stays exact.
         attempts = 0;
         while (placed < n && attempts < capacity * 2) {
             attempts++;
@@ -78,11 +93,13 @@ public final class GuaranteedContinentMask {
             }
         }
 
-        return new GuaranteedContinentMask(land, cellMin, cellMax, true);
+        float softSkip = softSkipThreshold(islands);
+        float softNoise = softNoiseThreshold(islands);
+        return new GuaranteedContinentMask(land, cellMin, cellMax, true, softSkip, softNoise);
     }
 
     public static GuaranteedContinentMask inactive() {
-        return new GuaranteedContinentMask(new LongOpenHashSet(), 0, 0, false);
+        return new GuaranteedContinentMask(new LongOpenHashSet(), 0, 0, false, 1.0F, 1.0F);
     }
 
     public boolean active() {
@@ -93,13 +110,44 @@ public final class GuaranteedContinentMask {
         return cellX >= this.cellMin && cellX <= this.cellMax && cellY >= this.cellMin && cellY <= this.cellMax;
     }
 
-    /** Inside the window: true = must be land. Outside: unused. */
+    /** Inside the window: true = must be a full continent landmass. */
     public boolean isGuaranteedLand(int cellX, int cellY) {
         return this.landCells.contains(PosUtil.pack(cellX, cellY));
     }
 
+    /**
+     * Soft-cut skip threshold for non-guaranteed in-window cells.
+     * Skip when {@code skipValue < softSkipThreshold()} (same convention as continentSkipping).
+     */
+    public float softSkipThreshold() {
+        return this.softSkipThreshold;
+    }
+
+    /** NewTF cell noise below this becomes ocean; above becomes island-scale land. */
+    public float softNoiseThreshold() {
+        return this.softNoiseThreshold;
+    }
+
     public int count() {
         return this.landCells.size();
+    }
+
+    private static float softSkipThreshold(WorldSettings.Islands islands) {
+        float coastal = clamp01(islands.coastalIslandsChance);
+        float volcanic = clamp01(islands.volcanicIslandsChance);
+        float arch = islands.scatteredArchipelago ? clamp01(islands.scatteredArchipelagoChance) : 0.0F;
+        float pressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
+        // Defaults ≈ 0.87 — ~13% of cut cells keep island-scale land in the engine preview.
+        return clamp(0.97F - pressure * 0.24F, 0.78F, 0.97F);
+    }
+
+    private static float softNoiseThreshold(WorldSettings.Islands islands) {
+        float coastal = clamp01(islands.coastalIslandsChance);
+        float volcanic = clamp01(islands.volcanicIslandsChance);
+        float arch = islands.scatteredArchipelago ? clamp01(islands.scatteredArchipelagoChance) : 0.0F;
+        float pressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
+        // Lower threshold → more island peaks survive the soft cut.
+        return clamp(0.92F - pressure * 0.20F, 0.70F, 0.92F);
     }
 
     private static boolean tooClose(LongSet land, int cx, int cy, int minSep) {
@@ -120,11 +168,15 @@ public final class GuaranteedContinentMask {
     }
 
     private static float clamp01(float v) {
-        if (v < 0.0F) {
-            return 0.0F;
+        return clamp(v, 0.0F, 1.0F);
+    }
+
+    private static float clamp(float v, float min, float max) {
+        if (v < min) {
+            return min;
         }
-        if (v > 1.0F) {
-            return 1.0F;
+        if (v > max) {
+            return max;
         }
         return v;
     }

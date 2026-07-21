@@ -37,7 +37,7 @@ public class ContinentConfig {
       public float sizeVariance = 0.25F;
       public CellShape cellShape = CellShape.SQUARE;
       public CellSource cellSource = CellSource.PERLIN;
-      /** Exact continent count inside the 640k window (ignored when guarantee disabled). */
+      /** Target continent count inside the 640k window (actual may be ±1; ignored when guarantee disabled). */
       public int guaranteedContinents = 3;
       public boolean guaranteedContinentsEnabled = true;
       public float continentsSpread = 0.5F;

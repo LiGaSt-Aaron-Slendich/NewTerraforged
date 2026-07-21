@@ -12,7 +12,8 @@ import com.terraforged.mod.worldgen.noise.continent.GuaranteedContinentMask;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * NewTF override: exact-N continent mask inside the 640000×640000 guarantee window.
+ * NewTF override: N±1 continent mask inside the 640000×640000 guarantee window.
+ * Non-guaranteed in-window cells use a soft cut so islands can still appear.
  */
 public abstract class AbstractContinent implements SimpleContinent {
     protected final int seed;
@@ -103,8 +104,12 @@ public abstract class AbstractContinent implements SimpleContinent {
 
     protected boolean shouldSkip(int cellX, int cellY) {
         if (this.guaranteeMask != null && this.guaranteeMask.active() && this.guaranteeMask.inWindow(cellX, cellY)) {
-            // Exact count: keep only the N guaranteed land cells; skip all others in-window.
-            return !this.guaranteeMask.isGuaranteedLand(cellX, cellY);
+            if (this.guaranteeMask.isGuaranteedLand(cellX, cellY)) {
+                return false;
+            }
+            // Soft cut: mostly ocean, but allow rare island-scale cells in the cut zone.
+            float skipValue = AbstractContinent.getCellValue(this.skippingSeed ^ 0xA5A5_5A5A, cellX, cellY);
+            return skipValue < this.guaranteeMask.softSkipThreshold();
         }
         if (this.hasSkipping && !this.isDefaultContinent(cellX, cellY)) {
             float skipValue = AbstractContinent.getCellValue(this.skippingSeed, cellX, cellY);

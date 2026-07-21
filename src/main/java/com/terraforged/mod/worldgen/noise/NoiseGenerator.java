@@ -7,6 +7,7 @@ import com.terraforged.engine.world.heightmap.ControlPoints;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.util.SpiralIterator;
+import com.terraforged.mod.data.ModTerrainTypes;
 import com.terraforged.mod.worldgen.asset.TerrainNoise;
 import com.terraforged.mod.worldgen.noise.continent.ContinentNoise;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
@@ -201,19 +202,27 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected void getOcean(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
+      Terrain island = islandTerrain(sample.terrainType);
+      float islandH = sample.heightNoise;
       float f = this.ocean.getValue(x, z);
       sample.heightNoise = this.levels.noiseLevels.toDepthNoise(f);
       sample.terrainType = TerrainType.DEEP_OCEAN;
+      restoreIsland(sample, island, islandH);
    }
 
    protected void getInland(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
+      Terrain island = islandTerrain(sample.terrainType);
+      float islandH = sample.heightNoise;
       float f = sample.baseNoise;
       float f1 = this.land.getValue(x, z, blender) * 1.2F;
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
+      restoreIsland(sample, island, islandH);
    }
 
    protected void getBlend(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
+      Terrain island = islandTerrain(sample.terrainType);
+      float islandH = sample.heightNoise;
       if (sample.continentNoise < 0.5F) {
          float f = this.ocean.getValue(x, z);
          float f1 = this.levels.noiseLevels.toDepthNoise(f);
@@ -228,6 +237,29 @@ public class NoiseGenerator implements INoiseGenerator {
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);
          sample.terrainType = this.land.getTerrain(blender);
+      }
+      restoreIsland(sample, island, islandH);
+   }
+
+   private static Terrain islandTerrain(Terrain terrain) {
+      if (terrain == ModTerrainTypes.VOLCANIC_ISLAND
+            || terrain == ModTerrainTypes.COASTAL_ISLAND
+            || terrain == ModTerrainTypes.SCATTERED_ARCHIPELAGO
+            || terrain == ModTerrainTypes.LAGUNA) {
+         return terrain;
+      }
+      return null;
+   }
+
+   private static void restoreIsland(NoiseSample sample, Terrain island, float islandHeight) {
+      if (island == null) {
+         return;
+      }
+      sample.terrainType = island;
+      if (island == ModTerrainTypes.LAGUNA) {
+         sample.heightNoise = Math.min(sample.heightNoise, islandHeight);
+      } else {
+         sample.heightNoise = Math.max(sample.heightNoise, islandHeight);
       }
    }
 

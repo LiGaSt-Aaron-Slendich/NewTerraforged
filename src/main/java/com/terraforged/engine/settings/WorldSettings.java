@@ -27,15 +27,16 @@ public class WorldSettings {
     @Serializable
     public static class Islands {
         @Comment(value = {
-                "When ON, exactly Guaranteed Continents landmasses are forced inside the 640000x640000 window.",
-                "When OFF, continent count follows normal noise / skipping (no exact guarantee)."
+                "When ON, about Guaranteed Continents (±1) landmasses are forced inside the 640000x640000 window.",
+                "Cut zones stay mostly ocean but keep islands / archipelago freckles (soft cut).",
+                "When OFF, continent count follows normal noise / skipping (no guarantee)."
         })
         public boolean guaranteedContinentsEnabled = true;
 
         @Range(min = 1.0f, max = 16.0f)
         @Comment(value = {
-                "Exact number of continents inside the 640000x640000 preview/guarantee window.",
-                "Only used when Guaranteed Continents Enabled is ON."
+                "Target number of continents inside the 640000x640000 preview/guarantee window.",
+                "Actual count may be target−1, target, or target+1. Only used when Guaranteed Continents Enabled is ON."
         })
         public int guaranteedContinents = 3;
 
