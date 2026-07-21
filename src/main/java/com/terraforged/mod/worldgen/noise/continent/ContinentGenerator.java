@@ -57,6 +57,7 @@ public class ContinentGenerator {
       this.shapeGenerator = new ShapeGenerator(this, config, controlPoints);
       WorldSettings.Islands islands = new WorldSettings.Islands();
       islands.guaranteedContinents = config.shape.guaranteedContinents;
+      islands.guaranteedContinentsEnabled = config.shape.guaranteedContinentsEnabled;
       islands.continentsSpread = config.shape.continentsSpread;
       this.guaranteeMask = GuaranteedContinentMask.create(islands, this.seed, Math.max(100, config.shape.scale));
    }

@@ -44,6 +44,7 @@ public final class ContinentShapeWiring {
         config.noise.baseNoiseFalloff = 1.5F + config.shape.sizeVariance * 0.5F;
 
         config.shape.guaranteedContinents = Math.max(1, Math.min(16, islands.guaranteedContinents));
+        config.shape.guaranteedContinentsEnabled = islands.guaranteedContinentsEnabled;
         config.shape.continentsSpread = spread;
         config.shape.coastalIslandsChance = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
         config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);

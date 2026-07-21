@@ -32,6 +32,9 @@ public final class GuaranteedContinentMask {
      *                           (engine MULTI ≈ continentScale×4, NewTF ≈ continentScale)
      */
     public static GuaranteedContinentMask create(WorldSettings.Islands islands, int seed, int worldBlocksPerCell) {
+        if (islands == null || !islands.guaranteedContinentsEnabled) {
+            return inactive();
+        }
         int n = Math.max(1, Math.min(16, islands.guaranteedContinents));
         int pitch = Math.max(100, worldBlocksPerCell);
         int halfCells = Math.max(2, HALF / pitch);
@@ -76,6 +79,10 @@ public final class GuaranteedContinentMask {
         }
 
         return new GuaranteedContinentMask(land, cellMin, cellMax, true);
+    }
+
+    public static GuaranteedContinentMask inactive() {
+        return new GuaranteedContinentMask(new LongOpenHashSet(), 0, 0, false);
     }
 
     public boolean active() {
