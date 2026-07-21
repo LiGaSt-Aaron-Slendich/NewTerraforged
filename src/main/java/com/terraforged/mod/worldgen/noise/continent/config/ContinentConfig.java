@@ -37,5 +37,12 @@ public class ContinentConfig {
       public float sizeVariance = 0.25F;
       public CellShape cellShape = CellShape.SQUARE;
       public CellSource cellSource = CellSource.PERLIN;
+      /** Exact continent count inside the 640k window (0 = disabled). */
+      public int guaranteedContinents = 3;
+      public float continentsSpread = 0.5F;
+      public float coastalIslandsChance = 0.45F;
+      public float volcanicIslandsChance = 0.25F;
+      public boolean scatteredArchipelago = true;
+      public float scatteredArchipelagoChance = 0.35F;
    }
 }

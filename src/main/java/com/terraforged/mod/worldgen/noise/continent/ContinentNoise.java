@@ -6,6 +6,7 @@ import com.terraforged.mod.worldgen.noise.IContinentNoise;
 import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
+import com.terraforged.mod.worldgen.noise.continent.island.IslandFeatureOverlay;
 import com.terraforged.mod.worldgen.settings.ContinentRiverWiring;
 import com.terraforged.mod.worldgen.settings.ContinentShapeWiring;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
@@ -22,12 +23,15 @@ public class ContinentNoise implements IContinentNoise {
    protected final Domain warp;
    protected final Vec2f offset;
    protected final float frequency;
+   protected final IslandFeatureOverlay islandOverlay;
 
    public ContinentNoise(TerrainLevels levels, GeneratorContext context) {
       this.levels = levels;
       this.context = context;
       this.controlPoints = new ControlPoints(context.settings.world.controlPoints);
-      this.generator = createContinent(context, this.controlPoints, levels.noiseLevels);
+      ContinentConfig config = createConfig(context);
+      this.generator = new ContinentGenerator(config, levels.noiseLevels, this.controlPoints);
+      this.islandOverlay = new IslandFeatureOverlay(config);
       this.offset = this.generator.getWorldOffset();
       this.frequency = 1.0F / context.settings.world.continent.continentScale;
       double d0 = 0.2;
@@ -37,6 +41,8 @@ public class ContinentNoise implements IContinentNoise {
 
    @Override
    public void sampleContinent(float x, float y, NoiseSample sample) {
+      float worldX = x;
+      float worldZ = y;
       x *= this.frequency;
       y *= this.frequency;
       float f = this.warp.getX(x, y);
@@ -45,6 +51,7 @@ public class ContinentNoise implements IContinentNoise {
       f1 += this.offset.y;
       this.generator.shapeGenerator.sample(f, f1, sample);
       sample.terrainType = ContinentPoints.getTerrainType(sample.continentNoise);
+      this.islandOverlay.apply(worldX, worldZ, sample, this.levels.seaLevel);
    }
 
    @Override
@@ -68,13 +75,13 @@ public class ContinentNoise implements IContinentNoise {
       return this.controlPoints;
    }
 
-   protected static ContinentGenerator createContinent(GeneratorContext context, ControlPoints controlPoints, NoiseLevels levels) {
+   protected static ContinentConfig createConfig(GeneratorContext context) {
       ContinentConfig continentconfig = new ContinentConfig();
       continentconfig.shape.scale = context.settings.world.continent.continentScale;
       continentconfig.shape.seed0 = context.seed.next();
       continentconfig.shape.seed1 = context.seed.next();
       ContinentShapeWiring.apply(continentconfig, context.settings);
       ContinentRiverWiring.apply(continentconfig, context.settings);
-      return new ContinentGenerator(continentconfig, levels, controlPoints);
+      return continentconfig;
    }
 }

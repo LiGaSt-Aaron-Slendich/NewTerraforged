@@ -28,16 +28,24 @@ public class WorldSettings {
     public static class Islands {
         @Range(min = 1.0f, max = 16.0f)
         @Comment(value = {
-                "Target number of continents inside the farthest preview window (640000x640000 blocks).",
-                "Aims for about this many landmasses — not fewer and not many more."
+                "Exact number of continents inside the 640000x640000 preview/guarantee window.",
+                "Inside that window the count is forced — not fewer and not more."
         })
         public int guaranteedContinents = 3;
 
+        @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
-                "Allow islands very close to the coast (slightly farther than a river width).",
-                "When off, near-shore island freckles are suppressed."
+                "Chance to form coastal islands near mainland shores",
+                "(distance a bit larger than a river). 0 = never, 1 = always when eligible."
         })
-        public boolean coastalIslands = true;
+        public float coastalIslandsChance = 0.45f;
+
+        @Range(min = 0.0f, max = 1.0f)
+        @Comment(value = {
+                "Chance to form volcanic islands (volcano + shore only).",
+                "0 = never, 1 = always when eligible."
+        })
+        public float volcanicIslandsChance = 0.25f;
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
@@ -47,9 +55,23 @@ public class WorldSettings {
         public float continentsSpread = 0.5f;
 
         @Comment(value = {
-                "Allow tiny volcanic islands (volcano + shore only).",
-                "When off, those freckles are discouraged."
+                "Enable Scattered Archipelago features: one large island plus many small ones",
+                "(small islands from 15 blocks up to 1000 blocks across)."
         })
+        public boolean scatteredArchipelago = true;
+
+        @Range(min = 0.0f, max = 1.0f)
+        @Comment(value = {
+                "Chance to place a Scattered Archipelago cluster where eligible.",
+                "Water between member islands is Laguna (shallow, max 15 blocks deep)."
+        })
+        public float scatteredArchipelagoChance = 0.35f;
+
+        /** @deprecated kept for NBT compat; prefer {@link #coastalIslandsChance}. */
+        @Deprecated
+        public boolean coastalIslands = true;
+        /** @deprecated kept for NBT compat; prefer {@link #volcanicIslandsChance}. */
+        @Deprecated
         public boolean volcanicIslands = true;
     }
 

@@ -140,6 +140,7 @@ jar {
         exclude "com/terraforged/engine/settings/WorldSettings\$*.class"
         exclude "com/terraforged/engine/settings/ClimateSettings.class"
         exclude "com/terraforged/engine/settings/ClimateSettings\$*.class"
+        exclude "com/terraforged/engine/world/continent/advanced/AbstractContinent.class"
     }
     // Mod classes must win over anything bundled from Terraforged.jar
     from(sourceSets.main.output)

@@ -7,6 +7,7 @@ import com.terraforged.mod.util.ObjectPool;
 import com.terraforged.mod.util.SpiralIterator;
 import com.terraforged.mod.util.map.LongCache;
 import com.terraforged.mod.util.map.LossyCache;
+import com.terraforged.engine.settings.WorldSettings;
 import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellShape;
@@ -36,6 +37,7 @@ public class ContinentGenerator {
    public final CellSource cellSource;
    public final RiverGenerator riverGenerator;
    public final ShapeGenerator shapeGenerator;
+   public final GuaranteedContinentMask guaranteeMask;
    private final ObjectPool<CellPoint> cellPool = ObjectPool.forCacheSize(2048, CellPoint::new);
    private final LongCache<CellPoint> cellCache = LossyCache.concurrent(2048, CellPoint[]::new, this.cellPool);
 
@@ -53,6 +55,10 @@ public class ContinentGenerator {
       this.cellSource = config.shape.cellSource;
       this.riverGenerator = new RiverGenerator(this, config);
       this.shapeGenerator = new ShapeGenerator(this, config, controlPoints);
+      WorldSettings.Islands islands = new WorldSettings.Islands();
+      islands.guaranteedContinents = config.shape.guaranteedContinents;
+      islands.continentsSpread = config.shape.continentsSpread;
+      this.guaranteeMask = GuaranteedContinentMask.create(islands, this.seed, Math.max(100, config.shape.scale));
    }
 
    public Vec2f getWorldOffset() {
@@ -124,6 +130,11 @@ public class ContinentGenerator {
       float variance = 1.0F + this.sizeVariance;
       float f3 = 400.0F / f2 * variance;
       sampleCell(this.sampleSeed, f, f1, this.cellSource, this.noiseOctaves, f3, this.noiseLacunarity, this.noiseGain, cell);
+      // Exact-N land/ocean inside the 640k guarantee window.
+      if (this.guaranteeMask != null && this.guaranteeMask.active() && this.guaranteeMask.inWindow(i, j)) {
+         cell.noise = this.guaranteeMask.isGuaranteedLand(i, j) ? 1.0F : 0.0F;
+         cell.noise0 = cell.noise;
+      }
       return cell;
    }
 

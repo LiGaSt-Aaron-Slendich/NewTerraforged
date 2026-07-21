@@ -2,6 +2,7 @@ package com.terraforged.mod.client.screen;
 
 import com.terraforged.mod.client.gui.screen.AppliedCustomizeState;
 import com.terraforged.mod.platform.ClientAPI;
+import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.GeneratorPreset;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
