@@ -18,11 +18,14 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraftforge.common.BiomeDictionary;
+import net.minecraftforge.common.BiomeDictionary.Type;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.registries.ForgeRegistries;
 
 /**
  * Loads / autogens per-biome JSON rules and answers candidate queries.
- * Sync runs when a biome registry is available (world/Source setup) — not every create-world.
+ * Primary sync: game launch ({@link #syncAtGameLaunch}). World registry sync fills any late biomes.
  */
 public final class BiomeRuleRegistry {
     private static final Map<ResourceLocation, BiomeRule> RULES = new HashMap<>();
@@ -33,6 +36,46 @@ public final class BiomeRuleRegistry {
 
     public static Path biomesRoot() {
         return FMLPaths.CONFIGDIR.get().resolve(TFConfigPaths.TERRAIN_RULES_BIOMES);
+    }
+
+    /** After registries freeze — generates missing JSON under Terrain_rules/Biomes. */
+    public static synchronized void syncAtGameLaunch() {
+        Path root = biomesRoot();
+        try {
+            Files.createDirectories(root);
+        } catch (IOException e) {
+            TerraForged.LOG.error("[BiomeRules] cannot create {}", root, e);
+            return;
+        }
+        int created = 0;
+        int loaded = 0;
+        int repaired = 0;
+        int skipped = 0;
+        try {
+            for (Map.Entry<ResourceKey<Biome>, Biome> entry : ForgeRegistries.BIOMES.getEntries()) {
+                ResourceLocation id = entry.getKey().location();
+                Biome biome = entry.getValue();
+                if (shouldSkip(id)) {
+                    skipped++;
+                    continue;
+                }
+                int r = ensureRule(id, biome);
+                if (r == 1) {
+                    loaded++;
+                } else if (r == 2) {
+                    created++;
+                } else if (r == 3) {
+                    repaired++;
+                }
+            }
+        } catch (Throwable t) {
+            TerraForged.LOG.error("[BiomeRules] syncAtGameLaunch failed", t);
+            return;
+        }
+        synced = !RULES.isEmpty();
+        TerraForged.LOG.info(
+                "[BiomeRules] game-launch sync: {} rules (loaded {}, created {}, repaired {}, skipped {}) → {}",
+                RULES.size(), loaded, created, repaired, skipped, root);
     }
 
     public static synchronized void sync(Registry<Biome> biomes) {
@@ -46,56 +89,105 @@ public final class BiomeRuleRegistry {
             TerraForged.LOG.error("[BiomeRules] cannot create {}", root, e);
             return;
         }
-        RULES.clear();
         int created = 0;
         int loaded = 0;
         int repaired = 0;
-        for (Holder<Biome> ref : BiomeUtil.getOverworldBiomes(biomes)) {
-            ResourceLocation id = ref.unwrapKey().map(ResourceKey::location).orElse(null);
-            if (id == null) {
-                continue;
-            }
-            String path = id.getPath();
-            if (path.contains("ocean") || path.contains("river") || path.equals("beach") || path.contains("stony_shore") || path.contains("snowy_beach")) {
-                continue;
-            }
-            Path file = root.resolve(id.getNamespace()).resolve(id.getPath() + ".json");
-            BiomeRule rule = null;
-            if (Files.isRegularFile(file)) {
-                BiomeRuleIO.LoadResult lr = BiomeRuleIO.load(file);
-                if (lr.ok()) {
-                    rule = lr.rule();
+        try {
+            for (Holder<Biome> ref : BiomeUtil.getOverworldBiomes(biomes)) {
+                ResourceLocation id = ref.unwrapKey().map(ResourceKey::location).orElse(null);
+                if (id == null || shouldSkip(id)) {
+                    continue;
+                }
+                int r = ensureRule(id, ref.value());
+                if (r == 1) {
                     loaded++;
-                } else {
-                    try {
-                        BiomeRuleIO.quarantineBroken(file, lr.error());
-                        TerraForged.LOG.warn("[BiomeRules] quarantined {} — {}", file.getFileName(), lr.error());
-                    } catch (IOException e) {
-                        TerraForged.LOG.error("[BiomeRules] failed to quarantine {}", file, e);
-                    }
-                    rule = BiomeRuleAutogen.generate(id, ref.value());
-                    try {
-                        BiomeRuleIO.write(file, rule);
-                        repaired++;
-                    } catch (IOException e) {
-                        TerraForged.LOG.error("[BiomeRules] failed to rewrite {}", file, e);
-                    }
-                }
-            } else {
-                rule = BiomeRuleAutogen.generate(id, ref.value());
-                try {
-                    BiomeRuleIO.write(file, rule);
+                } else if (r == 2) {
                     created++;
-                } catch (IOException e) {
-                    TerraForged.LOG.error("[BiomeRules] failed to write {}", file, e);
+                } else if (r == 3) {
+                    repaired++;
                 }
             }
-            if (rule != null) {
-                RULES.put(id, rule);
-            }
+        } catch (Throwable t) {
+            TerraForged.LOG.error("[BiomeRules] world registry sync failed", t);
+            // Keep whatever game-launch already produced.
+            synced = !RULES.isEmpty() || synced;
+            return;
         }
         synced = true;
-        TerraForged.LOG.info("[BiomeRules] sync complete: {} rules (loaded {}, created {}, repaired {})", RULES.size(), loaded, created, repaired);
+        TerraForged.LOG.info(
+                "[BiomeRules] world sync: {} rules total (pass loaded {}, created {}, repaired {})",
+                RULES.size(), loaded, created, repaired);
+    }
+
+    /**
+     * @return 1 loaded existing, 2 created new, 3 repaired broken, 0 failed
+     */
+    private static int ensureRule(ResourceLocation id, Biome biome) {
+        Path file = biomesRoot().resolve(id.getNamespace()).resolve(id.getPath() + ".json");
+        BiomeRule rule = null;
+        int kind = 0;
+        if (Files.isRegularFile(file)) {
+            BiomeRuleIO.LoadResult lr = BiomeRuleIO.load(file);
+            if (lr.ok()) {
+                rule = lr.rule();
+                kind = 1;
+            } else {
+                try {
+                    BiomeRuleIO.quarantineBroken(file, lr.error());
+                    TerraForged.LOG.warn("[BiomeRules] quarantined {} — {}", file.getFileName(), lr.error());
+                } catch (IOException e) {
+                    TerraForged.LOG.error("[BiomeRules] failed to quarantine {}", file, e);
+                }
+                rule = BiomeRuleAutogen.generate(id, biome);
+                try {
+                    BiomeRuleIO.write(file, rule);
+                    kind = 3;
+                } catch (IOException e) {
+                    TerraForged.LOG.error("[BiomeRules] failed to rewrite {}", file, e);
+                    return 0;
+                }
+            }
+        } else {
+            rule = BiomeRuleAutogen.generate(id, biome);
+            try {
+                BiomeRuleIO.write(file, rule);
+                kind = 2;
+            } catch (IOException e) {
+                TerraForged.LOG.error("[BiomeRules] failed to write {}", file, e);
+                return 0;
+            }
+        }
+        if (rule != null) {
+            RULES.put(id, rule);
+        }
+        return kind;
+    }
+
+    private static boolean shouldSkip(ResourceLocation id) {
+        if (id == null) {
+            return true;
+        }
+        String path = id.getPath().toLowerCase(Locale.ROOT);
+        if (path.contains("ocean")
+                || path.contains("river")
+                || path.equals("beach")
+                || path.contains("stony_shore")
+                || path.contains("snowy_beach")
+                || path.contains("cave")
+                || path.contains("nether")
+                || path.contains("the_end")
+                || path.startsWith("end_")
+                || path.contains("deep_dark")) {
+            return true;
+        }
+        ResourceKey<Biome> key = ResourceKey.create(Registry.BIOME_REGISTRY, id);
+        try {
+            if (BiomeDictionary.hasType(key, Type.NETHER) || BiomeDictionary.hasType(key, Type.END)) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 
     public static boolean isSynced() {
@@ -110,7 +202,6 @@ public final class BiomeRuleRegistry {
         return Collections.unmodifiableMap(RULES);
     }
 
-    /** Effective chance for this biome on the concrete terrain + optional subterrain. */
     public static float matchChance(BiomeRule rule, String terrainName, String subterrain, boolean steepSlope) {
         if (rule == null || !rule.hasTerrains()) {
             return 0.0F;
@@ -126,7 +217,6 @@ public final class BiomeRuleRegistry {
             return terrainChance;
         }
         if (subterrain == null || subterrain.isBlank() || SubterrainResolver.NONE.equals(subterrain)) {
-            // Subterrain layer inactive → do not require subterrain keys.
             return terrainChance;
         }
         float sub = rule.subterrainChance(subterrain);
@@ -152,7 +242,6 @@ public final class BiomeRuleRegistry {
         return best;
     }
 
-    /** Count how many of the given biomes allow terrain+subterrain (for conditional subterrains). */
     public static int countMatching(Iterable<Holder<Biome>> biomes, String terrain, String subterrain, boolean steep) {
         int n = 0;
         for (Holder<Biome> h : biomes) {

@@ -38,6 +38,7 @@ import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.forge.event.lifecycle.GatherDataEvent;
@@ -52,6 +53,7 @@ public class TFMain extends TerraForged {
       MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
       MinecraftForge.EVENT_BUS.register(CaveDebugSession.class);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onInit);
+      FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onLoadComplete);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onGenerateData);
       FMLJavaModLoadingContext.get().getModEventBus().addGenericListener(Biome.class, this::onBiomes);
       FMLJavaModLoadingContext.get().getModEventBus().addGenericListener(ForgeWorldPreset.class, this::onPresets);
@@ -67,6 +69,11 @@ public class TFMain extends TerraForged {
          com.terraforged.mod.compat.TerraBlenderCompat.init();
          CaveDebugNetwork.register();
       });
+   }
+
+   void onLoadComplete(FMLLoadCompleteEvent event) {
+      // Biomes are registered — generate missing Terrain_rules/Biomes/{mod}/{biome}.json
+      event.enqueueWork(com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry::syncAtGameLaunch);
    }
 
    void onRegisterCommands(RegisterCommandsEvent event) {
