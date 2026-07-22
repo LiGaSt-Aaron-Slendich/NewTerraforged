@@ -1,5 +1,44 @@
 {
-  "_comment": "canonical_name -> synonym biome path tokens / full paths. Used only when BiomeRuleDefaults.ENABLED=true.",
+  "_comment": "canonical_name -> synonym biome path tokens / full paths. Used when BiomeRuleDefaults.ENABLED=true.",
+  "plains": [
+    "plains",
+    "plain",
+    "meadow",
+    "grassland",
+    "field",
+    "fields"
+  ],
+  "steppe": [
+    "steppe",
+    "prairie",
+    "prairies",
+    "savanna_plateau_edge"
+  ],
+  "hills": [
+    "hill",
+    "hills",
+    "height",
+    "heights",
+    "upland",
+    "uplands",
+    "foothill",
+    "foothills"
+  ],
+  "mountains": [
+    "mountain",
+    "mountains",
+    "peaks",
+    "peak",
+    "alps",
+    "highland",
+    "highlands",
+    "sierra",
+    "crag"
+  ],
+  "plateau": [
+    "plateau",
+    "tableland"
+  ],
   "volcano": [
     "volcano",
     "volcanic",
@@ -8,13 +47,6 @@
     "volcanic_plains",
     "caldera",
     "crater"
-  ],
-  "plains": [
-    "plains",
-    "plain",
-    "meadow",
-    "grassland",
-    "prairie"
   ],
   "desert": [
     "desert",
@@ -31,14 +63,6 @@
     "mangrove",
     "wetland"
   ],
-  "mountains": [
-    "mountain",
-    "mountains",
-    "peaks",
-    "peak",
-    "alps",
-    "highland"
-  ],
   "badlands": [
     "badlands",
     "mesa",
@@ -51,6 +75,12 @@
     "coast",
     "dune_beach",
     "barrera"
+  ],
+  "river": [
+    "river",
+    "stream",
+    "creek",
+    "brook"
   ],
   "jungle": [
     "jungle",

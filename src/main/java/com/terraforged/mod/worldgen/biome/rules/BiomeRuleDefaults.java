@@ -5,9 +5,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.terraforged.mod.TerraForged;
+import com.terraforged.mod.platform.forge.TFConfigPaths;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -15,29 +18,26 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.fml.loading.FMLPaths;
 
 /**
- * Bundled default biome rules + synonym matching.
+ * Bundled + player-overridable default biome rules + synonym matching.
  *
- * <p><b>DISABLED by default</b> ({@link #ENABLED} = false) until curated defaults are filled in.
- * When enabled, missing player rules are copied from classpath defaults before falling back to autogen.
+ * <p>Resolution when {@link #ENABLED}:
+ * <ol>
+ *   <li>config Defaults/by_id (player-edited defaults)</li>
+ *   <li>classpath by_id</li>
+ *   <li>config / classpath by_name (path + synonyms)</li>
+ *   <li>else emergency autogen</li>
+ * </ol>
  *
- * <p>Classpath layout:
- * <pre>
- * /defaultconfigs/NewTerraForged/Terrain/Terrain_rules/Defaults/
- *   synonyms.json          — canonical name → [synonym paths…]
- *   by_name/{name}.json    — rule body (ASM header optional) keyed by canonical / path name
- *   by_id/{ns}/{path}.json — exact mod:biome override (optional)
- * </pre>
+ * <p>Saving from the EGF editor writes both the live Biomes rule and Defaults/by_id,
+ * so edits become the new default for that biome id.
  */
 public final class BiomeRuleDefaults {
-    /**
-     * Master switch. Keep false until we author Defaults/by_name together.
-     * Autogen remains the emergency path for unknown mods.
-     */
-    public static final boolean ENABLED = false;
+    public static final boolean ENABLED = true;
 
-    private static final String ROOT = "/defaultconfigs/NewTerraForged/Terrain/Terrain_rules/Defaults/";
+    private static final String CLASS_ROOT = "/defaultconfigs/NewTerraForged/Terrain/Terrain_rules/Defaults/";
     private static final Map<String, String> SYNONYM_TO_CANONICAL = new HashMap<>();
     private static final Map<String, BiomeRule> BY_NAME = new HashMap<>();
     private static final Map<String, BiomeRule> BY_ID = new HashMap<>();
@@ -46,24 +46,29 @@ public final class BiomeRuleDefaults {
     private BiomeRuleDefaults() {
     }
 
+    public static Path configRoot() {
+        return FMLPaths.CONFIGDIR.get().resolve(TFConfigPaths.TERRAIN_RULES_DEFAULTS);
+    }
+
     public static synchronized void ensureLoaded() {
         if (loaded) {
             return;
         }
         loaded = true;
         if (!ENABLED) {
-            TerraForged.LOG.info("[BiomeRules] Defaults library present but DISABLED (ENABLED=false) — using autogen only");
+            TerraForged.LOG.info("[BiomeRules] Defaults library DISABLED (ENABLED=false) - using autogen only");
             return;
         }
         loadSynonyms();
-        // by_name / by_id are loaded lazily on resolve to keep startup light; index synonym keys only.
-        TerraForged.LOG.info("[BiomeRules] Defaults ENABLED — {} synonym keys", SYNONYM_TO_CANONICAL.size());
+        TerraForged.LOG.info("[BiomeRules] Defaults ENABLED - {} synonym keys, config={}", SYNONYM_TO_CANONICAL.size(), configRoot());
     }
 
-    /**
-     * Try to resolve a default template for this biome id.
-     * Returns empty when disabled or no match.
-     */
+    /** Drop caches so a freshly written default is seen on next resolve. */
+    public static synchronized void invalidateCaches() {
+        BY_NAME.clear();
+        BY_ID.clear();
+    }
+
     public static Optional<BiomeRule> tryCopyFor(ResourceLocation biomeId) {
         ensureLoaded();
         if (!ENABLED || biomeId == null) {
@@ -84,7 +89,6 @@ public final class BiomeRuleDefaults {
 
         String canonical = SYNONYM_TO_CANONICAL.get(path);
         if (canonical == null) {
-            // token-level synonym: any path token maps to a canonical template
             for (String token : path.split("[_/\\-]+")) {
                 canonical = SYNONYM_TO_CANONICAL.get(token);
                 if (canonical != null) {
@@ -101,6 +105,27 @@ public final class BiomeRuleDefaults {
         return Optional.empty();
     }
 
+    /** Persist editor save into config Defaults/by_id so it becomes the default for this biome. */
+    public static void savePlayerDefault(ResourceLocation id, BiomeRule rule) throws java.io.IOException {
+        if (id == null || rule == null) {
+            return;
+        }
+        ensureLoaded();
+        Path file = configRoot().resolve("by_id").resolve(id.getNamespace()).resolve(id.getPath() + ".json");
+        BiomeRule asDefault = new BiomeRule(
+                id.toString(),
+                rule.canBeOnSlope,
+                rule.climateTags,
+                rule.terrains,
+                rule.subterrains,
+                rule.zoneFlags,
+                false
+        );
+        BiomeRuleIO.write(file, asDefault);
+        BY_ID.put(id.toString().toLowerCase(Locale.ROOT), asDefault);
+        TerraForged.LOG.info("[BiomeRules] default updated {}", file);
+    }
+
     public static boolean isEnabled() {
         return ENABLED;
     }
@@ -113,39 +138,54 @@ public final class BiomeRuleDefaults {
                 template.terrains,
                 template.subterrains,
                 template.zoneFlags,
-                false // copied from curated default — not emergency autogen
+                false
         );
     }
 
     private static void loadSynonyms() {
-        String resource = ROOT + "synonyms.json";
+        // Prefer config override, else classpath.
+        Path configSyn = configRoot().resolve("synonyms.json");
+        if (Files.isRegularFile(configSyn)) {
+            try {
+                String raw = Files.readString(configSyn, StandardCharsets.UTF_8);
+                parseSynonyms(JsonParser.parseString(stripBom(raw)).getAsJsonObject());
+                return;
+            } catch (Exception e) {
+                TerraForged.LOG.warn("[BiomeRules] failed config synonyms.json: {}", e.toString());
+            }
+        }
+        String resource = CLASS_ROOT + "synonyms.json";
         try (InputStream in = BiomeRuleDefaults.class.getResourceAsStream(resource)) {
             if (in == null) {
                 TerraForged.LOG.debug("[BiomeRules] no synonyms.json at {}", resource);
                 return;
             }
             JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            for (Map.Entry<String, JsonElement> e : root.entrySet()) {
-                String canonical = e.getKey().toLowerCase(Locale.ROOT);
-                if (canonical.startsWith("_")) {
-                    continue;
-                }
-                SYNONYM_TO_CANONICAL.put(canonical, canonical);
-                if (!e.getValue().isJsonArray()) {
-                    continue;
-                }
-                JsonArray arr = e.getValue().getAsJsonArray();
-                for (JsonElement el : arr) {
-                    if (el.isJsonPrimitive()) {
-                        String syn = el.getAsString().toLowerCase(Locale.ROOT).trim();
-                        if (!syn.isEmpty()) {
-                            SYNONYM_TO_CANONICAL.put(syn, canonical);
-                        }
+            parseSynonyms(root);
+        } catch (Exception e) {
+            TerraForged.LOG.warn("[BiomeRules] failed to load synonyms.json: {}", e.toString());
+        }
+    }
+
+    private static void parseSynonyms(JsonObject root) {
+        for (Map.Entry<String, JsonElement> e : root.entrySet()) {
+            String canonical = e.getKey().toLowerCase(Locale.ROOT);
+            if (canonical.startsWith("_")) {
+                continue;
+            }
+            SYNONYM_TO_CANONICAL.put(canonical, canonical);
+            if (!e.getValue().isJsonArray()) {
+                continue;
+            }
+            JsonArray arr = e.getValue().getAsJsonArray();
+            for (JsonElement el : arr) {
+                if (el.isJsonPrimitive()) {
+                    String syn = el.getAsString().toLowerCase(Locale.ROOT).trim();
+                    if (!syn.isEmpty()) {
+                        SYNONYM_TO_CANONICAL.put(syn, canonical);
                     }
                 }
             }
-        } catch (Exception e) {
-            TerraForged.LOG.warn("[BiomeRules] failed to load synonyms.json: {}", e.toString());
         }
     }
 
@@ -157,8 +197,11 @@ public final class BiomeRuleDefaults {
         if (BY_NAME.containsKey(key)) {
             return BY_NAME.get(key);
         }
-        BiomeRule rule = readClasspathRule(ROOT + "by_name/" + key + ".json");
-        BY_NAME.put(key, rule); // may store null to avoid re-hit
+        BiomeRule rule = readConfigRule(configRoot().resolve("by_name").resolve(key + ".json"));
+        if (rule == null) {
+            rule = readClasspathRule(CLASS_ROOT + "by_name/" + key + ".json");
+        }
+        BY_NAME.put(key, rule);
         return rule;
     }
 
@@ -167,10 +210,41 @@ public final class BiomeRuleDefaults {
         if (BY_ID.containsKey(key)) {
             return BY_ID.get(key);
         }
-        String resource = ROOT + "by_id/" + id.getNamespace() + "/" + id.getPath() + ".json";
-        BiomeRule rule = readClasspathRule(resource);
+        BiomeRule rule = readConfigRule(configRoot().resolve("by_id").resolve(id.getNamespace()).resolve(id.getPath() + ".json"));
+        if (rule == null) {
+            rule = readClasspathRule(CLASS_ROOT + "by_id/" + id.getNamespace() + "/" + id.getPath() + ".json");
+        }
         BY_ID.put(key, rule);
         return rule;
+    }
+
+    private static BiomeRule readConfigRule(Path file) {
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        BiomeRuleIO.LoadResult lr = BiomeRuleIO.load(file);
+        if (!lr.ok()) {
+            // Defaults may be body-only JSON without ASM header.
+            try {
+                String raw = stripBom(Files.readString(file, StandardCharsets.UTF_8)).trim();
+                if (raw.startsWith("{")) {
+                    lr = BiomeRuleIO.parseBody(JsonParser.parseString(raw).getAsJsonObject());
+                } else if (raw.startsWith("#")) {
+                    String[] parts = raw.split("\\R", 2);
+                    if (parts.length >= 2) {
+                        lr = BiomeRuleIO.parseBody(JsonParser.parseString(parts[1].trim()).getAsJsonObject());
+                    }
+                }
+            } catch (Exception e) {
+                TerraForged.LOG.warn("[BiomeRules] bad config default {}: {}", file, e.toString());
+                return null;
+            }
+        }
+        if (!lr.ok()) {
+            TerraForged.LOG.warn("[BiomeRules] bad config default {}: {}", file, lr.error());
+            return null;
+        }
+        return lr.rule();
     }
 
     private static BiomeRule readClasspathRule(String resource) {
@@ -178,29 +252,23 @@ public final class BiomeRuleDefaults {
             if (in == null) {
                 return null;
             }
-            String raw = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            if (!raw.isEmpty() && raw.charAt(0) == '\uFEFF') {
-                raw = raw.substring(1);
-            }
+            String raw = stripBom(new String(in.readAllBytes(), StandardCharsets.UTF_8)).trim();
             String body = raw;
             if (raw.startsWith("#")) {
                 String[] parts = raw.split("\\R", 2);
                 if (parts.length < 2) {
                     return null;
                 }
-                // Defaults may omit ASM header; if present, validate lightly.
                 try {
                     BiomeRuleHeader.parseOrThrow(parts[0]);
                 } catch (IllegalArgumentException ignored) {
-                    // bundled templates can use a comment line instead of live token
                     if (!parts[0].startsWith("#")) {
                         return null;
                     }
                 }
                 body = parts[1];
             }
-            BiomeRuleIO.LoadResult lr = BiomeRuleIO.parseBody(
-                    JsonParser.parseString(body.trim()).getAsJsonObject());
+            BiomeRuleIO.LoadResult lr = BiomeRuleIO.parseBody(JsonParser.parseString(body.trim()).getAsJsonObject());
             if (!lr.ok()) {
                 TerraForged.LOG.warn("[BiomeRules] bad default {}: {}", resource, lr.error());
                 return null;
@@ -212,7 +280,13 @@ public final class BiomeRuleDefaults {
         }
     }
 
-    /** Snapshot of synonym map (canonical ← synonyms) for debugging / tooling. */
+    private static String stripBom(String raw) {
+        if (raw != null && !raw.isEmpty() && raw.charAt(0) == '\uFEFF') {
+            return raw.substring(1);
+        }
+        return raw == null ? "" : raw;
+    }
+
     public static Map<String, String> synonymIndex() {
         ensureLoaded();
         return Collections.unmodifiableMap(new LinkedHashMap<>(SYNONYM_TO_CANONICAL));

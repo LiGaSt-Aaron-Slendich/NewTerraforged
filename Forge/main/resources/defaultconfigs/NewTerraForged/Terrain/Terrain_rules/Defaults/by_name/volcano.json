@@ -1,0 +1,20 @@
+{
+  "biome": "template:volcano",
+  "can_be_on_slope": true,
+  "climate_tags": ["volcanic"],
+  "terrains": {
+    "volcano": 1.0,
+    "volcano_pipe": 0.85,
+    "island_volcano": 1.0,
+    "badlands": 0.25
+  },
+  "subterrains": {},
+  "zone_flags": {
+    "near_active_volcano": {
+      "enabled": true,
+      "radius_blocks": 128,
+      "chance": 1.0
+    }
+  },
+  "auto_generated": false
+}

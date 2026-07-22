@@ -18,13 +18,17 @@ public final class BiomeRuleAutogen {
     private static final Set<String> FORM_MOUNTAIN = Set.of(
             "mountain", "mountains", "peak", "peaks", "summit", "ridge", "highland", "highlands",
             "alps", "alpine", "crag", "cliff", "cliffs", "sierra");
-    private static final Set<String> FORM_HILLS = Set.of("hill", "hills", "foothill", "foothills", "rolling");
+    private static final Set<String> FORM_HILLS = Set.of(
+            "hill", "hills", "foothill", "foothills", "rolling", "height", "heights", "upland", "uplands");
     private static final Set<String> FORM_PLATEAU = Set.of("plateau", "mesa", "tableland");
-    private static final Set<String> FORM_FLAT = Set.of("plains", "plain", "flat", "flats", "steppe", "field", "fields", "meadow");
+    /** Prairie / steppe only — must NOT pull plains. */
+    private static final Set<String> FORM_STEPPE = Set.of("steppe", "prairie", "prairies", "veld", "pampa", "pampas");
+    private static final Set<String> FORM_FLAT = Set.of("plains", "plain", "flat", "flats", "field", "fields", "meadow", "grassland");
     private static final Set<String> FORM_BADLANDS = Set.of("badlands", "canyon", "canyons", "butte", "hoodoo", "bryce");
     private static final Set<String> FORM_BEACH = Set.of("beach", "shore", "coast", "dune", "dunes", "barrera", "barrier");
     private static final Set<String> FORM_VOLCANO = Set.of("volcano", "volcanic", "caldera", "crater");
     private static final Set<String> FORM_SWAMP = Set.of("swamp", "marsh", "bog", "fen", "mangrove", "bayou", "wetland");
+    private static final Set<String> FORM_RIVER = Set.of("river", "stream", "creek", "brook");
 
     private static final Set<String> MATERIAL_SOFT = Set.of(
             "sand", "sandy", "dirt", "mud", "muddy", "clay", "silt", "soil", "loam", "peat", "moss", "gravel", "ash", "dust");
@@ -83,11 +87,23 @@ public final class BiomeRuleAutogen {
             }
             case SWAMP -> {
                 terrains.put("dales", 1.0F);
-                terrains.put("steppe", 0.7F);
-                terrains.put("plains", 0.7F);
+                terrains.put("plains", 0.5F);
                 terrains.put("island_flats", 0.5F);
                 terrains.put("island_hills", 0.4F);
                 climateTags.add("wet");
+            }
+            case RIVER -> {
+                terrains.put("dales", 1.0F);
+                terrains.put("plains", 0.8F);
+                terrains.put("steppe", 0.5F);
+                terrains.put("island_flats", 0.4F);
+                subterrains.put("river_bank", 1.0F);
+                climateTags.add("wet");
+            }
+            case STEPPE -> {
+                // Prairie / steppe biomes: steppe only (not plains).
+                terrains.put("steppe", 1.0F);
+                terrains.put("island_flats", 0.4F);
             }
             case PLATEAU -> {
                 terrains.put("plateau", 1.0F);
@@ -121,8 +137,9 @@ public final class BiomeRuleAutogen {
                 climateTags.add("alpine");
             }
             case FLAT -> {
+                // Generic flats: plains primary; light steppe allowed (not prairie-exclusive).
                 terrains.put("plains", 1.0F);
-                terrains.put("steppe", 1.0F);
+                terrains.put("steppe", 0.5F);
                 terrains.put("dales", 0.6F);
                 terrains.put("island_flats", 0.5F);
             }
@@ -211,6 +228,9 @@ public final class BiomeRuleAutogen {
         if (tokensContain(tokens, FORM_VOLCANO)) {
             return Form.VOLCANO;
         }
+        if (tokensContain(tokens, FORM_RIVER)) {
+            return Form.RIVER;
+        }
         if (tokensContain(tokens, FORM_SWAMP)) {
             return Form.SWAMP;
         }
@@ -228,6 +248,9 @@ public final class BiomeRuleAutogen {
         }
         if (tokensContain(tokens, FORM_HILLS)) {
             return Form.HILLS;
+        }
+        if (tokensContain(tokens, FORM_STEPPE)) {
+            return Form.STEPPE;
         }
         if (tokensContain(tokens, FORM_FLAT)) {
             return Form.FLAT;
@@ -264,6 +287,6 @@ public final class BiomeRuleAutogen {
     }
 
     private enum Form {
-        FLAT, HILLS, PLATEAU, MOUNTAIN, PEAK, BADLANDS, BEACH, VOLCANO, SWAMP
+        FLAT, STEPPE, HILLS, PLATEAU, MOUNTAIN, PEAK, BADLANDS, BEACH, VOLCANO, SWAMP, RIVER
     }
 }

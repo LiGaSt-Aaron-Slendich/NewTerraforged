@@ -94,6 +94,10 @@ public final class BiomeRuleIcons {
         return tex("flag_slope");
     }
 
+    public static ResourceLocation ui(String name) {
+        return tex(name);
+    }
+
     private static ResourceLocation tex(String name) {
         return new ResourceLocation(TerraForged.MODID, BASE + name + ".png");
     }
