@@ -47,6 +47,10 @@ public class ErodedNoiseGenerator implements INoiseGenerator {
       this.cache = LossyCache.concurrent(256, CHUNK_TASK_ALLOCATOR, this::restore);
    }
 
+   public NoiseGenerator getDelegate() {
+      return this.generator;
+   }
+
    private static FilterSettings.Erosion defaultErosion() {
       FilterSettings.Erosion erosion = new FilterSettings.Erosion();
       erosion.dropletsPerChunk = 350;

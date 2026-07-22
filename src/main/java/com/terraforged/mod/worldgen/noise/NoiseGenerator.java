@@ -92,33 +92,97 @@ public class NoiseGenerator implements INoiseGenerator {
 
    @Override
    public long find(int x, int z, int minRadius, int maxRadius, Terrain terrain) {
+      if (terrain == null) {
+         return 0L;
+      }
+      // Island overlay terrains (laguna, archipelago, volcano, …) are painted by ContinentNoise,
+      // not by the land WeightMap. The old path also rejected submerged types via isOverground().
+      if (isOverlaySearchTerrain(terrain)) {
+         return findOverlayTerrain(x, z, minRadius, maxRadius, terrain);
+      }
       if (!terrain.isOverground()) {
          return 0L;
-      } else {
-         float f = this.getNoiseCoord(x);
-         float f1 = this.getNoiseCoord(z);
-         SpiralIterator.PositionFinder spiraliterator$positionfinder = this.land.findNearest(f, f1, minRadius, maxRadius, terrain);
-         NoiseSample noisesample = this.localSample.get().reset();
+      }
+      float f = this.getNoiseCoord(x);
+      float f1 = this.getNoiseCoord(z);
+      SpiralIterator.PositionFinder spiraliterator$positionfinder = this.land.findNearest(f, f1, minRadius, maxRadius, terrain);
+      if (spiraliterator$positionfinder == null) {
+         return 0L;
+      }
+      NoiseSample noisesample = this.localSample.get().reset();
 
-         while (spiraliterator$positionfinder.hasNext()) {
-            long i = spiraliterator$positionfinder.next();
-            if (i != 0L) {
-               float f2 = PosUtil.unpackLeftf(i) / this.levels.noiseLevels.frequency;
-               float f3 = PosUtil.unpackRightf(i) / this.levels.noiseLevels.frequency;
-               this.continent.sampleContinent(f2, f3, noisesample);
-               if (!(noisesample.continentNoise < 0.5F)) {
-                  this.continent.sampleRiver(f2, f3, noisesample);
-                  if (terrain.isRiver() || !(noisesample.riverNoise < 0.75F)) {
-                     int j = NoiseUtil.floor(f2);
-                     int k = NoiseUtil.floor(f3);
-                     return PosUtil.pack(j, k);
-                  }
+      while (spiraliterator$positionfinder.hasNext()) {
+         long i = spiraliterator$positionfinder.next();
+         if (i != 0L) {
+            float f2 = PosUtil.unpackLeftf(i) / this.levels.noiseLevels.frequency;
+            float f3 = PosUtil.unpackRightf(i) / this.levels.noiseLevels.frequency;
+            this.continent.sampleContinent(f2, f3, noisesample);
+            if (!(noisesample.continentNoise < 0.5F)) {
+               this.continent.sampleRiver(f2, f3, noisesample);
+               if (terrain.isRiver() || !(noisesample.riverNoise < 0.75F)) {
+                  int j = NoiseUtil.floor(f2);
+                  int k = NoiseUtil.floor(f3);
+                  return PosUtil.pack(j, k);
                }
             }
          }
-
-         return 0L;
       }
+
+      return 0L;
+   }
+
+   /**
+    * Spiral-sample continent overlay for terrains that only exist there (laguna shelves, islands, volcanoes).
+    */
+   private long findOverlayTerrain(int x, int z, int minRadius, int maxRadius, Terrain terrain) {
+      int step = 16;
+      int minCell = Math.max(0, minRadius / step);
+      int maxCell = Math.max(minCell + 1, maxRadius / step);
+      SpiralIterator spiral = new SpiralIterator(NoiseUtil.floor(x / (float) step), NoiseUtil.floor(z / (float) step), minCell, maxCell);
+      NoiseSample sample = this.localSample.get().reset();
+      String want = terrain.getName();
+      while (spiral.hasNext()) {
+         long packed = spiral.next();
+         int cx = PosUtil.unpackLeft(packed);
+         int cz = PosUtil.unpackRight(packed);
+         int wx = cx * step + step / 2;
+         int wz = cz * step + step / 2;
+         float nx = this.getNoiseCoord(wx);
+         float nz = this.getNoiseCoord(wz);
+         this.continent.sampleContinent(nx, nz, sample);
+         Terrain got = sample.terrainType;
+         if (got != null && (got == terrain || want.equals(got.getName()))) {
+            return PosUtil.pack(wx, wz);
+         }
+      }
+      return 0L;
+   }
+
+   private static boolean isOverlaySearchTerrain(Terrain terrain) {
+      if (terrain == null) {
+         return false;
+      }
+      if (terrain == ModTerrainTypes.LAGUNA
+            || terrain == ModTerrainTypes.VOLCANIC_ISLAND
+            || terrain == ModTerrainTypes.COASTAL_ISLAND
+            || terrain == ModTerrainTypes.SCATTERED_ARCHIPELAGO
+            || terrain == ModTerrainTypes.ARCHIPELAGO_HILLS
+            || terrain == ModTerrainTypes.ARCHIPELAGO_PLATEAU
+            || terrain == ModTerrainTypes.ARCHIPELAGO_MOUNTAINS
+            || terrain == TerrainType.VOLCANO
+            || terrain == TerrainType.VOLCANO_PIPE) {
+         return true;
+      }
+      String n = terrain.getName();
+      return "laguna".equals(n)
+            || "volcanic_island".equals(n)
+            || "coastal_island".equals(n)
+            || "scattered_archipelago".equals(n)
+            || "archipelago_hills".equals(n)
+            || "archipelago_plateau".equals(n)
+            || "archipelago_mountains".equals(n)
+            || "volcano".equals(n)
+            || "volcano_pipe".equals(n);
    }
 
    @Override

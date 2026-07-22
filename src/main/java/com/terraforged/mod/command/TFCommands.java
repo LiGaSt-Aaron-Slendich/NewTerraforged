@@ -125,7 +125,45 @@ public class TFCommands {
         root.then(Commands.literal("export").then(Commands.literal("structures").executes(TFCommands::export)));
         root.then(Commands.literal("regen").then(Commands.argument("radius", IntegerArgumentType.integer(1)).executes(TFCommands::regen)));
         root.then(Commands.literal("preview").executes(TFCommands::openPreview));
+        root.then(Commands.literal("worldinfo").executes(TFCommands::worldInfo));
         return root;
+    }
+
+    private static int worldInfo(CommandContext<CommandSourceStack> context) {
+        Generator generator = GeneratorPreset.getGenerator(((CommandSourceStack)context.getSource()).getLevel());
+        if (generator == null) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Not a NewTerraForged world").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        var noise = generator.getNoiseGenerator();
+        com.terraforged.mod.worldgen.noise.NoiseGenerator base = null;
+        if (noise instanceof com.terraforged.mod.worldgen.noise.NoiseGenerator ng) {
+            base = ng;
+        } else if (noise instanceof com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator eroded) {
+            base = eroded.getDelegate();
+        }
+        if (base == null) {
+            ((CommandSourceStack)context.getSource()).sendFailure((Component)TFCommands.text("Noise generator has no readable settings").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        var settings = base.getSettings();
+        var world = settings.world;
+        var style = world.properties != null ? world.properties.worldStyle : null;
+        var islands = world.islands;
+        String msg = String.format(
+                "worldStyle=%s spawn=%s archipelago=%s/%.2f scattered=%s/%.2f volcanic=%.2f coastal=%.2f continentSkip=%.2f guaranteed=%s",
+                style,
+                world.properties != null ? world.properties.spawnType : "?",
+                islands != null && islands.archipelago,
+                islands != null ? islands.archipelagoChance : -1,
+                islands != null && islands.scatteredArchipelago,
+                islands != null ? islands.scatteredArchipelagoChance : -1,
+                islands != null ? islands.volcanicIslandsChance : -1,
+                islands != null ? islands.coastalIslandsChance : -1,
+                world.continent != null ? world.continent.continentSkipping : -1,
+                world.continent != null && world.continent.guaranteedContinentsEnabled);
+        ((CommandSourceStack)context.getSource()).sendSuccess((Component)TFCommands.text(msg).withStyle(ChatFormatting.AQUA), false);
+        return 1;
     }
 
     private static int openPreview(CommandContext<CommandSourceStack> context) {
