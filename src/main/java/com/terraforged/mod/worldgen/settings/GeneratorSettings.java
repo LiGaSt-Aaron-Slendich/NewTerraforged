@@ -419,6 +419,24 @@ public final class GeneratorSettings {
         return fromEngine(engine);
     }
 
+    /** Islands-only world type defaults (DS:Shipwrecked). */
+    public static GeneratorSettings shipwreckedDefaults() {
+        TerrainLevels levels = TerrainLevels.DEFAULT.get();
+        Settings engine = factoryDefaults().toEngine(0L, levels);
+        engine.world.properties.worldStyle = WorldSettings.WorldStyle.SHIPWRECKED;
+        engine.world.continent.guaranteedContinentsEnabled = false;
+        engine.world.continent.continentSkipping = 0.95F;
+        engine.world.continent.continentScale = 1000;
+        engine.world.continent.continentSizeVariance = 0.5F;
+        engine.world.continent.continentNoiseGain = 0.36F;
+        engine.world.islands.scatteredArchipelago = true;
+        engine.world.islands.scatteredArchipelagoChance = 0.65F;
+        engine.world.islands.volcanicIslandsChance = 0.35F;
+        engine.world.islands.coastalIslandsChance = 0.45F;
+        ContinentShapeWiring.bakeIslandsIntoEngine(engine);
+        return fromEngine(engine);
+    }
+
     public static GeneratorSettings fromEngine(Settings settings) {
         return new GeneratorSettings(
                 settings.world.continent.continentScale,

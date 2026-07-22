@@ -32,7 +32,11 @@ public class TFClient {
     * (same slot as Flat/Amplified editors).
     */
    private void registerCustomizeEditor() {
-      ForgeWorldPreset preset = TFPreset.INSTANCE;
+      registerEditor(TFPreset.INSTANCE);
+      registerEditor(ShipwreckedPreset.INSTANCE);
+   }
+
+   private static void registerEditor(ForgeWorldPreset preset) {
       if (preset == null) {
          return;
       }

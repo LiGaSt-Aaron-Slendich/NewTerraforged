@@ -2,6 +2,7 @@ package com.terraforged.mod.client.screen;
 
 import com.terraforged.mod.client.gui.screen.AppliedCustomizeState;
 import com.terraforged.mod.platform.ClientAPI;
+import com.terraforged.mod.platform.forge.client.ShipwreckedPreset;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.GeneratorPreset;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
@@ -22,8 +23,10 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 public class ScreenUtil {
-   private static final Predicate<String> TF_PRESET = s -> s.equals(GeneratorPreset.TRANSLATION_KEY);
+   private static final Predicate<String> TF_PRESET = s ->
+           s.equals(GeneratorPreset.TRANSLATION_KEY) || s.equals(ShipwreckedPreset.TRANSLATION_KEY);
    private static final Predicate<String> DEFAULT_PRESET = s -> s.equals("generator.default");
+   private static final Predicate<String> SHIPWRECKED_PRESET = s -> s.equals(ShipwreckedPreset.TRANSLATION_KEY);
    /**
     * Keep the World Type button aligned with NewTF while this screen is open.
     * Session cleanup/reset timing is owned by CreateWorldScreen exit points.
@@ -112,8 +115,18 @@ public class ScreenUtil {
       }
    }
 
+   public static boolean isShipwreckedWorldType(CreateWorldScreen screen) {
+      CycleButton<?> cyclebutton = getPresetButton(screen);
+      return cyclebutton != null && isPresetSelected(cyclebutton, SHIPWRECKED_PRESET);
+   }
+
+   public static boolean isNewTerraForgedFamily(CreateWorldScreen screen) {
+      CycleButton<?> cyclebutton = getPresetButton(screen);
+      return cyclebutton != null && isPresetSelected(cyclebutton, TF_PRESET);
+   }
+
    private static Predicate<String> createKeyPredicate(String name) {
-      if (name.equals("terraforged") || name.equals("newterraforged")) {
+      if (name.equals("terraforged") || name.equals("newterraforged") || name.equals("shipwrecked")) {
          return TF_PRESET;
       } else {
          ResourceLocation resourcelocation = new ResourceLocation(name);

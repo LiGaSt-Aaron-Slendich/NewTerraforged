@@ -11,7 +11,10 @@ import com.terraforged.mod.client.gui.screen.ConfigScreen;
 import com.terraforged.mod.client.gui.screen.SettingsDraft;
 import com.terraforged.mod.client.gui.util.DataUtils;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -33,6 +36,7 @@ public class ScrollPage implements Page {
     private final String sectionKey;
     private final Supplier<Object> sectionSupplier;
     private final Runnable onChange;
+    private final Set<String> skipKeys;
 
     private final List<AbstractWidget> widgets = new ArrayList<>();
     private int left;
@@ -49,11 +53,23 @@ public class ScrollPage implements Page {
             Supplier<Object> sectionSupplier,
             Runnable onChange
     ) {
+        this(titleKey, draft, sectionKey, sectionSupplier, onChange, Collections.emptySet());
+    }
+
+    public ScrollPage(
+            String titleKey,
+            SettingsDraft draft,
+            String sectionKey,
+            Supplier<Object> sectionSupplier,
+            Runnable onChange,
+            Set<String> skipKeys
+    ) {
         this.title = new TranslatableComponent(titleKey);
         this.draft = draft;
         this.sectionKey = sectionKey;
         this.sectionSupplier = sectionSupplier;
         this.onChange = onChange;
+        this.skipKeys = skipKeys != null ? skipKeys : Collections.emptySet();
     }
 
     /** Alias used by ConfigScreen wiring. */
@@ -64,7 +80,7 @@ public class ScrollPage implements Page {
             Supplier<Object> sectionSupplier,
             Runnable onChange
     ) {
-        return new ScrollPage(titleKey, draft, sectionKey, sectionSupplier, onChange);
+        return new ScrollPage(titleKey, draft, sectionKey, sectionSupplier, onChange, Collections.emptySet());
     }
 
     @Override
@@ -145,6 +161,9 @@ public class ScrollPage implements Page {
             return;
         }
         DataUtils.streamKeys(settings).forEach(name -> {
+            if (this.shouldSkipKey(name)) {
+                return;
+            }
             AbstractWidget button = this.createButton(name, settings);
             if (button != null) {
                 button.setWidth(this.width);
@@ -193,6 +212,19 @@ public class ScrollPage implements Page {
             return new TFCheckBox(name, value).callback(callback);
         }
         return null;
+    }
+
+    private boolean shouldSkipKey(String name) {
+        if (name == null || this.skipKeys.isEmpty()) {
+            return false;
+        }
+        String key = name.toLowerCase(Locale.ROOT);
+        for (String skip : this.skipKeys) {
+            if (skip != null && key.equals(skip.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean skip(CompoundTag value) {

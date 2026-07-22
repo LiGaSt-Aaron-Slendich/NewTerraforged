@@ -1,12 +1,16 @@
 package com.terraforged.mod.client.gui.screen;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.terraforged.engine.settings.WorldSettings;
 import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.client.gui.Page;
 import com.terraforged.mod.client.gui.screen.page.PresetsPage;
 import com.terraforged.mod.client.gui.screen.page.ScrollPage;
 import com.terraforged.mod.client.gui.screen.page.SettingsSectionPage;
 import com.terraforged.mod.client.gui.screen.preview.PreviewPage;
+import com.terraforged.mod.client.screen.ScreenUtil;
+import com.terraforged.mod.worldgen.settings.ContinentShapeWiring;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -31,6 +35,7 @@ public final class ConfigScreen extends Screen {
     private final SettingsDraft draft;
     private final PreviewPage previewPage;
     private final Page[] pages;
+    private final boolean shipwreckedMode;
     private int pageIndex;
 
     public ConfigScreen(CreateWorldScreen parent) {
@@ -42,22 +47,46 @@ public final class ConfigScreen extends Screen {
      *                         previously applied Customize settings rather than starting fresh.
      */
     public ConfigScreen(CreateWorldScreen parent, @Nullable WorldGenSettings existingSettings) {
-        super(new TranslatableComponent("newterraforged.gui.config.title"));
+        super(new TranslatableComponent(ScreenUtil.isShipwreckedWorldType(parent)
+                ? "newterraforged.gui.config.title.shipwrecked"
+                : "newterraforged.gui.config.title"));
         this.parent = parent;
         long seed = readSeed(parent);
         this.draft = SettingsDraft.fromWorldSettings(seed, existingSettings != null
                 ? existingSettings
                 : safeCurrentSettings(parent));
+        this.shipwreckedMode = ScreenUtil.isShipwreckedWorldType(parent)
+                || this.draft.settings().world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;
+        if (this.shipwreckedMode) {
+            this.draft.settings().world.properties.worldStyle = WorldSettings.WorldStyle.SHIPWRECKED;
+            ContinentShapeWiring.bakeIslandsIntoEngine(this.draft.settings());
+            this.draft.refreshNbt();
+        }
         this.previewPage = new PreviewPage(this.draft);
         Runnable refresh = this.previewPage::refresh;
+        Set<String> worldSkip = this.shipwreckedMode
+                ? Set.of("continent", "worldStyle")
+                : Set.of("worldStyle");
         this.pages = new Page[]{
                 new PresetsPage(this.draft, refresh),
-                new SettingsSectionPage("newterraforged.gui.page.world", this.draft, "world", () -> this.draft.settings().world, refresh),
+                new SettingsSectionPage(
+                        this.shipwreckedMode
+                                ? "newterraforged.gui.page.world.shipwrecked"
+                                : "newterraforged.gui.page.world",
+                        this.draft,
+                        "world",
+                        () -> this.draft.settings().world,
+                        refresh,
+                        worldSkip),
                 new SettingsSectionPage("newterraforged.gui.page.climate", this.draft, "climate", () -> this.draft.settings().climate, refresh),
                 new SettingsSectionPage("newterraforged.gui.page.terrain", this.draft, "terrain", () -> this.draft.settings().terrain, refresh),
                 new SettingsSectionPage("newterraforged.gui.page.rivers", this.draft, "rivers", () -> this.draft.settings().rivers, refresh),
                 new SettingsSectionPage("newterraforged.gui.page.filters", this.draft, "filters", () -> this.draft.settings().filters, refresh),
         };
+    }
+
+    public boolean shipwreckedMode() {
+        return this.shipwreckedMode;
     }
 
     public static void open(CreateWorldScreen parent) {
@@ -156,6 +185,11 @@ public final class ConfigScreen extends Screen {
                 page.save();
             }
             this.previewPage.save();
+            if (this.shipwreckedMode) {
+                this.draft.settings().world.properties.worldStyle = WorldSettings.WorldStyle.SHIPWRECKED;
+                ContinentShapeWiring.bakeIslandsIntoEngine(this.draft.settings());
+                this.draft.refreshNbt();
+            }
             GeneratorSettingsApplier.apply(this.parent, this.draft);
             this.onClose();
         } catch (Throwable t) {

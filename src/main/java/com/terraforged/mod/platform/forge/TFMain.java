@@ -11,6 +11,7 @@ import com.terraforged.mod.platform.CommonAPI;
 import com.terraforged.mod.platform.forge.CaveDebugNetwork;
 import com.terraforged.mod.platform.forge.client.TFClient;
 import com.terraforged.mod.platform.forge.client.TFPreset;
+import com.terraforged.mod.platform.forge.client.ShipwreckedPreset;
 import com.terraforged.mod.platform.forge.util.ForgeRegistrar;
 import com.terraforged.mod.registry.lazy.LazyTag;
 import com.terraforged.mod.registry.registrar.NoopRegistrar;
@@ -77,8 +78,9 @@ public class TFMain extends TerraForged {
    }
 
    void onPresets(Register<ForgeWorldPreset> event) {
-      TerraForged.LOG.debug("Registering world-preset");
+      TerraForged.LOG.debug("Registering world-presets");
       event.getRegistry().register(TFPreset.create());
+      event.getRegistry().register(ShipwreckedPreset.create());
    }
 
    void onGenerateData(GatherDataEvent event) {
