@@ -22,6 +22,7 @@
   "newterraforged.gui.presets.reset": "Reset defaults",
   "newterraforged.gui.presets.save": "Save",
   "newterraforged.gui.presets.import": "Import Settings",
+  "newterraforged.gui.presets.import_file": "Import from file",
   "newterraforged.gui.presets.browser.title": "Import NewTF Preset",
   "newterraforged.gui.presets.tab.default": "Default Presets",
   "newterraforged.gui.presets.tab.user": "My / Imported Presets",

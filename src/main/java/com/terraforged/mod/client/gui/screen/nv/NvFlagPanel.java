@@ -1,18 +1,16 @@
-package com.terraforged.mod.client.gui.screen.egf;
+package com.terraforged.mod.client.gui.screen.nv;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig;
+import com.terraforged.mod.platform.forge.TFNoiseVariantFlags;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TextComponent;
 
-/**
- * Experimental Generation Features menu — more toggles will land here over time.
- */
-public final class ExperimentalGenerationFeaturesScreen extends Screen {
+/** Internal generation flag panel (opened from NvCmdOverlay). */
+public final class NvFlagPanel extends Screen {
     private final Screen parent;
 
-    public ExperimentalGenerationFeaturesScreen(Screen parent) {
+    public NvFlagPanel(Screen parent) {
         super(new TextComponent("Experimental Generation Features"));
         this.parent = parent;
     }
@@ -23,20 +21,20 @@ public final class ExperimentalGenerationFeaturesScreen extends Screen {
         int y = 48;
         this.addRenderableWidget(new Button(
                 cx - 140, y, 280, 20,
-                label("Archipelago", TFExperimentalGenerationConfig.archipelagoEnabled()),
+                label("Archipelago", TFNoiseVariantFlags.archipelagoEnabled()),
                 b -> {
-                    boolean next = !TFExperimentalGenerationConfig.archipelagoEnabled();
-                    TFExperimentalGenerationConfig.setArchipelago(next);
+                    boolean next = !TFNoiseVariantFlags.archipelagoEnabled();
+                    TFNoiseVariantFlags.setArchipelago(next);
                     b.setMessage(label("Archipelago", next));
                 }
         ));
         y += 28;
         this.addRenderableWidget(new Button(
                 cx - 140, y, 280, 20,
-                label("Scattered Archipelago", TFExperimentalGenerationConfig.scatteredArchipelagoEnabled()),
+                label("Scattered Archipelago", TFNoiseVariantFlags.scatteredArchipelagoEnabled()),
                 b -> {
-                    boolean next = !TFExperimentalGenerationConfig.scatteredArchipelagoEnabled();
-                    TFExperimentalGenerationConfig.setScatteredArchipelago(next);
+                    boolean next = !TFNoiseVariantFlags.scatteredArchipelagoEnabled();
+                    TFNoiseVariantFlags.setScatteredArchipelago(next);
                     b.setMessage(label("Scattered Archipelago", next));
                 }
         ));

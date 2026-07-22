@@ -8,8 +8,12 @@ import com.terraforged.mod.client.gui.screen.preview.PreviewSettings;
 import com.terraforged.mod.client.gui.screen.preview.RenderMode;
 import com.terraforged.mod.util.serialization.DataUtils;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
+import java.awt.FileDialog;
+import java.awt.Frame;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -47,12 +51,14 @@ public final class PresetBrowserScreen extends Screen {
     private PresetEntry selected;
     private String authorText = "";
     private Button importButton;
+    private ImportFileIconButton importFileButton;
     private int previewSize;
     private int listLeft;
     private int listWidth;
     private int panelTop;
     private int panelBottom;
     private boolean previewClosed;
+    private final AtomicBoolean fileDialogOpen = new AtomicBoolean(false);
 
     public PresetBrowserScreen(ConfigScreen parent, SettingsDraft draft, Runnable onImported) {
         super(new TranslatableComponent("newterraforged.gui.presets.browser.title"));
@@ -96,6 +102,15 @@ public final class PresetBrowserScreen extends Screen {
         this.list = new PresetList(this.listWidth, this.panelTop, this.height - this.panelBottom);
         this.addWidget(this.list);
         this.reloadList();
+
+        // Import-from-file icon at the right edge of the names panel (yellow square on sketch).
+        int icon = 18;
+        this.importFileButton = this.addRenderableWidget(new ImportFileIconButton(
+                this.listLeft + this.listWidth - icon - 3,
+                this.panelTop + 1,
+                icon,
+                icon,
+                b -> this.openImportFromFileDialog()));
 
         int tabY = topPad;
         int tabH = Mth.clamp(this.height / 28, 20, 26);
@@ -196,6 +211,50 @@ public final class PresetBrowserScreen extends Screen {
         draft.refreshNbt();
     }
 
+    private void openImportFromFileDialog() {
+        if (!this.fileDialogOpen.compareAndSet(false, true)) {
+            return;
+        }
+        Thread t = new Thread(() -> {
+            try {
+                FileDialog dialog = new FileDialog((Frame) null, "Import NewTF Preset", FileDialog.LOAD);
+                dialog.setFilenameFilter((dir, name) -> {
+                    String n = name == null ? "" : name.toLowerCase();
+                    return n.endsWith(".json") || n.endsWith(".ntpreset");
+                });
+                dialog.setFile("*.json;*.ntpreset");
+                dialog.setVisible(true);
+                String dir = dialog.getDirectory();
+                String file = dialog.getFile();
+                if (dir == null || file == null) {
+                    return;
+                }
+                Path src = Path.of(dir, file);
+                Minecraft.getInstance().execute(() -> this.finishImportFromFile(src));
+            } catch (Throwable e) {
+                Minecraft.getInstance().execute(() ->
+                        this.minecraft.gui.getChat().addMessage(new TextComponent("NewTF: file dialog failed")));
+            } finally {
+                this.fileDialogOpen.set(false);
+            }
+        }, "ntf-preset-file-import");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private void finishImportFromFile(Path src) {
+        try {
+            Path copied = PresetLibrary.importUserPresetFile(src);
+            this.tab = PresetBrowserScreen.Tab.USER;
+            this.reloadList();
+            this.list.selectByFileName(copied.getFileName().toString());
+            this.minecraft.gui.getChat().addMessage(new TextComponent("NewTF: imported " + copied.getFileName()));
+        } catch (Exception e) {
+            this.minecraft.gui.getChat().addMessage(new TextComponent(
+                    "NewTF: import failed — " + (e.getMessage() == null ? "invalid preset" : e.getMessage())));
+        }
+    }
+
     private void updateImportEnabled() {
         if (this.importButton != null) {
             this.importButton.active = this.selected != null;
@@ -230,6 +289,10 @@ public final class PresetBrowserScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.importFileButton != null && this.importFileButton.mouseClicked(mouseX, mouseY, button)) {
+            this.setFocused(this.importFileButton);
+            return true;
+        }
         // Prefer list hit-testing so presets are selectable by mouse, not only arrows.
         if (this.list != null && this.list.mouseClicked(mouseX, mouseY, button)) {
             this.setFocused(this.list);
@@ -287,11 +350,42 @@ public final class PresetBrowserScreen extends Screen {
         }
 
         super.render(pose, mouseX, mouseY, partialTick);
+        if (this.importFileButton != null && this.importFileButton.isHoveredOrFocused()) {
+            this.renderTooltip(pose, new TranslatableComponent("newterraforged.gui.presets.import_file"), mouseX, mouseY);
+        }
     }
 
     private enum Tab {
         DEFAULT,
         USER
+    }
+
+    /** Folder/arrow icon button — no text label. */
+    private static final class ImportFileIconButton extends Button {
+        ImportFileIconButton(int x, int y, int w, int h, OnPress onPress) {
+            super(x, y, w, h, TextComponent.EMPTY, onPress);
+        }
+
+        @Override
+        public void renderButton(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+            int bg = this.isHoveredOrFocused() ? 0xFF5A5A5A : 0xFF3A3A3A;
+            fill(pose, this.x, this.y, this.x + this.width, this.y + this.height, bg);
+            hLine(pose, this.x, this.x + this.width - 1, this.y, 0xFFC0C0C0);
+            hLine(pose, this.x, this.x + this.width - 1, this.y + this.height - 1, 0xFF707070);
+            vLine(pose, this.x, this.y, this.y + this.height - 1, 0xFFC0C0C0);
+            vLine(pose, this.x + this.width - 1, this.y, this.y + this.height - 1, 0xFF707070);
+            // Procedural folder + down arrow (works without texture assets).
+            int cx = this.x + this.width / 2;
+            int cy = this.y + this.height / 2;
+            int folder = this.active ? 0xFFE8D090 : 0xFF888888;
+            fill(pose, cx - 5, cy - 1, cx + 5, cy + 5, folder);
+            fill(pose, cx - 5, cy - 3, cx - 1, cy - 1, folder);
+            int arrow = this.active ? 0xFFFFFFFF : 0xFFAAAAAA;
+            fill(pose, cx - 1, cy - 6, cx + 1, cy + 1, arrow);
+            fill(pose, cx - 3, cy - 1, cx + 3, cy + 1, arrow);
+            fill(pose, cx - 2, cy + 1, cx + 2, cy + 2, arrow);
+            fill(pose, cx - 1, cy + 2, cx + 1, cy + 3, arrow);
+        }
     }
 
     /** Folder/file-tab look: selected flush with panel, unselected recessed. */
@@ -391,6 +485,26 @@ public final class PresetBrowserScreen extends Screen {
             }
         }
 
+        void selectByFileName(String fileName) {
+            if (fileName == null || fileName.isEmpty()) {
+                return;
+            }
+            String bare = fileName;
+            int dot = fileName.lastIndexOf('.');
+            if (dot > 0) {
+                bare = fileName.substring(0, dot);
+            }
+            for (Entry entry : this.children()) {
+                String id = entry.entry.id();
+                String name = entry.entry.displayName();
+                if (id.endsWith(fileName) || id.endsWith("/" + fileName) || id.endsWith("\\" + fileName)
+                        || name.equalsIgnoreCase(bare)) {
+                    this.setSelected(entry);
+                    return;
+                }
+            }
+        }
+
         private final class Entry extends ObjectSelectionList.Entry<PresetList.Entry> {
             private final PresetEntry entry;
 
@@ -407,7 +521,7 @@ public final class PresetBrowserScreen extends Screen {
                 } else if (hovered) {
                     fill(pose, left - 2, top, left + width, top + height - 1, 0x33FFFFFF);
                 }
-                int maxText = Math.max(8, width - 6);
+                int maxText = Math.max(8, width - 24);
                 String label = font.plainSubstrByWidth(this.entry.displayName(), maxText);
                 int color = selected || hovered ? 0xFFFFA0 : 0xFFFFFF;
                 drawString(pose, font, label, left + 2, top + 6, color);

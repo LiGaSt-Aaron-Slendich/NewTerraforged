@@ -1,7 +1,7 @@
 package com.terraforged.mod.client.screen;
 
 import com.terraforged.mod.client.gui.screen.AppliedCustomizeState;
-import com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate;
+import com.terraforged.mod.client.gui.screen.nv.NvAccess;
 import com.terraforged.mod.platform.ClientAPI;
 import com.terraforged.mod.platform.forge.client.ShipwreckedPreset;
 import com.terraforged.mod.worldgen.Generator;
@@ -30,7 +30,7 @@ public class ScreenUtil {
       if (s.equals(GeneratorPreset.TRANSLATION_KEY)) {
          return true;
       }
-      return s.equals(ShipwreckedPreset.TRANSLATION_KEY) && EgfFeatureGate.shipwreckedWorldTypeAllowed();
+      return s.equals(ShipwreckedPreset.TRANSLATION_KEY) && NvAccess.shipwreckedWorldTypeAllowed();
    };
    private static final Predicate<String> DEFAULT_PRESET = s -> s.equals("generator.default");
    private static final Predicate<String> SHIPWRECKED_PRESET = s -> s.equals(ShipwreckedPreset.TRANSLATION_KEY);
@@ -41,7 +41,7 @@ public class ScreenUtil {
    public static void prepareCreateWorldScreen(CreateWorldScreen screen, String name) {
       enforceDefaultPreset(screen, name);
       // If EGF archipelago features are off, leave Shipwrecked even if it was last selected.
-      if (!EgfFeatureGate.shipwreckedWorldTypeAllowed() && isShipwreckedWorldType(screen)) {
+      if (!NvAccess.shipwreckedWorldTypeAllowed() && isShipwreckedWorldType(screen)) {
          cycleAwayFromShipwrecked(screen);
       }
    }

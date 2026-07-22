@@ -53,8 +53,8 @@ public final class ContinentShapeWiring {
         config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
         // Archipelago / Scattered are Experimental Generation Features (EGF) — off unless enabled.
         // Both EGF master switch AND Customize toggle must be on (defaults are OFF).
-        boolean egfArch = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.archipelagoEnabled();
-        boolean egfScattered = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.scatteredArchipelagoEnabled();
+        boolean egfArch = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.archipelagoEnabled();
+        boolean egfScattered = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.scatteredArchipelagoEnabled();
         config.shape.archipelago = egfArch && islands.archipelago;
         config.shape.archipelagoChance = config.shape.archipelago
                 ? NoiseUtil.clamp(islands.archipelagoChance, 0.0F, 1.0F)
@@ -73,8 +73,8 @@ public final class ContinentShapeWiring {
         // Above any possible cell.noise so shape never forms mainland.
         config.shape.threshold = 1.01F;
         config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
-        boolean egfArch = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.archipelagoEnabled();
-        boolean egfScattered = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.scatteredArchipelagoEnabled();
+        boolean egfArch = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.archipelagoEnabled();
+        boolean egfScattered = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.scatteredArchipelagoEnabled();
         if (egfArch) {
             config.shape.archipelago = true;
             if (config.shape.archipelagoChance < 0.40F) {

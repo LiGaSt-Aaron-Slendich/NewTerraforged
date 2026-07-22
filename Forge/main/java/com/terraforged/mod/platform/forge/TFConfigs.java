@@ -16,7 +16,7 @@ public final class TFConfigs {
         TFCaveBiomeConfig.load();
         TFSurfaceBiomeConfig.load();
         TFBiomeTerrainIntegrationConfig.load();
-        TFExperimentalGenerationConfig.load();
+        TFNoiseVariantFlags.load();
         TerraForged.LOG.info("[TFConfig] Loaded caves.toml (density {}% xy={} yz={}), cave-biomes.toml ({} primary), surface-biomes.toml, biome-terrain-integration.toml ({} terrains)", Float.valueOf(TFCaveSystemConfig.INSTANCE.caveDensity.cavePercent()), TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() : "percent", TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() : "percent", TFCaveBiomeConfig.INSTANCE.primary.size(), TFBiomeTerrainIntegrationConfig.INSTANCE.terrainRuleCount());
     }
 }

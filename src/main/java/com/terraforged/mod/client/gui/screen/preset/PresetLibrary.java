@@ -39,7 +39,7 @@ public final class PresetLibrary {
         List<PresetEntry> entries = new ArrayList<>();
         for (String[] spec : BUNDLED) {
             if ("shipwrecked.json".equals(spec[0])
-                    && !com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate.shipwreckedWorldTypeAllowed()) {
+                    && !com.terraforged.mod.client.gui.screen.nv.NvAccess.shipwreckedWorldTypeAllowed()) {
                 continue;
             }
             try {
@@ -72,6 +72,38 @@ public final class PresetLibrary {
             TerraForged.LOG.warn("Failed to list user presets in {}", dir, e);
         }
         return entries;
+    }
+
+    public static Path importUserPresetFile(Path source) throws IOException {
+        if (source == null || !Files.isRegularFile(source)) {
+            throw new IOException("Preset file not found");
+        }
+        String lower = source.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (!lower.endsWith(".json") && !lower.endsWith(".ntpreset")) {
+            throw new IOException("Unsupported preset extension");
+        }
+        // Validate NewTF header + JSON before copying.
+        PresetEntry.fromFile(source);
+        Path dir = userDir();
+        Files.createDirectories(dir);
+        String safeName = sanitizeFileName(source.getFileName().toString());
+        Path target = dir.resolve(safeName);
+        if (Files.exists(target)) {
+            String base = safeName;
+            String ext = "";
+            int dot = safeName.lastIndexOf('.');
+            if (dot > 0) {
+                base = safeName.substring(0, dot);
+                ext = safeName.substring(dot);
+            }
+            int i = 2;
+            do {
+                target = dir.resolve(base + "_" + i + ext);
+                i++;
+            } while (Files.exists(target));
+        }
+        Files.copy(source, target);
+        return target;
     }
 
     public static Path saveUserPreset(String fileName, GeneratorSettings settings) throws IOException {

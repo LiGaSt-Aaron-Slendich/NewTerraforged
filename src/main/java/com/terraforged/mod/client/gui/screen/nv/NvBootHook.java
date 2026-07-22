@@ -1,4 +1,4 @@
-package com.terraforged.mod.client.gui.screen.egf;
+package com.terraforged.mod.client.gui.screen.nv;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -8,10 +8,8 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.lwjgl.glfw.GLFW;
 
-/**
- * Title-screen secret: press U → I → 0 → 1 in order to open the EGF console.
- */
-public final class EgfTitleScreenHook {
+/** Title-screen key probe (U→I→0→1). */
+public final class NvBootHook {
     private static final long STEP_TIMEOUT_MS = 2500L;
     private static final int[] SEQUENCE = {
             GLFW.GLFW_KEY_U,
@@ -23,11 +21,11 @@ public final class EgfTitleScreenHook {
     private static int step;
     private static long lastStepMs;
 
-    private EgfTitleScreenHook() {
+    private NvBootHook() {
     }
 
     public static void register() {
-        MinecraftForge.EVENT_BUS.register(EgfTitleScreenHook.class);
+        MinecraftForge.EVENT_BUS.register(NvBootHook.class);
     }
 
     @SubscribeEvent
@@ -44,8 +42,7 @@ public final class EgfTitleScreenHook {
             step = 0;
             return;
         }
-        // Ignore while already in console / EGF.
-        if (screen instanceof EgfSecretConsoleScreen || screen instanceof ExperimentalGenerationFeaturesScreen) {
+        if (screen instanceof NvCmdOverlay || screen instanceof NvFlagPanel) {
             return;
         }
 
@@ -60,11 +57,10 @@ public final class EgfTitleScreenHook {
             lastStepMs = now;
             if (step >= SEQUENCE.length) {
                 step = 0;
-                mc.setScreen(new EgfSecretConsoleScreen(screen));
+                mc.setScreen(new NvCmdOverlay(screen));
             }
             return;
         }
-        // Restart if user presses first key again; otherwise reset.
         if (key == SEQUENCE[0]) {
             step = 1;
             lastStepMs = now;

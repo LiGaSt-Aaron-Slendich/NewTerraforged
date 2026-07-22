@@ -13,32 +13,29 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import net.minecraftforge.fml.loading.FMLPaths;
 
-/**
- * Experimental Generation Features — persisted in an opaque encrypted blob, not a user-facing TOML.
- * Default off; toggle only via the secret EGF console.
- */
-public final class TFExperimentalGenerationConfig {
-    public static TFExperimentalGenerationConfig INSTANCE = new TFExperimentalGenerationConfig();
+/** Opaque internal noise-variant flag store (default off). */
+public final class TFNoiseVariantFlags {
+    public static TFNoiseVariantFlags INSTANCE = new TFNoiseVariantFlags();
 
-    private static final byte[] MAGIC = new byte[]{'N', 'T', 'F', 'E', 'G', 'F', '1'};
+    private static final byte[] MAGIC = new byte[]{'N', 'T', 'F', 'N', 'V', 'F', '1'};
+    private static final byte[] LEGACY_MAGIC = new byte[]{'N', 'T', 'F', 'E', 'G', 'F', '1'};
     private static final int GCM_TAG_BITS = 128;
     private static final int IV_LEN = 12;
-    /** Obfuscated material — not a user password; just keeps the file non-plaintext. */
-    private static final String SEED =
+    private static final String SEED = "ntf/nv/v1/noise-variant/do-not-edit";
+    private static final String LEGACY_SEED =
             "ntf/egf/v1/" + "ArchipelagoIsExperimental/" + "do-not-edit";
 
     public boolean archipelago = false;
     public boolean scatteredArchipelago = false;
 
-    private TFExperimentalGenerationConfig() {
+    private TFNoiseVariantFlags() {
     }
 
     public static void load() {
-        INSTANCE = new TFExperimentalGenerationConfig();
+        INSTANCE = new TFNoiseVariantFlags();
         INSTANCE.readEncrypted();
-        INSTANCE.scrubLegacyPlaintext();
-        // Do not log flag values — avoids leaking experimental state into logs.
-        TerraForged.LOG.debug("[TFConfig] EGF store loaded");
+        INSTANCE.scrubLegacy();
+        TerraForged.LOG.debug("[TFConfig] nv store loaded");
     }
 
     public static boolean archipelagoEnabled() {
@@ -63,41 +60,54 @@ public final class TFExperimentalGenerationConfig {
 
     private static void ensure() {
         if (INSTANCE == null) {
-            INSTANCE = new TFExperimentalGenerationConfig();
+            INSTANCE = new TFNoiseVariantFlags();
         }
     }
 
     private static Path storePath() {
-        // Nested under config but not a readable settings file.
+        return FMLPaths.CONFIGDIR.get().resolve("NewTerraForged").resolve(".internal").resolve("nvf.bin");
+    }
+
+    private static Path legacyStorePath() {
         return FMLPaths.CONFIGDIR.get().resolve("NewTerraForged").resolve(".internal").resolve("egf.dat");
     }
 
     private void readEncrypted() {
         Path path = storePath();
-        if (!Files.isRegularFile(path)) {
-            return;
+        if (Files.isRegularFile(path)) {
+            if (readBlob(path, MAGIC, SEED)) {
+                return;
+            }
         }
+        Path legacy = legacyStorePath();
+        if (Files.isRegularFile(legacy) && readBlob(legacy, LEGACY_MAGIC, LEGACY_SEED)) {
+            this.writeEncrypted();
+        }
+    }
+
+    private boolean readBlob(Path path, byte[] magic, String seed) {
         try {
             byte[] all = Files.readAllBytes(path);
-            if (all.length < MAGIC.length + IV_LEN + 16) {
-                return;
+            if (all.length < magic.length + IV_LEN + 16) {
+                return false;
             }
-            for (int i = 0; i < MAGIC.length; i++) {
-                if (all[i] != MAGIC[i]) {
-                    return;
+            for (int i = 0; i < magic.length; i++) {
+                if (all[i] != magic[i]) {
+                    return false;
                 }
             }
-            byte[] iv = Arrays.copyOfRange(all, MAGIC.length, MAGIC.length + IV_LEN);
-            byte[] cipher = Arrays.copyOfRange(all, MAGIC.length + IV_LEN, all.length);
-            byte[] plain = decrypt(iv, cipher);
+            byte[] iv = Arrays.copyOfRange(all, magic.length, magic.length + IV_LEN);
+            byte[] cipher = Arrays.copyOfRange(all, magic.length + IV_LEN, all.length);
+            byte[] plain = decrypt(iv, cipher, seed);
             if (plain == null || plain.length < 4) {
-                return;
+                return false;
             }
             int flags = ByteBuffer.wrap(plain).getInt();
             this.archipelago = (flags & 1) != 0;
             this.scatteredArchipelago = (flags & 2) != 0;
+            return true;
         } catch (Exception e) {
-            TerraForged.LOG.warn("[TFConfig] EGF store unreadable — using defaults");
+            return false;
         }
     }
 
@@ -116,9 +126,8 @@ public final class TFExperimentalGenerationConfig {
             }
             byte[] plain = ByteBuffer.allocate(4).putInt(flags).array();
             byte[] iv = new byte[IV_LEN];
-            // Deterministic IV from content+seed so file is stable; secrecy is opacity not forward secrecy.
             System.arraycopy(sha256(plain, SEED.getBytes(StandardCharsets.UTF_8)), 0, iv, 0, IV_LEN);
-            byte[] cipher = encrypt(iv, plain);
+            byte[] cipher = encrypt(iv, plain, SEED);
             if (cipher == null) {
                 return;
             }
@@ -128,7 +137,6 @@ public final class TFExperimentalGenerationConfig {
             System.arraycopy(cipher, 0, out, MAGIC.length + IV_LEN, cipher.length);
             Files.write(path, out, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
             try {
-                // Best-effort hide on Windows; ignored elsewhere.
                 Files.setAttribute(path, "dos:hidden", true);
                 if (path.getParent() != null) {
                     Files.setAttribute(path.getParent(), "dos:hidden", true);
@@ -136,39 +144,22 @@ public final class TFExperimentalGenerationConfig {
             } catch (Exception ignored) {
             }
         } catch (Exception e) {
-            TerraForged.LOG.error("[TFConfig] Failed to persist EGF store", e);
+            TerraForged.LOG.error("[TFConfig] Failed to persist nv store", e);
         }
     }
 
-    /** Remove the old open TOML if a previous build created it. */
-    private void scrubLegacyPlaintext() {
+    private void scrubLegacy() {
         try {
-            Path legacy = FMLPaths.CONFIGDIR.get().resolve("NewTerraForged")
+            Files.deleteIfExists(legacyStorePath());
+            Path legacyToml = FMLPaths.CONFIGDIR.get().resolve("NewTerraForged")
                     .resolve("Critical Options").resolve("experimental-generation.toml");
-            if (Files.isRegularFile(legacy)) {
-                // One-shot migrate plaintext → encrypted, then delete.
-                try {
-                    String text = Files.readString(legacy);
-                    if (text.contains("archipelago") && text.toLowerCase().contains("true")) {
-                        // crude migrate: if either true in old file, keep after encrypted load only if store empty
-                        if (!Files.isRegularFile(storePath())) {
-                            this.archipelago = text.contains("archipelago = true")
-                                    || text.contains("archipelago=true");
-                            this.scatteredArchipelago = text.contains("scattered_archipelago = true")
-                                    || text.contains("scattered_archipelago=true");
-                            this.writeEncrypted();
-                        }
-                    }
-                } catch (Exception ignored) {
-                }
-                Files.deleteIfExists(legacy);
-            }
+            Files.deleteIfExists(legacyToml);
         } catch (Exception ignored) {
         }
     }
 
-    private static byte[] keyBytes() {
-        return Arrays.copyOf(sha256(SEED.getBytes(StandardCharsets.UTF_8)), 16);
+    private static byte[] keyBytes(String seed) {
+        return Arrays.copyOf(sha256(seed.getBytes(StandardCharsets.UTF_8)), 16);
     }
 
     private static byte[] sha256(byte[]... parts) {
@@ -183,21 +174,21 @@ public final class TFExperimentalGenerationConfig {
         }
     }
 
-    private static byte[] encrypt(byte[] iv, byte[] plain) {
+    private static byte[] encrypt(byte[] iv, byte[] plain, String seed) {
         try {
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
-            c.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes(), "AES"), new GCMParameterSpec(GCM_TAG_BITS, iv));
+            c.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes(seed), "AES"), new GCMParameterSpec(GCM_TAG_BITS, iv));
             return c.doFinal(plain);
         } catch (Exception e) {
-            TerraForged.LOG.error("[TFConfig] EGF encrypt failed", e);
+            TerraForged.LOG.error("[TFConfig] nv encrypt failed", e);
             return null;
         }
     }
 
-    private static byte[] decrypt(byte[] iv, byte[] cipher) {
+    private static byte[] decrypt(byte[] iv, byte[] cipher, String seed) {
         try {
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
-            c.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes(), "AES"), new GCMParameterSpec(GCM_TAG_BITS, iv));
+            c.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes(seed), "AES"), new GCMParameterSpec(GCM_TAG_BITS, iv));
             return c.doFinal(cipher);
         } catch (Exception e) {
             return null;

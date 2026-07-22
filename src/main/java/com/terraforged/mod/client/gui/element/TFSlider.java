@@ -2,7 +2,7 @@ package com.terraforged.mod.client.gui.element;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.terraforged.engine.serialization.serializer.Serializer;
-import com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate;
+import com.terraforged.mod.client.gui.screen.nv.NvAccess;
 import com.terraforged.noise.util.NoiseUtil;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -29,8 +29,8 @@ public abstract class TFSlider extends ForgeSlider implements Element {
                 100,
                 20,
                 new TextComponent(
-                        EgfFeatureGate.isBlockedSetting(name)
-                                ? EgfFeatureGate.BLOCKED_LABEL
+                        NvAccess.isBlockedSetting(name)
+                                ? NvAccess.BLOCKED_LABEL
                                 : Element.getDisplayName(name, value) + ": "
                 ),
                 TextComponent.EMPTY,
@@ -43,13 +43,13 @@ public abstract class TFSlider extends ForgeSlider implements Element {
         );
         this.name = name;
         this.value = value;
-        this.featureBlocked = EgfFeatureGate.isBlockedSetting(name);
-        this.tooltip = this.featureBlocked ? EgfFeatureGate.blockedTooltip() : Element.getToolTip(name, value);
+        this.featureBlocked = NvAccess.isBlockedSetting(name);
+        this.tooltip = this.featureBlocked ? NvAccess.blockedTooltip() : Element.getToolTip(name, value);
         this.binding = DependencyBinding.of(name, value);
         if (this.featureBlocked) {
             this.active = false;
             this.drawString = false;
-            this.setMessage(new TextComponent(EgfFeatureGate.BLOCKED_LABEL));
+            this.setMessage(new TextComponent(NvAccess.BLOCKED_LABEL));
         }
     }
 
@@ -70,7 +70,7 @@ public abstract class TFSlider extends ForgeSlider implements Element {
     @Override
     protected void updateMessage() {
         if (this.featureBlocked) {
-            this.setMessage(new TextComponent(EgfFeatureGate.BLOCKED_LABEL));
+            this.setMessage(new TextComponent(NvAccess.BLOCKED_LABEL));
             return;
         }
         super.updateMessage();

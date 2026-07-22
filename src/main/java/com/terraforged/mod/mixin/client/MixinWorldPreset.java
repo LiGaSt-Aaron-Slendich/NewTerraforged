@@ -1,6 +1,6 @@
 package com.terraforged.mod.mixin.client;
 
-import com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate;
+import com.terraforged.mod.client.gui.screen.nv.NvAccess;
 import com.terraforged.mod.platform.forge.client.ShipwreckedPreset;
 import net.minecraft.client.gui.screens.worldselection.WorldPreset;
 import net.minecraft.network.chat.Component;
@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class MixinWorldPreset {
     @Inject(method = "isVisibleByDefault", at = @At("HEAD"), cancellable = true)
     private static void newtf$gateShipwrecked(WorldPreset preset, CallbackInfoReturnable<Boolean> cir) {
-        if (EgfFeatureGate.shipwreckedWorldTypeAllowed()) {
+        if (NvAccess.shipwreckedWorldTypeAllowed()) {
             return;
         }
         if (matchesShipwrecked(preset.description())) {

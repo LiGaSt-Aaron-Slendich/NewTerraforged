@@ -1,7 +1,7 @@
 package com.terraforged.mod.client.gui.element;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate;
+import com.terraforged.mod.client.gui.screen.nv.NvAccess;
 import java.util.Collections;
 import java.util.List;
 import net.minecraft.client.gui.components.Button;
@@ -22,7 +22,7 @@ public class TFCheckBox extends Button implements Element {
         });
         this.name = name;
         this.value = value;
-        this.featureBlocked = EgfFeatureGate.isBlockedSetting(name);
+        this.featureBlocked = NvAccess.isBlockedSetting(name);
         this.checked = value.getBoolean(name);
         this.updateLabel();
         if (this.featureBlocked) {
@@ -66,7 +66,7 @@ public class TFCheckBox extends Button implements Element {
     @Override
     public List<String> getTooltip() {
         if (this.featureBlocked) {
-            return EgfFeatureGate.blockedTooltip();
+            return NvAccess.blockedTooltip();
         }
         if (this.name != null && this.value != null) {
             return Element.getToolTip(this.name, this.value);
@@ -115,7 +115,7 @@ public class TFCheckBox extends Button implements Element {
 
     private void updateLabel() {
         if (this.featureBlocked) {
-            this.setMessage(new TextComponent(EgfFeatureGate.BLOCKED_LABEL));
+            this.setMessage(new TextComponent(NvAccess.BLOCKED_LABEL));
             return;
         }
         if (this.name != null && this.value != null) {
