@@ -268,6 +268,9 @@ public class NoiseGenerator implements INoiseGenerator {
    protected void getOcean(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
       Terrain island = islandTerrain(sample.terrainType);
       float islandH = sample.heightNoise;
+      if (applyIslandSurface(sample, island, islandH, x, z, blender)) {
+         return;
+      }
       float f = this.ocean.getValue(x, z);
       sample.heightNoise = this.levels.noiseLevels.toDepthNoise(f);
       sample.terrainType = TerrainType.DEEP_OCEAN;
@@ -277,6 +280,9 @@ public class NoiseGenerator implements INoiseGenerator {
    protected void getInland(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
       Terrain island = islandTerrain(sample.terrainType);
       float islandH = sample.heightNoise;
+      if (applyIslandSurface(sample, island, islandH, x, z, blender)) {
+         return;
+      }
       float f = sample.baseNoise;
       float f1 = this.land.getValue(x, z, blender) * 1.2F;
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
@@ -287,6 +293,9 @@ public class NoiseGenerator implements INoiseGenerator {
    protected void getBlend(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
       Terrain island = islandTerrain(sample.terrainType);
       float islandH = sample.heightNoise;
+      if (applyIslandSurface(sample, island, islandH, x, z, blender)) {
+         return;
+      }
       if (sample.continentNoise < 0.5F) {
          float f = this.ocean.getValue(x, z);
          float f1 = this.levels.noiseLevels.toDepthNoise(f);
@@ -303,6 +312,57 @@ public class NoiseGenerator implements INoiseGenerator {
          sample.terrainType = this.land.getTerrain(blender);
       }
       restoreIsland(sample, island, islandH);
+   }
+
+   /**
+    * Island overlays must not use full land-blender height (hills*1.2 with baseNoise=0 → sky needles).
+    * Build a coherent island plateau + mild relief instead.
+    */
+   private boolean applyIslandSurface(
+         NoiseSample sample, Terrain island, float islandBoost, float x, float z, TerrainBlender.Blender blender
+   ) {
+      if (island == null) {
+         return false;
+      }
+      if (island == ModTerrainTypes.LAGUNA || island.isRiver() || island.isLake()) {
+         return false;
+      }
+      if (island == TerrainType.VOLCANO_PIPE || island == TerrainType.VOLCANO
+            || island == ModTerrainTypes.VOLCANIC_ISLAND) {
+         // Volcano cone already encoded absolute-ish height in overlay; keep it, don't needle-boost.
+         float boost = NoiseUtil.clamp(islandBoost, 0.20F, 0.90F);
+         float base = NoiseUtil.clamp(boost * 0.55F + 0.10F, 0.12F, 0.72F);
+         float relief = island == TerrainType.VOLCANO_PIPE
+               ? 0.02F
+               : NoiseUtil.clamp(this.land.getValue(x, z, blender), 0.0F, 1.0F) * 0.28F;
+         sample.baseNoise = base;
+         sample.heightNoise = this.levels.noiseLevels.toHeightNoise(base, relief);
+         sample.terrainType = island;
+         return true;
+      }
+
+      float boost = NoiseUtil.clamp(islandBoost, 0.18F, 0.95F);
+      float base;
+      float reliefScale;
+      if (island == ModTerrainTypes.ARCHIPELAGO_MOUNTAINS) {
+         base = NoiseUtil.clamp(0.16F + boost * 0.48F, 0.18F, 0.68F);
+         reliefScale = 0.30F;
+      } else if (island == ModTerrainTypes.ARCHIPELAGO_PLATEAU) {
+         base = NoiseUtil.clamp(0.18F + boost * 0.50F, 0.20F, 0.70F);
+         reliefScale = 0.10F;
+      } else if (island == ModTerrainTypes.ARCHIPELAGO_HILLS || island == ModTerrainTypes.SCATTERED_ARCHIPELAGO) {
+         base = NoiseUtil.clamp(0.12F + boost * 0.42F, 0.14F, 0.58F);
+         reliefScale = 0.20F;
+      } else {
+         // coastal / generic island
+         base = NoiseUtil.clamp(0.10F + boost * 0.38F, 0.12F, 0.52F);
+         reliefScale = 0.14F;
+      }
+      float detail = NoiseUtil.clamp(this.land.getValue(x, z, blender), 0.0F, 1.0F) * reliefScale;
+      sample.baseNoise = base;
+      sample.heightNoise = this.levels.noiseLevels.toHeightNoise(base, detail);
+      sample.terrainType = island;
+      return true;
    }
 
    private static Terrain islandTerrain(Terrain terrain) {

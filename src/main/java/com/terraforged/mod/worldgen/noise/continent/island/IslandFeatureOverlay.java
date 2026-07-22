@@ -108,6 +108,7 @@ public final class IslandFeatureOverlay {
         if (eval.pipe()) {
             sample.terrainType = TerrainType.VOLCANO_PIPE;
             sample.continentNoise = Math.max(sample.continentNoise, 0.58F);
+            sample.baseNoise = Math.max(sample.baseNoise, 0.20F);
             // Absolute crater floor (not Math.max) so prior island land cannot fill the pipe.
             sample.heightNoise = eval.heightBoost();
             return;
@@ -128,8 +129,10 @@ public final class IslandFeatureOverlay {
             sample.terrainType = landformTerrain(
                     eval.landform(), originalCn < IslandScatter.SHORE_CULL_CN || this.shipwrecked, eval.scattered());
         }
-        sample.continentNoise = Math.max(sample.continentNoise, 0.58F + eval.heightBoost() * 0.25F);
-        sample.heightNoise = Math.max(sample.heightNoise, eval.heightBoost());
+        float boost = eval.heightBoost();
+        sample.continentNoise = Math.max(sample.continentNoise, 0.58F + boost * 0.25F);
+        sample.baseNoise = Math.max(sample.baseNoise, 0.12F + boost * 0.45F);
+        sample.heightNoise = Math.max(sample.heightNoise, boost);
     }
 
     private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago, boolean scattered) {

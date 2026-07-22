@@ -50,6 +50,8 @@ public class ContinentNoise implements IContinentNoise {
               == com.terraforged.engine.settings.WorldSettings.WorldStyle.SHIPWRECKED) {
          // Islands-only: no mainland from shape; overlay places every landmass.
          sample.continentNoise = 0.0F;
+         sample.baseNoise = 0.0F;
+         sample.heightNoise = 0.0F;
          sample.terrainType = com.terraforged.engine.world.terrain.TerrainType.DEEP_OCEAN;
          this.islandOverlay.apply(worldX, worldZ, sample, this.levels.seaLevel);
          return;
