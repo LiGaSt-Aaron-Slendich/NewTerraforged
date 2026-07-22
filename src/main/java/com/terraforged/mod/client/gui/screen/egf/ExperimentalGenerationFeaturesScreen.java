@@ -52,7 +52,6 @@ public final class ExperimentalGenerationFeaturesScreen extends Screen {
         this.renderBackground(pose);
         drawCenteredString(pose, this.font, this.title, this.width / 2, 12, 0xFFE080);
         drawCenteredString(pose, this.font, "Unstable / unfinished worldgen. Default OFF for releases.", this.width / 2, 28, 0xFFAAAAAA);
-        drawCenteredString(pose, this.font, "Saved to config/NewTerraForged/Critical Options/experimental-generation.toml", this.width / 2, this.height - 52, 0xFF888888);
         super.render(pose, mouseX, mouseY, partialTick);
     }
 

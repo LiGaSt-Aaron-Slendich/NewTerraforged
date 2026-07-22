@@ -17,6 +17,6 @@ public final class TFConfigs {
         TFSurfaceBiomeConfig.load();
         TFBiomeTerrainIntegrationConfig.load();
         TFExperimentalGenerationConfig.load();
-        TerraForged.LOG.info("[TFConfig] Loaded caves.toml (density {}% xy={} yz={}), cave-biomes.toml ({} primary), surface-biomes.toml, biome-terrain-integration.toml ({} terrains), experimental-generation.toml", Float.valueOf(TFCaveSystemConfig.INSTANCE.caveDensity.cavePercent()), TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() : "percent", TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() : "percent", TFCaveBiomeConfig.INSTANCE.primary.size(), TFBiomeTerrainIntegrationConfig.INSTANCE.terrainRuleCount());
+        TerraForged.LOG.info("[TFConfig] Loaded caves.toml (density {}% xy={} yz={}), cave-biomes.toml ({} primary), surface-biomes.toml, biome-terrain-integration.toml ({} terrains)", Float.valueOf(TFCaveSystemConfig.INSTANCE.caveDensity.cavePercent()), TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() : "percent", TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() : "percent", TFCaveBiomeConfig.INSTANCE.primary.size(), TFBiomeTerrainIntegrationConfig.INSTANCE.terrainRuleCount());
     }
 }

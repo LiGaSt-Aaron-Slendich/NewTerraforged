@@ -1,9 +1,0 @@
-# Experimental Generation Features (EGF)
-# Open via title-screen key sequence U → I → 0 → 1, then type: /EGF open
-# These flags are OFF by default for stable releases.
-
-[features]
-# Compact Archipelago clusters (2–5 islands, Laguna shelves).
-archipelago = false
-# Dense Scattered Archipelago clusters (many islands).
-scattered_archipelago = false
