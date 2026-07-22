@@ -1,6 +1,7 @@
 package com.terraforged.mod.client.screen;
 
 import com.terraforged.mod.client.gui.screen.AppliedCustomizeState;
+import com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate;
 import com.terraforged.mod.platform.ClientAPI;
 import com.terraforged.mod.platform.forge.client.ShipwreckedPreset;
 import com.terraforged.mod.worldgen.Generator;
@@ -25,6 +26,12 @@ import net.minecraft.world.level.levelgen.WorldGenSettings;
 public class ScreenUtil {
    private static final Predicate<String> TF_PRESET = s ->
            s.equals(GeneratorPreset.TRANSLATION_KEY) || s.equals(ShipwreckedPreset.TRANSLATION_KEY);
+   private static final Predicate<String> TF_PRESET_VISIBLE = s -> {
+      if (s.equals(GeneratorPreset.TRANSLATION_KEY)) {
+         return true;
+      }
+      return s.equals(ShipwreckedPreset.TRANSLATION_KEY) && EgfFeatureGate.shipwreckedWorldTypeAllowed();
+   };
    private static final Predicate<String> DEFAULT_PRESET = s -> s.equals("generator.default");
    private static final Predicate<String> SHIPWRECKED_PRESET = s -> s.equals(ShipwreckedPreset.TRANSLATION_KEY);
    /**
@@ -33,6 +40,10 @@ public class ScreenUtil {
     */
    public static void prepareCreateWorldScreen(CreateWorldScreen screen, String name) {
       enforceDefaultPreset(screen, name);
+      // If EGF archipelago features are off, leave Shipwrecked even if it was last selected.
+      if (!EgfFeatureGate.shipwreckedWorldTypeAllowed() && isShipwreckedWorldType(screen)) {
+         cycleAwayFromShipwrecked(screen);
+      }
    }
 
    public static void resetCreateWorldSession(CreateWorldScreen screen) {
@@ -57,7 +68,8 @@ public class ScreenUtil {
       WorldGenSettings before = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
       boolean keepCustomTf = GeneratorPreset.isTerraForgedWorld(before) || AppliedCustomizeState.present();
       // Applied NewTF generator must stay NewTF in the UI — never demote to forge "default".
-      Predicate<String> target = keepCustomTf ? TF_PRESET : createKeyPredicate(name);
+      // Prefer visible NewTF presets only (Shipwrecked may be EGF-gated).
+      Predicate<String> target = keepCustomTf ? TF_PRESET_VISIBLE : createKeyPredicate(name);
 
       if (!isPresetSelected(cyclebutton, target)) {
          Object start = cyclebutton.getValue();
@@ -123,6 +135,35 @@ public class ScreenUtil {
    public static boolean isNewTerraForgedFamily(CreateWorldScreen screen) {
       CycleButton<?> cyclebutton = getPresetButton(screen);
       return cyclebutton != null && isPresetSelected(cyclebutton, TF_PRESET);
+   }
+
+   private static void cycleAwayFromShipwrecked(CreateWorldScreen screen) {
+      CycleButton<?> cyclebutton = getPresetButton(screen);
+      if (cyclebutton == null) {
+         return;
+      }
+      WorldGenSettings before = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+      Object start = cyclebutton.getValue();
+      do {
+         cyclebutton.onPress();
+         if (!isPresetSelected(cyclebutton, SHIPWRECKED_PRESET)) {
+            break;
+         }
+      } while (cyclebutton.getValue() != start);
+      // Prefer NewTerraForged main preset when leaving Shipwrecked.
+      if (!isPresetSelected(cyclebutton, s -> s.equals(GeneratorPreset.TRANSLATION_KEY))) {
+         Object start2 = cyclebutton.getValue();
+         while (!isPresetSelected(cyclebutton, s -> s.equals(GeneratorPreset.TRANSLATION_KEY))) {
+            cyclebutton.onPress();
+            if (cyclebutton.getValue() == start2) {
+               break;
+            }
+         }
+      }
+      if (GeneratorPreset.isTerraForgedWorld(before) && !isShipwreckedWorldType(screen)) {
+         // Keep customized settings if they were already NewTF (non-shipwrecked path).
+         screen.worldGenSettingsComponent.updateSettings(before);
+      }
    }
 
    private static Predicate<String> createKeyPredicate(String name) {

@@ -6,7 +6,8 @@
   "compatibilityLevel": "JAVA_17",
   "client": [
     "client.MixinCreateWorldScreen",
-    "client.MixinPrimaryLevelData"
+    "client.MixinPrimaryLevelData",
+    "client.MixinWorldPreset"
   ],
   "mixins": [
     "common.MixinBoat",

@@ -17,11 +17,14 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.nbt.ByteTag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 
 /**
@@ -45,6 +48,7 @@ public class ScrollPage implements Page {
     private int height;
     private int contentHeight;
     private double scroll;
+    private List<String> hoveredTooltip;
 
     public ScrollPage(
             String titleKey,
@@ -118,13 +122,40 @@ public class ScrollPage implements Page {
     @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
         int bottom = this.top + this.height;
+        this.hoveredTooltip = null;
         for (AbstractWidget widget : this.widgets) {
             boolean inView = widget.y + widget.getHeight() > this.top && widget.y < bottom;
             widget.visible = inView;
+            boolean blocked = isFeatureBlockedWidget(widget);
             // Keep inactive when scrolled away so they cannot steal Done/Cancel clicks.
-            // Must re-enable when scrolled back (TFSlider does this itself; checkboxes do not).
-            widget.active = inView;
+            // Feature-blocked EGF widgets stay inactive even when in view.
+            widget.active = inView && !blocked;
+            if (inView && widget.isMouseOver(mouseX, mouseY) && widget instanceof Element element) {
+                List<String> tip = element.getTooltip();
+                if (tip != null && !tip.isEmpty()) {
+                    this.hoveredTooltip = tip;
+                }
+            }
         }
+    }
+
+    /** Draw after screen widgets so the tip sits on top. */
+    public void renderHoveredTooltip(PoseStack pose, int mouseX, int mouseY) {
+        if (this.hoveredTooltip == null || this.hoveredTooltip.isEmpty()) {
+            return;
+        }
+        List<Component> lines = this.hoveredTooltip.stream().map(TextComponent::new).collect(Collectors.toList());
+        Minecraft.getInstance().screen.renderComponentTooltip(pose, lines, mouseX, mouseY);
+    }
+
+    private static boolean isFeatureBlockedWidget(AbstractWidget widget) {
+        if (widget instanceof TFCheckBox check) {
+            return check.isFeatureBlocked();
+        }
+        if (widget instanceof TFSlider slider) {
+            return slider.isFeatureBlocked();
+        }
+        return false;
     }
 
     @Override

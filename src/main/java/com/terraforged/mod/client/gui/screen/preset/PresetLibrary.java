@@ -38,6 +38,10 @@ public final class PresetLibrary {
     public static List<PresetEntry> listDefaultPresets() {
         List<PresetEntry> entries = new ArrayList<>();
         for (String[] spec : BUNDLED) {
+            if ("shipwrecked.json".equals(spec[0])
+                    && !com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate.shipwreckedWorldTypeAllowed()) {
+                continue;
+            }
             try {
                 entries.add(PresetEntry.fromResource(RESOURCE_ROOT + spec[0], spec[1]));
             } catch (IOException e) {

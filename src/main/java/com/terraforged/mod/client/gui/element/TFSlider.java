@@ -2,6 +2,7 @@ package com.terraforged.mod.client.gui.element;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.terraforged.engine.serialization.serializer.Serializer;
+import com.terraforged.mod.client.gui.screen.egf.EgfFeatureGate;
 import com.terraforged.noise.util.NoiseUtil;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -16,6 +17,7 @@ public abstract class TFSlider extends ForgeSlider implements Element {
     protected final CompoundTag value;
     private final List<String> tooltip;
     private final DependencyBinding binding;
+    private final boolean featureBlocked;
     private boolean lock;
     private Runnable callback = () -> {
     };
@@ -26,7 +28,11 @@ public abstract class TFSlider extends ForgeSlider implements Element {
                 0,
                 100,
                 20,
-                new TextComponent(Element.getDisplayName(name, value) + ": "),
+                new TextComponent(
+                        EgfFeatureGate.isBlockedSetting(name)
+                                ? EgfFeatureGate.BLOCKED_LABEL
+                                : Element.getDisplayName(name, value) + ": "
+                ),
                 TextComponent.EMPTY,
                 min(name, value),
                 max(name, value),
@@ -37,13 +43,23 @@ public abstract class TFSlider extends ForgeSlider implements Element {
         );
         this.name = name;
         this.value = value;
-        this.tooltip = Element.getToolTip(name, value);
+        this.featureBlocked = EgfFeatureGate.isBlockedSetting(name);
+        this.tooltip = this.featureBlocked ? EgfFeatureGate.blockedTooltip() : Element.getToolTip(name, value);
         this.binding = DependencyBinding.of(name, value);
+        if (this.featureBlocked) {
+            this.active = false;
+            this.drawString = false;
+            this.setMessage(new TextComponent(EgfFeatureGate.BLOCKED_LABEL));
+        }
     }
 
     public TFSlider callback(Runnable callback) {
         this.callback = callback;
         return this;
+    }
+
+    public boolean isFeatureBlocked() {
+        return this.featureBlocked;
     }
 
     @Override
@@ -52,13 +68,29 @@ public abstract class TFSlider extends ForgeSlider implements Element {
     }
 
     @Override
+    protected void updateMessage() {
+        if (this.featureBlocked) {
+            this.setMessage(new TextComponent(EgfFeatureGate.BLOCKED_LABEL));
+            return;
+        }
+        super.updateMessage();
+    }
+
+    @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
-        this.active = this.visible && this.binding.isValid();
+        if (this.featureBlocked) {
+            this.active = false;
+        } else {
+            this.active = this.visible && this.binding.isValid();
+        }
         super.render(pose, mouseX, mouseY, partialTick);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.featureBlocked) {
+            return false;
+        }
         if (button == 0) {
             return super.mouseClicked(mouseX, mouseY, button);
         }
@@ -73,6 +105,9 @@ public abstract class TFSlider extends ForgeSlider implements Element {
 
     @Override
     protected void applyValue() {
+        if (this.featureBlocked) {
+            return;
+        }
         if (!this.lock) {
             this.lock = true;
             this.onChange(this.value);
@@ -82,7 +117,7 @@ public abstract class TFSlider extends ForgeSlider implements Element {
 
     @Override
     public void onRelease(double mouseX, double mouseY) {
-        if (this.isHoveredOrFocused()) {
+        if (!this.featureBlocked && this.isHoveredOrFocused()) {
             this.callback.run();
         }
         super.onRelease(mouseX, mouseY);
