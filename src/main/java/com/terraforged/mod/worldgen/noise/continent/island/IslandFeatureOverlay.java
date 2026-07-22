@@ -10,6 +10,7 @@ import com.terraforged.noise.util.NoiseUtil;
 /**
  * Overlays coastal / volcanic / independent islands and Archipelago / Scattered Archipelago clusters.
  * Laguna = shallow water between islands. Rivers/lakes = inland hydrology on island land.
+ * Near-shore / mainland samples are culled so islands are not absorbed into continents.
  */
 public final class IslandFeatureOverlay {
     public static final int LAGUNA_MAX_DEPTH = IslandScatter.LAGUNA_MAX_DEPTH;
@@ -49,33 +50,44 @@ public final class IslandFeatureOverlay {
                 this.archipelago ? this.archipelagoChance : 0.0F,
                 this.scatteredArchipelago ? this.scatteredArchipelagoChance : 0.0F);
 
-        if (cn < 0.55F || this.shipwrecked) {
+        // Hard cull: never stamp island / archipelago terrain onto near-shore or mainland.
+        boolean shoreBlocked = !this.shipwrecked
+                && IslandScatter.tooCloseToShore(cn, proximity, midOcean);
+
+        if (!shoreBlocked && (cn < IslandScatter.SHORE_CULL_CN || this.shipwrecked)) {
             if (this.archipelago && this.archipelagoChance > 0.0F) {
                 this.paint(IslandScatter.evalArchipelago(
                         worldX, worldZ, this.seed, this.archipelagoChance, proximity, midOcean,
-                        IslandScatter.ArchipelagoStyle.ARCHIPELAGO), sample, seaLevel);
+                        IslandScatter.ArchipelagoStyle.ARCHIPELAGO, cn), sample, seaLevel, cn);
             }
             if (this.scatteredArchipelago && this.scatteredArchipelagoChance > 0.0F) {
                 this.paint(IslandScatter.evalArchipelago(
                         worldX, worldZ, this.seed, this.scatteredArchipelagoChance, proximity, midOcean,
-                        IslandScatter.ArchipelagoStyle.SCATTERED), sample, seaLevel);
+                        IslandScatter.ArchipelagoStyle.SCATTERED, cn), sample, seaLevel, cn);
             }
             this.paint(IslandScatter.evalIndependentIsland(
                     worldX, worldZ, this.seed, clusterPressure, this.coastalChance,
-                    proximity, midOcean, this.shipwrecked), sample, seaLevel);
+                    proximity, midOcean, this.shipwrecked, cn), sample, seaLevel, cn);
             if (this.volcanicChance > 0.0F) {
                 this.paint(IslandScatter.evalOceanVolcano(
-                        worldX, worldZ, this.seed, this.volcanicChance, proximity, midOcean, clusterPressure),
-                        sample, seaLevel);
+                        worldX, worldZ, this.seed, this.volcanicChance, proximity, midOcean,
+                        clusterPressure, cn), sample, seaLevel, cn);
             }
         }
 
-        this.paint(IslandScatter.evalCoastalFreckle(
-                worldX, worldZ, this.seed, this.coastalChance, this.volcanicChance, cn), sample, seaLevel);
+        // Coastal freckles stay near the shore belt, but never on mainland land.
+        if (cn < IslandScatter.SHORE_CULL_CN) {
+            this.paint(IslandScatter.evalCoastalFreckle(
+                    worldX, worldZ, this.seed, this.coastalChance, this.volcanicChance, cn), sample, seaLevel, cn);
+        }
     }
 
-    private void paint(IslandScatter.ClusterEval eval, NoiseSample sample, int seaLevel) {
+    private void paint(IslandScatter.ClusterEval eval, NoiseSample sample, int seaLevel, float originalCn) {
         if (eval == null || eval == IslandScatter.ClusterEval.NONE) {
+            return;
+        }
+        // Safety: never overwrite continent land / coastal shelf with island terrains.
+        if (!this.shipwrecked && originalCn >= IslandScatter.SHORE_CULL_CN) {
             return;
         }
         if (eval.laguna()) {
@@ -104,7 +116,7 @@ public final class IslandFeatureOverlay {
             return;
         } else {
             sample.terrainType = landformTerrain(
-                    eval.landform(), sample.continentNoise < 0.55F || this.shipwrecked, eval.scattered());
+                    eval.landform(), originalCn < IslandScatter.SHORE_CULL_CN || this.shipwrecked, eval.scattered());
         }
         sample.continentNoise = Math.max(sample.continentNoise, 0.58F + eval.heightBoost() * 0.25F);
         sample.heightNoise = Math.max(sample.heightNoise, eval.heightBoost());

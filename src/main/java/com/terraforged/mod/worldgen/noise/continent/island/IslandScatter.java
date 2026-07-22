@@ -12,16 +12,28 @@ import com.terraforged.noise.util.NoiseUtil;
  */
 public final class IslandScatter {
     public static final int LAGUNA_MAX_DEPTH = 15;
-    /** Cluster anchor spacing; shelf can span most of a cell. */
-    public static final int ARCH_CELL = 11000;
-    public static final int ARCH_CELL_COMPACT = 7500;
+    /** Cluster anchor spacing. */
+    public static final int ARCH_CELL = 9000;
+    public static final int ARCH_CELL_COMPACT = 6500;
     public static final int VOLC_CELL = 10000;
+
+    /**
+     * ContinentNoise at/above this = shallow/coast/land — island overlays are culled so they
+     * are not absorbed into the mainland (no leftover archipelago_mountains on continents).
+     */
+    public static final float SHORE_CULL_CN = 0.28F;
+    /** Extra buffer: high shore proximity + not mid-ocean ⇒ delete cluster islands. */
+    public static final float SHORE_CULL_PROXIMITY = 0.55F;
 
     /** Width = 2 * radius. Scattered: 15–500. Archipelago: 50–300. */
     public static final float SCATTERED_MIN_RADIUS = 7.5F;
     public static final float SCATTERED_MAX_RADIUS = 250.0F;
     public static final float ARCH_MIN_RADIUS = 25.0F;
     public static final float ARCH_MAX_RADIUS = 150.0F;
+
+    /** Water gap between island footprints so members do not fuse into one blob. */
+    private static final float ARCH_MIN_GAP = 40.0F;
+    private static final float SCATTERED_MIN_GAP = 28.0F;
 
     /** @deprecated use {@link #SCATTERED_MIN_RADIUS} */
     @Deprecated
@@ -36,8 +48,9 @@ public final class IslandScatter {
     @Deprecated
     public static final float MOTHER_MAX_RADIUS = 250.0F;
 
-    private static final int SCATTERED_MIN_SATS = 22;
-    private static final int SCATTERED_MAX_SATS = 78;
+    /** Scattered: many islets, but not so many they pack into a fake continent. */
+    private static final int SCATTERED_MIN_SATS = 12;
+    private static final int SCATTERED_MAX_SATS = 36;
     /** Total islands 2–5 ⇒ satellites 1–4. */
     private static final int ARCH_MIN_SATS = 1;
     private static final int ARCH_MAX_SATS = 4;
@@ -69,6 +82,18 @@ public final class IslandScatter {
             return 0.0F;
         }
         return (0.18F - cn) / 0.18F;
+    }
+
+    /**
+     * True when this sample is on/near mainland — island land/laguna must not paint here.
+     */
+    public static boolean tooCloseToShore(float continentNoise, float proximity, float midOcean) {
+        float cn = NoiseUtil.clamp(continentNoise, 0.0F, 1.0F);
+        if (cn >= SHORE_CULL_CN) {
+            return true;
+        }
+        // Right against the coast belt: delete even if still "deep" enough by cn alone.
+        return proximity >= SHORE_CULL_PROXIMITY && midOcean < 0.20F;
     }
 
     public static float hash01(int seed, int x, int z) {
@@ -268,10 +293,16 @@ public final class IslandScatter {
             float archipelagoChance,
             float proximity,
             float midOcean,
-            ArchipelagoStyle style
+            ArchipelagoStyle style,
+            float continentNoise
     ) {
-        float gate = proximity + midOcean * 0.12F;
-        if (gate < 0.08F) {
+        // Delete clusters that sit on / against the mainland.
+        if (tooCloseToShore(continentNoise, proximity, midOcean)) {
+            return ClusterEval.NONE;
+        }
+        // Prefer open water; proximity alone must not spawn clusters into the beach.
+        float gate = midOcean * 0.85F + proximity * 0.15F;
+        if (gate < 0.10F) {
             return ClusterEval.NONE;
         }
 
@@ -291,7 +322,21 @@ public final class IslandScatter {
         return best;
     }
 
-    /** @deprecated prefer {@link #evalArchipelago(float, float, int, float, float, float, ArchipelagoStyle)} */
+    /** @deprecated prefer overload with continentNoise */
+    @Deprecated
+    public static ClusterEval evalArchipelago(
+            float worldX,
+            float worldZ,
+            int seed,
+            float archipelagoChance,
+            float proximity,
+            float midOcean,
+            ArchipelagoStyle style
+    ) {
+        return evalArchipelago(worldX, worldZ, seed, archipelagoChance, proximity, midOcean, style, 0.0F);
+    }
+
+    /** @deprecated prefer {@link #evalArchipelago(float, float, int, float, float, float, ArchipelagoStyle, float)} */
     @Deprecated
     public static ClusterEval evalArchipelago(
             float worldX,
@@ -301,7 +346,7 @@ public final class IslandScatter {
             float proximity,
             float midOcean
     ) {
-        return evalArchipelago(worldX, worldZ, seed, archipelagoChance, proximity, midOcean, ArchipelagoStyle.SCATTERED);
+        return evalArchipelago(worldX, worldZ, seed, archipelagoChance, proximity, midOcean, ArchipelagoStyle.SCATTERED, 0.0F);
     }
 
     private static ClusterEval mergeArchipelago(ClusterEval a, ClusterEval b) {
@@ -352,7 +397,7 @@ public final class IslandScatter {
         if (place < need) {
             return ClusterEval.NONE;
         }
-        if (hash01(seed ^ 77, cx, cz) > 0.15F + proximity * 0.85F + midOcean * 0.05F) {
+        if (hash01(seed ^ 77, cx, cz) > 0.20F + midOcean * 0.80F) {
             return ClusterEval.NONE;
         }
 
@@ -508,13 +553,16 @@ public final class IslandScatter {
             float volcanicChance,
             float proximity,
             float midOcean,
-            float archipelagoChance
+            float archipelagoChance,
+            float continentNoise
     ) {
-        float gate = proximity * 0.85F + midOcean * (0.35F + archipelagoChance * 0.45F);
-        if (gate < 0.05F || volcanicChance <= 0.0F) {
+        if (tooCloseToShore(continentNoise, proximity, midOcean)) {
             return ClusterEval.NONE;
         }
-        // High archipelago chance also densifies volcanic freckles (not only clusters).
+        float gate = midOcean * (0.55F + archipelagoChance * 0.40F) + proximity * 0.20F;
+        if (gate < 0.08F || volcanicChance <= 0.0F) {
+            return ClusterEval.NONE;
+        }
         float effective = NoiseUtil.clamp(volcanicChance * (1.0F + archipelagoChance * 0.65F), 0.0F, 1.0F);
         int cell = Math.max(4200, (int) (VOLC_CELL / (1.0F + archipelagoChance * 0.85F)));
         int cx = NoiseUtil.floor(worldX / cell);
@@ -530,6 +578,20 @@ public final class IslandScatter {
         return evalVolcanoCone(worldX, worldZ, centerX, centerZ, radius);
     }
 
+    /** @deprecated prefer overload with continentNoise */
+    @Deprecated
+    public static ClusterEval evalOceanVolcano(
+            float worldX,
+            float worldZ,
+            int seed,
+            float volcanicChance,
+            float proximity,
+            float midOcean,
+            float archipelagoChance
+    ) {
+        return evalOceanVolcano(worldX, worldZ, seed, volcanicChance, proximity, midOcean, archipelagoChance, 0.0F);
+    }
+
     /**
      * Lone islands outside archipelago shelves. Density rises with archipelago chance
      * so high settings mix solos into mid-ocean instead of only clusters.
@@ -542,14 +604,18 @@ public final class IslandScatter {
             float coastalChance,
             float proximity,
             float midOcean,
-            boolean shipwrecked
+            boolean shipwrecked,
+            float continentNoise
     ) {
+        if (!shipwrecked && tooCloseToShore(continentNoise, proximity, midOcean)) {
+            return ClusterEval.NONE;
+        }
         float pressure = archipelagoChance * 0.60F + coastalChance * 0.20F + (shipwrecked ? 0.25F : 0.0F);
         if (pressure < 0.05F) {
             return ClusterEval.NONE;
         }
-        float gate = proximity * 0.40F + midOcean * (0.35F + archipelagoChance * 0.55F) + (shipwrecked ? 0.35F : 0.0F);
-        if (gate < 0.06F) {
+        float gate = midOcean * (0.45F + archipelagoChance * 0.50F) + proximity * 0.15F + (shipwrecked ? 0.35F : 0.0F);
+        if (gate < 0.08F) {
             return ClusterEval.NONE;
         }
         int cell = Math.max(1400, (int) (SOLO_CELL / (0.75F + pressure)));
@@ -563,28 +629,46 @@ public final class IslandScatter {
         float centerX = (cx + 0.5F) * cell + (hash01(seed ^ 1, cx, cz) - 0.5F) * cell * 0.55F;
         float centerZ = (cz + 0.5F) * cell + (hash01(seed ^ 2, cx, cz) - 0.5F) * cell * 0.55F;
         float sizeRoll = hash01(seed ^ 3, cx, cz);
-        // Width 15..~900 blocks (radius 7.5..450).
+        // Width 15–500 (radius 7.5–250).
         float rx;
-        if (sizeRoll < 0.40F) {
-            rx = SAT_MIN_RADIUS + sizeRoll * 90.0F;
-        } else if (sizeRoll < 0.80F) {
-            rx = 40.0F + (sizeRoll - 0.40F) * 280.0F;
+        if (sizeRoll < 0.45F) {
+            rx = SCATTERED_MIN_RADIUS + sizeRoll * 80.0F;
+        } else if (sizeRoll < 0.85F) {
+            rx = 40.0F + (sizeRoll - 0.45F) * 280.0F;
         } else {
-            rx = 160.0F + (sizeRoll - 0.80F) * 1450.0F;
+            rx = 160.0F + (sizeRoll - 0.85F) * (SCATTERED_MAX_RADIUS - 160.0F) / 0.15F;
         }
-        float aspect = 0.28F + hash01(seed ^ 4, cx, cz) * 1.55F;
-        float rz = NoiseUtil.clamp(rx * aspect, SAT_MIN_RADIUS, 520.0F);
+        rx = NoiseUtil.clamp(rx, SCATTERED_MIN_RADIUS, SCATTERED_MAX_RADIUS);
+        float aspect = 0.35F + hash01(seed ^ 4, cx, cz) * 1.25F;
+        float rz = NoiseUtil.clamp(rx * aspect, SCATTERED_MIN_RADIUS, SCATTERED_MAX_RADIUS);
         float ang = hash01(seed ^ 5, cx, cz) * NoiseUtil.PI2;
         ShapeKind kind = pickShape(seed ^ 6, cx * 13 + cz);
         float mask = shapedIslandMask(
-                worldX - centerX, worldZ - centerZ, rx, rz, ang, seed, 42 + (cx & 15), kind, SAT_MIN_RADIUS, SAT_MIN_RADIUS * 0.5F);
+                worldX - centerX, worldZ - centerZ, rx, rz, ang, seed, 42 + (cx & 15), kind,
+                SCATTERED_MIN_RADIUS, SCATTERED_MIN_RADIUS * 0.5F);
         if (mask < 0.0F) {
             return ClusterEval.NONE;
         }
-        Landform form = rx > 180.0F
+        Landform form = rx > 140.0F
                 ? (hash01(seed ^ 7, cx, cz) < 0.45F ? Landform.HILLS : Landform.PLATEAU)
                 : (rx > 60.0F && hash01(seed ^ 8, cx, cz) < 0.35F ? Landform.HILLS : Landform.FLATS);
         return ClusterEval.land(0.28F + mask * 0.34F, form);
+    }
+
+    /** @deprecated prefer overload with continentNoise */
+    @Deprecated
+    public static ClusterEval evalIndependentIsland(
+            float worldX,
+            float worldZ,
+            int seed,
+            float archipelagoChance,
+            float coastalChance,
+            float proximity,
+            float midOcean,
+            boolean shipwrecked
+    ) {
+        return evalIndependentIsland(
+                worldX, worldZ, seed, archipelagoChance, coastalChance, proximity, midOcean, shipwrecked, 0.0F);
     }
 
     public static ClusterEval evalCoastalFreckle(
@@ -595,7 +679,8 @@ public final class IslandScatter {
             float volcanicChance,
             float continentNoise
     ) {
-        if (continentNoise < 0.28F || continentNoise > 0.70F) {
+        // Near-shore ocean only — never on mainland (avoids archipelago terrains on continents).
+        if (continentNoise < 0.12F || continentNoise >= SHORE_CULL_CN) {
             return ClusterEval.NONE;
         }
         int ix = NoiseUtil.floor(worldX);

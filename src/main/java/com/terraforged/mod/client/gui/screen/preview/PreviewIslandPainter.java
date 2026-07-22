@@ -55,32 +55,42 @@ public final class PreviewIslandPainter {
                     ? Math.max(midOcean0, 0.55F + (1.0F - NoiseUtil.clamp(cn, 0.0F, 1.0F)) * 0.35F)
                     : midOcean0;
 
-            if (cn < 0.55F || shipwrecked) {
+            boolean shoreBlocked = !shipwrecked && IslandScatter.tooCloseToShore(cn, proximity, midOcean);
+            if (!shoreBlocked && (cn < IslandScatter.SHORE_CULL_CN || shipwrecked)) {
                 if (archOn && archChance > 0.0F) {
                     paintEval(cell, IslandScatter.evalArchipelago(
                             worldX, worldZ, paintSeed, archChance, proximity, midOcean,
-                            IslandScatter.ArchipelagoStyle.ARCHIPELAGO), water, true);
+                            IslandScatter.ArchipelagoStyle.ARCHIPELAGO, cn), water, true, cn, shipwrecked);
                 }
                 if (scatteredOn && scatteredChance > 0.0F) {
                     paintEval(cell, IslandScatter.evalArchipelago(
                             worldX, worldZ, paintSeed, scatteredChance, proximity, midOcean,
-                            IslandScatter.ArchipelagoStyle.SCATTERED), water, true);
+                            IslandScatter.ArchipelagoStyle.SCATTERED, cn), water, true, cn, shipwrecked);
                 }
                 paintEval(cell, IslandScatter.evalIndependentIsland(
-                        worldX, worldZ, paintSeed, clusterPressure, coastal, proximity, midOcean, shipwrecked), water, true);
+                        worldX, worldZ, paintSeed, clusterPressure, coastal, proximity, midOcean, shipwrecked, cn),
+                        water, true, cn, shipwrecked);
                 if (volcanic > 0.0F) {
                     paintEval(cell, IslandScatter.evalOceanVolcano(
-                            worldX, worldZ, paintSeed, volcanic, proximity, midOcean, clusterPressure), water, false);
+                            worldX, worldZ, paintSeed, volcanic, proximity, midOcean, clusterPressure, cn),
+                            water, false, cn, shipwrecked);
                 }
             }
 
-            paintEval(cell, IslandScatter.evalCoastalFreckle(
-                    worldX, worldZ, paintSeed, coastal, volcanic, cn), water, false);
+            if (cn < IslandScatter.SHORE_CULL_CN) {
+                paintEval(cell, IslandScatter.evalCoastalFreckle(
+                        worldX, worldZ, paintSeed, coastal, volcanic, cn), water, false, cn, shipwrecked);
+            }
         });
     }
 
-    private static void paintEval(Cell cell, IslandScatter.ClusterEval eval, float water, boolean archipelago) {
+    private static void paintEval(
+            Cell cell, IslandScatter.ClusterEval eval, float water, boolean archipelago, float originalCn, boolean shipwrecked
+    ) {
         if (eval == null || eval == IslandScatter.ClusterEval.NONE) {
+            return;
+        }
+        if (!shipwrecked && originalCn >= IslandScatter.SHORE_CULL_CN) {
             return;
         }
         if (eval.laguna()) {
@@ -95,7 +105,7 @@ public final class PreviewIslandPainter {
         if (eval.pipe()) {
             cell.terrain = TerrainType.VOLCANO_PIPE;
         } else if (eval.volcano()) {
-            cell.terrain = cell.continentEdge < 0.55F ? ModTerrainTypes.VOLCANIC_ISLAND : TerrainType.VOLCANO;
+            cell.terrain = originalCn < IslandScatter.SHORE_CULL_CN ? ModTerrainTypes.VOLCANIC_ISLAND : TerrainType.VOLCANO;
         } else if (eval.hydrology() == IslandScatter.Hydrology.RIVER) {
             cell.terrain = TerrainType.RIVER;
             cell.continentEdge = Math.max(cell.continentEdge, 0.62F);
@@ -108,7 +118,7 @@ public final class PreviewIslandPainter {
             return;
         } else {
             cell.terrain = landformTerrain(
-                    eval.landform(), archipelago || cell.continentEdge < 0.55F, eval.scattered());
+                    eval.landform(), archipelago || originalCn < IslandScatter.SHORE_CULL_CN, eval.scattered());
         }
         cell.continentEdge = Math.max(cell.continentEdge, 0.58F + eval.heightBoost() * 0.25F);
         cell.value = Math.max(cell.value, water + 0.02F + eval.heightBoost() * 0.20F);
