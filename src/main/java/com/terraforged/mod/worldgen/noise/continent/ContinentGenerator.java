@@ -145,6 +145,12 @@ public class ContinentGenerator {
       float variance = 1.0F + this.sizeVariance;
       float f3 = 400.0F / f2 * variance;
       sampleCell(this.sampleSeed, f, f1, this.cellSource, this.noiseOctaves, f3, this.noiseLacunarity, this.noiseGain, cell);
+      // Shipwrecked = islands only: never emit continent land cells.
+      if (this.shipwrecked) {
+         cell.noise = 0.0F;
+         cell.noise0 = 0.0F;
+         return cell;
+      }
       // N±1 landmasses inside the 640k window; other cells soft-cut to island peaks / ocean.
       if (this.guaranteeMask != null && this.guaranteeMask.active() && this.guaranteeMask.inWindow(i, j)) {
          if (this.guaranteeMask.isGuaranteedLand(i, j)) {

@@ -62,7 +62,8 @@ public final class ContinentShapeWiring {
     public static void applyShipwrecked(ContinentConfig config) {
         config.shape.shipwrecked = true;
         config.shape.guaranteedContinentsEnabled = false;
-        config.shape.threshold = 0.98F;
+        // Above any possible cell.noise so shape never forms mainland.
+        config.shape.threshold = 1.01F;
         config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
         config.shape.archipelago = true;
         if (config.shape.archipelagoChance < 0.40F) {
@@ -95,7 +96,8 @@ public final class ContinentShapeWiring {
         c.continentJitter = NoiseUtil.clamp(NoiseUtil.lerp(c.continentJitter * 0.85F, Math.max(c.continentJitter, 0.95F), spread), 0.0F, 1.0F);
         if (settings.world.properties != null && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED) {
             c.guaranteedContinentsEnabled = false;
-            c.continentSkipping = 0.95F;
+            // Engine preview TileGenerator still reads continentSkipping; push fully ocean.
+            c.continentSkipping = 1.0F;
             c.continentScale = Math.min(c.continentScale, 1200);
         }
     }

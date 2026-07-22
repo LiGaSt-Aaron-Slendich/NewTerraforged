@@ -45,6 +45,15 @@ public class ContinentNoise implements IContinentNoise {
       float freq = this.levels.noiseLevels.frequency;
       float worldX = freq > 1.0E-6F ? x / freq : x;
       float worldZ = freq > 1.0E-6F ? y / freq : y;
+      if (this.context.settings.world.properties != null
+              && this.context.settings.world.properties.worldStyle
+              == com.terraforged.engine.settings.WorldSettings.WorldStyle.SHIPWRECKED) {
+         // Islands-only: no mainland from shape; overlay places every landmass.
+         sample.continentNoise = 0.0F;
+         sample.terrainType = com.terraforged.engine.world.terrain.TerrainType.DEEP_OCEAN;
+         this.islandOverlay.apply(worldX, worldZ, sample, this.levels.seaLevel);
+         return;
+      }
       x *= this.frequency;
       y *= this.frequency;
       float f = this.warp.getX(x, y);

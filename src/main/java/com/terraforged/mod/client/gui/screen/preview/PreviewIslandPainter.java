@@ -42,6 +42,17 @@ public final class PreviewIslandPainter {
         int size = tile.getBlockSize().size;
         int half = size / 2;
 
+        // Preview uses classic engine TileGenerator which still paints continents.
+        // Shipwrecked must be ocean-only before island overlays run.
+        if (shipwrecked) {
+            tile.iterate((cell, lx, lz) -> {
+                cell.continentEdge = 0.0F;
+                cell.value = water - 0.04F;
+                cell.terrain = TerrainType.DEEP_OCEAN;
+                cell.riverMask = 1.0F;
+            });
+        }
+
         tile.iterate((cell, lx, lz) -> {
             int worldX = centerX + (lx - half) * zoom;
             int worldZ = centerZ + (lz - half) * zoom;

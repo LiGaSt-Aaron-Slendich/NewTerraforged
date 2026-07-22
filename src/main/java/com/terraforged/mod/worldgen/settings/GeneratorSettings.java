@@ -426,7 +426,7 @@ public final class GeneratorSettings {
         engine.world.properties.worldStyle = WorldSettings.WorldStyle.SHIPWRECKED;
         engine.world.properties.spawnType = SpawnType.WORLD_ORIGIN;
         engine.world.continent.guaranteedContinentsEnabled = false;
-        engine.world.continent.continentSkipping = 0.95F;
+        engine.world.continent.continentSkipping = 1.0F;
         engine.world.continent.continentScale = 1000;
         engine.world.continent.continentSizeVariance = 0.5F;
         engine.world.continent.continentNoiseGain = 0.36F;

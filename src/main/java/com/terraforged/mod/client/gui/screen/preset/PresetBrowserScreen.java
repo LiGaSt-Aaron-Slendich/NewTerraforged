@@ -185,7 +185,7 @@ public final class PresetBrowserScreen extends Screen {
         world.properties.worldStyle = com.terraforged.engine.settings.WorldSettings.WorldStyle.SHIPWRECKED;
         world.properties.spawnType = com.terraforged.engine.world.continent.SpawnType.WORLD_ORIGIN;
         world.continent.guaranteedContinentsEnabled = false;
-        world.continent.continentSkipping = 0.95F;
+        world.continent.continentSkipping = 1.0F;
         world.continent.continentScale = Math.min(world.continent.continentScale, 1000);
         world.islands.archipelago = true;
         world.islands.archipelagoChance = Math.max(world.islands.archipelagoChance, 0.55F);
