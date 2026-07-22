@@ -31,22 +31,46 @@ public final class EgfSecretConsoleScreen extends Screen {
 
     @Override
     protected void init() {
+        this.clearWidgets();
         this.input = new EditBox(this.font, 8, this.height - 28, this.width - 16, 20, new TextComponent("cmd"));
         this.input.setMaxLength(256);
-        this.input.setFocus(true);
-        this.input.setCanLoseFocus(false);
-        this.addWidget(this.input);
-        this.setInitialFocus(this.input);
+        this.input.setEditable(true);
+        this.input.setBordered(true);
+        this.input.setVisible(true);
+        this.input.setCanLoseFocus(true);
+        // addRenderableWidget: receives mouse + keyboard + draws the box
+        this.addRenderableWidget(this.input);
         this.addRenderableWidget(new Button(this.width - 88, 6, 80, 20, new TextComponent("Close"), b -> this.onClose()));
+        this.setInitialFocus(this.input);
+        this.input.setFocus(true);
+    }
+
+    @Override
+    public void tick() {
+        this.input.tick();
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.input.mouseClicked(mouseX, mouseY, button)) {
+            this.setFocused(this.input);
+            this.input.setFocus(true);
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == 256) { // Escape
+            this.onClose();
+            return true;
+        }
         if (keyCode == 257 || keyCode == 335) { // Enter / KP Enter
             this.submit();
             return true;
         }
-        if (this.input.keyPressed(keyCode, scanCode, modifiers) || this.input.canConsumeInput()) {
+        if (this.input.keyPressed(keyCode, scanCode, modifiers)) {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
@@ -54,15 +78,20 @@ public final class EgfSecretConsoleScreen extends Screen {
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (this.input.charTyped(codePoint, modifiers)) {
+        if (this.input.isFocused() && this.input.charTyped(codePoint, modifiers)) {
             return true;
         }
-        return super.charTyped(codePoint, modifiers);
+        // If somehow unfocused, refocus and accept the char.
+        this.setFocused(this.input);
+        this.input.setFocus(true);
+        return this.input.charTyped(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
     }
 
     private void submit() {
         String raw = this.input.getValue() == null ? "" : this.input.getValue().trim();
         this.input.setValue("");
+        this.setFocused(this.input);
+        this.input.setFocus(true);
         if (raw.isEmpty()) {
             return;
         }
@@ -122,7 +151,7 @@ public final class EgfSecretConsoleScreen extends Screen {
             }
             y += 10;
         }
-        this.input.render(pose, mouseX, mouseY, partialTick);
+        // Widgets (EditBox + Close) render via super
         super.render(pose, mouseX, mouseY, partialTick);
     }
 
