@@ -25,10 +25,10 @@ public final class PreviewIslandPainter {
         WorldSettings.Islands islands = settings.world.islands != null ? settings.world.islands : new WorldSettings.Islands();
         float coastal = NoiseUtil.clamp(islands.coastalIslandsChance, 0.0F, 1.0F);
         float volcanic = NoiseUtil.clamp(islands.volcanicIslandsChance, 0.0F, 1.0F);
-        boolean archOn = islands.archipelago;
-        float archChance = NoiseUtil.clamp(islands.archipelagoChance, 0.0F, 1.0F);
-        boolean scatteredOn = islands.scatteredArchipelago;
-        float scatteredChance = NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F);
+        boolean archOn = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.archipelagoEnabled();
+        float archChance = NoiseUtil.clamp(Math.max(0.30F, islands.archipelagoChance), 0.0F, 1.0F);
+        boolean scatteredOn = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.scatteredArchipelagoEnabled();
+        float scatteredChance = NoiseUtil.clamp(Math.max(0.35F, islands.scatteredArchipelagoChance), 0.0F, 1.0F);
         float clusterPressure = Math.max(archOn ? archChance : 0.0F, scatteredOn ? scatteredChance : 0.0F);
         boolean shipwrecked = settings.world.properties != null
                 && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;

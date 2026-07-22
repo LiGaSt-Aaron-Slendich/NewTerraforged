@@ -25,6 +25,7 @@ public class TFClient {
       event.enqueueWork(Client.INSTANCE::init);
       event.enqueueWork(TFPreset::makeDefault);
       event.enqueueWork(this::registerCustomizeEditor);
+      event.enqueueWork(com.terraforged.mod.client.gui.screen.egf.EgfTitleScreenHook::register);
    }
 
    /**

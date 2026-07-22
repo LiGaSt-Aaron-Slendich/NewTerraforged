@@ -11,6 +11,7 @@ public final class TFConfigPaths {
     public static final String SURFACE_BIOMES = "NewTerraForged/Terrain/surface-biomes.toml";
     public static final String BIOME_TERRAIN_INTEGRATION = "NewTerraForged/Terrain/biome-terrain-integration.toml";
     public static final String DECORATOR_ROUTING = "NewTerraForged/Critical Options/Hybrid options/decorator-routing.toml";
+    public static final String EXPERIMENTAL_GENERATION = "NewTerraForged/Critical Options/experimental-generation.toml";
 
     private TFConfigPaths() {
     }

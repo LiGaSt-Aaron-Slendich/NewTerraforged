@@ -51,10 +51,17 @@ public final class ContinentShapeWiring {
         config.shape.continentsSpread = spread;
         config.shape.coastalIslandsChance = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
         config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
-        config.shape.archipelago = islands.archipelago;
-        config.shape.archipelagoChance = NoiseUtil.clamp(islands.archipelagoChance, 0.0F, 1.0F);
-        config.shape.scatteredArchipelago = islands.scatteredArchipelago;
-        config.shape.scatteredArchipelagoChance = NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F);
+        // Archipelago / Scattered are Experimental Generation Features (EGF) — off unless enabled.
+        boolean egfArch = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.archipelagoEnabled();
+        boolean egfScattered = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.scatteredArchipelagoEnabled();
+        config.shape.archipelago = egfArch;
+        config.shape.archipelagoChance = egfArch
+                ? NoiseUtil.clamp(Math.max(0.30F, islands.archipelagoChance), 0.0F, 1.0F)
+                : 0.0F;
+        config.shape.scatteredArchipelago = egfScattered;
+        config.shape.scatteredArchipelagoChance = egfScattered
+                ? NoiseUtil.clamp(Math.max(0.35F, islands.scatteredArchipelagoChance), 0.0F, 1.0F)
+                : 0.0F;
         config.shape.shipwrecked = false;
     }
 
@@ -65,13 +72,25 @@ public final class ContinentShapeWiring {
         // Above any possible cell.noise so shape never forms mainland.
         config.shape.threshold = 1.01F;
         config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
-        config.shape.archipelago = true;
-        if (config.shape.archipelagoChance < 0.40F) {
-            config.shape.archipelagoChance = 0.50F;
+        boolean egfArch = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.archipelagoEnabled();
+        boolean egfScattered = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.scatteredArchipelagoEnabled();
+        if (egfArch) {
+            config.shape.archipelago = true;
+            if (config.shape.archipelagoChance < 0.40F) {
+                config.shape.archipelagoChance = 0.50F;
+            }
+        } else {
+            config.shape.archipelago = false;
+            config.shape.archipelagoChance = 0.0F;
         }
-        config.shape.scatteredArchipelago = true;
-        if (config.shape.scatteredArchipelagoChance < 0.45F) {
-            config.shape.scatteredArchipelagoChance = 0.55F;
+        if (egfScattered) {
+            config.shape.scatteredArchipelago = true;
+            if (config.shape.scatteredArchipelagoChance < 0.45F) {
+                config.shape.scatteredArchipelagoChance = 0.55F;
+            }
+        } else {
+            config.shape.scatteredArchipelago = false;
+            config.shape.scatteredArchipelagoChance = 0.0F;
         }
         if (config.shape.volcanicIslandsChance < 0.20F) {
             config.shape.volcanicIslandsChance = 0.28F;

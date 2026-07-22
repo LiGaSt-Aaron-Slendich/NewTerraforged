@@ -48,26 +48,30 @@ public class WorldSettings {
         public float volcanicIslandsChance = 0.15f;
 
         @Comment(value = {
-                "Enable Archipelago clusters: 2–5 islands total (including the main one),",
-                "each 50–300 blocks across. Water between them is Laguna (max 15 deep)."
+                "EXPERIMENTAL (EGF): Enable Archipelago clusters: 2–5 islands total (including the main one),",
+                "each 50–300 blocks across. Water between them is Laguna (max 15 deep).",
+                "Requires Experimental Generation Features → Archipelago ON (title screen U→I→0→1, /EGF open)."
         })
-        public boolean archipelago = true;
+        public boolean archipelago = false;
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
-                "Chance to place an Archipelago cluster (2–5 islands, 50–300 wide) where eligible."
+                "Chance to place an Archipelago cluster (2–5 islands, 50–300 wide) where eligible.",
+                "Only applies when EGF Archipelago is enabled."
         })
         public float archipelagoChance = 0.30f;
 
         @Comment(value = {
-                "Enable Scattered Archipelago: many more islands than Archipelago,",
-                "each 15–500 blocks across. Laguna between members (max 15 deep)."
+                "EXPERIMENTAL (EGF): Enable Scattered Archipelago: many more islands than Archipelago,",
+                "each 15–500 blocks across. Laguna between members (max 15 deep).",
+                "Requires Experimental Generation Features → Scattered Archipelago ON."
         })
-        public boolean scatteredArchipelago = true;
+        public boolean scatteredArchipelago = false;
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
-                "Chance to place a Scattered Archipelago cluster (many islands, 15–500 wide)."
+                "Chance to place a Scattered Archipelago cluster (many islands, 15–500 wide).",
+                "Only applies when EGF Scattered Archipelago is enabled."
         })
         public float scatteredArchipelagoChance = 0.35f;
 
