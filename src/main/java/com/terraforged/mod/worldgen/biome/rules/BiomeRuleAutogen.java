@@ -70,8 +70,11 @@ public final class BiomeRuleAutogen {
                 canSlope = false;
             }
             case VOLCANO -> {
+                // Engine terrains: volcano / volcano_pipe; island paint: island_volcano.
+                terrains.put("volcano", 1.0F);
+                terrains.put("volcano_pipe", 0.85F);
                 terrains.put("island_volcano", 1.0F);
-                terrains.put("badlands", 0.4F);
+                terrains.put("badlands", 0.25F);
                 climateTags.add("volcanic");
                 canSlope = true;
             }

@@ -30,6 +30,8 @@ public final class TerrainGroup {
             Map.entry("island_mountains", Set.of("island_mountains")),
             Map.entry("island_flats", Set.of("island_flats")),
             Map.entry("island_volcano", Set.of("island_volcano")),
+            Map.entry("volcano", Set.of("volcano", "volcano_pipe", "island_volcano")),
+            Map.entry("volcano_pipe", Set.of("volcano_pipe")),
             Map.entry("laguna", Set.of("laguna"))
     );
 
