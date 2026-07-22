@@ -157,7 +157,7 @@ public final class ConfigScreen extends Screen {
         }
         super.render(pose, mouseX, mouseY, partialTick);
         if (this.pages[this.pageIndex] instanceof ScrollPage scrollPage) {
-            scrollPage.renderHoveredTooltip(pose, mouseX, mouseY);
+            scrollPage.renderHoveredTooltip(pose, mouseX, mouseY, this);
         }
     }
 

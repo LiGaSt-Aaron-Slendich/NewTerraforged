@@ -52,15 +52,16 @@ public final class ContinentShapeWiring {
         config.shape.coastalIslandsChance = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
         config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
         // Archipelago / Scattered are Experimental Generation Features (EGF) — off unless enabled.
+        // Both EGF master switch AND Customize toggle must be on (defaults are OFF).
         boolean egfArch = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.archipelagoEnabled();
         boolean egfScattered = com.terraforged.mod.platform.forge.TFExperimentalGenerationConfig.scatteredArchipelagoEnabled();
-        config.shape.archipelago = egfArch;
-        config.shape.archipelagoChance = egfArch
-                ? NoiseUtil.clamp(Math.max(0.30F, islands.archipelagoChance), 0.0F, 1.0F)
+        config.shape.archipelago = egfArch && islands.archipelago;
+        config.shape.archipelagoChance = config.shape.archipelago
+                ? NoiseUtil.clamp(islands.archipelagoChance, 0.0F, 1.0F)
                 : 0.0F;
-        config.shape.scatteredArchipelago = egfScattered;
-        config.shape.scatteredArchipelagoChance = egfScattered
-                ? NoiseUtil.clamp(Math.max(0.35F, islands.scatteredArchipelagoChance), 0.0F, 1.0F)
+        config.shape.scatteredArchipelago = egfScattered && islands.scatteredArchipelago;
+        config.shape.scatteredArchipelagoChance = config.shape.scatteredArchipelago
+                ? NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F)
                 : 0.0F;
         config.shape.shipwrecked = false;
     }

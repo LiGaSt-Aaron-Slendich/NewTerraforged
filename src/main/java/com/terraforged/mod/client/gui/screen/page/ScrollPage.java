@@ -18,8 +18,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.nbt.ByteTag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -130,7 +130,8 @@ public class ScrollPage implements Page {
             // Keep inactive when scrolled away so they cannot steal Done/Cancel clicks.
             // Feature-blocked EGF widgets stay inactive even when in view.
             widget.active = inView && !blocked;
-            if (inView && widget.isMouseOver(mouseX, mouseY) && widget instanceof Element element) {
+            // AbstractWidget.isMouseOver requires active=true — blocked widgets need a geometry hit-test.
+            if (inView && isPointerOver(widget, mouseX, mouseY) && widget instanceof Element element) {
                 List<String> tip = element.getTooltip();
                 if (tip != null && !tip.isEmpty()) {
                     this.hoveredTooltip = tip;
@@ -140,12 +141,19 @@ public class ScrollPage implements Page {
     }
 
     /** Draw after screen widgets so the tip sits on top. */
-    public void renderHoveredTooltip(PoseStack pose, int mouseX, int mouseY) {
-        if (this.hoveredTooltip == null || this.hoveredTooltip.isEmpty()) {
+    public void renderHoveredTooltip(PoseStack pose, int mouseX, int mouseY, Screen host) {
+        if (this.hoveredTooltip == null || this.hoveredTooltip.isEmpty() || host == null) {
             return;
         }
         List<Component> lines = this.hoveredTooltip.stream().map(TextComponent::new).collect(Collectors.toList());
-        Minecraft.getInstance().screen.renderComponentTooltip(pose, lines, mouseX, mouseY);
+        host.renderComponentTooltip(pose, lines, mouseX, mouseY);
+    }
+
+    private static boolean isPointerOver(AbstractWidget widget, double mouseX, double mouseY) {
+        return mouseX >= widget.x
+                && mouseY >= widget.y
+                && mouseX < widget.x + widget.getWidth()
+                && mouseY < widget.y + widget.getHeight();
     }
 
     private static boolean isFeatureBlockedWidget(AbstractWidget widget) {

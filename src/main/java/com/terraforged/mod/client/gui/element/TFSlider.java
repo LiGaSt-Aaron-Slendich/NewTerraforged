@@ -77,6 +77,17 @@ public abstract class TFSlider extends ForgeSlider implements Element {
     }
 
     @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        if (this.featureBlocked && this.visible) {
+            return mouseX >= this.x
+                    && mouseY >= this.y
+                    && mouseX < this.x + this.width
+                    && mouseY < this.y + this.height;
+        }
+        return super.isMouseOver(mouseX, mouseY);
+    }
+
+    @Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
         if (this.featureBlocked) {
             this.active = false;

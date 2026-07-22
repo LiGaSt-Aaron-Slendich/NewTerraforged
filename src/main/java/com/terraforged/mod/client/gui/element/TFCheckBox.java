@@ -75,6 +75,18 @@ public class TFCheckBox extends Button implements Element {
     }
 
     @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        // Vanilla requires active=true; blocked features stay inactive but must show tooltips.
+        if (this.featureBlocked && this.visible) {
+            return mouseX >= this.x
+                    && mouseY >= this.y
+                    && mouseX < this.x + this.width
+                    && mouseY < this.y + this.height;
+        }
+        return super.isMouseOver(mouseX, mouseY);
+    }
+
+    @Override
     public void onPress() {
         if (this.featureBlocked) {
             return;
