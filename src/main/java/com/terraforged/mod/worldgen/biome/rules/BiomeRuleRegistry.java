@@ -265,15 +265,37 @@ public final class BiomeRuleRegistry {
     }
 
     public static float matchChance(BiomeRule rule, String terrainName, String subterrain, boolean steepSlope) {
+        return matchChance(rule, terrainName, subterrain, steepSlope, new ZoneContext(false));
+    }
+
+    public static float matchChance(
+            BiomeRule rule, String terrainName, String subterrain, boolean steepSlope, ZoneContext zone
+    ) {
         if (rule == null || !rule.hasTerrains()) {
             return 0.0F;
         }
         if (steepSlope && !rule.canBeOnSlope) {
             return 0.0F;
         }
+        // Zone flags bind to a local footprint, not an entire terrain type.
+        if (rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO)) {
+            if (zone == null || !zone.nearActiveVolcano) {
+                return 0.0F;
+            }
+            BiomeRule.ZoneFlag z = rule.zone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
+            if (z != null && z.chance() <= 0.0F) {
+                return 0.0F;
+            }
+        }
         float terrainChance = chanceOnTerrain(rule, terrainName);
         if (terrainChance <= 0.0F) {
             return 0.0F;
+        }
+        if (rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO)) {
+            BiomeRule.ZoneFlag z = rule.zone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
+            if (z != null) {
+                terrainChance *= Math.max(0.0F, z.chance());
+            }
         }
         if (rule.subterrains.isEmpty()) {
             return terrainChance;
@@ -305,6 +327,12 @@ public final class BiomeRuleRegistry {
     }
 
     public static int countMatching(Iterable<Holder<Biome>> biomes, String terrain, String subterrain, boolean steep) {
+        return countMatching(biomes, terrain, subterrain, steep, new ZoneContext(false));
+    }
+
+    public static int countMatching(
+            Iterable<Holder<Biome>> biomes, String terrain, String subterrain, boolean steep, ZoneContext zone
+    ) {
         int n = 0;
         for (Holder<Biome> h : biomes) {
             if (h == null) {
@@ -314,7 +342,7 @@ public final class BiomeRuleRegistry {
             if (id == null) {
                 continue;
             }
-            if (matchChance(get(id), terrain, subterrain, steep) > 0.0F) {
+            if (matchChance(get(id), terrain, subterrain, steep, zone) > 0.0F) {
                 n++;
             }
         }

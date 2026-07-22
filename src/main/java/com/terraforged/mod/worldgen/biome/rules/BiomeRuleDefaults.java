@@ -112,6 +112,7 @@ public final class BiomeRuleDefaults {
                 template.climateTags,
                 template.terrains,
                 template.subterrains,
+                template.zoneFlags,
                 false // copied from curated default — not emergency autogen
         );
     }

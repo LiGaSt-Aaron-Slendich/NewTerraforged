@@ -49,6 +49,7 @@ public final class BiomeRuleAutogen {
 
         Map<String, Float> terrains = new LinkedHashMap<>();
         Map<String, Float> subterrains = new LinkedHashMap<>();
+        Map<String, BiomeRule.ZoneFlag> zoneFlags = new LinkedHashMap<>();
         List<String> climateTags = new ArrayList<>();
         boolean canSlope = false;
 
@@ -66,6 +67,7 @@ public final class BiomeRuleAutogen {
                 if (tokensContain(tokens, FORM_VOLCANO) || tokensContain(tokens, Set.of("basalt", "ash", "magma"))) {
                     subterrains.put("volcanic_beach", 0.7F);
                     climateTags.add("volcanic");
+                    zoneFlags.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(112.0F, 1.0F));
                 }
                 canSlope = false;
             }
@@ -76,6 +78,7 @@ public final class BiomeRuleAutogen {
                 terrains.put("island_volcano", 1.0F);
                 terrains.put("badlands", 0.25F);
                 climateTags.add("volcanic");
+                zoneFlags.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(128.0F, 1.0F));
                 canSlope = true;
             }
             case SWAMP -> {
@@ -174,13 +177,18 @@ public final class BiomeRuleAutogen {
             climateTags.add("mesa");
         }
 
+        if (tokensContain(tokens, Set.of("volcanic", "ashen", "basalt", "magma")) && form != Form.VOLCANO) {
+            climateTags.add("volcanic");
+            zoneFlags.putIfAbsent(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(96.0F, 0.85F));
+        }
+
         if (terrains.isEmpty()) {
             terrains.put("plains", 1.0F);
             terrains.put("steppe", 0.8F);
             terrains.put("hills_1", 0.5F);
         }
 
-        return new BiomeRule(id.toString(), canSlope, distinct(climateTags), terrains, subterrains, true);
+        return new BiomeRule(id.toString(), canSlope, distinct(climateTags), terrains, subterrains, zoneFlags, true);
     }
 
     private static List<String> tokenize(String path) {

@@ -4,6 +4,7 @@ import com.terraforged.mod.util.map.WeightMap;
 import com.terraforged.mod.worldgen.biome.rules.BiomeRule;
 import com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry;
 import com.terraforged.mod.worldgen.biome.rules.SubterrainResolver;
+import com.terraforged.mod.worldgen.biome.rules.ZoneContext;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,10 +33,11 @@ public final class BiomeTerrainIntegration {
         String terrain = sample != null && sample.terrainType != null ? sample.terrainType.getName() : null;
         String sub = SubterrainResolver.resolve(sample);
         boolean steep = SubterrainResolver.isSteepSlope(sample, sub);
+        ZoneContext zone = ZoneContext.from(sample);
 
         // Conditional subterrains: if nobody matches this subterrain, deactivate it.
         if (!SubterrainResolver.NONE.equals(sub)) {
-            int withSub = BiomeRuleRegistry.countMatching(java.util.Arrays.asList(climatePool.getValues()), terrain, sub, steep);
+            int withSub = BiomeRuleRegistry.countMatching(java.util.Arrays.asList(climatePool.getValues()), terrain, sub, steep, zone);
             if (withSub == 0) {
                 sub = SubterrainResolver.NONE;
             }
@@ -58,7 +60,7 @@ public final class BiomeTerrainIntegration {
                 weights.add(1.0F);
                 continue;
             }
-            float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep);
+            float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep, zone);
             if (chance <= 0.0F) {
                 continue;
             }

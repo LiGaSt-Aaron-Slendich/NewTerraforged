@@ -31,5 +31,11 @@
     },
     "rarely_emitted_today": ["desert", "savanna", "taiga", "tundra", "temperate", "oceanic", "continental"]
   },
+  "zone_flags": {
+    "near_active_volcano": {
+      "meaning": "Biome may only appear in the local volcano footprint (not whole terrain). v1 ≈ volcano/volcano_pipe/island_volcano cells; later true radius_blocks ring.",
+      "json": { "enabled": true, "radius_blocks": 96, "chance": 1.0 }
+    }
+  },
   "priority": "form tokens win over material; if form is mountain/peak AND material soft|wet → downgrade to hills"
 }
