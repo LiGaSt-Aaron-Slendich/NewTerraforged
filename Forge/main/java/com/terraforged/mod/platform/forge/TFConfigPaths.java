@@ -9,7 +9,12 @@ public final class TFConfigPaths {
     public static final String CAVES = "NewTerraForged/Cave_configs/caves.toml";
     public static final String CAVE_BIOMES = "NewTerraForged/Cave_configs/cave-biomes.toml";
     public static final String SURFACE_BIOMES = "NewTerraForged/Terrain/surface-biomes.toml";
+    /** @deprecated Replaced by per-biome JSON under {@link #TERRAIN_RULES_BIOMES}. Kept for migration only. */
+    @Deprecated
     public static final String BIOME_TERRAIN_INTEGRATION = "NewTerraForged/Terrain/biome-terrain-integration.toml";
+    /** Per-biome terrain rules: {@code Terrain_rules/Biomes/{mod}/{biome}.json} */
+    public static final String TERRAIN_RULES = "NewTerraForged/Terrain/Terrain_rules";
+    public static final String TERRAIN_RULES_BIOMES = "NewTerraForged/Terrain/Terrain_rules/Biomes";
     public static final String DECORATOR_ROUTING = "NewTerraForged/Critical Options/Hybrid options/decorator-routing.toml";
 
     private TFConfigPaths() {

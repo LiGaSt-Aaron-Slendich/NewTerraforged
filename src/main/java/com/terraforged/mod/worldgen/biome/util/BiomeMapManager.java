@@ -40,6 +40,7 @@ public class BiomeMapManager {
       this.climateTypes = access.ownedRegistryOrThrow(ModRegistry.CLIMATE.get());
       this.overworldBiomes = getOverworldBiomes(this.biomes, this.climateTypes);
       this.biomeMap = this.buildBiomeMap();
+      com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry.sync(this.biomes);
    }
 
    public Holder<Biome> get(ResourceKey<Biome> key) {

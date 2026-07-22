@@ -15,8 +15,18 @@ public final class TFConfigs {
         TFCaveSystemConfig.load();
         TFCaveBiomeConfig.load();
         TFSurfaceBiomeConfig.load();
-        TFBiomeTerrainIntegrationConfig.load();
+        // Legacy TOML integrator kept loadable for migration; runtime uses Terrain_rules/Biomes JSON.
+        try {
+            TFBiomeTerrainIntegrationConfig.load();
+        } catch (Exception e) {
+            TerraForged.LOG.warn("[TFConfig] legacy biome-terrain-integration.toml skipped: {}", e.toString());
+        }
         TFNoiseVariantFlags.load();
-        TerraForged.LOG.info("[TFConfig] Loaded caves.toml (density {}% xy={} yz={}), cave-biomes.toml ({} primary), surface-biomes.toml, biome-terrain-integration.toml ({} terrains)", Float.valueOf(TFCaveSystemConfig.INSTANCE.caveDensity.cavePercent()), TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() : "percent", TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() : "percent", TFCaveBiomeConfig.INSTANCE.primary.size(), TFBiomeTerrainIntegrationConfig.INSTANCE.terrainRuleCount());
+        try {
+            java.nio.file.Files.createDirectories(com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry.biomesRoot());
+        } catch (Exception e) {
+            TerraForged.LOG.warn("[TFConfig] could not create Terrain_rules/Biomes: {}", e.toString());
+        }
+        TerraForged.LOG.info("[TFConfig] Loaded caves.toml (density {}% xy={} yz={}), cave-biomes.toml ({} primary), surface-biomes.toml; biome rules dir {}", Float.valueOf(TFCaveSystemConfig.INSTANCE.caveDensity.cavePercent()), TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.xyLimit() : "percent", TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() != null ? TFCaveSystemConfig.INSTANCE.caveDensity.yzLimit() : "percent", TFCaveBiomeConfig.INSTANCE.primary.size(), com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry.biomesRoot());
     }
 }
