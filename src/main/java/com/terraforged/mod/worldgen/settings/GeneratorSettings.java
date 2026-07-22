@@ -424,6 +424,7 @@ public final class GeneratorSettings {
         TerrainLevels levels = TerrainLevels.DEFAULT.get();
         Settings engine = factoryDefaults().toEngine(0L, levels);
         engine.world.properties.worldStyle = WorldSettings.WorldStyle.SHIPWRECKED;
+        engine.world.properties.spawnType = SpawnType.WORLD_ORIGIN;
         engine.world.continent.guaranteedContinentsEnabled = false;
         engine.world.continent.continentSkipping = 0.95F;
         engine.world.continent.continentScale = 1000;

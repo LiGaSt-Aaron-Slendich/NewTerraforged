@@ -183,6 +183,7 @@ public final class PresetBrowserScreen extends Screen {
         }
         var world = draft.settings().world;
         world.properties.worldStyle = com.terraforged.engine.settings.WorldSettings.WorldStyle.SHIPWRECKED;
+        world.properties.spawnType = com.terraforged.engine.world.continent.SpawnType.WORLD_ORIGIN;
         world.continent.guaranteedContinentsEnabled = false;
         world.continent.continentSkipping = 0.95F;
         world.continent.continentScale = Math.min(world.continent.continentScale, 1000);

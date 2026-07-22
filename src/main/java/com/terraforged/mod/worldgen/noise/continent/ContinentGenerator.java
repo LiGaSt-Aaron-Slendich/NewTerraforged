@@ -38,6 +38,8 @@ public class ContinentGenerator {
    public final RiverGenerator riverGenerator;
    public final ShapeGenerator shapeGenerator;
    public final GuaranteedContinentMask guaranteeMask;
+   /** Islands-only: no continent cells — skip spawn spiral search. */
+   private final boolean shipwrecked;
    private final ObjectPool<CellPoint> cellPool = ObjectPool.forCacheSize(2048, CellPoint::new);
    private final LongCache<CellPoint> cellCache = LossyCache.concurrent(2048, CellPoint[]::new, this.cellPool);
 
@@ -53,6 +55,7 @@ public class ContinentGenerator {
       this.sizeVariance = config.shape.sizeVariance;
       this.cellShape = config.shape.cellShape;
       this.cellSource = config.shape.cellSource;
+      this.shipwrecked = config.shape.shipwrecked;
       this.riverGenerator = new RiverGenerator(this, config);
       this.shapeGenerator = new ShapeGenerator(this, config, controlPoints);
       WorldSettings world = new WorldSettings();
@@ -69,6 +72,11 @@ public class ContinentGenerator {
    }
 
    public Vec2f getWorldOffset() {
+      // Shipwrecked suppresses continents (threshold ~0.98). Searching for a continent center
+      // would spiral through SPAWN_SEARCH_RADIUS empty cells on the create-world thread and freeze.
+      if (this.shipwrecked) {
+         return Vec2f.ZERO;
+      }
       SpiralIterator spiraliterator = new SpiralIterator(0, 0, 0, 100000);
       CellPoint cellpoint = new CellPoint();
 

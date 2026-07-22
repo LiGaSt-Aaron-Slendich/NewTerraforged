@@ -59,6 +59,7 @@ public final class ConfigScreen extends Screen {
                 || this.draft.settings().world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;
         if (this.shipwreckedMode) {
             this.draft.settings().world.properties.worldStyle = WorldSettings.WorldStyle.SHIPWRECKED;
+            this.draft.settings().world.properties.spawnType = com.terraforged.engine.world.continent.SpawnType.WORLD_ORIGIN;
             ContinentShapeWiring.bakeIslandsIntoEngine(this.draft.settings());
             this.draft.refreshNbt();
         }
