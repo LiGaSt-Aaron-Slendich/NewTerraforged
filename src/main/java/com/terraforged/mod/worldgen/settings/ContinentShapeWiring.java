@@ -18,6 +18,9 @@ public final class ContinentShapeWiring {
 
     public static void apply(ContinentConfig config, Settings settings) {
         apply(config, settings.world.continent, settings.world.islands);
+        if (settings.world.properties != null && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED) {
+            applyShipwrecked(config);
+        }
     }
 
     public static void apply(ContinentConfig config, WorldSettings.Continent continent) {
@@ -35,10 +38,11 @@ public final class ContinentShapeWiring {
         config.shape.threshold = NoiseUtil.lerp(0.35F, 0.72F, skip);
 
         config.shape.noiseOctaves = Math.max(1, Math.min(8, continent.continentNoiseOctaves));
-        config.shape.noiseGain = NoiseUtil.clamp(continent.continentNoiseGain, 0.0F, 1.0F);
+        // Mild bump so outlines stay irregular even on older presets with low gain.
+        config.shape.noiseGain = NoiseUtil.clamp(continent.continentNoiseGain * 1.08F + 0.02F, 0.0F, 0.55F);
         config.shape.noiseLacunarity = Math.max(1.0F, continent.continentNoiseLacunarity);
         float variance = NoiseUtil.clamp(continent.continentSizeVariance, 0.0F, 1.0F);
-        config.shape.sizeVariance = NoiseUtil.clamp(NoiseUtil.lerp(variance, Math.max(variance, 0.65F), spread), 0.0F, 1.0F);
+        config.shape.sizeVariance = NoiseUtil.clamp(NoiseUtil.lerp(variance, Math.max(variance, 0.72F), spread), 0.0F, 1.0F);
         config.noise.continentNoiseFalloff = 1.0F + config.shape.sizeVariance * 0.75F;
         config.noise.baseNoiseFalloff = 1.5F + config.shape.sizeVariance * 0.5F;
 
@@ -49,31 +53,44 @@ public final class ContinentShapeWiring {
         config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
         config.shape.scatteredArchipelago = islands.scatteredArchipelago;
         config.shape.scatteredArchipelagoChance = NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F);
+        config.shape.shipwrecked = false;
+    }
+
+    /** Islands-only mode: suppress continent land cells; overlay places all land. */
+    public static void applyShipwrecked(ContinentConfig config) {
+        config.shape.shipwrecked = true;
+        config.shape.guaranteedContinentsEnabled = false;
+        config.shape.threshold = 0.98F;
+        config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
+        if (config.shape.scatteredArchipelagoChance < 0.45F) {
+            config.shape.scatteredArchipelagoChance = 0.55F;
+        }
+        config.shape.scatteredArchipelago = true;
+        if (config.shape.volcanicIslandsChance < 0.20F) {
+            config.shape.volcanicIslandsChance = 0.28F;
+        }
+        if (config.shape.coastalIslandsChance < 0.35F) {
+            config.shape.coastalIslandsChance = 0.40F;
+        }
     }
 
     /**
-     * Preview TileGenerator only reads continent.*; bake island chances into skip/jitter
-     * and rely on overridden {@code AbstractContinent.shouldSkip} for N±1 + soft cut.
+     * Preview TileGenerator only reads continent.*; do not bake island chances into
+     * continentSkipping — that made volcanic/archipelago knobs spawn extra continents.
+     * Only apply spread-driven jitter so island UI still feels responsive without changing N.
      */
     public static void bakeIslandsIntoEngine(Settings settings) {
         if (settings == null || settings.world == null) {
             return;
         }
         ContinentGuarantee.syncIslandsMirror(settings.world);
-        WorldSettings.Islands islands = settings.world.islands != null ? settings.world.islands : new WorldSettings.Islands();
         WorldSettings.Continent c = settings.world.continent;
         float spread = NoiseUtil.clamp(c.continentsSpread, 0.0F, 1.0F);
         c.continentJitter = NoiseUtil.clamp(NoiseUtil.lerp(c.continentJitter * 0.85F, Math.max(c.continentJitter, 0.95F), spread), 0.0F, 1.0F);
-        float coastal = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
-        float volcanic = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
-        float arch = islands.scatteredArchipelago ? NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F) : 0.0F;
-        float islandPressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
-        if (islandPressure > 0.15F) {
-            c.continentSkipping = NoiseUtil.clamp(c.continentSkipping - islandPressure * 0.06F, 0.0F, 1.0F);
-            c.continentNoiseGain = NoiseUtil.clamp(c.continentNoiseGain + islandPressure * 0.05F, 0.0F, 1.0F);
-        }
-        if (coastal <= 0.01F && volcanic <= 0.01F && arch <= 0.01F) {
-            c.continentSkipping = NoiseUtil.clamp(c.continentSkipping + 0.04F, 0.0F, 1.0F);
+        if (settings.world.properties != null && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED) {
+            c.guaranteedContinentsEnabled = false;
+            c.continentSkipping = 0.95F;
+            c.continentScale = Math.min(c.continentScale, 1200);
         }
     }
 

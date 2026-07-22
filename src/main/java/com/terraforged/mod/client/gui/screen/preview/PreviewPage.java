@@ -5,6 +5,9 @@ import com.terraforged.mod.client.gui.Page;
 import com.terraforged.mod.client.gui.screen.ConfigScreen;
 import com.terraforged.mod.client.gui.screen.SettingsDraft;
 import com.terraforged.mod.util.serialization.DataUtils;
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -18,6 +21,7 @@ import net.minecraft.util.Mth;
 public final class PreviewPage implements Page {
     private final SettingsDraft draft;
     private final Preview preview;
+    private final List<AbstractWidget> tipButtons = new ArrayList<>();
     private int infoX;
     private int infoY;
     private int infoW;
@@ -45,6 +49,7 @@ public final class PreviewPage implements Page {
 
     @Override
     public void init(ConfigScreen screen, int left, int top, int width, int height) {
+        this.tipButtons.clear();
         int gap = Math.max(1, width / 120);
         int btnH = Mth.clamp(height / 22, 16, 20);
         int controlsH = btnH + Math.max(2, height / 80);
@@ -70,29 +75,51 @@ public final class PreviewPage implements Page {
         int x4 = left + (btnW + gap) * 4;
         int lastW = Math.max(20, width - (btnW + gap) * 4);
 
-        screen.addRenderableWidget(new Button(x0, top, btnW, btnH, new TranslatableComponent("newterraforged.gui.preview.seed"), b -> {
-            this.preview.regenerate();
-            this.draft.setSeed(Integer.toUnsignedLong(this.preview.getSeed()));
-            this.refresh();
-        }));
-        screen.addRenderableWidget(new Button(x1, top, btnW, btnH, new TextComponent(shortMode(this.preview.previewSettings().display)), b -> {
-            this.preview.previewSettings().display = this.preview.previewSettings().display.next();
-            b.setMessage(new TextComponent(shortMode(this.preview.previewSettings().display)));
-            this.refresh();
-        }));
-        screen.addRenderableWidget(new Button(x2, top, btnW, btnH, new TextComponent(shortFilter(this.preview.previewSettings().terrainFilter)), b -> {
-            this.preview.previewSettings().terrainFilter = nextTerrainFilter(this.preview.previewSettings().terrainFilter);
-            b.setMessage(new TextComponent(shortFilter(this.preview.previewSettings().terrainFilter)));
-            this.refresh();
-        }));
-        screen.addRenderableWidget(new Button(x3, top, btnW, btnH, new TextComponent("Zoom -"), b -> {
-            this.preview.previewSettings().zoom = Math.max(1, this.preview.previewSettings().zoom - 8);
-            this.refresh();
-        }));
-        screen.addRenderableWidget(new Button(x4, top, lastW, btnH, new TextComponent("Zoom +"), b -> {
-            this.preview.previewSettings().zoom = Math.min(100, this.preview.previewSettings().zoom + 8);
-            this.refresh();
-        }));
+        this.tipButtons.add(screen.addRenderableWidget(new HoverTipButton(
+                x0, top, btnW, btnH,
+                new TranslatableComponent("newterraforged.gui.preview.seed"),
+                b -> {
+                    this.preview.regenerate();
+                    this.draft.setSeed(Integer.toUnsignedLong(this.preview.getSeed()));
+                    this.refresh();
+                },
+                () -> new TranslatableComponent("newterraforged.gui.preview.seed"))));
+
+        this.tipButtons.add(screen.addRenderableWidget(new HoverTipButton(
+                x1, top, btnW, btnH,
+                new TextComponent(shortMode(this.preview.previewSettings().display)),
+                b -> {
+                    this.preview.previewSettings().display = this.preview.previewSettings().display.next();
+                    b.setMessage(new TextComponent(shortMode(this.preview.previewSettings().display)));
+                    this.refresh();
+                },
+                () -> new TextComponent(fullMode(this.preview.previewSettings().display)))));
+
+        this.tipButtons.add(screen.addRenderableWidget(new HoverTipButton(
+                x2, top, btnW, btnH,
+                new TextComponent(shortFilter(this.preview.previewSettings().terrainFilter)),
+                b -> {
+                    this.preview.previewSettings().terrainFilter = nextTerrainFilter(this.preview.previewSettings().terrainFilter);
+                    b.setMessage(new TextComponent(shortFilter(this.preview.previewSettings().terrainFilter)));
+                    this.refresh();
+                },
+                () -> new TextComponent(fullFilter(this.preview.previewSettings().terrainFilter)))));
+
+        this.tipButtons.add(screen.addRenderableWidget(new HoverTipButton(
+                x3, top, btnW, btnH, new TextComponent("Zoom -"),
+                b -> {
+                    this.preview.previewSettings().zoom = Math.max(1, this.preview.previewSettings().zoom - 8);
+                    this.refresh();
+                },
+                () -> new TextComponent("Zoom out"))));
+
+        this.tipButtons.add(screen.addRenderableWidget(new HoverTipButton(
+                x4, top, lastW, btnH, new TextComponent("Zoom +"),
+                b -> {
+                    this.preview.previewSettings().zoom = Math.min(100, this.preview.previewSettings().zoom + 8);
+                    this.refresh();
+                },
+                () -> new TextComponent("Zoom in"))));
 
         screen.addRenderableWidget(this.preview);
         this.refresh();
@@ -130,6 +157,13 @@ public final class PreviewPage implements Page {
         return "F:" + f;
     }
 
+    private static String fullFilter(String filter) {
+        if (filter == null || filter.isBlank()) {
+            return "Find: Off";
+        }
+        return "Find: " + filter;
+    }
+
     private static String shortMode(RenderMode mode) {
         return switch (mode) {
             case BIOME_TYPE -> "Biomes";
@@ -139,6 +173,18 @@ public final class PreviewPage implements Page {
             case BIOME -> "BiomeId";
             case MACRO_NOISE -> "Macro";
             case TERRAIN_REGION -> "Terrain";
+        };
+    }
+
+    private static String fullMode(RenderMode mode) {
+        return switch (mode) {
+            case BIOME_TYPE -> "Display: Biomes";
+            case TRANSITION_POINTS -> "Display: Transition edges";
+            case TEMPERATURE -> "Display: Temperature";
+            case MOISTURE -> "Display: Moisture";
+            case BIOME -> "Display: Biome id";
+            case MACRO_NOISE -> "Display: Macro noise";
+            case TERRAIN_REGION -> "Display: Terrain region";
         };
     }
 
@@ -176,6 +222,12 @@ public final class PreviewPage implements Page {
 
         this.preview.updateHoverLegend(mouseX, mouseY);
         this.preview.renderLegendAt(pose, this.infoX + 4, this.infoY + 4, this.infoW - 8, 0xFFFFFF);
+
+        for (AbstractWidget widget : this.tipButtons) {
+            if (widget.isHoveredOrFocused()) {
+                widget.renderToolTip(pose, mouseX, mouseY);
+            }
+        }
     }
 
     private static void fill(PoseStack pose, int x0, int y0, int x1, int y1, int color) {

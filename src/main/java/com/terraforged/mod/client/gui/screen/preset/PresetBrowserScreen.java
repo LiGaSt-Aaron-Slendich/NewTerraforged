@@ -148,6 +148,7 @@ public final class PresetBrowserScreen extends Screen {
             long previewSeed = settings.seed != -1L ? settings.seed : this.draft.seed();
             SettingsDraft previewDraft = new SettingsDraft(previewSeed);
             previewDraft.loadGeneratorSettings(settings);
+            applyShipwreckedPresetHints(entry, previewDraft);
             this.preview.setSeed((int) previewSeed);
             this.preview.update(previewDraft.settings(), DataUtils.toCompactNBT(this.previewSettings));
         } catch (IOException e) {
@@ -162,12 +163,34 @@ public final class PresetBrowserScreen extends Screen {
         }
         try {
             this.draft.loadGeneratorSettings(this.selected.loadSettings());
+            applyShipwreckedPresetHints(this.selected, this.draft);
             this.onImported.run();
             this.closePreview();
             this.minecraft.setScreen(this.parent);
         } catch (IOException e) {
             this.minecraft.gui.getChat().addMessage(new TextComponent("NewTF: failed to import preset"));
         }
+    }
+
+    private static void applyShipwreckedPresetHints(PresetEntry entry, SettingsDraft draft) {
+        if (entry == null || draft == null || draft.settings() == null) {
+            return;
+        }
+        String id = entry.id() == null ? "" : entry.id().toLowerCase(java.util.Locale.ROOT);
+        String name = entry.displayName() == null ? "" : entry.displayName().toLowerCase(java.util.Locale.ROOT);
+        if (!id.contains("shipwrecked") && !name.contains("shipwrecked")) {
+            return;
+        }
+        var world = draft.settings().world;
+        world.properties.worldStyle = com.terraforged.engine.settings.WorldSettings.WorldStyle.SHIPWRECKED;
+        world.continent.guaranteedContinentsEnabled = false;
+        world.continent.continentSkipping = 0.95F;
+        world.continent.continentScale = Math.min(world.continent.continentScale, 1000);
+        world.islands.scatteredArchipelago = true;
+        world.islands.scatteredArchipelagoChance = Math.max(world.islands.scatteredArchipelagoChance, 0.65F);
+        world.islands.volcanicIslandsChance = Math.max(world.islands.volcanicIslandsChance, 0.35F);
+        world.islands.coastalIslandsChance = Math.max(world.islands.coastalIslandsChance, 0.45F);
+        draft.refreshNbt();
     }
 
     private void updateImportEnabled() {

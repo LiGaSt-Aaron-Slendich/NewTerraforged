@@ -8,7 +8,7 @@ import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Overlays coastal / volcanic freckles and Scattered Archipelago clusters onto continent samples.
+ * Overlays coastal / volcanic / independent islands and Scattered Archipelago clusters.
  * Laguna = shallow water between islands. Rivers/lakes = inland hydrology on island land.
  */
 public final class IslandFeatureOverlay {
@@ -20,6 +20,7 @@ public final class IslandFeatureOverlay {
     private final float volcanicChance;
     private final boolean archipelago;
     private final float archipelagoChance;
+    private final boolean shipwrecked;
 
     public IslandFeatureOverlay(ContinentConfig config) {
         this.seed = config.shape.seed0 ^ 0x51ED;
@@ -28,21 +29,30 @@ public final class IslandFeatureOverlay {
         this.volcanicChance = NoiseUtil.clamp(config.shape.volcanicIslandsChance, 0.0F, 1.0F);
         this.archipelago = config.shape.scatteredArchipelago;
         this.archipelagoChance = NoiseUtil.clamp(config.shape.scatteredArchipelagoChance, 0.0F, 1.0F);
+        this.shipwrecked = config.shape.shipwrecked;
     }
 
     public void apply(float worldX, float worldZ, NoiseSample sample, int seaLevel) {
         float cn = sample.continentNoise;
         float proximity = IslandScatter.shoreProximity(cn, this.continentScale);
         float midOcean = IslandScatter.midOceanAllow(cn);
+        if (this.shipwrecked) {
+            midOcean = Math.max(midOcean, 0.55F + (1.0F - NoiseUtil.clamp(cn, 0.0F, 1.0F)) * 0.35F);
+            proximity = Math.max(proximity, 0.15F);
+        }
 
-        if (cn < 0.55F) {
+        if (cn < 0.55F || this.shipwrecked) {
             if (this.archipelago && this.archipelagoChance > 0.0F) {
                 this.paint(IslandScatter.evalArchipelago(
                         worldX, worldZ, this.seed, this.archipelagoChance, proximity, midOcean), sample, seaLevel);
             }
+            this.paint(IslandScatter.evalIndependentIsland(
+                    worldX, worldZ, this.seed, this.archipelagoChance, this.coastalChance,
+                    proximity, midOcean, this.shipwrecked), sample, seaLevel);
             if (this.volcanicChance > 0.0F) {
                 this.paint(IslandScatter.evalOceanVolcano(
-                        worldX, worldZ, this.seed, this.volcanicChance, proximity, midOcean), sample, seaLevel);
+                        worldX, worldZ, this.seed, this.volcanicChance, proximity, midOcean, this.archipelagoChance),
+                        sample, seaLevel);
             }
         }
 
@@ -79,7 +89,7 @@ public final class IslandFeatureOverlay {
             sample.heightNoise = Math.min(sample.heightNoise, eval.heightBoost());
             return;
         } else {
-            sample.terrainType = landformTerrain(eval.landform(), sample.continentNoise < 0.55F);
+            sample.terrainType = landformTerrain(eval.landform(), sample.continentNoise < 0.55F || this.shipwrecked);
         }
         sample.continentNoise = Math.max(sample.continentNoise, 0.58F + eval.heightBoost() * 0.25F);
         sample.heightNoise = Math.max(sample.heightNoise, eval.heightBoost());

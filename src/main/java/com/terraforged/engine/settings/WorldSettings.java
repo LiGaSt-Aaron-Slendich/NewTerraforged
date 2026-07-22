@@ -24,6 +24,13 @@ public class WorldSettings {
     public ControlPoints controlPoints = new ControlPoints();
     public Properties properties = new Properties();
 
+    /** Surface world layout style (continents vs islands-only). */
+    public enum WorldStyle {
+        CONTINENTS,
+        /** Don't Starve: Shipwrecked inspired — no continents, only islands / archipelagos / volcanic islands. */
+        SHIPWRECKED
+    }
+
     @Serializable
     public static class Islands {
         @Range(min = 0.0f, max = 1.0f)
@@ -63,6 +70,13 @@ public class WorldSettings {
 
     @Serializable
     public static class Properties {
+        @Comment(value = {
+                "NTF world style.",
+                "CONTINENTS = normal NewTF landmasses.",
+                "SHIPWRECKED = no continents; only islands, archipelagos and volcanic islands (DS:Shipwrecked homage)."
+        })
+        public WorldStyle worldStyle = WorldStyle.CONTINENTS;
+
         @Comment(value = {"Set whether spawn should be close to x=0,z=0 or the centre of the nearest continent"})
         public SpawnType spawnType = SpawnType.CONTINENT_CENTER;
         @Range(min = 0.0f, max = 256.0f)
@@ -147,7 +161,7 @@ public class WorldSettings {
         @LegacyFloat(value = 0.7f)
         @Range(min = 0.5f, max = 1.0f)
         @Comment(value = {"Controls how much continent centers are offset from the underlying noise grid."})
-        public float continentJitter = 0.7f;
+        public float continentJitter = 0.82f;
         @Range(min = 0.0f, max = 1.0f)
         @Restricted(name = "continentType", value = {"MULTI_IMPROVED"})
         @Comment(value = {"Reduces the number of continents to create more vast oceans."})
@@ -155,15 +169,15 @@ public class WorldSettings {
         @Range(min = 0.0f, max = 0.75f)
         @Restricted(name = "continentType", value = {"MULTI_IMPROVED"})
         @Comment(value = {"Increases the variance of continent sizes."})
-        public float continentSizeVariance = 0.25f;
+        public float continentSizeVariance = 0.42f;
         @Range(min = 1.0f, max = 5.0f)
         @Restricted(name = "continentType", value = {"MULTI_IMPROVED"})
         @Comment(value = {"The number of octaves of noise used to distort the continent."})
-        public int continentNoiseOctaves = 5;
+        public int continentNoiseOctaves = 6;
         @Range(min = 0.0f, max = 0.5f)
         @Restricted(name = "continentType", value = {"MULTI_IMPROVED"})
         @Comment(value = {"The contribution strength of each noise octave."})
-        public float continentNoiseGain = 0.26f;
+        public float continentNoiseGain = 0.34f;
         @Range(min = 1.0f, max = 10.0f)
         @Restricted(name = "continentType", value = {"MULTI_IMPROVED"})
         @Comment(value = {"The frequency multiplier for each noise octave."})

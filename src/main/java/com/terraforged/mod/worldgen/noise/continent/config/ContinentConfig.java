@@ -45,5 +45,7 @@ public class ContinentConfig {
       public float volcanicIslandsChance = 0.15F;
       public boolean scatteredArchipelago = true;
       public float scatteredArchipelagoChance = 0.35F;
+      /** Don't Starve: Shipwrecked — suppress continents; islands only. */
+      public boolean shipwrecked = false;
    }
 }

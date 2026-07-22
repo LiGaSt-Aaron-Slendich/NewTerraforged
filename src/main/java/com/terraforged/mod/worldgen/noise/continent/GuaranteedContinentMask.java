@@ -139,20 +139,17 @@ public final class GuaranteedContinentMask {
         return this.landCells.size();
     }
 
+    /**
+     * Soft cut in the guarantee window: fixed thresholds so island chances
+     * (especially volcanic) never inflate continent / landmass count.
+     * Island freckles are painted by {@code IslandFeatureOverlay}, not by soft-cut survivors.
+     */
     private static float softSkipThreshold(WorldSettings.Islands islands) {
-        float coastal = clamp01(islands.coastalIslandsChance);
-        float volcanic = clamp01(islands.volcanicIslandsChance);
-        float arch = islands.scatteredArchipelago ? clamp01(islands.scatteredArchipelagoChance) : 0.0F;
-        float pressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
-        return clamp(0.97F - pressure * 0.24F, 0.78F, 0.97F);
+        return 0.94F;
     }
 
     private static float softNoiseThreshold(WorldSettings.Islands islands) {
-        float coastal = clamp01(islands.coastalIslandsChance);
-        float volcanic = clamp01(islands.volcanicIslandsChance);
-        float arch = islands.scatteredArchipelago ? clamp01(islands.scatteredArchipelagoChance) : 0.0F;
-        float pressure = coastal * 0.35F + volcanic * 0.40F + arch * 0.50F;
-        return clamp(0.92F - pressure * 0.20F, 0.70F, 0.92F);
+        return 0.90F;
     }
 
     private static boolean tooClose(LongSet land, int cx, int cy, int minSep) {

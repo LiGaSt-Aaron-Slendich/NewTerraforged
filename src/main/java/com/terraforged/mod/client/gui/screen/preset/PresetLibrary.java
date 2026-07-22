@@ -23,6 +23,7 @@ public final class PresetLibrary {
             {"classic.json", "Classic"},
             {"large_continents.json", "Large Continents"},
             {"archipelago.json", "Archipelago"},
+            {"shipwrecked.json", "NTF (DS:Shipwrecked)"},
             {"old_world.json", "Old World"},
             {"sparse.json", "Sparse"}
     };

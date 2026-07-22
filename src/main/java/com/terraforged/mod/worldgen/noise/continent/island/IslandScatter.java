@@ -66,33 +66,103 @@ public final class IslandScatter {
         return ab + (cd - ab) * v;
     }
 
+    /** Spacing for lone islands (not archipelago clusters). */
+    public static final int SOLO_CELL = 2600;
+
+    public enum ShapeKind {
+        ELLIPSE,
+        BANANA,
+        LOBED,
+        CRESCENT,
+        RIBBON,
+        IRREGULAR
+    }
+
     /**
-     * Organic blob mask. Returns &lt;0 outside, 0..1 inside (1 = centre).
+     * Organic island mask with several shape families. Returns &lt;0 outside, 0..1 inside.
      */
     public static float organicIslandMask(float dx, float dz, float rx, float rz, float angle, int seed, int id) {
-        return organicIslandMask(dx, dz, rx, rz, angle, seed, id, SAT_MIN_RADIUS, SAT_MIN_RADIUS);
+        return shapedIslandMask(dx, dz, rx, rz, angle, seed, id, pickShape(seed, id), SAT_MIN_RADIUS, SAT_MIN_RADIUS);
     }
 
     public static float organicIslandMask(
             float dx, float dz, float rx, float rz, float angle, int seed, int id, float minRx, float minRz
     ) {
+        return shapedIslandMask(dx, dz, rx, rz, angle, seed, id, pickShape(seed, id), minRx, minRz);
+    }
+
+    public static ShapeKind pickShape(int seed, int id) {
+        float r = hash01(seed ^ 0x51A9E, id * 17, id * 31);
+        if (r < 0.18F) {
+            return ShapeKind.ELLIPSE;
+        }
+        if (r < 0.36F) {
+            return ShapeKind.BANANA;
+        }
+        if (r < 0.54F) {
+            return ShapeKind.LOBED;
+        }
+        if (r < 0.70F) {
+            return ShapeKind.CRESCENT;
+        }
+        if (r < 0.84F) {
+            return ShapeKind.RIBBON;
+        }
+        return ShapeKind.IRREGULAR;
+    }
+
+    public static float shapedIslandMask(
+            float dx, float dz, float rx, float rz, float angle, int seed, int id, ShapeKind kind, float minRx, float minRz
+    ) {
         float c = NoiseUtil.cos(angle);
         float s = NoiseUtil.sin(angle);
         float u = dx * c - dz * s;
         float v = dx * s + dz * c;
-        float warpFreq = id < 0 ? 0.0045F : 0.018F;
-        float warpAmp = id < 0 ? 0.72F : 0.55F;
+        float warpFreq = id < 0 ? 0.0038F : 0.014F;
+        float warpAmp = id < 0 ? 0.85F : 0.70F;
         float warp = (valueNoise2(seed ^ (id * 31), u * warpFreq, v * warpFreq) - 0.5F) * warpAmp;
-        float warp2 = (valueNoise2(seed ^ (id * 17 + 3), u * warpFreq * 2.1F, v * warpFreq * 2.1F) - 0.5F) * warpAmp * 0.45F;
-        float rxw = rx * (1.0F + warp);
-        float rzw = rz * (1.0F + warp2);
-        if (rxw < minRx) {
-            rxw = minRx;
+        float warp2 = (valueNoise2(seed ^ (id * 17 + 3), u * warpFreq * 2.4F, v * warpFreq * 2.4F) - 0.5F) * warpAmp * 0.55F;
+        float detail = (valueNoise2(seed ^ (id * 53 + 7), u * warpFreq * 5.0F, v * warpFreq * 5.0F) - 0.5F) * 0.22F;
+        float rxw = Math.max(minRx, rx * (1.0F + warp + detail));
+        float rzw = Math.max(minRz, rz * (1.0F + warp2 - detail * 0.5F));
+
+        float e;
+        switch (kind) {
+            case BANANA -> {
+                float bend = 0.55F + hash01(seed ^ 44, id, 1) * 0.75F;
+                float uu = u + bend * (v * v) / Math.max(1.0F, rzw);
+                e = (uu * uu) / (rxw * rxw) + (v * v) / (rzw * rzw * 0.72F);
+            }
+            case LOBED -> {
+                float ang = (float) Math.atan2(v, u);
+                float lobes = 2.5F + hash01(seed ^ 55, id, 2) * 3.5F;
+                float lobe = 1.0F + 0.38F * NoiseUtil.cos(ang * lobes);
+                e = ((u * u) / (rxw * rxw) + (v * v) / (rzw * rzw)) / Math.max(0.45F, lobe);
+            }
+            case CRESCENT -> {
+                float gap = 0.35F + hash01(seed ^ 66, id, 3) * 0.35F;
+                float base = (u * u) / (rxw * rxw) + (v * v) / (rzw * rzw);
+                float biteRx = rxw * (0.55F + gap * 0.25F);
+                float biteRz = rzw * (0.55F + gap * 0.25F);
+                float bite = ((u - rxw * 0.35F) * (u - rxw * 0.35F)) / (biteRx * biteRx)
+                        + (v * v) / (biteRz * biteRz);
+                if (bite < 1.0F) {
+                    return -1.0F;
+                }
+                e = base;
+            }
+            case RIBBON -> {
+                float thin = 0.22F + hash01(seed ^ 77, id, 4) * 0.28F;
+                e = (u * u) / (rxw * rxw) + (v * v) / (rzw * rzw * thin * thin);
+            }
+            case IRREGULAR -> {
+                float n = valueNoise2(seed ^ 88, u * 0.009F, v * 0.009F);
+                float n2 = valueNoise2(seed ^ 89, u * 0.021F, v * 0.021F);
+                float scale = 0.70F + n * 0.55F + n2 * 0.25F;
+                e = ((u * u) / (rxw * rxw) + (v * v) / (rzw * rzw)) / Math.max(0.4F, scale);
+            }
+            default -> e = (u * u) / (rxw * rxw) + (v * v) / (rzw * rzw);
         }
-        if (rzw < minRz) {
-            rzw = minRz;
-        }
-        float e = (u * u) / (rxw * rxw) + (v * v) / (rzw * rzw);
         if (e >= 1.0F) {
             return -1.0F;
         }
@@ -208,8 +278,10 @@ public final class IslandScatter {
             float midOcean,
             float gate
     ) {
+        // Cap cluster density so high archipelago chance fills ocean with solos/volcanoes too.
+        float clusterRate = 0.18F + archipelagoChance * 0.32F;
         float place = hash01(seed ^ 99, cx, cz);
-        float need = 1.0F - archipelagoChance * NoiseUtil.clamp(0.35F + gate * 0.85F, 0.0F, 1.0F);
+        float need = 1.0F - clusterRate * NoiseUtil.clamp(0.35F + gate * 0.85F, 0.0F, 1.0F);
         if (place < need) {
             return ClusterEval.NONE;
         }
@@ -225,23 +297,34 @@ public final class IslandScatter {
         float dx = worldX - centerX;
         float dz = worldZ - centerZ;
 
-        float shelfRx = 2200.0F + hash01(seed ^ 2, cx, cz) * 2800.0F;
-        float shelfRz = 1800.0F + hash01(seed ^ 4, cx, cz) * 2600.0F;
+        // Wide size variance: small atolls to huge shelves.
+        float sizeRoll = hash01(seed ^ 2, cx, cz);
+        float sizeMul = sizeRoll < 0.25F ? 0.45F + sizeRoll * 1.2F
+                : sizeRoll < 0.75F ? 0.85F + (sizeRoll - 0.25F) * 1.1F
+                : 1.35F + (sizeRoll - 0.75F) * 2.4F;
+        float shelfRx = (900.0F + hash01(seed ^ 3, cx, cz) * 4200.0F) * sizeMul;
+        float shelfRz = (700.0F + hash01(seed ^ 4, cx, cz) * 3800.0F) * sizeMul;
+        float aspectShelf = 0.35F + hash01(seed ^ 5, cx, cz) * 1.4F;
+        shelfRz = Math.min(shelfRx * aspectShelf, shelfRx * 1.8F);
         float shelfAngle = hash01(seed ^ 6, cx, cz) * NoiseUtil.PI2;
-        float shelf = organicIslandMask(dx, dz, shelfRx, shelfRz, shelfAngle, seed, -1, 400.0F, 400.0F);
+        float shelf = shapedIslandMask(
+                dx, dz, shelfRx, shelfRz, shelfAngle, seed, -1, pickShape(seed ^ 101, cx + cz), 400.0F, 400.0F);
         if (shelf < 0.0F) {
             return ClusterEval.NONE;
         }
 
-        float motherRx = MOTHER_MIN_RADIUS + hash01(seed, cx, cz) * (MOTHER_MAX_RADIUS - MOTHER_MIN_RADIUS);
-        float motherRz = MOTHER_MIN_RADIUS * 0.75F + hash01(seed ^ 5, cx, cz) * (MOTHER_MAX_RADIUS - MOTHER_MIN_RADIUS * 0.75F);
+        float motherScale = 0.35F + hash01(seed, cx, cz) * 0.95F;
+        float motherRx = (MOTHER_MIN_RADIUS + hash01(seed ^ 8, cx, cz) * (MOTHER_MAX_RADIUS - MOTHER_MIN_RADIUS)) * motherScale;
+        float motherRz = motherRx * (0.35F + hash01(seed ^ 9, cx, cz) * 1.15F);
+        motherRz = NoiseUtil.clamp(motherRz, MOTHER_MIN_RADIUS * 0.5F, MOTHER_MAX_RADIUS);
         float motherAngle = hash01(seed ^ 19, cx, cz) * NoiseUtil.PI2;
         float motherOx = (hash01(seed ^ 21, cx, cz) - 0.5F) * shelfRx * 0.35F;
         float motherOz = (hash01(seed ^ 25, cx, cz) - 0.5F) * shelfRz * 0.35F;
         float mdx = dx - motherOx;
         float mdz = dz - motherOz;
-        float mother = organicIslandMask(
-                mdx, mdz, motherRx, motherRz, motherAngle, seed, 0, MOTHER_MIN_RADIUS, MOTHER_MIN_RADIUS * 0.6F);
+        ShapeKind motherKind = pickShape(seed ^ 202, cx * 3 + cz);
+        float mother = shapedIslandMask(
+                mdx, mdz, motherRx, motherRz, motherAngle, seed, 0, motherKind, MOTHER_MIN_RADIUS * 0.5F, MOTHER_MIN_RADIUS * 0.35F);
         if (mother >= 0.0F) {
             Landform motherForm = pickMotherLandform(seed, cx, cz);
             Hydrology hydro = evalIslandHydrology(mdx, mdz, motherRx, motherRz, motherAngle, seed, cx, cz, true);
@@ -294,7 +377,8 @@ public final class IslandScatter {
             float sang = hash01(seed ^ (600 + i), cx, cz) * NoiseUtil.PI2;
             float sdx = dx - ox;
             float sdz = dz - oz;
-            float mask = organicIslandMask(sdx, sdz, satRx, satRz, sang, seed, i + 1);
+            ShapeKind satKind = pickShape(seed ^ (800 + i), i + cx);
+            float mask = shapedIslandMask(sdx, sdz, satRx, satRz, sang, seed, i + 1, satKind, SAT_MIN_RADIUS, SAT_MIN_RADIUS * 0.6F);
             if (mask > bestSat) {
                 bestSat = mask;
                 bestForm = satForm;
@@ -332,24 +416,84 @@ public final class IslandScatter {
             int seed,
             float volcanicChance,
             float proximity,
-            float midOcean
+            float midOcean,
+            float archipelagoChance
     ) {
-        float gate = proximity * 0.85F + midOcean * 0.35F;
+        float gate = proximity * 0.85F + midOcean * (0.35F + archipelagoChance * 0.45F);
         if (gate < 0.05F || volcanicChance <= 0.0F) {
             return ClusterEval.NONE;
         }
-        int cell = VOLC_CELL;
+        // High archipelago chance also densifies volcanic freckles (not only clusters).
+        float effective = NoiseUtil.clamp(volcanicChance * (1.0F + archipelagoChance * 0.65F), 0.0F, 1.0F);
+        int cell = Math.max(4200, (int) (VOLC_CELL / (1.0F + archipelagoChance * 0.85F)));
         int cx = NoiseUtil.floor(worldX / cell);
         int cz = NoiseUtil.floor(worldZ / cell);
         float place = hash01(seed ^ 0xB01C, cx, cz);
-        float need = 1.0F - volcanicChance * (0.12F + gate * 0.35F);
+        float need = 1.0F - effective * (0.14F + gate * 0.40F);
         if (place < need) {
             return ClusterEval.NONE;
         }
         float centerX = (cx + 0.5F) * cell + (hash01(seed, cx, cz) - 0.5F) * cell * 0.4F;
         float centerZ = (cz + 0.5F) * cell + (hash01(seed ^ 3, cx, cz) - 0.5F) * cell * 0.4F;
-        float radius = 70.0F + hash01(seed ^ 9, cx, cz) * 140.0F;
+        float radius = 55.0F + hash01(seed ^ 9, cx, cz) * 200.0F;
         return evalVolcanoCone(worldX, worldZ, centerX, centerZ, radius);
+    }
+
+    /**
+     * Lone islands outside archipelago shelves. Density rises with archipelago chance
+     * so high settings mix solos into mid-ocean instead of only clusters.
+     */
+    public static ClusterEval evalIndependentIsland(
+            float worldX,
+            float worldZ,
+            int seed,
+            float archipelagoChance,
+            float coastalChance,
+            float proximity,
+            float midOcean,
+            boolean shipwrecked
+    ) {
+        float pressure = archipelagoChance * 0.60F + coastalChance * 0.20F + (shipwrecked ? 0.25F : 0.0F);
+        if (pressure < 0.05F) {
+            return ClusterEval.NONE;
+        }
+        float gate = proximity * 0.40F + midOcean * (0.35F + archipelagoChance * 0.55F) + (shipwrecked ? 0.35F : 0.0F);
+        if (gate < 0.06F) {
+            return ClusterEval.NONE;
+        }
+        int cell = Math.max(1400, (int) (SOLO_CELL / (0.75F + pressure)));
+        int cx = NoiseUtil.floor(worldX / (float) cell);
+        int cz = NoiseUtil.floor(worldZ / (float) cell);
+        float place = hash01(seed ^ 0x5010, cx, cz);
+        float need = 1.0F - pressure * (0.20F + gate * 0.55F);
+        if (place < need) {
+            return ClusterEval.NONE;
+        }
+        float centerX = (cx + 0.5F) * cell + (hash01(seed ^ 1, cx, cz) - 0.5F) * cell * 0.55F;
+        float centerZ = (cz + 0.5F) * cell + (hash01(seed ^ 2, cx, cz) - 0.5F) * cell * 0.55F;
+        float sizeRoll = hash01(seed ^ 3, cx, cz);
+        // Width 15..~900 blocks (radius 7.5..450).
+        float rx;
+        if (sizeRoll < 0.40F) {
+            rx = SAT_MIN_RADIUS + sizeRoll * 90.0F;
+        } else if (sizeRoll < 0.80F) {
+            rx = 40.0F + (sizeRoll - 0.40F) * 280.0F;
+        } else {
+            rx = 160.0F + (sizeRoll - 0.80F) * 1450.0F;
+        }
+        float aspect = 0.28F + hash01(seed ^ 4, cx, cz) * 1.55F;
+        float rz = NoiseUtil.clamp(rx * aspect, SAT_MIN_RADIUS, 520.0F);
+        float ang = hash01(seed ^ 5, cx, cz) * NoiseUtil.PI2;
+        ShapeKind kind = pickShape(seed ^ 6, cx * 13 + cz);
+        float mask = shapedIslandMask(
+                worldX - centerX, worldZ - centerZ, rx, rz, ang, seed, 42 + (cx & 15), kind, SAT_MIN_RADIUS, SAT_MIN_RADIUS * 0.5F);
+        if (mask < 0.0F) {
+            return ClusterEval.NONE;
+        }
+        Landform form = rx > 180.0F
+                ? (hash01(seed ^ 7, cx, cz) < 0.45F ? Landform.HILLS : Landform.PLATEAU)
+                : (rx > 60.0F && hash01(seed ^ 8, cx, cz) < 0.35F ? Landform.HILLS : Landform.FLATS);
+        return ClusterEval.land(0.28F + mask * 0.34F, form);
     }
 
     public static ClusterEval evalCoastalFreckle(

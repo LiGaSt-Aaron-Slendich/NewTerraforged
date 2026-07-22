@@ -13,7 +13,6 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Paints NewTF island / archipelago / volcanic freckles onto the engine preview tile.
- * Laguna = shallow shelf water; rivers/lakes = inland hydrology on island land.
  */
 public final class PreviewIslandPainter {
     private PreviewIslandPainter() {
@@ -28,9 +27,12 @@ public final class PreviewIslandPainter {
         float volcanic = NoiseUtil.clamp(islands.volcanicIslandsChance, 0.0F, 1.0F);
         boolean archOn = islands.scatteredArchipelago;
         float archChance = NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F);
-        int continentScale = settings.world.continent != null
+        boolean shipwrecked = settings.world.properties != null
+                && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;
+        int continentScaleRaw = settings.world.continent != null
                 ? Math.max(100, settings.world.continent.continentScale)
                 : 3000;
+        final int continentScale = shipwrecked ? Math.min(continentScaleRaw, 1400) : continentScaleRaw;
         int paintSeed = seed ^ 0x51ED;
         Levels levels = new Levels(settings.world);
         float water = levels.water;
@@ -41,17 +43,25 @@ public final class PreviewIslandPainter {
             int worldX = centerX + (lx - half) * zoom;
             int worldZ = centerZ + (lz - half) * zoom;
             float cn = cell.continentEdge;
-            float proximity = IslandScatter.shoreProximity(cn, continentScale);
-            float midOcean = IslandScatter.midOceanAllow(cn);
+            float proximity0 = IslandScatter.shoreProximity(cn, continentScale);
+            float midOcean0 = IslandScatter.midOceanAllow(cn);
+            final float proximity = shipwrecked
+                    ? Math.max(proximity0, 0.15F)
+                    : proximity0;
+            final float midOcean = shipwrecked
+                    ? Math.max(midOcean0, 0.55F + (1.0F - NoiseUtil.clamp(cn, 0.0F, 1.0F)) * 0.35F)
+                    : midOcean0;
 
-            if (cn < 0.55F) {
+            if (cn < 0.55F || shipwrecked) {
                 if (archOn && archChance > 0.0F) {
                     paintEval(cell, IslandScatter.evalArchipelago(
                             worldX, worldZ, paintSeed, archChance, proximity, midOcean), water, true);
                 }
+                paintEval(cell, IslandScatter.evalIndependentIsland(
+                        worldX, worldZ, paintSeed, archChance, coastal, proximity, midOcean, shipwrecked), water, true);
                 if (volcanic > 0.0F) {
                     paintEval(cell, IslandScatter.evalOceanVolcano(
-                            worldX, worldZ, paintSeed, volcanic, proximity, midOcean), water, false);
+                            worldX, worldZ, paintSeed, volcanic, proximity, midOcean, archChance), water, false);
                 }
             }
 

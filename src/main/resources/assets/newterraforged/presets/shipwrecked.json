@@ -1,0 +1,7 @@
+#ASM de LiGaSt ,NewTF-default-presset DS:Shipwrecked
+#creator LiGaSt
+{
+  "world": {
+    "continent_scale": 1000
+  }
+}
