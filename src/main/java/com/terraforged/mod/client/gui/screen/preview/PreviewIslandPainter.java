@@ -115,7 +115,12 @@ public final class PreviewIslandPainter {
         }
         if (eval.pipe()) {
             cell.terrain = TerrainType.VOLCANO_PIPE;
-        } else if (eval.volcano()) {
+            cell.continentEdge = Math.max(cell.continentEdge, 0.58F);
+            // Crater floor below rim — do not Math.max over prior land.
+            cell.value = water + 0.01F + eval.heightBoost() * 0.12F;
+            return;
+        }
+        if (eval.volcano()) {
             cell.terrain = originalCn < IslandScatter.SHORE_CULL_CN ? ModTerrainTypes.VOLCANIC_ISLAND : TerrainType.VOLCANO;
         } else if (eval.hydrology() == IslandScatter.Hydrology.RIVER) {
             cell.terrain = TerrainType.RIVER;
@@ -128,6 +133,10 @@ public final class PreviewIslandPainter {
             cell.value = Math.min(cell.value, water - 0.004F);
             return;
         } else {
+            // Do not stamp islets over an existing pipe crater.
+            if (cell.terrain == TerrainType.VOLCANO_PIPE) {
+                return;
+            }
             cell.terrain = landformTerrain(
                     eval.landform(), archipelago || originalCn < IslandScatter.SHORE_CULL_CN, eval.scattered());
         }

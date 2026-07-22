@@ -90,6 +90,11 @@ public final class IslandFeatureOverlay {
         if (!this.shipwrecked && originalCn >= IslandScatter.SHORE_CULL_CN) {
             return;
         }
+        // Keep crater pipe once placed — freckles/islets must not stamp over it.
+        boolean hadPipe = sample.terrainType == TerrainType.VOLCANO_PIPE;
+        if (hadPipe && !(eval.volcano() && eval.pipe())) {
+            return;
+        }
         if (eval.laguna()) {
             sample.continentNoise = Math.max(sample.continentNoise, 0.30F);
             sample.terrainType = ModTerrainTypes.LAGUNA;
@@ -102,7 +107,12 @@ public final class IslandFeatureOverlay {
         }
         if (eval.pipe()) {
             sample.terrainType = TerrainType.VOLCANO_PIPE;
-        } else if (eval.volcano()) {
+            sample.continentNoise = Math.max(sample.continentNoise, 0.58F);
+            // Absolute crater floor (not Math.max) so prior island land cannot fill the pipe.
+            sample.heightNoise = eval.heightBoost();
+            return;
+        }
+        if (eval.volcano()) {
             sample.terrainType = TerrainType.VOLCANO;
         } else if (eval.hydrology() == IslandScatter.Hydrology.RIVER) {
             sample.terrainType = TerrainType.RIVER;

@@ -722,17 +722,22 @@ public final class IslandScatter {
             return ClusterEval.NONE;
         }
         float t = 1.0F - dist / radius;
-        float craterR = radius * 0.22F;
-        float rimR = radius * 0.38F;
+        // Pipe must be findable in-world: floor size scales with cone, with a solid minimum.
+        float craterR = Math.max(18.0F, radius * 0.34F);
+        float rimR = Math.max(craterR + 14.0F, radius * 0.52F);
+        if (rimR > radius * 0.92F) {
+            rimR = radius * 0.92F;
+        }
         if (dist <= craterR) {
+            // Distinct crater floor — lower than rim so pipe isn't filled by Math.max land paints.
             float inner = dist / Math.max(1.0F, craterR);
-            return ClusterEval.volcano(0.40F + inner * 0.10F, true);
+            return ClusterEval.volcano(0.30F + inner * 0.08F, true);
         }
         if (dist <= rimR) {
             float rim = (dist - craterR) / Math.max(1.0E-3F, rimR - craterR);
-            return ClusterEval.volcano(0.55F + rim * 0.20F, false);
+            return ClusterEval.volcano(0.58F + rim * 0.22F, false);
         }
-        return ClusterEval.volcano(0.38F + t * 0.35F, false);
+        return ClusterEval.volcano(0.40F + t * 0.32F, false);
     }
 
     private static Landform pickMotherLandform(int seed, int cx, int cz) {
