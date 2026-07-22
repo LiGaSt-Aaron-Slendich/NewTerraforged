@@ -79,6 +79,21 @@ public interface ModTerrains extends ModRegistry {
       );
       ModRegistries.register(
          TERRAIN,
+         "archipelago_hills",
+         ModTerrains.Factory.create(null, seed, ModTerrainTypes.ARCHIPELAGO_HILLS, 1.0F, LandForms::hills1)
+      );
+      ModRegistries.register(
+         TERRAIN,
+         "archipelago_plateau",
+         ModTerrains.Factory.create(null, seed, ModTerrainTypes.ARCHIPELAGO_PLATEAU, 1.1F, LandForms::plateau)
+      );
+      ModRegistries.register(
+         TERRAIN,
+         "archipelago_mountains",
+         ModTerrains.Factory.create(null, seed, ModTerrainTypes.ARCHIPELAGO_MOUNTAINS, 0.9F, LandForms::mountains)
+      );
+      ModRegistries.register(
+         TERRAIN,
          "laguna",
          ModTerrains.Factory.create(null, seed, ModTerrainTypes.LAGUNA, 0.5F, LandForms::plains)
       );

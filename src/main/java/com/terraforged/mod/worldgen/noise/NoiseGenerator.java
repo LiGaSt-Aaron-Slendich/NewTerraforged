@@ -242,9 +242,15 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    private static Terrain islandTerrain(Terrain terrain) {
+      if (terrain != null && (terrain.isRiver() || terrain.isLake())) {
+         return terrain;
+      }
       if (terrain == ModTerrainTypes.VOLCANIC_ISLAND
             || terrain == ModTerrainTypes.COASTAL_ISLAND
             || terrain == ModTerrainTypes.SCATTERED_ARCHIPELAGO
+            || terrain == ModTerrainTypes.ARCHIPELAGO_HILLS
+            || terrain == ModTerrainTypes.ARCHIPELAGO_PLATEAU
+            || terrain == ModTerrainTypes.ARCHIPELAGO_MOUNTAINS
             || terrain == ModTerrainTypes.LAGUNA
             || terrain == TerrainType.VOLCANO
             || terrain == TerrainType.VOLCANO_PIPE) {
@@ -258,7 +264,7 @@ public class NoiseGenerator implements INoiseGenerator {
          return;
       }
       sample.terrainType = island;
-      if (island == ModTerrainTypes.LAGUNA) {
+      if (island == ModTerrainTypes.LAGUNA || island.isRiver() || island.isLake()) {
          sample.heightNoise = Math.min(sample.heightNoise, islandHeight);
       } else {
          sample.heightNoise = Math.max(sample.heightNoise, islandHeight);

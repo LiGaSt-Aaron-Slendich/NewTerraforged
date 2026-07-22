@@ -5,6 +5,7 @@ import com.terraforged.engine.settings.Settings;
 import com.terraforged.engine.settings.WorldSettings;
 import com.terraforged.engine.tile.Tile;
 import com.terraforged.engine.world.heightmap.Levels;
+import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.data.ModTerrainTypes;
 import com.terraforged.mod.worldgen.noise.continent.island.IslandScatter;
@@ -12,7 +13,7 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Paints NewTF island / archipelago / volcanic freckles onto the engine preview tile.
- * Uses the same {@link IslandScatter} math as worldgen so preview tracks continent shifts.
+ * Laguna = shallow shelf water; rivers/lakes = inland hydrology on island land.
  */
 public final class PreviewIslandPainter {
     private PreviewIslandPainter() {
@@ -65,8 +66,8 @@ public final class PreviewIslandPainter {
         }
         if (eval.laguna()) {
             cell.terrain = ModTerrainTypes.LAGUNA;
-            cell.continentEdge = Math.max(cell.continentEdge, 0.28F);
-            cell.value = Math.min(cell.value, water - 0.008F);
+            cell.continentEdge = Math.max(cell.continentEdge, 0.30F);
+            cell.value = Math.min(cell.value, water - 0.012F);
             return;
         }
         if (!eval.land()) {
@@ -76,12 +77,32 @@ public final class PreviewIslandPainter {
             cell.terrain = TerrainType.VOLCANO_PIPE;
         } else if (eval.volcano()) {
             cell.terrain = cell.continentEdge < 0.55F ? ModTerrainTypes.VOLCANIC_ISLAND : TerrainType.VOLCANO;
-        } else if (archipelago || cell.continentEdge < 0.55F) {
-            cell.terrain = ModTerrainTypes.SCATTERED_ARCHIPELAGO;
+        } else if (eval.hydrology() == IslandScatter.Hydrology.RIVER) {
+            cell.terrain = TerrainType.RIVER;
+            cell.continentEdge = Math.max(cell.continentEdge, 0.62F);
+            cell.value = Math.min(cell.value, water - 0.002F);
+            return;
+        } else if (eval.hydrology() == IslandScatter.Hydrology.LAKE) {
+            cell.terrain = TerrainType.LAKE;
+            cell.continentEdge = Math.max(cell.continentEdge, 0.62F);
+            cell.value = Math.min(cell.value, water - 0.004F);
+            return;
         } else {
-            cell.terrain = ModTerrainTypes.COASTAL_ISLAND;
+            cell.terrain = landformTerrain(eval.landform(), archipelago || cell.continentEdge < 0.55F);
         }
         cell.continentEdge = Math.max(cell.continentEdge, 0.58F + eval.heightBoost() * 0.25F);
         cell.value = Math.max(cell.value, water + 0.02F + eval.heightBoost() * 0.20F);
+    }
+
+    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago) {
+        if (!archipelago) {
+            return ModTerrainTypes.COASTAL_ISLAND;
+        }
+        return switch (landform) {
+            case MOUNTAINS -> ModTerrainTypes.ARCHIPELAGO_MOUNTAINS;
+            case PLATEAU -> ModTerrainTypes.ARCHIPELAGO_PLATEAU;
+            case HILLS -> ModTerrainTypes.ARCHIPELAGO_HILLS;
+            case FLATS -> ModTerrainTypes.SCATTERED_ARCHIPELAGO;
+        };
     }
 }

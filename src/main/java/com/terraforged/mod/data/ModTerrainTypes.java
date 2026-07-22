@@ -13,9 +13,12 @@ public interface ModTerrainTypes extends ModRegistry {
    Terrain VOLCANIC_ISLAND = TerrainHelper.getOrCreate("volcanic_island", TerrainType.VOLCANO);
    /** Near-coast freckle island. */
    Terrain COASTAL_ISLAND = TerrainHelper.getOrCreate("coastal_island", TerrainType.COAST);
-   /** Large + small island cluster land. */
+   /** Large + small island cluster land (low flats / sandbanks). */
    Terrain SCATTERED_ARCHIPELAGO = TerrainHelper.getOrCreate("scattered_archipelago", TerrainType.FLATS);
-   /** Shallow water between archipelago islands (max 15 blocks deep). */
+   Terrain ARCHIPELAGO_HILLS = TerrainHelper.getOrCreate("archipelago_hills", TerrainType.HILLS);
+   Terrain ARCHIPELAGO_PLATEAU = TerrainHelper.getOrCreate("archipelago_plateau", TerrainType.PLATEAU);
+   Terrain ARCHIPELAGO_MOUNTAINS = TerrainHelper.getOrCreate("archipelago_mountains", TerrainType.MOUNTAINS);
+   /** Shallow water between archipelago islands — laguna, not rivers. */
    Terrain LAGUNA = TerrainHelper.getOrCreate("laguna", TerrainType.SHALLOW_OCEAN);
 
    static void register() {

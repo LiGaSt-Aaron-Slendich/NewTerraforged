@@ -1,5 +1,6 @@
 package com.terraforged.mod.worldgen.noise.continent.island;
 
+import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.data.ModTerrainTypes;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
@@ -8,8 +9,7 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Overlays coastal / volcanic freckles and Scattered Archipelago clusters onto continent samples.
- * Placement follows {@code continentNoise} (moves with landmasses): densest near shores / channels,
- * rare mid-ocean. Non-volcano islands are elongated organic blobs; volcanoes are cone + pipe.
+ * Laguna = shallow water between islands. Rivers/lakes = inland hydrology on island land.
  */
 public final class IslandFeatureOverlay {
     public static final int LAGUNA_MAX_DEPTH = IslandScatter.LAGUNA_MAX_DEPTH;
@@ -35,7 +35,6 @@ public final class IslandFeatureOverlay {
         float proximity = IslandScatter.shoreProximity(cn, this.continentScale);
         float midOcean = IslandScatter.midOceanAllow(cn);
 
-        // Ocean / shelf: archipelagos + mid-ocean volcanoes react to continent falloff.
         if (cn < 0.55F) {
             if (this.archipelago && this.archipelagoChance > 0.0F) {
                 this.paint(IslandScatter.evalArchipelago(
@@ -47,7 +46,6 @@ public final class IslandFeatureOverlay {
             }
         }
 
-        // Coastal freckles on the shore band (land + near-shore).
         this.paint(IslandScatter.evalCoastalFreckle(
                 worldX, worldZ, this.seed, this.coastalChance, this.volcanicChance, cn), sample, seaLevel);
     }
@@ -57,7 +55,7 @@ public final class IslandFeatureOverlay {
             return;
         }
         if (eval.laguna()) {
-            sample.continentNoise = Math.max(sample.continentNoise, 0.28F);
+            sample.continentNoise = Math.max(sample.continentNoise, 0.30F);
             sample.terrainType = ModTerrainTypes.LAGUNA;
             float depthNorm = LAGUNA_MAX_DEPTH / Math.max(1.0F, (float) seaLevel);
             sample.heightNoise = Math.min(sample.heightNoise, Math.max(0.05F, 0.34F - depthNorm * 0.12F));
@@ -70,12 +68,32 @@ public final class IslandFeatureOverlay {
             sample.terrainType = TerrainType.VOLCANO_PIPE;
         } else if (eval.volcano()) {
             sample.terrainType = TerrainType.VOLCANO;
-        } else if (sample.continentNoise < 0.55F) {
-            sample.terrainType = ModTerrainTypes.SCATTERED_ARCHIPELAGO;
+        } else if (eval.hydrology() == IslandScatter.Hydrology.RIVER) {
+            sample.terrainType = TerrainType.RIVER;
+            sample.continentNoise = Math.max(sample.continentNoise, 0.62F);
+            sample.heightNoise = Math.min(sample.heightNoise, eval.heightBoost());
+            return;
+        } else if (eval.hydrology() == IslandScatter.Hydrology.LAKE) {
+            sample.terrainType = TerrainType.LAKE;
+            sample.continentNoise = Math.max(sample.continentNoise, 0.62F);
+            sample.heightNoise = Math.min(sample.heightNoise, eval.heightBoost());
+            return;
         } else {
-            sample.terrainType = ModTerrainTypes.COASTAL_ISLAND;
+            sample.terrainType = landformTerrain(eval.landform(), sample.continentNoise < 0.55F);
         }
         sample.continentNoise = Math.max(sample.continentNoise, 0.58F + eval.heightBoost() * 0.25F);
         sample.heightNoise = Math.max(sample.heightNoise, eval.heightBoost());
+    }
+
+    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago) {
+        if (!archipelago) {
+            return ModTerrainTypes.COASTAL_ISLAND;
+        }
+        return switch (landform) {
+            case MOUNTAINS -> ModTerrainTypes.ARCHIPELAGO_MOUNTAINS;
+            case PLATEAU -> ModTerrainTypes.ARCHIPELAGO_PLATEAU;
+            case HILLS -> ModTerrainTypes.ARCHIPELAGO_HILLS;
+            case FLATS -> ModTerrainTypes.SCATTERED_ARCHIPELAGO;
+        };
     }
 }
