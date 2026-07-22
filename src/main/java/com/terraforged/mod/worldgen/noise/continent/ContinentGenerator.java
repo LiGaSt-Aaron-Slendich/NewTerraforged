@@ -61,6 +61,8 @@ public class ContinentGenerator {
       world.continent.continentsSpread = config.shape.continentsSpread;
       world.islands.coastalIslandsChance = config.shape.coastalIslandsChance;
       world.islands.volcanicIslandsChance = config.shape.volcanicIslandsChance;
+      world.islands.archipelago = config.shape.archipelago;
+      world.islands.archipelagoChance = config.shape.archipelagoChance;
       world.islands.scatteredArchipelago = config.shape.scatteredArchipelago;
       world.islands.scatteredArchipelagoChance = config.shape.scatteredArchipelagoChance;
       this.guaranteeMask = GuaranteedContinentMask.create(world, this.seed, Math.max(100, config.shape.scale));

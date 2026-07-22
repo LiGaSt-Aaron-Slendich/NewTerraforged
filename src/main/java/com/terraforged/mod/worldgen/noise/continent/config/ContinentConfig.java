@@ -43,6 +43,8 @@ public class ContinentConfig {
       public float continentsSpread = 0.5F;
       public float coastalIslandsChance = 0.45F;
       public float volcanicIslandsChance = 0.15F;
+      public boolean archipelago = true;
+      public float archipelagoChance = 0.30F;
       public boolean scatteredArchipelago = true;
       public float scatteredArchipelagoChance = 0.35F;
       /** Don't Starve: Shipwrecked — suppress continents; islands only. */

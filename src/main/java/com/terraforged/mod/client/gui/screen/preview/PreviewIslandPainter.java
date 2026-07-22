@@ -25,8 +25,11 @@ public final class PreviewIslandPainter {
         WorldSettings.Islands islands = settings.world.islands != null ? settings.world.islands : new WorldSettings.Islands();
         float coastal = NoiseUtil.clamp(islands.coastalIslandsChance, 0.0F, 1.0F);
         float volcanic = NoiseUtil.clamp(islands.volcanicIslandsChance, 0.0F, 1.0F);
-        boolean archOn = islands.scatteredArchipelago;
-        float archChance = NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F);
+        boolean archOn = islands.archipelago;
+        float archChance = NoiseUtil.clamp(islands.archipelagoChance, 0.0F, 1.0F);
+        boolean scatteredOn = islands.scatteredArchipelago;
+        float scatteredChance = NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F);
+        float clusterPressure = Math.max(archOn ? archChance : 0.0F, scatteredOn ? scatteredChance : 0.0F);
         boolean shipwrecked = settings.world.properties != null
                 && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;
         int continentScaleRaw = settings.world.continent != null
@@ -55,13 +58,19 @@ public final class PreviewIslandPainter {
             if (cn < 0.55F || shipwrecked) {
                 if (archOn && archChance > 0.0F) {
                     paintEval(cell, IslandScatter.evalArchipelago(
-                            worldX, worldZ, paintSeed, archChance, proximity, midOcean), water, true);
+                            worldX, worldZ, paintSeed, archChance, proximity, midOcean,
+                            IslandScatter.ArchipelagoStyle.ARCHIPELAGO), water, true);
+                }
+                if (scatteredOn && scatteredChance > 0.0F) {
+                    paintEval(cell, IslandScatter.evalArchipelago(
+                            worldX, worldZ, paintSeed, scatteredChance, proximity, midOcean,
+                            IslandScatter.ArchipelagoStyle.SCATTERED), water, true);
                 }
                 paintEval(cell, IslandScatter.evalIndependentIsland(
-                        worldX, worldZ, paintSeed, archChance, coastal, proximity, midOcean, shipwrecked), water, true);
+                        worldX, worldZ, paintSeed, clusterPressure, coastal, proximity, midOcean, shipwrecked), water, true);
                 if (volcanic > 0.0F) {
                     paintEval(cell, IslandScatter.evalOceanVolcano(
-                            worldX, worldZ, paintSeed, volcanic, proximity, midOcean, archChance), water, false);
+                            worldX, worldZ, paintSeed, volcanic, proximity, midOcean, clusterPressure), water, false);
                 }
             }
 
@@ -98,13 +107,14 @@ public final class PreviewIslandPainter {
             cell.value = Math.min(cell.value, water - 0.004F);
             return;
         } else {
-            cell.terrain = landformTerrain(eval.landform(), archipelago || cell.continentEdge < 0.55F);
+            cell.terrain = landformTerrain(
+                    eval.landform(), archipelago || cell.continentEdge < 0.55F, eval.scattered());
         }
         cell.continentEdge = Math.max(cell.continentEdge, 0.58F + eval.heightBoost() * 0.25F);
         cell.value = Math.max(cell.value, water + 0.02F + eval.heightBoost() * 0.20F);
     }
 
-    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago) {
+    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago, boolean scattered) {
         if (!archipelago) {
             return ModTerrainTypes.COASTAL_ISLAND;
         }
@@ -112,7 +122,7 @@ public final class PreviewIslandPainter {
             case MOUNTAINS -> ModTerrainTypes.ARCHIPELAGO_MOUNTAINS;
             case PLATEAU -> ModTerrainTypes.ARCHIPELAGO_PLATEAU;
             case HILLS -> ModTerrainTypes.ARCHIPELAGO_HILLS;
-            case FLATS -> ModTerrainTypes.SCATTERED_ARCHIPELAGO;
+            case FLATS -> scattered ? ModTerrainTypes.SCATTERED_ARCHIPELAGO : ModTerrainTypes.ARCHIPELAGO_HILLS;
         };
     }
 }

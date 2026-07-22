@@ -51,6 +51,8 @@ public final class ContinentShapeWiring {
         config.shape.continentsSpread = spread;
         config.shape.coastalIslandsChance = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
         config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
+        config.shape.archipelago = islands.archipelago;
+        config.shape.archipelagoChance = NoiseUtil.clamp(islands.archipelagoChance, 0.0F, 1.0F);
         config.shape.scatteredArchipelago = islands.scatteredArchipelago;
         config.shape.scatteredArchipelagoChance = NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F);
         config.shape.shipwrecked = false;
@@ -62,10 +64,14 @@ public final class ContinentShapeWiring {
         config.shape.guaranteedContinentsEnabled = false;
         config.shape.threshold = 0.98F;
         config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
+        config.shape.archipelago = true;
+        if (config.shape.archipelagoChance < 0.40F) {
+            config.shape.archipelagoChance = 0.50F;
+        }
+        config.shape.scatteredArchipelago = true;
         if (config.shape.scatteredArchipelagoChance < 0.45F) {
             config.shape.scatteredArchipelagoChance = 0.55F;
         }
-        config.shape.scatteredArchipelago = true;
         if (config.shape.volcanicIslandsChance < 0.20F) {
             config.shape.volcanicIslandsChance = 0.28F;
         }

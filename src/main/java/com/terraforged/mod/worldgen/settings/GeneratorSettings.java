@@ -429,6 +429,8 @@ public final class GeneratorSettings {
         engine.world.continent.continentScale = 1000;
         engine.world.continent.continentSizeVariance = 0.5F;
         engine.world.continent.continentNoiseGain = 0.36F;
+        engine.world.islands.archipelago = true;
+        engine.world.islands.archipelagoChance = 0.55F;
         engine.world.islands.scatteredArchipelago = true;
         engine.world.islands.scatteredArchipelagoChance = 0.65F;
         engine.world.islands.volcanicIslandsChance = 0.35F;

@@ -5,23 +5,49 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Shared island / archipelago placement math.
- * Scattered archipelago = one organic shallow shelf (laguna) with a mother island (up to 3k wide)
- * and many satellite islets (15–500 blocks wide).
+ * <ul>
+ *   <li>{@link ArchipelagoStyle#ARCHIPELAGO} — 2–5 islands (incl. main), each 50–300 wide</li>
+ *   <li>{@link ArchipelagoStyle#SCATTERED} — many islands, each 15–500 wide</li>
+ * </ul>
  */
 public final class IslandScatter {
     public static final int LAGUNA_MAX_DEPTH = 15;
     /** Cluster anchor spacing; shelf can span most of a cell. */
     public static final int ARCH_CELL = 11000;
+    public static final int ARCH_CELL_COMPACT = 7500;
     public static final int VOLC_CELL = 10000;
 
-    /** Full width = 2 * radius. */
-    public static final float MOTHER_MIN_RADIUS = 200.0F;
-    public static final float MOTHER_MAX_RADIUS = 1500.0F;
-    public static final float SAT_MIN_RADIUS = 7.5F;
-    public static final float SAT_MAX_RADIUS = 250.0F;
+    /** Width = 2 * radius. Scattered: 15–500. Archipelago: 50–300. */
+    public static final float SCATTERED_MIN_RADIUS = 7.5F;
+    public static final float SCATTERED_MAX_RADIUS = 250.0F;
+    public static final float ARCH_MIN_RADIUS = 25.0F;
+    public static final float ARCH_MAX_RADIUS = 150.0F;
 
-    private static final int MIN_SATELLITES = 22;
-    private static final int MAX_SATELLITES = 78;
+    /** @deprecated use {@link #SCATTERED_MIN_RADIUS} */
+    @Deprecated
+    public static final float SAT_MIN_RADIUS = SCATTERED_MIN_RADIUS;
+    /** @deprecated use {@link #SCATTERED_MAX_RADIUS} */
+    @Deprecated
+    public static final float SAT_MAX_RADIUS = SCATTERED_MAX_RADIUS;
+    /** @deprecated mother size is style-specific now */
+    @Deprecated
+    public static final float MOTHER_MIN_RADIUS = 100.0F;
+    /** @deprecated mother size is style-specific now */
+    @Deprecated
+    public static final float MOTHER_MAX_RADIUS = 250.0F;
+
+    private static final int SCATTERED_MIN_SATS = 22;
+    private static final int SCATTERED_MAX_SATS = 78;
+    /** Total islands 2–5 ⇒ satellites 1–4. */
+    private static final int ARCH_MIN_SATS = 1;
+    private static final int ARCH_MAX_SATS = 4;
+
+    public enum ArchipelagoStyle {
+        /** 2–5 islands total, 50–300 blocks across. */
+        ARCHIPELAGO,
+        /** Many islands, 15–500 blocks across. */
+        SCATTERED
+    }
 
     private IslandScatter() {
     }
@@ -176,26 +202,45 @@ public final class IslandScatter {
             boolean volcano,
             boolean pipe,
             Landform landform,
-            Hydrology hydrology
+            Hydrology hydrology,
+            ArchipelagoStyle style
     ) {
         public static final ClusterEval NONE = new ClusterEval(
-                false, false, 0.0F, false, false, Landform.FLATS, Hydrology.NONE);
+                false, false, 0.0F, false, false, Landform.FLATS, Hydrology.NONE, null);
 
         public static ClusterEval land(float boost, Landform form) {
-            return new ClusterEval(true, false, boost, false, false, form, Hydrology.NONE);
+            return land(boost, form, null);
+        }
+
+        public static ClusterEval land(float boost, Landform form, ArchipelagoStyle style) {
+            return new ClusterEval(true, false, boost, false, false, form, Hydrology.NONE, style);
         }
 
         public static ClusterEval landHydrology(float boost, Landform form, Hydrology hydro, float hydroBoost) {
+            return landHydrology(boost, form, hydro, hydroBoost, null);
+        }
+
+        public static ClusterEval landHydrology(
+                float boost, Landform form, Hydrology hydro, float hydroBoost, ArchipelagoStyle style
+        ) {
             float h = hydro == Hydrology.NONE ? boost : hydroBoost;
-            return new ClusterEval(true, false, h, false, false, form, hydro);
+            return new ClusterEval(true, false, h, false, false, form, hydro, style);
         }
 
         public static ClusterEval laguna(float shelfStrength) {
-            return new ClusterEval(false, true, shelfStrength * 0.15F, false, false, Landform.FLATS, Hydrology.NONE);
+            return laguna(shelfStrength, null);
+        }
+
+        public static ClusterEval laguna(float shelfStrength, ArchipelagoStyle style) {
+            return new ClusterEval(false, true, shelfStrength * 0.15F, false, false, Landform.FLATS, Hydrology.NONE, style);
         }
 
         public static ClusterEval volcano(float boost, boolean pipe) {
-            return new ClusterEval(true, false, boost, true, pipe, Landform.MOUNTAINS, Hydrology.NONE);
+            return new ClusterEval(true, false, boost, true, pipe, Landform.MOUNTAINS, Hydrology.NONE, null);
+        }
+
+        public boolean scattered() {
+            return style == ArchipelagoStyle.SCATTERED;
         }
     }
 
@@ -214,8 +259,40 @@ public final class IslandScatter {
     }
 
     /**
-     * Scattered archipelago: shared shallow shelf, mother island, many scattered satellites, interior laguna.
+     * Archipelago / Scattered Archipelago: shared shallow shelf, mother island, satellites, interior laguna.
      */
+    public static ClusterEval evalArchipelago(
+            float worldX,
+            float worldZ,
+            int seed,
+            float archipelagoChance,
+            float proximity,
+            float midOcean,
+            ArchipelagoStyle style
+    ) {
+        float gate = proximity + midOcean * 0.12F;
+        if (gate < 0.08F) {
+            return ClusterEval.NONE;
+        }
+
+        int cell = style == ArchipelagoStyle.ARCHIPELAGO ? ARCH_CELL_COMPACT : ARCH_CELL;
+        int styleSeed = style == ArchipelagoStyle.ARCHIPELAGO ? seed ^ 0xA11A : seed ^ 0x5CA7;
+        int cx0 = NoiseUtil.floor(worldX / (float) cell);
+        int cz0 = NoiseUtil.floor(worldZ / (float) cell);
+        ClusterEval best = ClusterEval.NONE;
+        for (int oz = -1; oz <= 1; oz++) {
+            for (int ox = -1; ox <= 1; ox++) {
+                ClusterEval eval = evalArchipelagoCell(
+                        worldX, worldZ, cx0 + ox, cz0 + oz, styleSeed, archipelagoChance,
+                        proximity, midOcean, gate, style, cell);
+                best = mergeArchipelago(best, eval);
+            }
+        }
+        return best;
+    }
+
+    /** @deprecated prefer {@link #evalArchipelago(float, float, int, float, float, float, ArchipelagoStyle)} */
+    @Deprecated
     public static ClusterEval evalArchipelago(
             float worldX,
             float worldZ,
@@ -224,22 +301,7 @@ public final class IslandScatter {
             float proximity,
             float midOcean
     ) {
-        float gate = proximity + midOcean * 0.12F;
-        if (gate < 0.08F) {
-            return ClusterEval.NONE;
-        }
-
-        int cx0 = NoiseUtil.floor(worldX / (float) ARCH_CELL);
-        int cz0 = NoiseUtil.floor(worldZ / (float) ARCH_CELL);
-        ClusterEval best = ClusterEval.NONE;
-        for (int oz = -1; oz <= 1; oz++) {
-            for (int ox = -1; ox <= 1; ox++) {
-                ClusterEval eval = evalArchipelagoCell(
-                        worldX, worldZ, cx0 + ox, cz0 + oz, seed, archipelagoChance, proximity, midOcean, gate);
-                best = mergeArchipelago(best, eval);
-            }
-        }
-        return best;
+        return evalArchipelago(worldX, worldZ, seed, archipelagoChance, proximity, midOcean, ArchipelagoStyle.SCATTERED);
     }
 
     private static ClusterEval mergeArchipelago(ClusterEval a, ClusterEval b) {
@@ -276,10 +338,15 @@ public final class IslandScatter {
             float archipelagoChance,
             float proximity,
             float midOcean,
-            float gate
+            float gate,
+            ArchipelagoStyle style,
+            int cell
     ) {
-        // Cap cluster density so high archipelago chance fills ocean with solos/volcanoes too.
-        float clusterRate = 0.18F + archipelagoChance * 0.32F;
+        boolean scattered = style == ArchipelagoStyle.SCATTERED;
+        // Compact archipelagos are less dense; scattered fills more ocean.
+        float clusterRate = scattered
+                ? 0.18F + archipelagoChance * 0.32F
+                : 0.12F + archipelagoChance * 0.28F;
         float place = hash01(seed ^ 99, cx, cz);
         float need = 1.0F - clusterRate * NoiseUtil.clamp(0.35F + gate * 0.85F, 0.0F, 1.0F);
         if (place < need) {
@@ -289,7 +356,6 @@ public final class IslandScatter {
             return ClusterEval.NONE;
         }
 
-        int cell = ARCH_CELL;
         float jx = (hash01(seed ^ 11, cx, cz) - 0.5F) * cell * 0.42F;
         float jz = (hash01(seed ^ 13, cx, cz) - 0.5F) * cell * 0.42F;
         float centerX = (cx + 0.5F) * cell + jx;
@@ -297,34 +363,42 @@ public final class IslandScatter {
         float dx = worldX - centerX;
         float dz = worldZ - centerZ;
 
-        // Wide size variance: small atolls to huge shelves.
+        float minR = scattered ? SCATTERED_MIN_RADIUS : ARCH_MIN_RADIUS;
+        float maxR = scattered ? SCATTERED_MAX_RADIUS : ARCH_MAX_RADIUS;
+
         float sizeRoll = hash01(seed ^ 2, cx, cz);
-        float sizeMul = sizeRoll < 0.25F ? 0.45F + sizeRoll * 1.2F
-                : sizeRoll < 0.75F ? 0.85F + (sizeRoll - 0.25F) * 1.1F
-                : 1.35F + (sizeRoll - 0.75F) * 2.4F;
-        float shelfRx = (900.0F + hash01(seed ^ 3, cx, cz) * 4200.0F) * sizeMul;
-        float shelfRz = (700.0F + hash01(seed ^ 4, cx, cz) * 3800.0F) * sizeMul;
+        float sizeMul = sizeRoll < 0.25F ? 0.55F + sizeRoll * 1.0F
+                : sizeRoll < 0.75F ? 0.85F + (sizeRoll - 0.25F) * 0.9F
+                : 1.15F + (sizeRoll - 0.75F) * 1.4F;
+        float shelfBase = scattered ? 900.0F : 420.0F;
+        float shelfSpan = scattered ? 4200.0F : 1600.0F;
+        float shelfRx = (shelfBase + hash01(seed ^ 3, cx, cz) * shelfSpan) * sizeMul;
+        float shelfRz = ((scattered ? 700.0F : 320.0F) + hash01(seed ^ 4, cx, cz) * (scattered ? 3800.0F : 1400.0F)) * sizeMul;
         float aspectShelf = 0.35F + hash01(seed ^ 5, cx, cz) * 1.4F;
         shelfRz = Math.min(shelfRx * aspectShelf, shelfRx * 1.8F);
         float shelfAngle = hash01(seed ^ 6, cx, cz) * NoiseUtil.PI2;
+        float shelfMin = scattered ? 400.0F : 180.0F;
         float shelf = shapedIslandMask(
-                dx, dz, shelfRx, shelfRz, shelfAngle, seed, -1, pickShape(seed ^ 101, cx + cz), 400.0F, 400.0F);
+                dx, dz, shelfRx, shelfRz, shelfAngle, seed, -1, pickShape(seed ^ 101, cx + cz), shelfMin, shelfMin);
         if (shelf < 0.0F) {
             return ClusterEval.NONE;
         }
 
-        float motherScale = 0.35F + hash01(seed, cx, cz) * 0.95F;
-        float motherRx = (MOTHER_MIN_RADIUS + hash01(seed ^ 8, cx, cz) * (MOTHER_MAX_RADIUS - MOTHER_MIN_RADIUS)) * motherScale;
-        float motherRz = motherRx * (0.35F + hash01(seed ^ 9, cx, cz) * 1.15F);
-        motherRz = NoiseUtil.clamp(motherRz, MOTHER_MIN_RADIUS * 0.5F, MOTHER_MAX_RADIUS);
+        // Mother biased to the large end of the style's width range.
+        float motherMin = scattered ? maxR * 0.40F : maxR * 0.45F;
+        float motherMax = maxR;
+        float motherRx = motherMin + hash01(seed ^ 8, cx, cz) * (motherMax - motherMin);
+        float motherRz = motherRx * (0.45F + hash01(seed ^ 9, cx, cz) * 0.95F);
+        motherRz = NoiseUtil.clamp(motherRz, minR, maxR);
+        motherRx = NoiseUtil.clamp(motherRx, minR, maxR);
         float motherAngle = hash01(seed ^ 19, cx, cz) * NoiseUtil.PI2;
-        float motherOx = (hash01(seed ^ 21, cx, cz) - 0.5F) * shelfRx * 0.35F;
-        float motherOz = (hash01(seed ^ 25, cx, cz) - 0.5F) * shelfRz * 0.35F;
+        float motherOx = (hash01(seed ^ 21, cx, cz) - 0.5F) * shelfRx * 0.28F;
+        float motherOz = (hash01(seed ^ 25, cx, cz) - 0.5F) * shelfRz * 0.28F;
         float mdx = dx - motherOx;
         float mdz = dz - motherOz;
         ShapeKind motherKind = pickShape(seed ^ 202, cx * 3 + cz);
         float mother = shapedIslandMask(
-                mdx, mdz, motherRx, motherRz, motherAngle, seed, 0, motherKind, MOTHER_MIN_RADIUS * 0.5F, MOTHER_MIN_RADIUS * 0.35F);
+                mdx, mdz, motherRx, motherRz, motherAngle, seed, 0, motherKind, minR * 0.5F, minR * 0.35F);
         if (mother >= 0.0F) {
             Landform motherForm = pickMotherLandform(seed, cx, cz);
             Hydrology hydro = evalIslandHydrology(mdx, mdz, motherRx, motherRz, motherAngle, seed, cx, cz, true);
@@ -335,50 +409,67 @@ public final class IslandScatter {
                 boost += 0.06F;
             }
             if (hydro == Hydrology.LAKE) {
-                return ClusterEval.landHydrology(boost, motherForm, hydro, 0.34F);
+                return ClusterEval.landHydrology(boost, motherForm, hydro, 0.34F, style);
             }
             if (hydro == Hydrology.RIVER) {
-                return ClusterEval.landHydrology(boost, motherForm, hydro, 0.36F);
+                return ClusterEval.landHydrology(boost, motherForm, hydro, 0.36F, style);
             }
-            return ClusterEval.land(boost, motherForm);
+            return ClusterEval.land(boost, motherForm, style);
         }
 
-        int sats = MIN_SATELLITES + NoiseUtil.floor(hash01(seed ^ 23, cx, cz) * (MAX_SATELLITES - MIN_SATELLITES + 1));
+        int minSats = scattered ? SCATTERED_MIN_SATS : ARCH_MIN_SATS;
+        int maxSats = scattered ? SCATTERED_MAX_SATS : ARCH_MAX_SATS;
+        int sats = minSats + NoiseUtil.floor(hash01(seed ^ 23, cx, cz) * (maxSats - minSats + 1));
         float bestSat = -1.0F;
         Landform bestForm = Landform.FLATS;
         float bestOx = 0.0F;
         float bestOz = 0.0F;
-        float bestRx = SAT_MIN_RADIUS;
-        float bestRz = SAT_MIN_RADIUS;
+        float bestRx = minR;
+        float bestRz = minR;
         float bestAngle = 0.0F;
         for (int i = 0; i < sats; i++) {
-            float ox = (hash01(seed ^ (100 + i * 3), cx, cz) - 0.5F) * shelfRx * 1.75F;
-            float oz = (hash01(seed ^ (200 + i * 3), cx, cz) - 0.5F) * shelfRz * 1.75F;
+            float ox = (hash01(seed ^ (100 + i * 3), cx, cz) - 0.5F) * shelfRx * (scattered ? 1.75F : 1.35F);
+            float oz = (hash01(seed ^ (200 + i * 3), cx, cz) - 0.5F) * shelfRz * (scattered ? 1.75F : 1.35F);
             float satRx;
             float satRz;
             float tier = hash01(seed ^ (300 + i), cx, cz);
             Landform satForm;
-            if (tier < 0.42F) {
-                satRx = SAT_MIN_RADIUS + hash01(seed ^ (400 + i), cx, cz) * 42.0F;
-                satForm = Landform.FLATS;
-            } else if (tier < 0.82F) {
-                satRx = 28.0F + hash01(seed ^ (400 + i), cx, cz) * 122.0F;
-                satForm = hash01(seed ^ (700 + i), cx, cz) < 0.55F ? Landform.HILLS : Landform.FLATS;
+            float range = maxR - minR;
+            if (scattered) {
+                if (tier < 0.42F) {
+                    satRx = minR + hash01(seed ^ (400 + i), cx, cz) * Math.min(42.0F, range * 0.25F);
+                    satForm = Landform.FLATS;
+                } else if (tier < 0.82F) {
+                    satRx = minR + range * 0.15F + hash01(seed ^ (400 + i), cx, cz) * range * 0.45F;
+                    satForm = hash01(seed ^ (700 + i), cx, cz) < 0.55F ? Landform.HILLS : Landform.FLATS;
+                } else {
+                    satRx = minR + range * 0.45F + hash01(seed ^ (400 + i), cx, cz) * range * 0.55F;
+                    float f = hash01(seed ^ (700 + i), cx, cz);
+                    satForm = f < 0.35F ? Landform.PLATEAU : (f < 0.65F ? Landform.HILLS : Landform.MOUNTAINS);
+                }
             } else {
-                satRx = 90.0F + hash01(seed ^ (400 + i), cx, cz) * (SAT_MAX_RADIUS - 90.0F);
-                float f = hash01(seed ^ (700 + i), cx, cz);
-                satForm = f < 0.35F ? Landform.PLATEAU : (f < 0.65F ? Landform.HILLS : Landform.MOUNTAINS);
+                // Archipelago: all members 50–300 wide; fewer, fuller islands.
+                if (tier < 0.35F) {
+                    satRx = minR + hash01(seed ^ (400 + i), cx, cz) * range * 0.40F;
+                    satForm = Landform.FLATS;
+                } else if (tier < 0.75F) {
+                    satRx = minR + range * 0.25F + hash01(seed ^ (400 + i), cx, cz) * range * 0.45F;
+                    satForm = hash01(seed ^ (700 + i), cx, cz) < 0.50F ? Landform.HILLS : Landform.FLATS;
+                } else {
+                    satRx = minR + range * 0.50F + hash01(seed ^ (400 + i), cx, cz) * range * 0.50F;
+                    float f = hash01(seed ^ (700 + i), cx, cz);
+                    satForm = f < 0.40F ? Landform.PLATEAU : (f < 0.70F ? Landform.HILLS : Landform.MOUNTAINS);
+                }
             }
             float aspect = 0.45F + hash01(seed ^ (500 + i), cx, cz) * 0.95F;
             satRz = satRx * aspect;
-            if (satRz > SAT_MAX_RADIUS) {
-                satRz = SAT_MAX_RADIUS;
-            }
+            satRx = NoiseUtil.clamp(satRx, minR, maxR);
+            satRz = NoiseUtil.clamp(satRz, minR, maxR);
             float sang = hash01(seed ^ (600 + i), cx, cz) * NoiseUtil.PI2;
             float sdx = dx - ox;
             float sdz = dz - oz;
             ShapeKind satKind = pickShape(seed ^ (800 + i), i + cx);
-            float mask = shapedIslandMask(sdx, sdz, satRx, satRz, sang, seed, i + 1, satKind, SAT_MIN_RADIUS, SAT_MIN_RADIUS * 0.6F);
+            float mask = shapedIslandMask(sdx, sdz, satRx, satRz, sang, seed, i + 1, satKind, minR, minR * 0.6F);
             if (mask > bestSat) {
                 bestSat = mask;
                 bestForm = satForm;
@@ -398,16 +489,16 @@ public final class IslandScatter {
                 boost += 0.04F;
             }
             if (hydro == Hydrology.LAKE) {
-                return ClusterEval.landHydrology(boost, bestForm, hydro, 0.34F);
+                return ClusterEval.landHydrology(boost, bestForm, hydro, 0.34F, style);
             }
             if (hydro == Hydrology.RIVER) {
-                return ClusterEval.landHydrology(boost, bestForm, hydro, 0.36F);
+                return ClusterEval.landHydrology(boost, bestForm, hydro, 0.36F, style);
             }
-            return ClusterEval.land(boost, bestForm);
+            return ClusterEval.land(boost, bestForm, style);
         }
 
         // Interior of shelf with no land = laguna (shallow water between islands).
-        return ClusterEval.laguna(shelf);
+        return ClusterEval.laguna(shelf, style);
     }
 
     public static ClusterEval evalOceanVolcano(

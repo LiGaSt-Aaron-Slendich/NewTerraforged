@@ -8,7 +8,7 @@ import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Overlays coastal / volcanic / independent islands and Scattered Archipelago clusters.
+ * Overlays coastal / volcanic / independent islands and Archipelago / Scattered Archipelago clusters.
  * Laguna = shallow water between islands. Rivers/lakes = inland hydrology on island land.
  */
 public final class IslandFeatureOverlay {
@@ -20,6 +20,8 @@ public final class IslandFeatureOverlay {
     private final float volcanicChance;
     private final boolean archipelago;
     private final float archipelagoChance;
+    private final boolean scatteredArchipelago;
+    private final float scatteredArchipelagoChance;
     private final boolean shipwrecked;
 
     public IslandFeatureOverlay(ContinentConfig config) {
@@ -27,8 +29,10 @@ public final class IslandFeatureOverlay {
         this.continentScale = Math.max(100, config.shape.scale);
         this.coastalChance = NoiseUtil.clamp(config.shape.coastalIslandsChance, 0.0F, 1.0F);
         this.volcanicChance = NoiseUtil.clamp(config.shape.volcanicIslandsChance, 0.0F, 1.0F);
-        this.archipelago = config.shape.scatteredArchipelago;
-        this.archipelagoChance = NoiseUtil.clamp(config.shape.scatteredArchipelagoChance, 0.0F, 1.0F);
+        this.archipelago = config.shape.archipelago;
+        this.archipelagoChance = NoiseUtil.clamp(config.shape.archipelagoChance, 0.0F, 1.0F);
+        this.scatteredArchipelago = config.shape.scatteredArchipelago;
+        this.scatteredArchipelagoChance = NoiseUtil.clamp(config.shape.scatteredArchipelagoChance, 0.0F, 1.0F);
         this.shipwrecked = config.shape.shipwrecked;
     }
 
@@ -41,17 +45,27 @@ public final class IslandFeatureOverlay {
             proximity = Math.max(proximity, 0.15F);
         }
 
+        float clusterPressure = Math.max(
+                this.archipelago ? this.archipelagoChance : 0.0F,
+                this.scatteredArchipelago ? this.scatteredArchipelagoChance : 0.0F);
+
         if (cn < 0.55F || this.shipwrecked) {
             if (this.archipelago && this.archipelagoChance > 0.0F) {
                 this.paint(IslandScatter.evalArchipelago(
-                        worldX, worldZ, this.seed, this.archipelagoChance, proximity, midOcean), sample, seaLevel);
+                        worldX, worldZ, this.seed, this.archipelagoChance, proximity, midOcean,
+                        IslandScatter.ArchipelagoStyle.ARCHIPELAGO), sample, seaLevel);
+            }
+            if (this.scatteredArchipelago && this.scatteredArchipelagoChance > 0.0F) {
+                this.paint(IslandScatter.evalArchipelago(
+                        worldX, worldZ, this.seed, this.scatteredArchipelagoChance, proximity, midOcean,
+                        IslandScatter.ArchipelagoStyle.SCATTERED), sample, seaLevel);
             }
             this.paint(IslandScatter.evalIndependentIsland(
-                    worldX, worldZ, this.seed, this.archipelagoChance, this.coastalChance,
+                    worldX, worldZ, this.seed, clusterPressure, this.coastalChance,
                     proximity, midOcean, this.shipwrecked), sample, seaLevel);
             if (this.volcanicChance > 0.0F) {
                 this.paint(IslandScatter.evalOceanVolcano(
-                        worldX, worldZ, this.seed, this.volcanicChance, proximity, midOcean, this.archipelagoChance),
+                        worldX, worldZ, this.seed, this.volcanicChance, proximity, midOcean, clusterPressure),
                         sample, seaLevel);
             }
         }
@@ -89,13 +103,14 @@ public final class IslandFeatureOverlay {
             sample.heightNoise = Math.min(sample.heightNoise, eval.heightBoost());
             return;
         } else {
-            sample.terrainType = landformTerrain(eval.landform(), sample.continentNoise < 0.55F || this.shipwrecked);
+            sample.terrainType = landformTerrain(
+                    eval.landform(), sample.continentNoise < 0.55F || this.shipwrecked, eval.scattered());
         }
         sample.continentNoise = Math.max(sample.continentNoise, 0.58F + eval.heightBoost() * 0.25F);
         sample.heightNoise = Math.max(sample.heightNoise, eval.heightBoost());
     }
 
-    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago) {
+    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago, boolean scattered) {
         if (!archipelago) {
             return ModTerrainTypes.COASTAL_ISLAND;
         }
@@ -103,7 +118,7 @@ public final class IslandFeatureOverlay {
             case MOUNTAINS -> ModTerrainTypes.ARCHIPELAGO_MOUNTAINS;
             case PLATEAU -> ModTerrainTypes.ARCHIPELAGO_PLATEAU;
             case HILLS -> ModTerrainTypes.ARCHIPELAGO_HILLS;
-            case FLATS -> ModTerrainTypes.SCATTERED_ARCHIPELAGO;
+            case FLATS -> scattered ? ModTerrainTypes.SCATTERED_ARCHIPELAGO : ModTerrainTypes.ARCHIPELAGO_HILLS;
         };
     }
 }

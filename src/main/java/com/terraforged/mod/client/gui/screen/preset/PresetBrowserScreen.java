@@ -186,6 +186,8 @@ public final class PresetBrowserScreen extends Screen {
         world.continent.guaranteedContinentsEnabled = false;
         world.continent.continentSkipping = 0.95F;
         world.continent.continentScale = Math.min(world.continent.continentScale, 1000);
+        world.islands.archipelago = true;
+        world.islands.archipelagoChance = Math.max(world.islands.archipelagoChance, 0.55F);
         world.islands.scatteredArchipelago = true;
         world.islands.scatteredArchipelagoChance = Math.max(world.islands.scatteredArchipelagoChance, 0.65F);
         world.islands.volcanicIslandsChance = Math.max(world.islands.volcanicIslandsChance, 0.35F);

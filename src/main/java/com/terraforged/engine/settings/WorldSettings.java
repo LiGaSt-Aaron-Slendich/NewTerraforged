@@ -48,15 +48,26 @@ public class WorldSettings {
         public float volcanicIslandsChance = 0.15f;
 
         @Comment(value = {
-                "Enable Scattered Archipelago features: one large island plus many small ones",
-                "(small islands from 15 blocks up to 1000 blocks across)."
+                "Enable Archipelago clusters: 2–5 islands total (including the main one),",
+                "each 50–300 blocks across. Water between them is Laguna (max 15 deep)."
+        })
+        public boolean archipelago = true;
+
+        @Range(min = 0.0f, max = 1.0f)
+        @Comment(value = {
+                "Chance to place an Archipelago cluster (2–5 islands, 50–300 wide) where eligible."
+        })
+        public float archipelagoChance = 0.30f;
+
+        @Comment(value = {
+                "Enable Scattered Archipelago: many more islands than Archipelago,",
+                "each 15–500 blocks across. Laguna between members (max 15 deep)."
         })
         public boolean scatteredArchipelago = true;
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
-                "Chance to place a Scattered Archipelago cluster where eligible.",
-                "Water between member islands is Laguna (shallow, max 15 blocks deep)."
+                "Chance to place a Scattered Archipelago cluster (many islands, 15–500 wide)."
         })
         public float scatteredArchipelagoChance = 0.35f;
 
