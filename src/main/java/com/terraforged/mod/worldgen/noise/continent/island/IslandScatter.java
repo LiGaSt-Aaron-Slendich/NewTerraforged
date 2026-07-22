@@ -415,10 +415,11 @@ public final class IslandScatter {
         float sizeMul = sizeRoll < 0.25F ? 0.55F + sizeRoll * 1.0F
                 : sizeRoll < 0.75F ? 0.85F + (sizeRoll - 0.25F) * 0.9F
                 : 1.15F + (sizeRoll - 0.75F) * 1.4F;
-        float shelfBase = scattered ? 900.0F : 420.0F;
-        float shelfSpan = scattered ? 4200.0F : 1600.0F;
+        // Archipelago shelf max ≈ (210+790)*sizeMul≈1.5 → ~1500 (was ~3000). Scattered unchanged.
+        float shelfBase = scattered ? 900.0F : 210.0F;
+        float shelfSpan = scattered ? 4200.0F : 790.0F;
         float shelfRx = (shelfBase + hash01(seed ^ 3, cx, cz) * shelfSpan) * sizeMul;
-        float shelfRz = ((scattered ? 700.0F : 320.0F) + hash01(seed ^ 4, cx, cz) * (scattered ? 3800.0F : 1400.0F)) * sizeMul;
+        float shelfRz = ((scattered ? 700.0F : 160.0F) + hash01(seed ^ 4, cx, cz) * (scattered ? 3800.0F : 700.0F)) * sizeMul;
         float aspectShelf = 0.35F + hash01(seed ^ 5, cx, cz) * 1.4F;
         shelfRz = Math.min(shelfRx * aspectShelf, shelfRx * 1.8F);
         float shelfAngle = hash01(seed ^ 6, cx, cz) * NoiseUtil.PI2;
