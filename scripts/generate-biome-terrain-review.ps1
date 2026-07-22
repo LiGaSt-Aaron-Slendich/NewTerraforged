@@ -239,6 +239,7 @@ foreach ($id in ($climate.Keys | Sort-Object)) {
 }
 if ($issues.Count -eq 0) { $lines.Add('_none found automatically_') } else { foreach ($i in $issues) { $lines.Add($i) } }
 
-$lines | Set-Content -Path $outPath -Encoding UTF8
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($outPath, (($lines -join "`n") + "`n"), $utf8NoBom)
 Write-Output "Wrote $outPath"
 Write-Output "Biomes: $($climate.Count), Rule terrains: $($rules.Keys.Count), Missing: $($missing.Count), Issues: $($issues.Count)"

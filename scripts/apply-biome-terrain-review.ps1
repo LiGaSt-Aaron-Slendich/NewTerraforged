@@ -115,7 +115,9 @@ Write-Section $buf 'laguna' 'blacklist' @(
 
 $text = ($buf -join "`n") + "`n"
 if ($PSCmdlet.ShouldProcess($outPath, 'Write biome-terrain-integration.toml')) {
-    Set-Content -Path $outPath -Value $text -Encoding UTF8
+    # NightConfig rejects UTF-8 BOM (Invalid bare key: \uFEFF#)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($outPath, $text, $utf8NoBom)
     Write-Output "Wrote $outPath"
 } else {
     Write-Output "WhatIf: would write $($buf.Count) lines to $outPath"
