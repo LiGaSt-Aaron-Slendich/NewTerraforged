@@ -572,20 +572,24 @@ public final class NvFlagPanel extends Screen {
         int hx = listX + listW + 60;
         int hy = 50;
         int hw = Math.max(80, this.width - hx - 8);
-        int preview = BiomePreviewIcons.SIZE;
+        // Asset is 144x144; shrink only if the panel is too short.
+        int preview = Math.min(BiomePreviewIcons.SIZE, Math.max(72, this.height - hy - 120));
+        preview = Math.min(preview, Math.max(72, hw / 2));
         fill(pose, hx, hy, hx + preview, hy + preview, 0x66000000);
         if (this.selectedRule != null) {
-            blitPreview(pose, BiomePreviewIcons.forBiome(this.selectedRule.biome), hx, hy);
+            blitPreview(pose, BiomePreviewIcons.forBiome(this.selectedRule.biome), hx, hy, preview);
         } else {
             drawCenteredString(pose, this.font, "img", hx + preview / 2, hy + preview / 2 - 4, 0xFF666666);
         }
 
         String name = this.selectedRule != null ? this.selectedRule.biome : "(select a biome)";
-        drawString(pose, this.font, trim(name, hw - preview - 8), hx + preview + 8, hy + 6, 0xFFFFFFFF);
+        int textX = hx + preview + 8;
+        int textW = Math.max(40, this.width - textX - 8);
+        drawString(pose, this.font, trim(name, textW), textX, hy + 6, 0xFFFFFFFF);
         String desc = this.selectedRule == null
                 ? "Pick a biome, then Edit. Hover icons for name + chance."
                 : "slope=" + this.selectedRule.canBeOnSlope;
-        drawString(pose, this.font, trim(desc, hw - preview - 8), hx + preview + 8, hy + 22, 0xFFCCCCCC);
+        drawString(pose, this.font, trim(desc, textW), textX, hy + 22, 0xFFCCCCCC);
 
         int rowY = hy + preview + 8;
         rowY = this.drawIconRow(pose, "Terrains", hx, rowY, hw, mouseX, mouseY, this.terrainIcons(), false, false);
@@ -815,13 +819,13 @@ public final class NvFlagPanel extends Screen {
         blit(pose, x, y, 0, 0, ICON, ICON, ICON, ICON);
     }
 
-    private static void blitPreview(PoseStack pose, ResourceLocation tex, int x, int y) {
+    private static void blitPreview(PoseStack pose, ResourceLocation tex, int x, int y, int drawSize) {
         int s = BiomePreviewIcons.SIZE;
         RenderSystem.setShader(GameRenderer::getPositionTexShader);
         RenderSystem.setShaderTexture(0, tex);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.enableBlend();
-        blit(pose, x, y, 0, 0, s, s, s, s);
+        blit(pose, x, y, drawSize, drawSize, 0.0F, 0.0F, s, s, s, s);
     }
 
     private void renderHoveredIconTooltip(PoseStack pose, int mouseX, int mouseY) {

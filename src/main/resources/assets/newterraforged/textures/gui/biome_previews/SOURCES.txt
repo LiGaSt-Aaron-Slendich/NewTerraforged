@@ -1,0 +1,11 @@
+Biome preview sources (compressed to 144x144 PNG; originals not shipped)
+
+BYG (76):
+  https://github.com/Potion-Studios/BYG
+  path: Common/.../assets/byg/textures/biome_previews/
+  branch: 1.18.X
+  License: see BYG repository
+
+Regions Unexplored (71):
+  https://gist.github.com/catter1/1f90b77263e3746c20c1fd93a7393f69
+  Vanilla (non-shader) screenshot per biome, center-cropped + downscaled

@@ -5,11 +5,11 @@ import java.util.Locale;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Compact 32×32 biome header previews (natively authored — not downscaled HD screenshots).
- * Wiki/Fandom asset download was blocked (HTTP 403); vanilla-ish set shipped as tiny PNGs.
+ * Biome header previews at {@link #SIZE}px (center-cropped + downscaled from GitHub screenshots).
+ * Namespaced packs: {@code byg/}, {@code regions_unexplored/}; fallbacks in root.
  */
 public final class BiomePreviewIcons {
-    public static final int SIZE = 32;
+    public static final int SIZE = 144;
     private static final String BASE = "textures/gui/biome_previews/";
 
     private BiomePreviewIcons() {}
@@ -18,12 +18,24 @@ public final class BiomePreviewIcons {
         if (biomeId == null || biomeId.isBlank()) {
             return tex("generic");
         }
-        String path = biomeId;
+        String full = biomeId.toLowerCase(Locale.ROOT);
+        String path = full;
+        String ns = "";
         int colon = path.indexOf(':');
         if (colon >= 0) {
+            ns = path.substring(0, colon);
             path = path.substring(colon + 1);
         }
-        path = path.toLowerCase(Locale.ROOT).replace('-', '_');
+        path = path.replace('-', '_');
+
+        // Pack-specific screenshots first (byg / regions_unexplored)
+        if ("byg".equals(ns) || "biomeswevegone".equals(ns) || "oh_the_biomes_youll_go".equals(ns)) {
+            return namespaced("byg", path);
+        }
+        if ("regions_unexplored".equals(ns) || "regionsunexplored".equals(ns)) {
+            return namespaced("regions_unexplored", path);
+        }
+
         // Exact / known aliases
         ResourceLocation exact = tryExact(path);
         if (exact != null) {
@@ -142,6 +154,10 @@ public final class BiomePreviewIcons {
 
     private static boolean contains(String path, String token) {
         return path.contains(token);
+    }
+
+    private static ResourceLocation namespaced(String folder, String path) {
+        return new ResourceLocation(TerraForged.MODID, BASE + folder + "/" + path + ".png");
     }
 
     private static ResourceLocation tex(String name) {
