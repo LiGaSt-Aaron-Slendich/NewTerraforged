@@ -2,6 +2,7 @@ package com.terraforged.mod.platform.forge;
 
 import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
+import com.terraforged.mod.worldgen.biome.terrain.TerrainGroup;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +24,11 @@ public final class TFBiomeTerrainIntegrationConfig {
     }
 
     private void read(CommentedFileConfig root) {
+        // TOML [group.plains] nests as group -> plains; recurse so expand("group.plains") still works.
+        readSections(root, "");
+    }
+
+    private void readSections(Config root, String prefix) {
         for (String key : root.valueMap().keySet()) {
             if (key.equalsIgnoreCase("settings")) {
                 continue;
@@ -31,10 +37,15 @@ public final class TFBiomeTerrainIntegrationConfig {
             if (!(raw instanceof Config)) {
                 continue;
             }
-            Config section = (Config)raw;
-            TerrainRules rules = TFBiomeTerrainIntegrationConfig.parseRules(section);
+            Config section = (Config) raw;
+            String fullKey = prefix.isEmpty() ? key : prefix + "." + key;
+            TerrainRules rules = parseRules(section);
             if (!rules.isEmpty()) {
-                this.terrains.put(key.toLowerCase(Locale.ROOT), rules);
+                for (String terrain : TerrainGroup.expand(List.of(fullKey))) {
+                    this.terrains.merge(terrain.toLowerCase(Locale.ROOT), rules, TerrainRules::merge);
+                }
+            } else {
+                readSections(section, fullKey);
             }
         }
     }
@@ -51,8 +62,8 @@ public final class TFBiomeTerrainIntegrationConfig {
     }
 
     private static TerrainRules parseRules(Config section) {
-        Set<ResourceLocation> whitelist = TFBiomeTerrainIntegrationConfig.readBiomeList(section, "whitelist");
-        Set<ResourceLocation> blacklist = TFBiomeTerrainIntegrationConfig.readBiomeList(section, "blacklist");
+        Set<ResourceLocation> whitelist = readBiomeList(section, "whitelist");
+        Set<ResourceLocation> blacklist = readBiomeList(section, "blacklist");
         if (whitelist.isEmpty() && blacklist.isEmpty()) {
             return TerrainRules.EMPTY;
         }
@@ -65,18 +76,17 @@ public final class TFBiomeTerrainIntegrationConfig {
             return Set.of();
         }
         HashSet<ResourceLocation> out = new HashSet<>();
-        for (Object item : (List)raw) {
+        for (Object item : (List) raw) {
             if (!(item instanceof String)) {
                 continue;
             }
-            String line = ((String)item).trim();
+            String line = ((String) item).trim();
             if (!line.contains(":")) {
                 continue;
             }
             try {
                 out.add(new ResourceLocation(line));
-            }
-            catch (Exception ignored) {
+            } catch (Exception ignored) {
             }
         }
         return out.isEmpty() ? Set.of() : Collections.unmodifiableSet(out);
@@ -97,6 +107,24 @@ public final class TFBiomeTerrainIntegrationConfig {
                 return this.whitelist.contains(biomeId);
             }
             return !this.blacklist.contains(biomeId);
+        }
+
+        /** Union lists when multiple toml sections map to the same concrete terrain. */
+        public static TerrainRules merge(TerrainRules a, TerrainRules b) {
+            if (a == null || a.isEmpty()) {
+                return b == null ? EMPTY : b;
+            }
+            if (b == null || b.isEmpty()) {
+                return a;
+            }
+            HashSet<ResourceLocation> wl = new HashSet<>(a.whitelist);
+            wl.addAll(b.whitelist);
+            HashSet<ResourceLocation> bl = new HashSet<>(a.blacklist);
+            bl.addAll(b.blacklist);
+            return new TerrainRules(
+                    wl.isEmpty() ? Set.of() : Collections.unmodifiableSet(wl),
+                    bl.isEmpty() ? Set.of() : Collections.unmodifiableSet(bl)
+            );
         }
     }
 }

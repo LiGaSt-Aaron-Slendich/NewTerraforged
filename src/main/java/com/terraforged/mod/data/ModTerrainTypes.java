@@ -11,6 +11,12 @@ public interface ModTerrainTypes extends ModRegistry {
    Terrain DOLOMITES = TerrainHelper.getOrCreate("dolomites", TerrainType.MOUNTAINS);
    /** Shallow water between archipelago islands — laguna, not rivers. */
    Terrain LAGUNA = TerrainHelper.getOrCreate("laguna", TerrainType.SHALLOW_OCEAN);
+   /** Island landforms for biome↔terrain integrator (delegate to stock categories). */
+   Terrain ISLAND_HILLS = TerrainHelper.getOrCreate("island_hills", TerrainType.HILLS);
+   Terrain ISLAND_PLATEAU = TerrainHelper.getOrCreate("island_plateau", TerrainType.PLATEAU);
+   Terrain ISLAND_MOUNTAINS = TerrainHelper.getOrCreate("island_mountains", TerrainType.MOUNTAINS);
+   Terrain ISLAND_FLATS = TerrainHelper.getOrCreate("island_flats", TerrainType.FLATS);
+   Terrain ISLAND_VOLCANO = TerrainHelper.getOrCreate("island_volcano", TerrainType.VOLCANO);
 
    static void register() {
       TerrainType.forEach(terrain -> {

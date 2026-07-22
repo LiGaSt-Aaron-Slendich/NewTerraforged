@@ -123,7 +123,7 @@ public final class PreviewIslandPainter {
             return;
         }
         if (eval.volcano()) {
-            cell.terrain = TerrainType.VOLCANO;
+            cell.terrain = ModTerrainTypes.ISLAND_VOLCANO;
         } else if (eval.hydrology() == IslandScatter.Hydrology.RIVER) {
             cell.terrain = TerrainType.RIVER;
             cell.continentEdge = Math.max(cell.continentEdge, 0.62F);
@@ -147,10 +147,10 @@ public final class PreviewIslandPainter {
 
     private static Terrain landformTerrain(IslandScatter.Landform landform, boolean scattered) {
         return switch (landform) {
-            case MOUNTAINS -> TerrainType.MOUNTAINS;
-            case PLATEAU -> TerrainType.PLATEAU;
-            case HILLS -> TerrainType.HILLS;
-            case FLATS -> scattered ? TerrainType.FLATS : TerrainType.HILLS;
+            case MOUNTAINS -> ModTerrainTypes.ISLAND_MOUNTAINS;
+            case PLATEAU -> ModTerrainTypes.ISLAND_PLATEAU;
+            case HILLS -> ModTerrainTypes.ISLAND_HILLS;
+            case FLATS -> scattered ? ModTerrainTypes.ISLAND_FLATS : ModTerrainTypes.ISLAND_HILLS;
         };
     }
 }

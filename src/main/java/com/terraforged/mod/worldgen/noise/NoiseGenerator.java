@@ -315,7 +315,12 @@ public class NoiseGenerator implements INoiseGenerator {
             || terrain == TerrainType.VOLCANO_PIPE
             || terrain == TerrainType.RIVER
             || terrain == TerrainType.LAKE
-            || terrain == ModTerrainTypes.LAGUNA) {
+            || terrain == ModTerrainTypes.LAGUNA
+            || terrain == ModTerrainTypes.ISLAND_HILLS
+            || terrain == ModTerrainTypes.ISLAND_PLATEAU
+            || terrain == ModTerrainTypes.ISLAND_MOUNTAINS
+            || terrain == ModTerrainTypes.ISLAND_FLATS
+            || terrain == ModTerrainTypes.ISLAND_VOLCANO) {
          return terrain;
       }
       return null;

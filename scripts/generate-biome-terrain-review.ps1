@@ -1,8 +1,44 @@
-$root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$surfacePath = Join-Path $root "Forge\main\resources\defaultconfigs\NewTerraForged\Terrain\surface-biomes.toml"
-$terrainPath = Join-Path $root "Forge\main\resources\defaultconfigs\NewTerraForged\Terrain\biome-terrain-integration.toml"
-$outPath = Join-Path $root "docs\biome-terrain-review.md"
+# Autogenerates docs/biome-terrain-review.md from surface-biomes.toml + biome-terrain-integration.toml.
+# Expands TerrainGroup sections (group.plains, nested group -> plains, bare group ids).
+#
+# Loop with apply-biome-terrain-review.ps1:
+#   apply  -> toml
+#   generate -> review (verify suggested vs allowed)
+
+$ErrorActionPreference = 'Stop'
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$surfacePath = Join-Path $root 'Forge\main\resources\defaultconfigs\NewTerraForged\Terrain\surface-biomes.toml'
+$terrainPath = Join-Path $root 'Forge\main\resources\defaultconfigs\NewTerraForged\Terrain\biome-terrain-integration.toml'
+$outPath = Join-Path $root 'docs\biome-terrain-review.md'
 New-Item -ItemType Directory -Force -Path (Split-Path $outPath) | Out-Null
+
+# Mirror TerrainGroup.java
+$TerrainGroups = @{
+    mountains        = @('mountains_1', 'mountains_2', 'mountains_3')
+    mountains_ridge  = @('mountains_ridge_1', 'mountains_ridge_2')
+    hills            = @('hills_1', 'hills_2')
+    plains           = @('steppe', 'plains')
+    plateau          = @('plateau')
+    badlands         = @('badlands')
+    dolomites        = @('dolomites')
+    steppe           = @('steppe')
+    dales            = @('dales')
+    torridonian      = @('torridonian')
+    island           = @('island_hills', 'island_plateau', 'island_mountains', 'island_flats')
+    island_hills     = @('island_hills')
+    island_plateau   = @('island_plateau')
+    island_mountains = @('island_mountains')
+    island_flats     = @('island_flats')
+    island_volcano   = @('island_volcano')
+    laguna           = @('laguna')
+}
+
+function Expand-TerrainKey([string]$raw) {
+    $key = $raw.Trim().ToLowerInvariant()
+    if ($key.StartsWith('group.')) { $key = $key.Substring(6) }
+    if ($TerrainGroups.ContainsKey($key)) { return @($TerrainGroups[$key]) }
+    return @($key)
+}
 
 $climate = @{}
 $currentClimate = $null
@@ -15,22 +51,48 @@ Get-Content $surfacePath | ForEach-Object {
 
 $terrains = @(
     'steppe', 'plains', 'hills_1', 'hills_2', 'dales', 'plateau', 'badlands', 'torridonian',
-    'mountains_1', 'mountains_2', 'mountains_3', 'dolomites', 'mountains_ridge_1', 'mountains_ridge_2'
+    'mountains_1', 'mountains_2', 'mountains_3', 'dolomites', 'mountains_ridge_1', 'mountains_ridge_2',
+    'island_hills', 'island_plateau', 'island_mountains', 'island_flats', 'island_volcano', 'laguna'
 )
+
+function Merge-Rules($a, $b) {
+    if (-not $a) { return $b }
+    if (-not $b) { return $a }
+    return @{
+        whitelist = @($a.whitelist + $b.whitelist | Select-Object -Unique)
+        blacklist = @($a.blacklist + $b.blacklist | Select-Object -Unique)
+    }
+}
+
 $rules = @{}
-$currentTerrain = $null
+$currentSection = $null
 $mode = $null
+$pending = @{}  # section key -> rules before expand
 Get-Content $terrainPath | ForEach-Object {
     if ($_ -match '^\[(.+)\]') {
-        $currentTerrain = $Matches[1]
-        $rules[$currentTerrain] = @{ whitelist = @(); blacklist = @() }
+        $currentSection = $Matches[1].Trim('"')
+        if (-not $pending.ContainsKey($currentSection)) {
+            $pending[$currentSection] = @{ whitelist = [System.Collections.Generic.List[string]]::new(); blacklist = [System.Collections.Generic.List[string]]::new() }
+        }
+        $mode = $null
     }
-    elseif ($currentTerrain -and $_ -match '^\s*"(.+)"') {
-        if ($mode -eq 'whitelist') { $rules[$currentTerrain].whitelist += $Matches[1] }
-        elseif ($mode -eq 'blacklist') { $rules[$currentTerrain].blacklist += $Matches[1] }
+    elseif ($currentSection -and $_ -match '^\s*"(.+)"') {
+        if ($mode -eq 'whitelist') { $pending[$currentSection].whitelist.Add($Matches[1]) | Out-Null }
+        elseif ($mode -eq 'blacklist') { $pending[$currentSection].blacklist.Add($Matches[1]) | Out-Null }
     }
     elseif ($_ -match 'whitelist\s*=') { $mode = 'whitelist' }
     elseif ($_ -match 'blacklist\s*=') { $mode = 'blacklist' }
+}
+
+foreach ($sec in $pending.Keys) {
+    $parsed = @{
+        whitelist = @($pending[$sec].whitelist)
+        blacklist = @($pending[$sec].blacklist)
+    }
+    if ($parsed.whitelist.Count -eq 0 -and $parsed.blacklist.Count -eq 0) { continue }
+    foreach ($t in (Expand-TerrainKey $sec)) {
+        $rules[$t] = Merge-Rules $rules[$t] $parsed
+    }
 }
 
 function Test-Allowed([string]$biomeId, [string]$terrain) {
@@ -47,37 +109,45 @@ function Get-HeuristicTerrains([string]$biomeId, [string]$clim) {
     $isBeach = $n -match 'beach|shore|dune_beach|gravel_beach'
     $isSwamp = $n -match 'swamp|bayou|marsh|mangrove|wetland|bog|fen|orchid_swamp|white_mangrove'
     $isJungle = $n -match 'jungle|rainforest|bamboo|tropics|tropical|fungal_jungle' -and $n -notmatch 'temperate_rainforest|cold'
+    $isVolcano = $n -match 'volcano|volcanic_crater|volcanic_peaks|ashen_savanna|basalt_deltas|magma_wastes|basalt_barrera'
     $isAlpine = $n -match 'alpine|glacial|frozen|snowy|ice|tundra|siberian|frost|cold_|icy_|winter|peak|summit|highland|mountain|ridge|cliff|crag|torridonian|dolomite|yosemite|shield|granite|basalt_cliffs|white_cliffs|volcanic|scarlet|crimson|ashen|fractured'
 
     if ($isMesa) { $rec.Add('badlands'); return $rec }
     if ($isBeach) { $rec.Add('coast_override'); return $rec }
-    if ($isSwamp) { foreach ($t in @('dales', 'steppe', 'plains')) { $rec.Add($t) }; return $rec }
-    if ($isJungle) { foreach ($t in @('steppe', 'plains', 'dales')) { $rec.Add($t) }; return $rec }
+    if ($isVolcano) { foreach ($t in @('island_volcano', 'badlands')) { $rec.Add($t) }; return $rec }
+    if ($isSwamp) {
+        foreach ($t in @('dales', 'steppe', 'plains', 'island_hills', 'island_flats', 'laguna')) { $rec.Add($t) }
+        return $rec
+    }
+    if ($isJungle) {
+        foreach ($t in @('steppe', 'plains', 'dales', 'island_hills', 'island_flats', 'laguna')) { $rec.Add($t) }
+        return $rec
+    }
     if ($isAlpine -or $clim -eq 'alpine') {
-        foreach ($t in @('mountains_1', 'mountains_2', 'mountains_3', 'dolomites', 'mountains_ridge_1', 'mountains_ridge_2', 'torridonian', 'hills_2', 'plateau')) { $rec.Add($t) }
+        foreach ($t in @('mountains_1', 'mountains_2', 'mountains_3', 'dolomites', 'mountains_ridge_1', 'mountains_ridge_2', 'torridonian', 'hills_2', 'plateau', 'island_mountains', 'island_plateau')) { $rec.Add($t) }
         return $rec
     }
     if ($clim -in @('desert', 'savanna', 'cold_steppe', 'steppe')) {
-        foreach ($t in @('steppe', 'plains', 'hills_1', 'hills_2', 'dales', 'plateau')) { $rec.Add($t) }
+        foreach ($t in @('steppe', 'plains', 'hills_1', 'hills_2', 'dales', 'plateau', 'island_hills', 'island_flats', 'island_plateau')) { $rec.Add($t) }
         return $rec
     }
-    foreach ($t in @('plains', 'steppe', 'hills_1', 'hills_2', 'dales', 'plateau')) { $rec.Add($t) }
+    foreach ($t in @('plains', 'steppe', 'hills_1', 'hills_2', 'dales', 'plateau', 'island_hills', 'island_flats')) { $rec.Add($t) }
     return $rec
 }
 
 $jarBiomes = @{}
-$mods = "C:\curseforge\minecraft\Instances\TerraforgedTest\mods"
+$mods = 'C:\curseforge\minecraft\Instances\TerraforgedTest\mods'
 $jarSpecs = @{
-    "Terralith_1.18.2_v2.2.6.jar" = "terralith"
-    "BiomesOPlenty-1.18.2-16.0.0.134.jar" = "biomesoplenty"
-    "RegionsUnexploredForge-0.4.1_1+1.18.2.jar" = "regions_unexplored"
-    "wn_1.18.2_terrablender_r1.0.jar" = "wildnature"
+    'Terralith_1.18.2_v2.2.6.jar' = 'terralith'
+    'BiomesOPlenty-1.18.2-16.0.0.134.jar' = 'biomesoplenty'
+    'RegionsUnexploredForge-0.4.1_1+1.18.2.jar' = 'regions_unexplored'
+    'wn_1.18.2_terrablender_r1.0.jar' = 'wildnature'
 }
 foreach ($kv in $jarSpecs.GetEnumerator()) {
     $p = Join-Path $mods $kv.Key
     if (-not (Test-Path $p)) { continue }
     $ns = $kv.Value
-    jar tf $p | ForEach-Object {
+    jar tf $p 2>$null | ForEach-Object {
         if ($_ -match "^data/$ns/worldgen/biome/([^/]+)\.json$") {
             $jarBiomes["${ns}:$($Matches[1])"] = $ns
         }
@@ -86,27 +156,27 @@ foreach ($kv in $jarSpecs.GetEnumerator()) {
 
 $bygInConfig = @($climate.Keys | Where-Object { $_ -like 'byg:*' })
 $missing = @($jarBiomes.Keys | Where-Object { -not $climate.ContainsKey($_) } | Sort-Object)
-$badlandsWl = $rules['badlands'].whitelist
+$badlandsWl = @()
+if ($rules['badlands']) { $badlandsWl = @($rules['badlands'].whitelist) }
 $mesaIds = @($climate.Keys | Where-Object { $_ -match 'badlands|mesa|outback|dryland|lush_desert|volcanic_plains|arid_mountains|barley_fields|desert_canyon|painted_mountains|bryce|sandstone_valley' } | Sort-Object)
 
 $lines = [System.Collections.Generic.List[string]]::new()
 $lines.Add('# Biome - Terrain Review (TerraforgedTest pack)')
 $lines.Add('')
-$lines.Add('> Autogenerated for review. After verification, update biome-terrain-integration.toml.')
+$lines.Add('> Autogenerated for review. Apply with `scripts/apply-biome-terrain-review.ps1`, then regenerate.')
 $lines.Add('')
-$lines.Add('## Does terrain integrator still work after rollbacks?')
+$lines.Add('## Pipeline')
 $lines.Add('')
-$lines.Add('**Yes.** Cave rollbacks did not touch this layer. Pipeline:')
-$lines.Add('')
-$lines.Add('1. IBiomeSampler.getSample() -> SurfaceBiomeClimate.adjustForTerrain() shifts climate for terrain')
-$lines.Add('2. BiomeSampler.sampleBiome() picks biome from climate pool (surface-biomes.toml)')
-$lines.Add('3. BiomeTerrainIntegration.filter() applies biome-terrain-integration.toml rules / fallback')
-$lines.Add('4. getBiomeOverride() handles ocean / beach / river separately')
+$lines.Add('1. `surface-biomes.toml` climate pools')
+$lines.Add('2. `BiomeSampler` picks candidate')
+$lines.Add('3. `BiomeTerrainIntegration.filter()` uses expanded `biome-terrain-integration.toml` (TerrainGroup)')
+$lines.Add('4. Island paint uses `island_*` / `laguna` terrain names for filtering')
 $lines.Add('')
 $lines.Add('## Stats')
 $lines.Add('')
 $lines.Add("- Biomes in surface-biomes.toml: **$($climate.Count)**")
-$lines.Add("- Terrains with rules: **$($terrains.Count)**")
+$lines.Add("- Concrete terrains with rules: **$($rules.Keys.Count)**")
+$lines.Add("- Reviewed terrain columns: **$($terrains.Count)**")
 $lines.Add("- Surface JSON biomes in jars (Terralith/BOP/RU/WN): **$($jarBiomes.Count)**")
 $lines.Add("- BYG biomes (config only, no JSON in jar): **$($bygInConfig.Count)**")
 $lines.Add('')
@@ -146,6 +216,7 @@ foreach ($cl in $climates) {
         if ($id -match 'swamp|bayou|marsh|mangrove') { $notes += 'swamp-family' }
         if ($id -match 'badlands|mesa|outback') { $notes += 'mesa-family' }
         if ($id -match 'beach|shore') { $notes += 'beach (coast override)' }
+        if ($id -match 'island|laguna|volcano') { $notes += 'island-relevant' }
         $noteStr = $notes -join '; '
         $lines.Add("| $id | $allowed | $blocked | $suggested | $noteStr |")
     }
@@ -170,4 +241,4 @@ if ($issues.Count -eq 0) { $lines.Add('_none found automatically_') } else { for
 
 $lines | Set-Content -Path $outPath -Encoding UTF8
 Write-Output "Wrote $outPath"
-Write-Output "Biomes: $($climate.Count), Missing: $($missing.Count), Issues: $($issues.Count)"
+Write-Output "Biomes: $($climate.Count), Rule terrains: $($rules.Keys.Count), Missing: $($missing.Count), Issues: $($issues.Count)"
