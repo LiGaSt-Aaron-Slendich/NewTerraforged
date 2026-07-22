@@ -144,7 +144,7 @@ public final class BiomeRuleRegistry {
                 } catch (IOException e) {
                     TerraForged.LOG.error("[BiomeRules] failed to quarantine {}", file, e);
                 }
-                rule = BiomeRuleAutogen.generate(id, biome);
+                rule = createNewRule(id, biome);
                 try {
                     BiomeRuleIO.write(file, rule);
                     kind = 3;
@@ -154,7 +154,7 @@ public final class BiomeRuleRegistry {
                 }
             }
         } else {
-            rule = BiomeRuleAutogen.generate(id, biome);
+            rule = createNewRule(id, biome);
             try {
                 BiomeRuleIO.write(file, rule);
                 kind = 2;
@@ -167,6 +167,14 @@ public final class BiomeRuleRegistry {
             RULES.put(id, rule);
         }
         return kind;
+    }
+
+    /**
+     * New file body: curated defaults (when ENABLED) → else emergency autogen.
+     */
+    private static BiomeRule createNewRule(ResourceLocation id, Biome biome) {
+        BiomeRuleDefaults.ensureLoaded();
+        return BiomeRuleDefaults.tryCopyFor(id).orElseGet(() -> BiomeRuleAutogen.generate(id, biome));
     }
 
     /** Auto volcano biomes generated before volcano/volcano_pipe were wired — rewrite once. */

@@ -15,6 +15,8 @@ public final class TFConfigPaths {
     /** Per-biome terrain rules: {@code Terrain_rules/Biomes/{mod}/{biome}.json} */
     public static final String TERRAIN_RULES = "NewTerraForged/Terrain/Terrain_rules";
     public static final String TERRAIN_RULES_BIOMES = "NewTerraForged/Terrain/Terrain_rules/Biomes";
+    /** Bundled curated defaults (see BiomeRuleDefaults.ENABLED). */
+    public static final String TERRAIN_RULES_DEFAULTS = "NewTerraForged/Terrain/Terrain_rules/Defaults";
     public static final String DECORATOR_ROUTING = "NewTerraForged/Critical Options/Hybrid options/decorator-routing.toml";
 
     private TFConfigPaths() {

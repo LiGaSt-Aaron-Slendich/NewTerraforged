@@ -125,7 +125,7 @@ public final class BiomeRuleAutogen {
             }
         }
 
-        // Climate tags from temp / name
+        // Climate tags from temp / name / tokens (emergency path — curated defaults will be richer later)
         float temp = biome.getBaseTemperature();
         if (temp > 1.0F) {
             climateTags.add("hot");
@@ -134,6 +134,21 @@ public final class BiomeRuleAutogen {
         }
         if (biome.getPrecipitation() == Precipitation.SNOW) {
             climateTags.add("snowy");
+        }
+        if (tokensContain(tokens, Set.of("desert", "dune", "dunes", "arid", "dryland"))) {
+            climateTags.add("desert");
+        }
+        if (tokensContain(tokens, Set.of("savanna", "savannah", "scrub"))) {
+            climateTags.add("savanna");
+        }
+        if (tokensContain(tokens, Set.of("taiga", "boreal", "coniferous"))) {
+            climateTags.add("taiga");
+        }
+        if (tokensContain(tokens, Set.of("tundra", "frozen", "ice", "icy"))) {
+            climateTags.add("tundra");
+        }
+        if (tokensContain(tokens, Set.of("temperate", "deciduous", "forest", "grove")) && !climateTags.contains("jungle")) {
+            climateTags.add("temperate");
         }
         if (tokensContain(tokens, Set.of("jungle", "rainforest", "bamboo", "tropic", "tropics"))) {
             climateTags.add("jungle");

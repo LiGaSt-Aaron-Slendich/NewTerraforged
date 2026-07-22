@@ -1,0 +1,35 @@
+{
+  "_comment": "Reference dictionary for BiomeRuleAutogen token sets (form > material; soft/wet downgrades mountain→hills). Not loaded at runtime yet — documentation for authoring defaults.",
+  "form": {
+    "mountain": ["mountain", "mountains", "peak", "peaks", "summit", "ridge", "highland", "highlands", "alps", "alpine", "crag", "cliff", "cliffs", "sierra"],
+    "hills": ["hill", "hills", "foothill", "foothills", "rolling"],
+    "plateau": ["plateau", "mesa", "tableland"],
+    "flat": ["plains", "plain", "flat", "flats", "steppe", "field", "fields", "meadow"],
+    "badlands": ["badlands", "canyon", "canyons", "butte", "hoodoo", "bryce"],
+    "beach": ["beach", "shore", "coast", "dune", "dunes", "barrera", "barrier"],
+    "volcano": ["volcano", "volcanic", "caldera", "crater"],
+    "swamp": ["swamp", "marsh", "bog", "fen", "mangrove", "bayou", "wetland"]
+  },
+  "material": {
+    "soft": ["sand", "sandy", "dirt", "mud", "muddy", "clay", "silt", "soil", "loam", "peat", "moss", "gravel", "ash", "dust"],
+    "wet": ["swamp", "marsh", "bog", "fen", "mangrove", "wetland", "muddy", "soggy", "lush", "river", "lake", "aquatic", "coral", "kelp", "flooded", "rain", "rainforest"],
+    "skip_as_form": ["snowy", "snow", "frozen", "ice", "icy", "cold", "warm", "hot", "dry", "lush", "old", "growth", "deep", "shallow", "giant", "sparse", "wooded", "temperate", "tropical", "modified"]
+  },
+  "climate_tags_written_by_autogen": {
+    "from_form": {
+      "badlands": ["desert", "mesa"],
+      "beach+volcanic": ["volcanic"],
+      "volcano": ["volcanic"],
+      "swamp": ["wet"],
+      "mountain/peak": ["alpine"],
+      "jungle_tokens": ["jungle"]
+    },
+    "from_biome_stats": {
+      "temp_gt_1.0": ["hot"],
+      "temp_lt_0.2": ["cold"],
+      "precipitation_snow": ["snowy"]
+    },
+    "rarely_emitted_today": ["desert", "savanna", "taiga", "tundra", "temperate", "oceanic", "continental"]
+  },
+  "priority": "form tokens win over material; if form is mountain/peak AND material soft|wet → downgrade to hills"
+}

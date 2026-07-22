@@ -1,0 +1,71 @@
+{
+  "_comment": "canonical_name -> synonym biome path tokens / full paths. Used only when BiomeRuleDefaults.ENABLED=true.",
+  "volcano": [
+    "volcano",
+    "volcanic",
+    "volcanic_peaks",
+    "volcanic_crater",
+    "volcanic_plains",
+    "caldera",
+    "crater"
+  ],
+  "plains": [
+    "plains",
+    "plain",
+    "meadow",
+    "grassland",
+    "prairie"
+  ],
+  "desert": [
+    "desert",
+    "dunes",
+    "dryland",
+    "outback"
+  ],
+  "swamp": [
+    "swamp",
+    "marsh",
+    "bog",
+    "fen",
+    "bayou",
+    "mangrove",
+    "wetland"
+  ],
+  "mountains": [
+    "mountain",
+    "mountains",
+    "peaks",
+    "peak",
+    "alps",
+    "highland"
+  ],
+  "badlands": [
+    "badlands",
+    "mesa",
+    "canyon",
+    "bryce"
+  ],
+  "beach": [
+    "beach",
+    "shore",
+    "coast",
+    "dune_beach",
+    "barrera"
+  ],
+  "jungle": [
+    "jungle",
+    "rainforest",
+    "tropical_jungle",
+    "bamboo"
+  ],
+  "taiga": [
+    "taiga",
+    "boreal",
+    "coniferous"
+  ],
+  "tundra": [
+    "tundra",
+    "frozen",
+    "snowy_plains"
+  ]
+}
