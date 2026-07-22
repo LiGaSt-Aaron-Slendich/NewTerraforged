@@ -198,6 +198,11 @@ public final class BiomeRuleRegistry {
         if (tokenIn(path, "prairie", "prairies") && rule.terrains.containsKey("plains")) {
             return true;
         }
+        // river biomes must use river terrain (old templates used steppe/plains/dales).
+        if (tokenIn(path, "river", "rivers", "stream", "creek", "brook")
+                && !rule.terrains.containsKey("river")) {
+            return true;
+        }
         return false;
     }
 

@@ -17,6 +17,11 @@ public final class BiomeRuleIcons {
         if (id.isEmpty()) {
             return tex("terrain_generic");
         }
+        // Subterrains first (more specific names)
+        ResourceLocation sub = subterrain(id);
+        if (sub != null) {
+            return sub;
+        }
         if (id.equals("plains")) {
             return tex("terrain_plains");
         }
@@ -25,6 +30,9 @@ public final class BiomeRuleIcons {
         }
         if (id.equals("dales")) {
             return tex("terrain_dales");
+        }
+        if (id.equals("river")) {
+            return tex("terrain_river");
         }
         if (id.equals("plateau") || id.equals("island_plateau")) {
             return tex("terrain_plateau");
@@ -62,10 +70,29 @@ public final class BiomeRuleIcons {
         return tex("terrain_generic");
     }
 
+    /** Dedicated subterrain icons; null if not a known subterrain id. */
+    public static ResourceLocation subterrain(String id) {
+        return switch (norm(id)) {
+            case "river_bank" -> tex("sub_river_bank");
+            case "canyon" -> tex("sub_canyon");
+            case "desert_canyon" -> tex("sub_desert_canyon");
+            case "ocean_beach" -> tex("sub_ocean_beach");
+            case "sea_beach" -> tex("sub_sea_beach");
+            case "volcanic_beach" -> tex("sub_volcanic_beach");
+            case "mountain_peak" -> tex("sub_mountain_peak");
+            case "bare_mountain_peak" -> tex("sub_bare_mountain_peak");
+            case "mountain_body" -> tex("sub_mountain_body");
+            case "mountain_foothill" -> tex("sub_mountain_foothill");
+            case "bare_mountain" -> tex("sub_bare_mountain");
+            default -> null;
+        };
+    }
+
     public static ResourceLocation climate(String tag) {
         String id = norm(tag);
         return switch (id) {
             case "wet" -> tex("climate_wet");
+            case "warm" -> tex("climate_warm");
             case "hot" -> tex("climate_hot");
             case "cold" -> tex("climate_cold");
             case "snowy" -> tex("climate_snowy");

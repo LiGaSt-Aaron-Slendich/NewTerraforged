@@ -1,12 +1,9 @@
 {
   "biome": "template:river",
   "can_be_on_slope": false,
-  "climate_tags": ["wet"],
+  "climate_tags": ["temperate", "wet"],
   "terrains": {
-    "dales": 1.0,
-    "plains": 0.8,
-    "steppe": 0.5,
-    "island_flats": 0.4
+    "river": 1.0
   },
   "subterrains": {
     "river_bank": 1.0

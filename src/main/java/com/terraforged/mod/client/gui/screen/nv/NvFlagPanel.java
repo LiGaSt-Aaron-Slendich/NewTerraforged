@@ -46,7 +46,7 @@ public final class NvFlagPanel extends Screen {
     private static final int BTN_ICON = 20;
 
     private static final List<String> ADDABLE_TERRAINS = List.of(
-            "plains", "steppe", "dales", "hills_1", "hills_2", "plateau", "badlands", "beach",
+            "plains", "steppe", "dales", "river", "hills_1", "hills_2", "plateau", "badlands", "beach",
             "mountains_1", "mountains_2", "mountains_3", "mountains_ridge_1", "mountains_ridge_2",
             "dolomites", "torridonian", "volcano", "volcano_pipe", "island_flats", "island_hills",
             "island_plateau", "island_mountains", "island_volcano", "laguna"
@@ -572,17 +572,22 @@ public final class NvFlagPanel extends Screen {
         int hx = listX + listW + 60;
         int hy = 50;
         int hw = Math.max(80, this.width - hx - 8);
-        fill(pose, hx, hy, hx + 48, hy + 48, 0x66000000);
-        drawCenteredString(pose, this.font, "img", hx + 24, hy + 20, 0xFF666666);
+        int preview = BiomePreviewIcons.SIZE;
+        fill(pose, hx, hy, hx + preview, hy + preview, 0x66000000);
+        if (this.selectedRule != null) {
+            blitPreview(pose, BiomePreviewIcons.forBiome(this.selectedRule.biome), hx, hy);
+        } else {
+            drawCenteredString(pose, this.font, "img", hx + preview / 2, hy + preview / 2 - 4, 0xFF666666);
+        }
 
         String name = this.selectedRule != null ? this.selectedRule.biome : "(select a biome)";
-        drawString(pose, this.font, trim(name, hw - 56), hx + 56, hy + 6, 0xFFFFFFFF);
+        drawString(pose, this.font, trim(name, hw - preview - 8), hx + preview + 8, hy + 6, 0xFFFFFFFF);
         String desc = this.selectedRule == null
                 ? "Pick a biome, then Edit. Hover icons for name + chance."
                 : "slope=" + this.selectedRule.canBeOnSlope;
-        drawString(pose, this.font, trim(desc, hw - 56), hx + 56, hy + 22, 0xFFCCCCCC);
+        drawString(pose, this.font, trim(desc, hw - preview - 8), hx + preview + 8, hy + 22, 0xFFCCCCCC);
 
-        int rowY = hy + 56;
+        int rowY = hy + preview + 8;
         rowY = this.drawIconRow(pose, "Terrains", hx, rowY, hw, mouseX, mouseY, this.terrainIcons(), false, false);
         rowY = this.drawIconRow(pose, "Subterrains", hx, rowY, hw, mouseX, mouseY, this.subterrainIcons(), false, false);
         rowY = this.drawIconRow(pose, "Climate", hx, rowY, hw, mouseX, mouseY, this.climateIcons(), false, false);
@@ -720,7 +725,11 @@ public final class NvFlagPanel extends Screen {
             return out;
         }
         for (Map.Entry<String, Float> e : this.selectedRule.subterrains.entrySet()) {
-            out.add(new IconSpec(BiomeRuleIcons.terrain(e.getKey()), e.getKey(), e.getKey(), "chance " + fmt(e.getValue()), true, true));
+            ResourceLocation icon = BiomeRuleIcons.subterrain(e.getKey());
+            if (icon == null) {
+                icon = BiomeRuleIcons.terrain(e.getKey());
+            }
+            out.add(new IconSpec(icon, e.getKey(), e.getKey(), "chance " + fmt(e.getValue()), true, true));
         }
         return out;
     }
@@ -804,6 +813,15 @@ public final class NvFlagPanel extends Screen {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.enableBlend();
         blit(pose, x, y, 0, 0, ICON, ICON, ICON, ICON);
+    }
+
+    private static void blitPreview(PoseStack pose, ResourceLocation tex, int x, int y) {
+        int s = BiomePreviewIcons.SIZE;
+        RenderSystem.setShader(GameRenderer::getPositionTexShader);
+        RenderSystem.setShaderTexture(0, tex);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
+        blit(pose, x, y, 0, 0, s, s, s, s);
     }
 
     private void renderHoveredIconTooltip(PoseStack pose, int mouseX, int mouseY) {

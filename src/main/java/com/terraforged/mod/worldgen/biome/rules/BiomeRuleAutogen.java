@@ -13,6 +13,7 @@ import net.minecraft.world.level.biome.Biome.Precipitation;
 /**
  * Builds a starting BiomeRule from biome id tokens + MC temp/precipitation.
  * Form tokens beat material; soft/wet material downgrades mountain/peak form to hills.
+ * Climate prefers explicit name tokens (warm_river, muddy_river, …).
  */
 public final class BiomeRuleAutogen {
     private static final Set<String> FORM_MOUNTAIN = Set.of(
@@ -21,34 +22,31 @@ public final class BiomeRuleAutogen {
     private static final Set<String> FORM_HILLS = Set.of(
             "hill", "hills", "foothill", "foothills", "rolling", "height", "heights", "upland", "uplands");
     private static final Set<String> FORM_PLATEAU = Set.of("plateau", "mesa", "tableland");
-    /** Prairie / steppe only — must NOT pull plains. */
     private static final Set<String> FORM_STEPPE = Set.of("steppe", "prairie", "prairies", "veld", "pampa", "pampas");
-    private static final Set<String> FORM_FLAT = Set.of("plains", "plain", "flat", "flats", "field", "fields", "meadow", "grassland");
+    private static final Set<String> FORM_FLAT = Set.of(
+            "plains", "plain", "flat", "flats", "field", "fields", "meadow", "grassland", "land", "lands");
     private static final Set<String> FORM_BADLANDS = Set.of("badlands", "canyon", "canyons", "butte", "hoodoo", "bryce");
     private static final Set<String> FORM_BEACH = Set.of("beach", "shore", "coast", "dune", "dunes", "barrera", "barrier");
     private static final Set<String> FORM_VOLCANO = Set.of("volcano", "volcanic", "caldera", "crater");
     private static final Set<String> FORM_SWAMP = Set.of("swamp", "marsh", "bog", "fen", "mangrove", "bayou", "wetland");
-    private static final Set<String> FORM_RIVER = Set.of("river", "stream", "creek", "brook");
+    private static final Set<String> FORM_RIVER = Set.of("river", "rivers", "stream", "streams", "creek", "creeks", "brook", "brooks");
 
     private static final Set<String> MATERIAL_SOFT = Set.of(
             "sand", "sandy", "dirt", "mud", "muddy", "clay", "silt", "soil", "loam", "peat", "moss", "gravel", "ash", "dust");
     private static final Set<String> MATERIAL_WET = Set.of(
-            "swamp", "marsh", "bog", "fen", "mangrove", "wetland", "muddy", "soggy", "lush", "river", "lake",
+            "swamp", "marsh", "bog", "fen", "mangrove", "wetland", "muddy", "soggy", "lush", "river", "rivers", "lake",
             "aquatic", "coral", "kelp", "flooded", "rain", "rainforest");
-    private static final Set<String> MATERIAL_SKIP = Set.of(
-            "snowy", "snow", "frozen", "ice", "icy", "cold", "warm", "hot", "dry", "lush", "old", "growth",
-            "deep", "shallow", "giant", "sparse", "wooded", "temperate", "tropical", "modified");
 
     private BiomeRuleAutogen() {
     }
 
     public static BiomeRule generate(ResourceLocation id, Biome biome) {
         String path = id.getPath().toLowerCase(Locale.ROOT);
-        List<String> tokens = tokenize(path);
-        Form form = detectForm(tokens);
-        boolean softOrWet = isSoftOrWet(tokens, biome);
+        BiomeNameTokens.Parsed parsed = BiomeNameTokens.parsePath(path);
+        Form form = detectForm(parsed.formTokens());
+        boolean softOrWet = isSoftOrWet(parsed.all(), biome);
         if ((form == Form.MOUNTAIN || form == Form.PEAK) && softOrWet) {
-            form = Form.HILLS; // soft/wet material downgrades mountain form → hills
+            form = Form.HILLS;
         }
 
         Map<String, Float> terrains = new LinkedHashMap<>();
@@ -68,15 +66,13 @@ public final class BiomeRuleAutogen {
                 terrains.put("beach", 1.0F);
                 subterrains.put("ocean_beach", 0.7F);
                 subterrains.put("sea_beach", 0.3F);
-                if (tokensContain(tokens, FORM_VOLCANO) || tokensContain(tokens, Set.of("basalt", "ash", "magma"))) {
+                if (tokensContain(parsed.all(), FORM_VOLCANO) || tokensContain(parsed.all(), Set.of("basalt", "ash", "magma"))) {
                     subterrains.put("volcanic_beach", 0.7F);
                     climateTags.add("volcanic");
                     zoneFlags.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(112.0F, 1.0F));
                 }
-                canSlope = false;
             }
             case VOLCANO -> {
-                // Engine terrains: volcano / volcano_pipe; island paint: island_volcano.
                 terrains.put("volcano", 1.0F);
                 terrains.put("volcano_pipe", 0.85F);
                 terrains.put("island_volcano", 1.0F);
@@ -89,19 +85,15 @@ public final class BiomeRuleAutogen {
                 terrains.put("dales", 1.0F);
                 terrains.put("plains", 0.5F);
                 terrains.put("island_flats", 0.5F);
-                terrains.put("island_hills", 0.4F);
+                subterrains.put("river_bank", 0.3F);
                 climateTags.add("wet");
             }
             case RIVER -> {
-                terrains.put("dales", 1.0F);
-                terrains.put("plains", 0.8F);
-                terrains.put("steppe", 0.5F);
-                terrains.put("island_flats", 0.4F);
+                // Engine terrain is TerrainType.RIVER — not steppe/plains.
+                terrains.put("river", 1.0F);
                 subterrains.put("river_bank", 1.0F);
-                climateTags.add("wet");
             }
             case STEPPE -> {
-                // Prairie / steppe biomes: steppe only (not plains).
                 terrains.put("steppe", 1.0F);
                 terrains.put("island_flats", 0.4F);
             }
@@ -137,7 +129,6 @@ public final class BiomeRuleAutogen {
                 climateTags.add("alpine");
             }
             case FLAT -> {
-                // Generic flats: plains primary; light steppe allowed (not prairie-exclusive).
                 terrains.put("plains", 1.0F);
                 terrains.put("steppe", 0.5F);
                 terrains.put("dales", 0.6F);
@@ -145,58 +136,43 @@ public final class BiomeRuleAutogen {
             }
         }
 
-        // Climate tags from temp / name / tokens (emergency path — curated defaults will be richer later)
-        float temp = biome.getBaseTemperature();
-        if (temp > 1.0F) {
-            climateTags.add("hot");
-        } else if (temp < 0.2F) {
-            climateTags.add("cold");
-        }
-        if (biome.getPrecipitation() == Precipitation.SNOW) {
-            climateTags.add("snowy");
-        }
-        if (tokensContain(tokens, Set.of("desert", "dune", "dunes", "arid", "dryland"))) {
-            climateTags.add("desert");
-        }
-        if (tokensContain(tokens, Set.of("savanna", "savannah", "scrub"))) {
-            climateTags.add("savanna");
-        }
-        if (tokensContain(tokens, Set.of("taiga", "boreal", "coniferous"))) {
-            climateTags.add("taiga");
-        }
-        if (tokensContain(tokens, Set.of("tundra", "frozen", "ice", "icy"))) {
-            climateTags.add("tundra");
-        }
-        if (tokensContain(tokens, Set.of("temperate", "deciduous", "forest", "grove")) && !climateTags.contains("jungle")) {
-            climateTags.add("temperate");
-        }
-        if (tokensContain(tokens, Set.of("jungle", "rainforest", "bamboo", "tropic", "tropics"))) {
-            climateTags.add("jungle");
-            if (!terrains.containsKey("plains")) {
-                terrains.put("plains", 1.0F);
-                terrains.put("steppe", 0.8F);
-                terrains.put("dales", 0.8F);
+        applyClimateFromName(climateTags, parsed.climateTokens(), form);
+        // Fallback to MC climate only when name gave nothing useful.
+        if (climateTags.isEmpty()) {
+            applyClimateFromBiome(climateTags, biome);
+        } else {
+            // Still honour snow precip as additive.
+            if (biome.getPrecipitation() == Precipitation.SNOW && !climateTags.contains("snowy")) {
+                climateTags.add("snowy");
             }
-            // jungle not on high mountains unless form stayed mountain
+        }
+
+        if (tokensContain(parsed.all(), FORM_BADLANDS) || tokensContain(parsed.all(), Set.of("mesa", "outback", "terracotta"))) {
+            if (form != Form.BADLANDS) {
+                terrains.clear();
+                subterrains.clear();
+                terrains.put("badlands", 1.0F);
+                subterrains.put("canyon", 0.5F);
+                subterrains.put("desert_canyon", 0.5F);
+                canSlope = false;
+                climateTags.add("mesa");
+            }
+        }
+
+        if (tokensContain(parsed.all(), Set.of("volcanic", "ashen", "basalt", "magma")) && form != Form.VOLCANO) {
+            climateTags.add("volcanic");
+            zoneFlags.putIfAbsent(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(96.0F, 0.85F));
+        }
+
+        if (tokensContain(parsed.all(), Set.of("jungle", "rainforest", "bamboo", "tropic", "tropics"))) {
+            if (!climateTags.contains("jungle")) {
+                climateTags.add("jungle");
+            }
             if (form == Form.FLAT || form == Form.HILLS || form == Form.SWAMP) {
                 terrains.remove("mountains_1");
                 terrains.remove("mountains_2");
                 terrains.remove("mountains_3");
             }
-        }
-        if (tokensContain(tokens, FORM_BADLANDS) || tokensContain(tokens, Set.of("mesa", "outback", "terracotta"))) {
-            terrains.clear();
-            subterrains.clear();
-            terrains.put("badlands", 1.0F);
-            subterrains.put("canyon", 0.5F);
-            subterrains.put("desert_canyon", 0.5F);
-            canSlope = false;
-            climateTags.add("mesa");
-        }
-
-        if (tokensContain(tokens, Set.of("volcanic", "ashen", "basalt", "magma")) && form != Form.VOLCANO) {
-            climateTags.add("volcanic");
-            zoneFlags.putIfAbsent(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(96.0F, 0.85F));
         }
 
         if (terrains.isEmpty()) {
@@ -208,20 +184,95 @@ public final class BiomeRuleAutogen {
         return new BiomeRule(id.toString(), canSlope, distinct(climateTags), terrains, subterrains, zoneFlags, true);
     }
 
-    private static List<String> tokenize(String path) {
-        String[] parts = path.split("[_/\\-]+");
-        List<String> out = new ArrayList<>();
-        for (String p : parts) {
-            if (p == null || p.isBlank()) {
-                continue;
-            }
-            out.add(p.toLowerCase(Locale.ROOT));
+    /**
+     * Name-driven climate. Examples:
+     * warm_river → warm; muddy_river → temperate + wet; frozen_river → cold + snowy.
+     */
+    private static void applyClimateFromName(List<String> climateTags, List<String> tokens, Form form) {
+        boolean named = false;
+        if (tokensContain(tokens, Set.of("warm", "lukewarm", "mild"))) {
+            climateTags.add("warm");
+            named = true;
         }
-        return out;
+        if (tokensContain(tokens, Set.of("hot", "scorched", "burning", "tropic", "tropical"))) {
+            climateTags.add("hot");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("cold", "cool", "chilly", "frigid"))) {
+            climateTags.add("cold");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("frozen", "snowy", "snow", "ice", "icy", "glacial"))) {
+            climateTags.add("snowy");
+            climateTags.add("cold");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("muddy", "mud", "humid", "damp", "soggy", "lush", "wet"))) {
+            climateTags.add("wet");
+            // muddy_* = standard/temperate + wet
+            if (tokensContain(tokens, Set.of("muddy", "mud")) && !climateTags.contains("warm") && !climateTags.contains("hot")
+                    && !climateTags.contains("cold") && !climateTags.contains("snowy")) {
+                climateTags.add("temperate");
+            }
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("dry", "arid", "parched"))) {
+            climateTags.add("desert");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("desert", "dune", "dunes", "dryland"))) {
+            climateTags.add("desert");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("savanna", "savannah", "scrub"))) {
+            climateTags.add("savanna");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("taiga", "boreal", "coniferous"))) {
+            climateTags.add("taiga");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("tundra"))) {
+            climateTags.add("tundra");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("temperate", "deciduous", "grove", "forest")) && !climateTags.contains("jungle")) {
+            climateTags.add("temperate");
+            named = true;
+        }
+        if (tokensContain(tokens, Set.of("river", "rivers", "stream", "creek", "brook")) || form == Form.RIVER) {
+            // Rivers are wet unless an explicit dry adjective won; warm_river stays warm+wet.
+            if (!climateTags.contains("desert") && !climateTags.contains("dry")) {
+                climateTags.add("wet");
+            }
+            named = true;
+        }
+        if (!named && form == Form.RIVER) {
+            climateTags.add("temperate");
+            climateTags.add("wet");
+        }
+    }
+
+    private static void applyClimateFromBiome(List<String> climateTags, Biome biome) {
+        float temp = biome.getBaseTemperature();
+        if (temp > 1.0F) {
+            climateTags.add("hot");
+        } else if (temp > 0.8F) {
+            climateTags.add("warm");
+        } else if (temp < 0.2F) {
+            climateTags.add("cold");
+        } else {
+            climateTags.add("temperate");
+        }
+        if (biome.getPrecipitation() == Precipitation.SNOW) {
+            climateTags.add("snowy");
+        }
+        if (biome.getPrecipitation() == Precipitation.RAIN && temp > 0.5F && temp < 1.0F) {
+            climateTags.add("wet");
+        }
     }
 
     private static Form detectForm(List<String> tokens) {
-        // Form wins: scan all tokens; more specific forms first.
         if (tokensContain(tokens, FORM_BEACH)) {
             return Form.BEACH;
         }
@@ -262,7 +313,6 @@ public final class BiomeRuleAutogen {
         if (tokensContain(tokens, MATERIAL_SOFT) || tokensContain(tokens, MATERIAL_WET)) {
             return true;
         }
-        // Name-driven primarily; rain + wetland-ish tokens already covered above.
         return biome.getPrecipitation() == Precipitation.RAIN
                 && tokensContain(tokens, Set.of("forest", "grove", "woods"))
                 && tokensContain(tokens, MATERIAL_SOFT);
@@ -273,7 +323,6 @@ public final class BiomeRuleAutogen {
             if (set.contains(t)) {
                 return true;
             }
-            // skip pure climate adjectives when matching form sets that include them? handled by MATERIAL_SKIP elsewhere
         }
         return false;
     }
