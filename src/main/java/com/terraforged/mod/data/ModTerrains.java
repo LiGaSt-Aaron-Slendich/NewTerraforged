@@ -64,36 +64,6 @@ public interface ModTerrains extends ModRegistry {
       ModRegistries.register(TERRAIN, "dolomites", ModTerrains.Factory.createDolomite(null, seed, ModTerrainTypes.DOLOMITES, 1.25F));
       ModRegistries.register(
          TERRAIN,
-         "volcanic_island",
-         ModTerrains.Factory.create(null, seed, ModTerrainTypes.VOLCANIC_ISLAND, 0.75F, LandForms::mountains)
-      );
-      ModRegistries.register(
-         TERRAIN,
-         "coastal_island",
-         ModTerrains.Factory.create(null, seed, ModTerrainTypes.COASTAL_ISLAND, 0.9F, LandForms::hills1)
-      );
-      ModRegistries.register(
-         TERRAIN,
-         "scattered_archipelago",
-         ModTerrains.Factory.create(null, seed, ModTerrainTypes.SCATTERED_ARCHIPELAGO, 1.0F, LandForms::plains)
-      );
-      ModRegistries.register(
-         TERRAIN,
-         "archipelago_hills",
-         ModTerrains.Factory.create(null, seed, ModTerrainTypes.ARCHIPELAGO_HILLS, 1.0F, LandForms::hills1)
-      );
-      ModRegistries.register(
-         TERRAIN,
-         "archipelago_plateau",
-         ModTerrains.Factory.create(null, seed, ModTerrainTypes.ARCHIPELAGO_PLATEAU, 1.1F, LandForms::plateau)
-      );
-      ModRegistries.register(
-         TERRAIN,
-         "archipelago_mountains",
-         ModTerrains.Factory.create(null, seed, ModTerrainTypes.ARCHIPELAGO_MOUNTAINS, 0.9F, LandForms::mountains)
-      );
-      ModRegistries.register(
-         TERRAIN,
          "laguna",
          ModTerrains.Factory.create(null, seed, ModTerrainTypes.LAGUNA, 0.5F, LandForms::plains)
       );

@@ -127,16 +127,14 @@ public final class PreviewPage implements Page {
 
     private static final String[] TERRAIN_FILTERS = {
             "",
-            "scattered_archipelago",
-            "archipelago_hills",
-            "archipelago_plateau",
-            "archipelago_mountains",
-            "volcanic_island",
+            "hills",
+            "plateau",
+            "mountains",
+            "flats",
+            "volcano",
             "volcano_pipe",
-            "coastal_island",
             "laguna",
-            "dolomites",
-            "mountains"
+            "dolomites"
     };
 
     private static String nextTerrainFilter(String current) {

@@ -71,32 +71,32 @@ public final class PreviewIslandPainter {
                 if (archOn && archChance > 0.0F) {
                     paintEval(cell, IslandScatter.evalArchipelago(
                             worldX, worldZ, paintSeed, archChance, proximity, midOcean,
-                            IslandScatter.ArchipelagoStyle.ARCHIPELAGO, cn), water, true, cn, shipwrecked);
+                            IslandScatter.ArchipelagoStyle.ARCHIPELAGO, cn), water, cn, shipwrecked);
                 }
                 if (scatteredOn && scatteredChance > 0.0F) {
                     paintEval(cell, IslandScatter.evalArchipelago(
                             worldX, worldZ, paintSeed, scatteredChance, proximity, midOcean,
-                            IslandScatter.ArchipelagoStyle.SCATTERED, cn), water, true, cn, shipwrecked);
+                            IslandScatter.ArchipelagoStyle.SCATTERED, cn), water, cn, shipwrecked);
                 }
                 paintEval(cell, IslandScatter.evalIndependentIsland(
                         worldX, worldZ, paintSeed, clusterPressure, coastal, proximity, midOcean, shipwrecked, cn),
-                        water, true, cn, shipwrecked);
+                        water, cn, shipwrecked);
                 if (volcanic > 0.0F) {
                     paintEval(cell, IslandScatter.evalOceanVolcano(
                             worldX, worldZ, paintSeed, volcanic, proximity, midOcean, clusterPressure, cn),
-                            water, false, cn, shipwrecked);
+                            water, cn, shipwrecked);
                 }
             }
 
             if (cn < IslandScatter.SHORE_CULL_CN) {
                 paintEval(cell, IslandScatter.evalCoastalFreckle(
-                        worldX, worldZ, paintSeed, coastal, volcanic, cn), water, false, cn, shipwrecked);
+                        worldX, worldZ, paintSeed, coastal, volcanic, cn), water, cn, shipwrecked);
             }
         });
     }
 
     private static void paintEval(
-            Cell cell, IslandScatter.ClusterEval eval, float water, boolean archipelago, float originalCn, boolean shipwrecked
+            Cell cell, IslandScatter.ClusterEval eval, float water, float originalCn, boolean shipwrecked
     ) {
         if (eval == null || eval == IslandScatter.ClusterEval.NONE) {
             return;
@@ -121,7 +121,7 @@ public final class PreviewIslandPainter {
             return;
         }
         if (eval.volcano()) {
-            cell.terrain = originalCn < IslandScatter.SHORE_CULL_CN ? ModTerrainTypes.VOLCANIC_ISLAND : TerrainType.VOLCANO;
+            cell.terrain = TerrainType.VOLCANO;
         } else if (eval.hydrology() == IslandScatter.Hydrology.RIVER) {
             cell.terrain = TerrainType.RIVER;
             cell.continentEdge = Math.max(cell.continentEdge, 0.62F);
@@ -137,22 +137,18 @@ public final class PreviewIslandPainter {
             if (cell.terrain == TerrainType.VOLCANO_PIPE) {
                 return;
             }
-            cell.terrain = landformTerrain(
-                    eval.landform(), archipelago || originalCn < IslandScatter.SHORE_CULL_CN, eval.scattered());
+            cell.terrain = landformTerrain(eval.landform(), eval.scattered());
         }
         cell.continentEdge = Math.max(cell.continentEdge, 0.58F + eval.heightBoost() * 0.25F);
         cell.value = Math.max(cell.value, water + 0.02F + eval.heightBoost() * 0.20F);
     }
 
-    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean archipelago, boolean scattered) {
-        if (!archipelago) {
-            return ModTerrainTypes.COASTAL_ISLAND;
-        }
+    private static Terrain landformTerrain(IslandScatter.Landform landform, boolean scattered) {
         return switch (landform) {
-            case MOUNTAINS -> ModTerrainTypes.ARCHIPELAGO_MOUNTAINS;
-            case PLATEAU -> ModTerrainTypes.ARCHIPELAGO_PLATEAU;
-            case HILLS -> ModTerrainTypes.ARCHIPELAGO_HILLS;
-            case FLATS -> scattered ? ModTerrainTypes.SCATTERED_ARCHIPELAGO : ModTerrainTypes.ARCHIPELAGO_HILLS;
+            case MOUNTAINS -> TerrainType.MOUNTAINS;
+            case PLATEAU -> TerrainType.PLATEAU;
+            case HILLS -> TerrainType.HILLS;
+            case FLATS -> scattered ? TerrainType.FLATS : TerrainType.HILLS;
         };
     }
 }

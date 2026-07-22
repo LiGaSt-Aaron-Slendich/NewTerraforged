@@ -1,17 +1,13 @@
 package com.terraforged.mod.worldgen.noise;
 
-import com.terraforged.engine.Seed;
 import com.terraforged.engine.settings.Settings;
 import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.engine.world.GeneratorContext;
 import com.terraforged.engine.world.heightmap.ControlPoints;
-import com.terraforged.engine.world.heightmap.Levels;
-import com.terraforged.engine.world.terrain.LandForms;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.util.SpiralIterator;
 import com.terraforged.mod.data.ModTerrainTypes;
-import com.terraforged.mod.util.seed.RandSeed;
 import com.terraforged.mod.worldgen.asset.TerrainNoise;
 import com.terraforged.mod.worldgen.noise.continent.ContinentNoise;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
@@ -33,11 +29,6 @@ public class NoiseGenerator implements INoiseGenerator {
    protected final TerrainBlender land;
    protected final IContinentNoise continent;
    protected final ControlPoints controlPoints;
-   /** Same LandForms modules as ModTerrains/TerrainNoiseBuilder — used for island overlay height. */
-   protected final Module islandHills;
-   protected final Module islandPlateau;
-   protected final Module islandMountains;
-   protected final Module islandPlains;
    protected final ThreadLocal<NoiseData> localChunk = ThreadLocal.withInitial(NoiseData::new);
    protected final ThreadLocal<NoiseSample> localSample = ThreadLocal.withInitial(NoiseSample::new);
 
@@ -56,11 +47,6 @@ public class NoiseGenerator implements INoiseGenerator {
       this.land = createLandTerrain(seed, terrainNoises, settings);
       this.continent = createContinentNoise(seed, levels, settings);
       this.controlPoints = this.continent.getControlPoints();
-      IslandLandforms islandForms = createIslandLandforms(settings);
-      this.islandHills = islandForms.hills;
-      this.islandPlateau = islandForms.plateau;
-      this.islandMountains = islandForms.mountains;
-      this.islandPlains = islandForms.plains;
    }
 
    public NoiseGenerator(long seed, TerrainLevels levels, NoiseGenerator other) {
@@ -74,11 +60,6 @@ public class NoiseGenerator implements INoiseGenerator {
       this.ocean = createOceanTerrain(seed);
       this.continent = createContinentNoise(seed, levels, this.settings);
       this.controlPoints = this.continent.getControlPoints();
-      IslandLandforms islandForms = createIslandLandforms(this.settings);
-      this.islandHills = islandForms.hills;
-      this.islandPlateau = islandForms.plateau;
-      this.islandMountains = islandForms.mountains;
-      this.islandPlains = islandForms.plains;
    }
 
    public NoiseGenerator with(long seed, TerrainLevels levels) {
@@ -114,10 +95,9 @@ public class NoiseGenerator implements INoiseGenerator {
       if (terrain == null) {
          return 0L;
       }
-      // Island overlay terrains (laguna, archipelago, volcano, …) are painted by ContinentNoise,
-      // not by the land WeightMap. The old path also rejected submerged types via isOverground().
-      if (isOverlaySearchTerrain(terrain)) {
-         return findOverlayTerrain(x, z, minRadius, maxRadius, terrain);
+      // Island / volcano / laguna are painted into continentNoise (warp+offset frame).
+      if (isContinentPaintedSearchTerrain(terrain)) {
+         return findContinentPaintedTerrain(x, z, minRadius, maxRadius, terrain);
       }
       if (!terrain.isOverground()) {
          return 0L;
@@ -151,9 +131,9 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    /**
-    * Spiral-sample continent overlay for terrains that only exist there (laguna shelves, islands, volcanoes).
+    * Spiral-sample continent layer for terrains painted there (laguna, volcano, stamped landforms).
     */
-   private long findOverlayTerrain(int x, int z, int minRadius, int maxRadius, Terrain terrain) {
+   private long findContinentPaintedTerrain(int x, int z, int minRadius, int maxRadius, Terrain terrain) {
       int step = 16;
       int minCell = Math.max(0, minRadius / step);
       int maxCell = Math.max(minCell + 1, maxRadius / step);
@@ -177,31 +157,17 @@ public class NoiseGenerator implements INoiseGenerator {
       return 0L;
    }
 
-   private static boolean isOverlaySearchTerrain(Terrain terrain) {
+   private static boolean isContinentPaintedSearchTerrain(Terrain terrain) {
       if (terrain == null) {
          return false;
       }
       if (terrain == ModTerrainTypes.LAGUNA
-            || terrain == ModTerrainTypes.VOLCANIC_ISLAND
-            || terrain == ModTerrainTypes.COASTAL_ISLAND
-            || terrain == ModTerrainTypes.SCATTERED_ARCHIPELAGO
-            || terrain == ModTerrainTypes.ARCHIPELAGO_HILLS
-            || terrain == ModTerrainTypes.ARCHIPELAGO_PLATEAU
-            || terrain == ModTerrainTypes.ARCHIPELAGO_MOUNTAINS
             || terrain == TerrainType.VOLCANO
             || terrain == TerrainType.VOLCANO_PIPE) {
          return true;
       }
       String n = terrain.getName();
-      return "laguna".equals(n)
-            || "volcanic_island".equals(n)
-            || "coastal_island".equals(n)
-            || "scattered_archipelago".equals(n)
-            || "archipelago_hills".equals(n)
-            || "archipelago_plateau".equals(n)
-            || "archipelago_mountains".equals(n)
-            || "volcano".equals(n)
-            || "volcano_pipe".equals(n);
+      return "laguna".equals(n) || "volcano".equals(n) || "volcano_pipe".equals(n);
    }
 
    @Override
@@ -285,34 +251,34 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected void getOcean(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
-      Terrain island = islandTerrain(sample.terrainType);
-      float islandH = sample.heightNoise;
-      if (applyIslandSurface(sample, island, islandH, x, z, blender)) {
+      Terrain painted = preservePaintedTerrain(sample.terrainType);
+      float paintedH = sample.heightNoise;
+      if (painted == TerrainType.VOLCANO_PIPE) {
          return;
       }
       float f = this.ocean.getValue(x, z);
       sample.heightNoise = this.levels.noiseLevels.toDepthNoise(f);
       sample.terrainType = TerrainType.DEEP_OCEAN;
-      restoreIsland(sample, island, islandH);
+      restorePainted(sample, painted, paintedH);
    }
 
    protected void getInland(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
-      Terrain island = islandTerrain(sample.terrainType);
-      float islandH = sample.heightNoise;
-      if (applyIslandSurface(sample, island, islandH, x, z, blender)) {
+      Terrain painted = preservePaintedTerrain(sample.terrainType);
+      float paintedH = sample.heightNoise;
+      if (painted == TerrainType.VOLCANO_PIPE) {
          return;
       }
       float f = sample.baseNoise;
       float f1 = this.land.getValue(x, z, blender) * 1.2F;
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
-      restoreIsland(sample, island, islandH);
+      restorePainted(sample, painted, paintedH);
    }
 
    protected void getBlend(float x, float z, NoiseSample sample, TerrainBlender.Blender blender) {
-      Terrain island = islandTerrain(sample.terrainType);
-      float islandH = sample.heightNoise;
-      if (applyIslandSurface(sample, island, islandH, x, z, blender)) {
+      Terrain painted = preservePaintedTerrain(sample.terrainType);
+      float paintedH = sample.heightNoise;
+      if (painted == TerrainType.VOLCANO_PIPE) {
          return;
       }
       if (sample.continentNoise < 0.5F) {
@@ -330,89 +296,41 @@ public class NoiseGenerator implements INoiseGenerator {
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);
          sample.terrainType = this.land.getTerrain(blender);
       }
-      restoreIsland(sample, island, islandH);
+      restorePainted(sample, painted, paintedH);
    }
 
    /**
-    * Island overlays: label + footprint from overlay; height from the same LandForms modules
-    * registered for those types (hills1 / plateau / mountains / plains) — not the WeightMap blender.
+    * Terrains stamped by the continent island contributor (not ContinentPoints ocean/coast/none).
+    * Restored after WeightMap so island mountains stay mountains; height stays from blender.
     */
-   private boolean applyIslandSurface(
-         NoiseSample sample, Terrain island, float islandBoost, float x, float z, TerrainBlender.Blender blender
-   ) {
-      if (island == null) {
-         return false;
+   private static Terrain preservePaintedTerrain(Terrain terrain) {
+      if (terrain == null) {
+         return null;
       }
-      if (island == ModTerrainTypes.LAGUNA || island.isRiver() || island.isLake()) {
-         return false;
-      }
-
-      float base = sample.baseNoise;
-      Module module;
-      if (island == TerrainType.VOLCANO_PIPE) {
-         sample.heightNoise = this.levels.noiseLevels.toHeightNoise(base, 0.02F);
-         sample.terrainType = island;
-         return true;
-      }
-      if (island == TerrainType.VOLCANO || island == ModTerrainTypes.VOLCANIC_ISLAND
-            || island == ModTerrainTypes.ARCHIPELAGO_MOUNTAINS) {
-         module = this.islandMountains;
-      } else if (island == ModTerrainTypes.ARCHIPELAGO_PLATEAU) {
-         module = this.islandPlateau;
-      } else if (island == ModTerrainTypes.SCATTERED_ARCHIPELAGO) {
-         module = this.islandPlains;
-      } else {
-         // ARCHIPELAGO_HILLS, COASTAL_ISLAND — same as ModTerrains hills1
-         module = this.islandHills;
-      }
-
-      float relief = module.getValue(x, z) * this.heightMultiplier;
-      sample.heightNoise = this.levels.noiseLevels.toHeightNoise(base, relief);
-      sample.terrainType = island;
-      return true;
-   }
-
-   private static Terrain islandTerrain(Terrain terrain) {
-      if (terrain != null && (terrain.isRiver() || terrain.isLake())) {
-         return terrain;
-      }
-      if (terrain == ModTerrainTypes.VOLCANIC_ISLAND
-            || terrain == ModTerrainTypes.COASTAL_ISLAND
-            || terrain == ModTerrainTypes.SCATTERED_ARCHIPELAGO
-            || terrain == ModTerrainTypes.ARCHIPELAGO_HILLS
-            || terrain == ModTerrainTypes.ARCHIPELAGO_PLATEAU
-            || terrain == ModTerrainTypes.ARCHIPELAGO_MOUNTAINS
-            || terrain == ModTerrainTypes.LAGUNA
+      if (terrain == TerrainType.HILLS
+            || terrain == TerrainType.PLATEAU
+            || terrain == TerrainType.MOUNTAINS
+            || terrain == TerrainType.FLATS
             || terrain == TerrainType.VOLCANO
-            || terrain == TerrainType.VOLCANO_PIPE) {
+            || terrain == TerrainType.VOLCANO_PIPE
+            || terrain == TerrainType.RIVER
+            || terrain == TerrainType.LAKE
+            || terrain == ModTerrainTypes.LAGUNA) {
          return terrain;
       }
       return null;
    }
 
-   private static void restoreIsland(NoiseSample sample, Terrain island, float islandHeight) {
-      if (island == null) {
+   private static void restorePainted(NoiseSample sample, Terrain painted, float paintedHeight) {
+      if (painted == null) {
          return;
       }
-      sample.terrainType = island;
-      // Water types: keep overlay depth. Dry land: type only — never Math.max(raw heightBoost).
-      if (island == ModTerrainTypes.LAGUNA || island.isRiver() || island.isLake()) {
-         sample.heightNoise = Math.min(sample.heightNoise, islandHeight);
+      sample.terrainType = painted;
+      if (painted == ModTerrainTypes.LAGUNA || painted.isRiver() || painted.isLake()) {
+         sample.heightNoise = Math.min(sample.heightNoise, paintedHeight);
+      } else if (painted == TerrainType.VOLCANO_PIPE) {
+         sample.heightNoise = paintedHeight;
       }
-   }
-
-   private static IslandLandforms createIslandLandforms(Settings settings) {
-      Seed seed = new RandSeed(9712416L + (long) settings.terrain.general.terrainSeedOffset, 500000);
-      LandForms forms = new LandForms(settings.terrain, new Levels(settings.world), Source.ZERO);
-      return new IslandLandforms(
-            forms.hills1(seed),
-            forms.plateau(seed),
-            forms.mountains(seed),
-            forms.plains(seed)
-      );
-   }
-
-   private record IslandLandforms(Module hills, Module plateau, Module mountains, Module plains) {
    }
 
    protected Terrain getTerrain(float value, TerrainBlender.Blender blender) {

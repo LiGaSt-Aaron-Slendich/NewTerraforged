@@ -1,9 +1,10 @@
 package com.terraforged.mod.worldgen.noise.continent;
 
+import com.terraforged.engine.settings.WorldSettings;
 import com.terraforged.engine.world.GeneratorContext;
 import com.terraforged.engine.world.heightmap.ControlPoints;
+import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.worldgen.noise.IContinentNoise;
-import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
 import com.terraforged.mod.worldgen.noise.continent.island.IslandFeatureOverlay;
@@ -24,6 +25,7 @@ public class ContinentNoise implements IContinentNoise {
    protected final Vec2f offset;
    protected final float frequency;
    protected final IslandFeatureOverlay islandOverlay;
+   protected final boolean shipwrecked;
 
    public ContinentNoise(TerrainLevels levels, GeneratorContext context) {
       this.levels = levels;
@@ -34,6 +36,8 @@ public class ContinentNoise implements IContinentNoise {
       this.islandOverlay = new IslandFeatureOverlay(config);
       this.offset = this.generator.getWorldOffset();
       this.frequency = 1.0F / context.settings.world.continent.continentScale;
+      this.shipwrecked = context.settings.world.properties != null
+            && context.settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;
       double d0 = 0.2;
       Builder builder = Source.builder().octaves(3).lacunarity(2.2).frequency(3.0).gain(0.3);
       this.warp = Domain.warp(builder.seed(context.seed.next()).perlin2(), builder.seed(context.seed.next()).perlin2(), Source.constant(d0));
@@ -41,30 +45,30 @@ public class ContinentNoise implements IContinentNoise {
 
    @Override
    public void sampleContinent(float x, float y, NoiseSample sample) {
-      // x/y are noise coords (block * levels.frequency); overlay needs world blocks.
-      float freq = this.levels.noiseLevels.frequency;
-      float worldX = freq > 1.0E-6F ? x / freq : x;
-      float worldZ = freq > 1.0E-6F ? y / freq : y;
-      if (this.context.settings.world.properties != null
-              && this.context.settings.world.properties.worldStyle
-              == com.terraforged.engine.settings.WorldSettings.WorldStyle.SHIPWRECKED) {
-         // Islands-only: no mainland from shape; overlay places every landmass.
-         sample.continentNoise = 0.0F;
-         sample.baseNoise = 0.0F;
-         sample.heightNoise = 0.0F;
-         sample.terrainType = com.terraforged.engine.world.terrain.TerrainType.DEEP_OCEAN;
-         this.islandOverlay.apply(worldX, worldZ, sample, this.levels.seaLevel);
-         return;
-      }
+      // Same frame as rivers / shape: scale → warp → worldOffset, then island contribution.
       x *= this.frequency;
       y *= this.frequency;
       float f = this.warp.getX(x, y);
       float f1 = this.warp.getY(x, y);
       f += this.offset.x;
       f1 += this.offset.y;
-      this.generator.shapeGenerator.sample(f, f1, sample);
-      sample.terrainType = ContinentPoints.getTerrainType(sample.continentNoise);
-      this.islandOverlay.apply(worldX, worldZ, sample, this.levels.seaLevel);
+
+      if (this.shipwrecked) {
+         sample.continentNoise = 0.0F;
+         sample.baseNoise = 0.0F;
+         sample.heightNoise = 0.0F;
+         sample.terrainType = TerrainType.DEEP_OCEAN;
+      } else {
+         this.generator.shapeGenerator.sample(f, f1, sample);
+         sample.terrainType = ContinentPoints.getTerrainType(sample.continentNoise);
+      }
+
+      // Block-equivalent coords that include warp+offset so continent shift moves islands.
+      float noiseFreq = this.levels.noiseLevels.frequency;
+      float invNoise = noiseFreq > 1.0E-6F ? 1.0F / noiseFreq : 1.0F;
+      float islandX = f / this.frequency * invNoise;
+      float islandZ = f1 / this.frequency * invNoise;
+      this.islandOverlay.apply(islandX, islandZ, sample, this.levels.seaLevel);
    }
 
    @Override
