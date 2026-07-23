@@ -1,0 +1,40 @@
+{
+  "biome": "byg:crimson_gardens",
+  "generation_type": "transition",
+  "placement_type": "full_region",
+  "climates": [
+    "hot",
+    "wet"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.7,
+  "vegetation_density": 0.75,
+  "weight": 0.9,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 100,
+  "delta_temp": 25,
+  "cond_humidity": 55,
+  "delta_humidity": 15,
+  "cond_fertility": 90,
+  "delta_fertility": 25,
+  "stats": {
+    "conditions": {
+      "moisture": 1,
+      "temperature": -10.0,
+      "fertility": 2
+    },
+    "global": {
+      "moisture": 3,
+      "temperature": 0.0,
+      "fertility": 2
+    },
+    "local": {
+      "moisture": 2,
+      "temperature": 0.0,
+      "fertility": 1,
+      "falloff_per_hop": 0.85
+    }
+  }
+}

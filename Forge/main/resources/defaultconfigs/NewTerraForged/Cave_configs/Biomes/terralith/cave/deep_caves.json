@@ -1,0 +1,39 @@
+{
+  "biome": "terralith:cave/deep_caves",
+  "generation_type": "transition",
+  "placement_type": "full_region",
+  "climates": [
+    "normal"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.15,
+  "vegetation_density": 0.12,
+  "weight": 0.9,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 20,
+  "delta_temp": 20,
+  "cond_humidity": 35,
+  "delta_humidity": 15,
+  "cond_fertility": 30,
+  "delta_fertility": 20,
+  "stats": {
+    "conditions": {
+      "moisture": -10.0,
+      "temperature": -10.0,
+      "fertility": -10.0
+    },
+    "global": {
+      "moisture": -1,
+      "temperature": -1,
+      "fertility": -2
+    },
+    "local": {
+      "moisture": -1,
+      "temperature": -1,
+      "fertility": -1,
+      "falloff_per_hop": 1.0
+    }
+  }
+}

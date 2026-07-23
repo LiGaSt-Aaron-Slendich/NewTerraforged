@@ -1,0 +1,17 @@
+{
+  "biome": "minecraft:meadow",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "alpine"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "plains": 0.7,
+    "plateau": 0.55,
+    "island_hills": 0.45
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

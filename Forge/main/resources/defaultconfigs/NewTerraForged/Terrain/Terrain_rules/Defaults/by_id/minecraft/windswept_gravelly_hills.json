@@ -1,0 +1,20 @@
+{
+  "biome": "minecraft:windswept_gravelly_hills",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "cold",
+    "alpine"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "hills_2": 0.85,
+    "mountains_1": 0.45,
+    "island_hills": 0.45
+  },
+  "subterrains": {
+    "bare_mountain": 0.35
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

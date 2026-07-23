@@ -1,0 +1,40 @@
+{
+  "biome": "newterraforged:cave_thermal_springs",
+  "generation_type": "primary",
+  "placement_type": "full_region",
+  "climates": [
+    "hot",
+    "wet"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.9,
+  "vegetation_density": 0.15,
+  "weight": 1.0,
+  "stat_generator": true,
+  "auto_generated": false,
+  "cond_temp": 95,
+  "delta_temp": 25,
+  "cond_humidity": 70,
+  "delta_humidity": 20,
+  "cond_fertility": 80,
+  "delta_fertility": 25,
+  "stats": {
+    "conditions": {
+      "moisture": 1,
+      "temperature": 2,
+      "fertility": -10.0
+    },
+    "global": {
+      "moisture": 0.0,
+      "temperature": 0.0,
+      "fertility": 0.0
+    },
+    "local": {
+      "moisture": 4,
+      "temperature": 3,
+      "fertility": 4,
+      "falloff_per_hop": 0.9
+    }
+  }
+}

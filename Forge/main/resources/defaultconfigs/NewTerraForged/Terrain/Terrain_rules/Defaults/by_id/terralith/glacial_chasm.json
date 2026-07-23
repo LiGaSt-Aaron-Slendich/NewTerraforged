@@ -1,0 +1,23 @@
+{
+  "biome": "terralith:glacial_chasm",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "snowy",
+    "cold",
+    "alpine"
+  ],
+  "terrains": {
+    "mountains_1": 1.0,
+    "mountains_2": 0.9,
+    "mountains_ridge_1": 0.75,
+    "dolomites": 0.55,
+    "island_mountains": 0.45
+  },
+  "subterrains": {
+    "canyon": 0.55,
+    "bare_mountain": 0.5,
+    "mountain_body": 0.4
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

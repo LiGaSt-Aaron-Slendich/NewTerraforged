@@ -1,0 +1,18 @@
+{
+  "biome": "terralith:desert_canyon",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "hot",
+    "desert",
+    "mesa"
+  ],
+  "terrains": {
+    "badlands": 1.0
+  },
+  "subterrains": {
+    "desert_canyon": 0.8,
+    "canyon": 0.5
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

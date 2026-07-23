@@ -1,0 +1,16 @@
+{
+  "biome": "terralith:wintry_lowlands",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "snowy",
+    "cold"
+  ],
+  "terrains": {
+    "plains": 1.0,
+    "dales": 0.85,
+    "island_flats": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

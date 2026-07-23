@@ -1,0 +1,39 @@
+{
+  "biome": "conquest:karst_caves",
+  "generation_type": "transition",
+  "placement_type": "full_region",
+  "climates": [
+    "normal"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.5,
+  "vegetation_density": 0.4,
+  "weight": 0.9,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 30,
+  "delta_temp": 20,
+  "cond_humidity": 40,
+  "delta_humidity": 15,
+  "cond_fertility": 35,
+  "delta_fertility": 20,
+  "stats": {
+    "conditions": {
+      "moisture": -10.0,
+      "temperature": -10.0,
+      "fertility": -10.0
+    },
+    "global": {
+      "moisture": -1,
+      "temperature": 0.0,
+      "fertility": -2
+    },
+    "local": {
+      "moisture": -1,
+      "temperature": 0.0,
+      "fertility": -1,
+      "falloff_per_hop": 1.1
+    }
+  }
+}

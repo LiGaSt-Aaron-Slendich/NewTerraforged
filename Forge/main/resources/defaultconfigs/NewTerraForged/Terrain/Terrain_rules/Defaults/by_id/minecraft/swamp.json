@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:swamp",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "temperate",
+    "wet"
+  ],
+  "terrains": {
+    "dales": 1.0,
+    "plains": 0.5,
+    "island_flats": 0.35
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

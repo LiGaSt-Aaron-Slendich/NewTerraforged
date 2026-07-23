@@ -1,0 +1,21 @@
+{
+  "biome": "terralith:white_cliffs",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate"
+  ],
+  "terrains": {
+    "mountains_1": 1.0,
+    "mountains_2": 0.85,
+    "mountains_ridge_1": 0.7,
+    "torridonian": 0.55,
+    "island_mountains": 0.5
+  },
+  "subterrains": {
+    "bare_mountain": 0.65,
+    "mountain_body": 0.4,
+    "ocean_beach": 0.25
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

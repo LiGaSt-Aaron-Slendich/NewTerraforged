@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:dark_forest",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate"
+  ],
+  "terrains": {
+    "dales": 1.0,
+    "hills_1": 0.45,
+    "plains": 0.4,
+    "island_hills": 0.3
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

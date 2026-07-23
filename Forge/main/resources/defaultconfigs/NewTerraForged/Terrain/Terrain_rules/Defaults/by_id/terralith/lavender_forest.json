@@ -1,0 +1,17 @@
+{
+  "biome": "terralith:lavender_forest",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "wet"
+  ],
+  "terrains": {
+    "dales": 1.0,
+    "hills_1": 0.7,
+    "plains": 0.55,
+    "island_hills": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

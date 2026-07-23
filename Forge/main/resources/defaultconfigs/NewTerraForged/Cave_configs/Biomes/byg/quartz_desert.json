@@ -1,0 +1,40 @@
+{
+  "biome": "byg:quartz_desert",
+  "generation_type": "transition",
+  "placement_type": "full_region",
+  "climates": [
+    "dry",
+    "hot"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.78,
+  "vegetation_density": 0.05,
+  "weight": 0.8,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 80,
+  "delta_temp": 20,
+  "cond_humidity": 15,
+  "delta_humidity": 15,
+  "cond_fertility": 20,
+  "delta_fertility": 20,
+  "stats": {
+    "conditions": {
+      "moisture": -2,
+      "temperature": 1,
+      "fertility": -10.0
+    },
+    "global": {
+      "moisture": -3,
+      "temperature": 2,
+      "fertility": -2
+    },
+    "local": {
+      "moisture": -2,
+      "temperature": 1,
+      "fertility": -1,
+      "falloff_per_hop": 1.0
+    }
+  }
+}

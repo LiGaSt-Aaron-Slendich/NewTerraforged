@@ -1,0 +1,17 @@
+{
+  "biome": "terralith:blooming_plateau",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "wet"
+  ],
+  "terrains": {
+    "plateau": 1.0,
+    "hills_1": 0.55,
+    "island_plateau": 0.6,
+    "plains": 0.35
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

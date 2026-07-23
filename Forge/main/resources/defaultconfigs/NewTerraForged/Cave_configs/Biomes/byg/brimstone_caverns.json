@@ -1,0 +1,40 @@
+{
+  "biome": "byg:brimstone_caverns",
+  "generation_type": "primary",
+  "placement_type": "full_region",
+  "climates": [
+    "volcanic",
+    "hot"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.93,
+  "vegetation_density": 0.05,
+  "weight": 0.9,
+  "stat_generator": true,
+  "auto_generated": false,
+  "cond_temp": 120,
+  "delta_temp": 25,
+  "cond_humidity": 15,
+  "delta_humidity": 15,
+  "cond_fertility": 20,
+  "delta_fertility": 20,
+  "stats": {
+    "conditions": {
+      "moisture": -10.0,
+      "temperature": 3,
+      "fertility": -10.0
+    },
+    "global": {
+      "moisture": -2,
+      "temperature": 4,
+      "fertility": -1
+    },
+    "local": {
+      "moisture": -1,
+      "temperature": 2,
+      "fertility": 0.0,
+      "falloff_per_hop": 1.1
+    }
+  }
+}

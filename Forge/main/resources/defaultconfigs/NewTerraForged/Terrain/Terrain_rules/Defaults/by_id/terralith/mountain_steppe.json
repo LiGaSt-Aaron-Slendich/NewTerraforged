@@ -1,0 +1,21 @@
+{
+  "biome": "terralith:mountain_steppe",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "alpine"
+  ],
+  "terrains": {
+    "steppe": 1.0,
+    "hills_1": 0.75,
+    "hills_2": 0.55,
+    "plateau": 0.5,
+    "mountains_1": 0.35,
+    "island_flats": 0.35
+  },
+  "subterrains": {
+    "mountain_foothill": 0.45
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,17 @@
+{
+  "biome": "terralith:moonlight_grove",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "wet"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "dales": 0.75,
+    "plains": 0.45,
+    "island_hills": 0.5
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,40 @@
+{
+  "biome": "terralith:cave/underground_jungle",
+  "generation_type": "primary",
+  "placement_type": "full_region",
+  "climates": [
+    "wet",
+    "hot"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.7,
+  "vegetation_density": 0.9,
+  "weight": 0.5,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 55,
+  "delta_temp": 20,
+  "cond_humidity": 85,
+  "delta_humidity": 15,
+  "cond_fertility": 150,
+  "delta_fertility": 30,
+  "stats": {
+    "conditions": {
+      "moisture": 2,
+      "temperature": -10.0,
+      "fertility": 2
+    },
+    "global": {
+      "moisture": 3,
+      "temperature": 0.0,
+      "fertility": 3
+    },
+    "local": {
+      "moisture": 2,
+      "temperature": 0.0,
+      "fertility": 2,
+      "falloff_per_hop": 0.85
+    }
+  }
+}

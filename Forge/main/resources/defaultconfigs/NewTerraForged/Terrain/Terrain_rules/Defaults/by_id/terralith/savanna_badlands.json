@@ -1,0 +1,17 @@
+{
+  "biome": "terralith:savanna_badlands",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "hot",
+    "mesa"
+  ],
+  "terrains": {
+    "badlands": 1.0
+  },
+  "subterrains": {
+    "canyon": 0.6,
+    "desert_canyon": 0.4
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

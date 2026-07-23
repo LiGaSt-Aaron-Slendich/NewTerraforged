@@ -1,0 +1,27 @@
+{
+  "biome": "minecraft:frozen_peaks",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "snowy",
+    "cold",
+    "alpine"
+  ],
+  "terrains": {
+    "mountains_1": 1.0,
+    "mountains_2": 1.0,
+    "mountains_3": 1.0,
+    "mountains_ridge_1": 0.8,
+    "mountains_ridge_2": 0.8,
+    "dolomites": 0.6,
+    "torridonian": 0.5,
+    "island_mountains": 0.6
+  },
+  "subterrains": {
+    "mountain_peak": 0.7,
+    "bare_mountain_peak": 0.5,
+    "mountain_body": 0.5,
+    "mountain_foothill": 0.4
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,18 @@
+{
+  "biome": "terralith:snowy_shield",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "snowy",
+    "cold",
+    "wet"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "dales": 0.8,
+    "plains": 0.4,
+    "island_hills": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

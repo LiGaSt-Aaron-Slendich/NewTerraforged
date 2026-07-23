@@ -1,0 +1,17 @@
+{
+  "biome": "terralith:skylands",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate"
+  ],
+  "terrains": {
+    "island_flats": 1.0,
+    "island_hills": 0.85,
+    "island_plateau": 0.7,
+    "plains": 0.4,
+    "hills_1": 0.35
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

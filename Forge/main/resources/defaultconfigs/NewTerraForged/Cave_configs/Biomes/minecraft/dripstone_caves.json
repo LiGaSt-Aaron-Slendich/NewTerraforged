@@ -1,0 +1,40 @@
+{
+  "biome": "minecraft:dripstone_caves",
+  "generation_type": "coastal",
+  "placement_type": "full_region",
+  "climates": [
+    "normal",
+    "wet"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.5,
+  "vegetation_density": 0.4,
+  "weight": 0.4,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 35,
+  "delta_temp": 20,
+  "cond_humidity": 60,
+  "delta_humidity": 15,
+  "cond_fertility": 50,
+  "delta_fertility": 20,
+  "stats": {
+    "conditions": {
+      "moisture": 1,
+      "temperature": -10.0,
+      "fertility": -10.0
+    },
+    "global": {
+      "moisture": 2,
+      "temperature": 0.0,
+      "fertility": 1
+    },
+    "local": {
+      "moisture": 1,
+      "temperature": 0.0,
+      "fertility": 1,
+      "falloff_per_hop": 0.9
+    }
+  }
+}

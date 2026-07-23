@@ -1,0 +1,20 @@
+{
+  "biome": "terralith:desert_oasis",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "hot",
+    "desert"
+  ],
+  "terrains": {
+    "plains": 1.0,
+    "dales": 0.7,
+    "steppe": 0.55,
+    "river": 0.45,
+    "island_flats": 0.35
+  },
+  "subterrains": {
+    "river_bank": 0.4
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:frozen_river",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "snowy",
+    "cold"
+  ],
+  "terrains": {
+    "river": 1.0
+  },
+  "subterrains": {
+    "river_bank": 1.0
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

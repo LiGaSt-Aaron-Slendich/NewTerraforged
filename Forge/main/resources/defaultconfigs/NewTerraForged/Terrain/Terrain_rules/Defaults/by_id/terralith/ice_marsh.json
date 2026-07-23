@@ -1,0 +1,17 @@
+{
+  "biome": "terralith:ice_marsh",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "cold",
+    "snowy",
+    "wet"
+  ],
+  "terrains": {
+    "dales": 1.0,
+    "plains": 0.55,
+    "island_flats": 0.35
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

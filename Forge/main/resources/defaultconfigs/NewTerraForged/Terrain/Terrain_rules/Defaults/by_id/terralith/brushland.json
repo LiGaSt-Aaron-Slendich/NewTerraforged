@@ -1,0 +1,16 @@
+{
+  "biome": "terralith:brushland",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "hot"
+  ],
+  "terrains": {
+    "steppe": 1.0,
+    "plains": 0.7,
+    "hills_1": 0.35,
+    "island_flats": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}
