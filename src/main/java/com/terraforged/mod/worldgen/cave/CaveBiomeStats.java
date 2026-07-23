@@ -2,6 +2,7 @@ package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.worldgen.cave.CaveClimateType;
 import com.terraforged.mod.worldgen.cave.CaveStatVector;
+import com.terraforged.noise.util.NoiseUtil;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -35,6 +36,35 @@ public final class CaveBiomeStats {
 
     public float localFalloffPerHop() {
         return this.localFalloffPerHop;
+    }
+
+    public Map<CaveClimateType, CaveStatVector> globalByClimate() {
+        return this.globalByClimate;
+    }
+
+    /** Rebuild with one axis of conditions / global / local nudged. */
+    public CaveBiomeStats withAxis(String which, String axis, float value) {
+        CaveStatVector c = this.conditions;
+        CaveStatVector g = this.global;
+        CaveStatVector l = this.local;
+        float v = NoiseUtil.clamp(value, CaveStatVector.MIN, CaveStatVector.MAX);
+        if ("conditions".equals(which) || "cond".equals(which)) {
+            c = setAxis(c, axis, v);
+        } else if ("global".equals(which) || "g".equals(which)) {
+            g = setAxis(g, axis, v);
+        } else if ("local".equals(which) || "gen".equals(which) || "plus".equals(which)) {
+            l = setAxis(l, axis, v);
+        }
+        return new CaveBiomeStats(c, g, l, this.localFalloffPerHop, this.globalByClimate);
+    }
+
+    private static CaveStatVector setAxis(CaveStatVector src, String axis, float v) {
+        return switch (axis == null ? "" : axis.toLowerCase()) {
+            case "moist", "moisture", "m" -> new CaveStatVector(v, src.temperature(), src.fertility());
+            case "temp", "temperature", "t" -> new CaveStatVector(src.moisture(), v, src.fertility());
+            case "fert", "fertility", "f" -> new CaveStatVector(src.moisture(), src.temperature(), v);
+            default -> src;
+        };
     }
 
     public CaveStatVector globalForClimate(CaveClimateType climate) {

@@ -77,6 +77,8 @@ public final class CaveBiomeRuleIO {
         }
         Set<CaveClimateType> climates = readClimates(obj);
         Set<String> systems = readSystems(obj);
+        CaveBiomeRule.Dimension dimension = CaveBiomeRule.Dimension.fromAlias(
+                obj.has("dimension") ? obj.get("dimension").getAsString() : "overworld");
         float temperature = getFloat(obj, "temperature", 0.5F);
         float veg = getFloat(obj, "vegetation_density", 0.5F);
         float weight = getFloat(obj, "weight", 1.0F);
@@ -90,7 +92,7 @@ public final class CaveBiomeRuleIO {
             stats = parseStats(obj.getAsJsonObject("stats"));
         }
         return new LoadResult(new CaveBiomeRule(
-                biome, cat, placement, climates, systems,
+                biome, cat, placement, climates, systems, dimension,
                 temperature, veg, weight, cmin, cmax, island, stats, generator, auto
         ), null);
     }
@@ -117,6 +119,7 @@ public final class CaveBiomeRuleIO {
             systems.add(s);
         }
         obj.add("systems", systems);
+        obj.addProperty("dimension", rule.dimension.alias());
         obj.addProperty("temperature", rule.temperature);
         obj.addProperty("vegetation_density", rule.vegetationDensity);
         obj.addProperty("weight", rule.weight);

@@ -47,8 +47,19 @@ public final class CaveBiomeRuleRegistry {
         }
         RULES.clear();
         int loaded = loadTree(root);
+        int purged = 0;
+        ArrayList<ResourceLocation> drop = new ArrayList<>();
+        for (ResourceLocation id : RULES.keySet()) {
+            if (!CaveBiomeIds.isUndergroundBiome(id)) {
+                drop.add(id);
+            }
+        }
+        for (ResourceLocation id : drop) {
+            RULES.remove(id);
+            purged++;
+        }
         synced = !RULES.isEmpty();
-        TerraForged.LOG.info("[CaveBiomeRules] sync: {} rules from {}", loaded, root);
+        TerraForged.LOG.info("[CaveBiomeRules] sync: {} rules from {} (purged {} surface)", loaded - purged, root, purged);
     }
 
     public static synchronized void reload() {
@@ -69,9 +80,42 @@ public final class CaveBiomeRuleRegistry {
     }
 
     public static List<ResourceLocation> idsSorted() {
-        ArrayList<ResourceLocation> ids = new ArrayList<>(RULES.keySet());
+        ArrayList<ResourceLocation> ids = new ArrayList<>();
+        for (ResourceLocation id : RULES.keySet()) {
+            if (CaveBiomeIds.isUndergroundBiome(id)) {
+                ids.add(id);
+            }
+        }
         ids.sort((a, b) -> a.toString().compareToIgnoreCase(b.toString()));
         return ids;
+    }
+
+    /** Drop non-cave JSON that leaked into the cave pool (surface biomes). */
+    public static synchronized int purgeNonCaveRules() {
+        int removed = 0;
+        ArrayList<ResourceLocation> drop = new ArrayList<>();
+        for (ResourceLocation id : RULES.keySet()) {
+            if (!CaveBiomeIds.isUndergroundBiome(id)) {
+                drop.add(id);
+            }
+        }
+        for (ResourceLocation id : drop) {
+            RULES.remove(id);
+            Path file = biomesRoot().resolve(id.getNamespace()).resolve(id.getPath() + ".json");
+            try {
+                if (Files.isRegularFile(file)) {
+                    Path broken = file.resolveSibling(file.getFileName().toString() + ".surface_not_cave");
+                    Files.move(file, broken, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException ignored) {
+            }
+            removed++;
+        }
+        if (removed > 0) {
+            CaveBiomeRegistryLoader.invalidateCache();
+            TerraForged.LOG.info("[CaveBiomeRules] purged {} non-cave rules from pool", removed);
+        }
+        return removed;
     }
 
     public static synchronized void putAndSave(ResourceLocation id, CaveBiomeRule rule) {

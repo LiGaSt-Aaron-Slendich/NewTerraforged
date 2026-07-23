@@ -10,9 +10,18 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biome.BiomeCategory;
+import net.minecraftforge.common.BiomeDictionary;
+import net.minecraftforge.common.BiomeDictionary.Type;
+import net.minecraftforge.registries.ForgeRegistries;
 
 public final class CaveBiomeIds {
-    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(Map.entry("regions_unexplored:ancient_delta_caves", "regions_unexplored:ancient_delta"), Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"), Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:bioshroom_caves"), Map.entry("byg:crimson_gardens_caves", "byg:crimson_gardens"), Map.entry("byg:shattered_glacier_caves", "byg:shattered_glacier"), Map.entry("byg:nightshade_redwoods_caves", "byg:nightshade_redwoods"), Map.entry("byg:quartz_desert_caves", "byg:quartz_desert"), Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"), Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves"));
+    private static final Map<String, String> CONFIG_ALIASES = Map.ofEntries(
+            Map.entry("regions_unexplored:fungal_caves", "regions_unexplored:bioshroom_caves"),
+            Map.entry("regions_unexplored:mycotoxic_caves", "regions_unexplored:bioshroom_caves"),
+            Map.entry("biomesoplenty:undergarden", "biomesoplenty:glowing_grotto"),
+            Map.entry("wildnature:glowshroom_caves", "wildernature:glowshroom_caves")
+    );
 
     private CaveBiomeIds() {
     }
@@ -182,24 +191,79 @@ public final class CaveBiomeIds {
         if (CaveBiomeIds.isBlockedCaveBiome(id) || CaveBiomeIds.isNetherThemedBiome(id)) {
             return false;
         }
-        String ns = id.getNamespace();
-        String path = id.getPath().toLowerCase();
-        if ("minecraft".equals(ns)) {
-            return path.contains("cave") || path.contains("dripstone");
+        // Prefer Forge dictionary / MC category tags over name heuristics.
+        ResourceKey<Biome> key = ResourceKey.create(Registry.BIOME_REGISTRY, id);
+        try {
+            if (BiomeDictionary.hasType(key, Type.UNDERGROUND)) {
+                return true;
+            }
+            if (BiomeDictionary.hasType(key, Type.NETHER) || BiomeDictionary.hasType(key, Type.END)) {
+                return false;
+            }
+        } catch (Throwable ignored) {
         }
+        try {
+            Biome biome = ForgeRegistries.BIOMES.getValue(id);
+            if (biome != null) {
+                BiomeCategory cat = Biome.getBiomeCategory(Holder.direct(biome));
+                if (cat == BiomeCategory.UNDERGROUND) {
+                    return true;
+                }
+                if (cat == BiomeCategory.NETHER || cat == BiomeCategory.THEEND) {
+                    return false;
+                }
+                // Clear surface categories must never enter the cave pool.
+                if (cat == BiomeCategory.FOREST
+                        || cat == BiomeCategory.TAIGA
+                        || cat == BiomeCategory.PLAINS
+                        || cat == BiomeCategory.DESERT
+                        || cat == BiomeCategory.SAVANNA
+                        || cat == BiomeCategory.JUNGLE
+                        || cat == BiomeCategory.SWAMP
+                        || cat == BiomeCategory.BEACH
+                        || cat == BiomeCategory.RIVER
+                        || cat == BiomeCategory.OCEAN
+                        || cat == BiomeCategory.EXTREME_HILLS
+                        || cat == BiomeCategory.MESA
+                        || cat == BiomeCategory.ICY
+                        || cat == BiomeCategory.MUSHROOM) {
+                    return false;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        String path = id.getPath().toLowerCase();
         if (CaveBiomeIds.isSurfaceOverworldBiome(path)) {
             return false;
         }
-        return path.contains("cave") || path.contains("cavern") || path.contains("grotto") || path.contains("hypogeal") || path.contains("prismachasm") || path.contains("undergarden") || path.contains("mycotoxic") || path.contains("scorching") || path.contains("bioshroom") || CaveBiomeIds.isRegionalShellBiome(path);
+        // Name fallback only for explicit cave/cavern paths (not "regional shell" surface ids).
+        return CaveBiomeIds.hasStrongCavePath(path);
     }
 
-    /** Mega/giga shell biomes whose registry id has no "cave" suffix (BYG/RU surface-style ids). */
+    /** Explicit cave path tokens — not surface biomes used as mega shells. */
+    public static boolean hasStrongCavePath(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        if (path.startsWith("cave/") || path.contains("/cave/")) {
+            return true;
+        }
+        return path.contains("cave")
+                || path.contains("cavern")
+                || path.contains("grotto")
+                || path.contains("hypogeal")
+                || path.contains("prismachasm")
+                || path.contains("dripstone");
+    }
+
+    /** Mega/giga shell biomes whose registry id has no "cave" suffix (legacy list — tag check preferred). */
     public static boolean isRegionalShellBiome(ResourceLocation id) {
-        return id != null && CaveBiomeIds.isRegionalShellBiome(id.getPath().toLowerCase());
+        return id != null && CaveBiomeIds.isUndergroundBiome(id) && CaveBiomeIds.isRegionalShellBiome(id.getPath().toLowerCase());
     }
 
     private static boolean isRegionalShellBiome(String path) {
-        return path.contains("shattered_glacier") || path.contains("nightshade") || path.contains("quartz_desert") || path.contains("ancient_delta") || path.contains("glowing_grotto") || path.contains("brimstone");
+        // Only keep ids that are still clearly cave-like; drop surface shells (nightshade, quartz_desert, …).
+        return path.contains("glowing_grotto") || path.contains("brimstone_caverns") || path.contains("brimstone_caves");
     }
 
     public static boolean isModCaveBiome(Holder<Biome> biome) {
@@ -392,7 +456,7 @@ public final class CaveBiomeIds {
         if (path.contains("shrunken")) {
             return true;
         }
-        if (path.contains("redwood") || path.contains("grove") || path.contains("orchard")) {
+        if (path.contains("redwood") || path.contains("grove") || path.contains("orchard") || path.contains("nightshade")) {
             return true;
         }
         if (path.contains("forest") && !path.contains("cave")) {
