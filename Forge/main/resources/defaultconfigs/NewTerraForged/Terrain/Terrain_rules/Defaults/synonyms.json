@@ -24,7 +24,9 @@
     "upland",
     "uplands",
     "foothill",
-    "foothills"
+    "foothills",
+    "highland",
+    "highlands"
   ],
   "mountains": [
     "mountain",
@@ -32,14 +34,14 @@
     "peaks",
     "peak",
     "alps",
-    "highland",
-    "highlands",
     "sierra",
     "crag"
   ],
   "plateau": [
     "plateau",
-    "tableland"
+    "tableland",
+    "highland",
+    "highlands"
   ],
   "volcano": [
     "volcano",

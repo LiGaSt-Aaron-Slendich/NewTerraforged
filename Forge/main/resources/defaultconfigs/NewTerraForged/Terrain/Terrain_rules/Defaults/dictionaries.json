@@ -1,9 +1,9 @@
 {
   "_comment": "Reference dictionary for BiomeRuleAutogen token sets (form > material; soft/wet downgrades mountain→hills). Not loaded at runtime yet — documentation for authoring defaults.",
   "form": {
-    "mountain": ["mountain", "mountains", "peak", "peaks", "summit", "ridge", "highland", "highlands", "alps", "alpine", "crag", "cliff", "cliffs", "sierra"],
-    "hills": ["hill", "hills", "foothill", "foothills", "rolling"],
-    "plateau": ["plateau", "mesa", "tableland"],
+    "mountain": ["mountain", "mountains", "peak", "peaks", "summit", "ridge", "alps", "alpine", "crag", "cliff", "cliffs", "sierra"],
+    "hills": ["hill", "hills", "foothill", "foothills", "rolling", "height", "heights", "upland", "uplands", "highland", "highlands"],
+    "plateau": ["plateau", "mesa", "tableland", "highland", "highlands"],
     "flat": ["plains", "plain", "flat", "flats", "steppe", "field", "fields", "meadow"],
     "badlands": ["badlands", "canyon", "canyons", "butte", "hoodoo", "bryce"],
     "beach": ["beach", "shore", "coast", "dune", "dunes", "barrera", "barrier"],

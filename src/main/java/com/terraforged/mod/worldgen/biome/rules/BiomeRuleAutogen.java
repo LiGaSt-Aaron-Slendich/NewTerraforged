@@ -17,10 +17,12 @@ import net.minecraft.world.level.biome.Biome.Precipitation;
  */
 public final class BiomeRuleAutogen {
     private static final Set<String> FORM_MOUNTAIN = Set.of(
-            "mountain", "mountains", "peak", "peaks", "summit", "ridge", "highland", "highlands",
+            "mountain", "mountains", "peak", "peaks", "summit", "ridge",
             "alps", "alpine", "crag", "cliff", "cliffs", "sierra");
+    /** Highland = hills or plateau — never mountains. */
     private static final Set<String> FORM_HILLS = Set.of(
-            "hill", "hills", "foothill", "foothills", "rolling", "height", "heights", "upland", "uplands");
+            "hill", "hills", "foothill", "foothills", "rolling", "height", "heights", "upland", "uplands",
+            "highland", "highlands");
     private static final Set<String> FORM_PLATEAU = Set.of("plateau", "mesa", "tableland");
     private static final Set<String> FORM_STEPPE = Set.of("steppe", "prairie", "prairies", "veld", "pampa", "pampas");
     private static final Set<String> FORM_FLAT = Set.of(
@@ -115,6 +117,11 @@ public final class BiomeRuleAutogen {
                 terrains.put("hills_1", 1.0F);
                 terrains.put("hills_2", 1.0F);
                 terrains.put("island_hills", 0.6F);
+                // highland = hills and/or plateau, never mountains
+                if (tokensContain(parsed.all(), Set.of("highland", "highlands"))) {
+                    terrains.put("plateau", 0.9F);
+                    terrains.put("island_plateau", 0.5F);
+                }
                 canSlope = true;
             }
             case MOUNTAIN, PEAK -> {
