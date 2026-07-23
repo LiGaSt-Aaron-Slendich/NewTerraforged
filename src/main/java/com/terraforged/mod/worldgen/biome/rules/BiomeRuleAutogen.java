@@ -27,7 +27,11 @@ public final class BiomeRuleAutogen {
             "plains", "plain", "flat", "flats", "field", "fields", "meadow", "grassland", "land", "lands");
     private static final Set<String> FORM_BADLANDS = Set.of("badlands", "canyon", "canyons", "butte", "hoodoo", "bryce");
     private static final Set<String> FORM_BEACH = Set.of("beach", "shore", "coast", "dune", "dunes", "barrera", "barrier");
-    private static final Set<String> FORM_VOLCANO = Set.of("volcano", "volcanic", "caldera", "crater");
+    private static final Set<String> FORM_VOLCANO = Set.of("volcano");
+    private static final Set<String> FORM_VOLCANIC_ADJ = Set.of("volcanic");
+    private static final Set<String> FORM_CRATER = Set.of("crater", "caldera", "vent", "fumarole");
+    /** Default radius for biomes that only appear near an active volcano (not on the cone itself). */
+    public static final float NEAR_VOLCANO_RADIUS = 640.0F;
     private static final Set<String> FORM_SWAMP = Set.of("swamp", "marsh", "bog", "fen", "mangrove", "bayou", "wetland");
     private static final Set<String> FORM_RIVER = Set.of("river", "rivers", "stream", "streams", "creek", "creeks", "brook", "brooks");
 
@@ -66,19 +70,25 @@ public final class BiomeRuleAutogen {
                 terrains.put("beach", 1.0F);
                 subterrains.put("ocean_beach", 0.7F);
                 subterrains.put("sea_beach", 0.3F);
-                if (tokensContain(parsed.all(), FORM_VOLCANO) || tokensContain(parsed.all(), Set.of("basalt", "ash", "magma"))) {
+                if (tokensContain(parsed.all(), FORM_VOLCANO) || tokensContain(parsed.all(), FORM_VOLCANIC_ADJ)
+                        || tokensContain(parsed.all(), FORM_CRATER)
+                        || tokensContain(parsed.all(), Set.of("basalt", "ash", "magma"))) {
                     subterrains.put("volcanic_beach", 0.7F);
                     climateTags.add("volcanic");
-                    zoneFlags.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(112.0F, 1.0F));
+                    zoneFlags.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(NEAR_VOLCANO_RADIUS, 1.0F));
                 }
             }
-            case VOLCANO -> {
-                terrains.put("volcano", 1.0F);
-                terrains.put("volcano_pipe", 0.85F);
-                terrains.put("island_volcano", 1.0F);
-                terrains.put("badlands", 0.25F);
+            case CRATER -> {
+                // Vent / pipe only — never the cone, badlands, or "near" ring.
+                terrains.put("volcano_pipe", 1.0F);
                 climateTags.add("volcanic");
-                zoneFlags.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(128.0F, 1.0F));
+                canSlope = true;
+            }
+            case VOLCANO -> {
+                // Cone / volcanic peaks only — not badlands, not the pipe/crater.
+                terrains.put("volcano", 1.0F);
+                terrains.put("island_volcano", 1.0F);
+                climateTags.add("volcanic");
                 canSlope = true;
             }
             case SWAMP -> {
@@ -160,9 +170,10 @@ public final class BiomeRuleAutogen {
             }
         }
 
-        if (tokensContain(parsed.all(), Set.of("volcanic", "ashen", "basalt", "magma")) && form != Form.VOLCANO) {
+        if ((tokensContain(parsed.all(), FORM_VOLCANIC_ADJ) || tokensContain(parsed.all(), Set.of("ashen", "basalt", "magma")))
+                && form != Form.VOLCANO && form != Form.CRATER) {
             climateTags.add("volcanic");
-            zoneFlags.putIfAbsent(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(96.0F, 0.85F));
+            zoneFlags.putIfAbsent(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(NEAR_VOLCANO_RADIUS, 0.85F));
         }
 
         if (tokensContain(parsed.all(), Set.of("jungle", "rainforest", "bamboo", "tropic", "tropics"))) {
@@ -215,7 +226,17 @@ public final class BiomeRuleAutogen {
                 terrains.putIfAbsent("mountains_1", 0.7F);
                 terrains.putIfAbsent("mountains_2", 0.7F);
             }
-            case VOLCANO -> terrains.putIfAbsent("volcano", 0.7F);
+            case VOLCANO -> {
+                terrains.putIfAbsent("volcano", 0.7F);
+                terrains.putIfAbsent("island_volcano", 0.7F);
+                terrains.remove("badlands");
+                terrains.remove("volcano_pipe");
+            }
+            case CRATER -> {
+                terrains.clear();
+                subterrains.clear();
+                terrains.put("volcano_pipe", 0.85F);
+            }
         }
     }
 
@@ -232,6 +253,8 @@ public final class BiomeRuleAutogen {
         applyClimateFromName(climate, parsed.climateTokens(), detectForm(parsed.formTokens()));
         Map<String, Float> terrains = new LinkedHashMap<>(base.terrains);
         Map<String, Float> subterrains = new LinkedHashMap<>(base.subterrains);
+        Map<String, BiomeRule.ZoneFlag> zones = new LinkedHashMap<>(base.zoneFlags);
+        Form form = detectForm(parsed.formTokens());
         // Pure *river* biomes (not land_of_rivers) must be river-primary (not plains/tundra leftovers).
         boolean ofPattern = id.getPath().toLowerCase(Locale.ROOT).contains("_of_");
         if (!ofPattern && tokensContain(parsed.all(), FORM_RIVER)) {
@@ -249,6 +272,27 @@ public final class BiomeRuleAutogen {
                 subterrains.put("river_bank", 1.0F);
             }
         }
+        // Crater / vent biomes → pipe only.
+        if (form == Form.CRATER || tokensContain(parsed.all(), FORM_CRATER)) {
+            terrains.clear();
+            subterrains.clear();
+            terrains.put("volcano_pipe", 1.0F);
+            zones.remove(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
+        } else if (form == Form.VOLCANO || tokensContain(parsed.all(), FORM_VOLCANO)
+                || (tokensContain(parsed.all(), FORM_VOLCANIC_ADJ)
+                && (tokensContain(parsed.all(), FORM_MOUNTAIN) || tokensContain(parsed.all(), FORM_HILLS)
+                || tokensContain(parsed.all(), Set.of("peak", "peaks"))))) {
+            // Cone / volcanic peaks: volcano only — strip badlands + pipe.
+            terrains.keySet().removeIf(k -> k.equals("badlands") || k.equals("volcano_pipe"));
+            terrains.putIfAbsent("volcano", 1.0F);
+            terrains.putIfAbsent("island_volcano", 1.0F);
+            zones.remove(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
+        }
+        // Widen legacy near-volcano radii.
+        BiomeRule.ZoneFlag near = zones.get(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
+        if (near != null && near.enabled() && near.radiusBlocks() < 256.0F) {
+            zones.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(NEAR_VOLCANO_RADIUS, near.chance()));
+        }
         mergeSecondaryForm(terrains, subterrains, parsed.secondaryFormTokens());
         if (ofPattern && tokensContain(parsed.formTokens(), FORM_FLAT) && tokensContain(parsed.secondaryFormTokens(), FORM_RIVER)) {
             terrains.putIfAbsent("plains", 1.0F);
@@ -263,7 +307,7 @@ public final class BiomeRuleAutogen {
                 distinct(climate),
                 terrains,
                 subterrains,
-                base.zoneFlags,
+                zones,
                 base.autoGenerated
         );
     }
@@ -360,9 +404,18 @@ public final class BiomeRuleAutogen {
         if (tokensContain(tokens, FORM_BEACH)) {
             return Form.BEACH;
         }
-        if (tokensContain(tokens, FORM_VOLCANO)) {
+        // Crater/vent before generic volcanic — volcanic_crater must be pipe-only.
+        if (tokensContain(tokens, FORM_CRATER)) {
+            return Form.CRATER;
+        }
+        // Explicit "volcano" noun, or volcanic + mountain/peak form (volcanic_peaks).
+        if (tokensContain(tokens, FORM_VOLCANO)
+                || (tokensContain(tokens, FORM_VOLCANIC_ADJ)
+                && (tokensContain(tokens, FORM_MOUNTAIN) || tokensContain(tokens, FORM_HILLS)
+                || tokensContain(tokens, Set.of("peak", "peaks", "summit"))))) {
             return Form.VOLCANO;
         }
+        // "volcanic_plains" etc. fall through as flats with near-volcano zone later.
         if (tokensContain(tokens, FORM_RIVER)) {
             return Form.RIVER;
         }
@@ -420,6 +473,6 @@ public final class BiomeRuleAutogen {
     }
 
     private enum Form {
-        FLAT, STEPPE, HILLS, PLATEAU, MOUNTAIN, PEAK, BADLANDS, BEACH, VOLCANO, SWAMP, RIVER
+        FLAT, STEPPE, HILLS, PLATEAU, MOUNTAIN, PEAK, BADLANDS, BEACH, VOLCANO, CRATER, SWAMP, RIVER
     }
 }

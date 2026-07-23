@@ -141,7 +141,7 @@ public final class BiomeRuleDefaults {
     }
 
     private static final String[] FORM_CANONICAL_PRIORITY = {
-            "river", "beach", "volcano", "swamp", "badlands", "mountains", "hills", "plateau", "steppe", "desert", "jungle",
+            "river", "beach", "volcanic_crater", "volcano", "swamp", "badlands", "mountains", "hills", "plateau", "steppe", "desert", "jungle",
             "taiga", "tundra", "plains"
     };
 

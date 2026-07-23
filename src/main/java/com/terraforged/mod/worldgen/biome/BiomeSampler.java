@@ -23,7 +23,13 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
       WeightMap<Holder<Biome>> weightmap = this.biomeMapManager.getBiomeMap().get(climatesample.climateType);
       Holder<Biome> fallback = this.biomeMapManager.getBiomes().getHolderOrThrow(Biomes.PLAINS);
       Holder<Biome> holder = com.terraforged.mod.worldgen.biome.util.BiomeTerrainIntegration.pick(
-            climatesample.biomeNoise, climatesample, weightmap, fallback);
+            climatesample.biomeNoise,
+            climatesample,
+            weightmap,
+            fallback,
+            this.noiseGenerator,
+            x,
+            z);
       return this.getBiomeOverride(holder, climatesample);
    }
 

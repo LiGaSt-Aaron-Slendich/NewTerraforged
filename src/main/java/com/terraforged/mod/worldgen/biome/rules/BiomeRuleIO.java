@@ -177,7 +177,7 @@ public final class BiomeRuleIO {
             JsonElement v = e.getValue();
             if (v.isJsonPrimitive() && v.getAsJsonPrimitive().isBoolean()) {
                 if (v.getAsBoolean()) {
-                    out.put(key, BiomeRule.ZoneFlag.enabled(96.0F, 1.0F));
+                    out.put(key, BiomeRule.ZoneFlag.enabled(640.0F, 1.0F));
                 }
                 continue;
             }
@@ -189,7 +189,7 @@ public final class BiomeRuleIO {
             if (!enabled) {
                 continue;
             }
-            float radius = z.has("radius_blocks") ? z.get("radius_blocks").getAsFloat() : 96.0F;
+            float radius = z.has("radius_blocks") ? z.get("radius_blocks").getAsFloat() : 640.0F;
             float chance = z.has("chance") ? z.get("chance").getAsFloat() : 1.0F;
             out.put(key, BiomeRule.ZoneFlag.enabled(radius, chance));
         }

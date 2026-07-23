@@ -45,10 +45,14 @@
     "volcano",
     "volcanic",
     "volcanic_peaks",
+    "volcanic_plains"
+  ],
+  "volcanic_crater": [
     "volcanic_crater",
-    "volcanic_plains",
+    "crater",
     "caldera",
-    "crater"
+    "vent",
+    "fumarole"
   ],
   "desert": [
     "desert",

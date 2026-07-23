@@ -362,7 +362,7 @@ public final class NvFlagPanel extends Screen {
             return;
         }
         Map<String, BiomeRule.ZoneFlag> zones = new LinkedHashMap<>(this.selectedRule.zoneFlags);
-        zones.putIfAbsent(key, BiomeRule.ZoneFlag.enabled(96.0F, 1.0F));
+        zones.putIfAbsent(key, BiomeRule.ZoneFlag.enabled(640.0F, 1.0F));
         this.mutateRule(new BiomeRule(
                 this.selectedRule.biome,
                 this.selectedRule.canBeOnSlope,

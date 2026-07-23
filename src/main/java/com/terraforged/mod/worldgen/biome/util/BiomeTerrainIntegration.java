@@ -1,10 +1,13 @@
 package com.terraforged.mod.worldgen.biome.util;
 
+import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.mod.util.map.WeightMap;
 import com.terraforged.mod.worldgen.biome.rules.BiomeRule;
 import com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry;
 import com.terraforged.mod.worldgen.biome.rules.SubterrainResolver;
+import com.terraforged.mod.worldgen.biome.rules.VolcanoBiomeKits;
 import com.terraforged.mod.worldgen.biome.rules.ZoneContext;
+import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,21 +25,34 @@ public final class BiomeTerrainIntegration {
     }
 
     public static Holder<Biome> pick(float noise, ClimateSample sample, WeightMap<Holder<Biome>> climatePool, Holder<Biome> fallback) {
+        return pick(noise, sample, climatePool, fallback, null, 0, 0);
+    }
+
+    public static Holder<Biome> pick(
+            float noise,
+            ClimateSample sample,
+            WeightMap<Holder<Biome>> climatePool,
+            Holder<Biome> fallback,
+            INoiseGenerator noiseGen,
+            int blockX,
+            int blockZ
+    ) {
         if (climatePool == null || climatePool.isEmpty()) {
             return fallback;
         }
         if (!BiomeRuleRegistry.isSynced()) {
-            // Rules not ready yet — keep climate pick.
             Holder<Biome> v = climatePool.getValue(noise);
             return v != null ? v : fallback;
         }
-        String terrain = sample != null && sample.terrainType != null ? sample.terrainType.getName() : null;
+        Terrain terrainObj = sample != null ? sample.terrainType : null;
+        String terrain = terrainObj != null ? terrainObj.getName() : null;
         String sub = SubterrainResolver.resolve(sample);
         boolean steep = SubterrainResolver.isSteepSlope(sample, sub);
-        ZoneContext zone = ZoneContext.from(sample);
+        ZoneContext zone = ZoneContext.from(sample, noiseGen, blockX, blockZ);
 
         List<Holder<Biome>> values = new ArrayList<>();
         List<Float> weights = new ArrayList<>();
+        List<ResourceLocation> ids = new ArrayList<>();
         for (Holder<Biome> holder : climatePool.getValues()) {
             if (holder == null) {
                 continue;
@@ -49,6 +65,7 @@ public final class BiomeTerrainIntegration {
             if (rule == null) {
                 values.add(holder);
                 weights.add(1.0F);
+                ids.add(id);
                 continue;
             }
             float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep, zone);
@@ -57,12 +74,38 @@ public final class BiomeTerrainIntegration {
             }
             values.add(holder);
             weights.add(chance);
+            ids.add(id);
         }
 
         if (values.isEmpty()) {
-            // Absolute empty — fall back to climate pool without terrain gate (avoid void biomes).
             Holder<Biome> v = climatePool.getValue(noise);
             return v != null ? v : fallback;
+        }
+
+        // Keep mod volcano kits together (Terralith peaks+crater, not mixed with BYG on the same cone).
+        boolean volcanicCell = ZoneContext.isVolcanoTerrain(terrainObj);
+        if (volcanicCell) {
+            String preferredNs = VolcanoBiomeKits.preferredNamespace(blockX, blockZ, ids);
+            VolcanoBiomeKits.Role need = ZoneContext.isPipeTerrain(terrainObj)
+                    ? VolcanoBiomeKits.Role.CRATER
+                    : VolcanoBiomeKits.Role.CONE;
+            if (preferredNs != null) {
+                for (int i = 0; i < values.size(); i++) {
+                    ResourceLocation id = ids.get(i);
+                    VolcanoBiomeKits.Role role = VolcanoBiomeKits.role(id);
+                    float w = weights.get(i);
+                    if (preferredNs.equals(id.getNamespace())) {
+                        if (role == need) {
+                            w *= 4.0F;
+                        } else if (role != VolcanoBiomeKits.Role.OTHER) {
+                            w *= 0.2F; // wrong half of the preferred kit
+                        }
+                    } else if (VolcanoBiomeKits.isKitNamespace(id.getNamespace()) && role != VolcanoBiomeKits.Role.OTHER) {
+                        w *= 0.12F; // other mods' volcanic kits
+                    }
+                    weights.set(i, w);
+                }
+            }
         }
 
         @SuppressWarnings("unchecked")
