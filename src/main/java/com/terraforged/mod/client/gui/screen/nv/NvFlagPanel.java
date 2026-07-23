@@ -127,6 +127,7 @@ public final class NvFlagPanel extends Screen {
         this.tab = next;
         this.editing = false;
         this.popup = Popup.NONE;
+        this.status = "";
         this.init();
     }
 
@@ -214,6 +215,11 @@ public final class NvFlagPanel extends Screen {
     private void exitEdit() {
         this.editing = false;
         this.popup = Popup.NONE;
+        this.status = "";
+        // Discard unsaved in-memory edits by reloading the rule from the registry.
+        if (this.selectedIndex >= 0 && this.selectedIndex < this.filteredIds.size()) {
+            this.selectedRule = BiomeRuleRegistry.get(this.filteredIds.get(this.selectedIndex));
+        }
         this.init();
     }
 
@@ -222,6 +228,7 @@ public final class NvFlagPanel extends Screen {
             this.status = "Select a biome first";
             return;
         }
+        this.status = "";
         this.editing = true;
         this.popup = Popup.NONE;
         this.init();
@@ -278,10 +285,15 @@ public final class NvFlagPanel extends Screen {
     }
 
     private void selectIndex(int idx) {
+        int prev = this.selectedIndex;
         this.selectedIndex = idx;
         this.selectedRule = null;
         if (idx >= 0 && idx < this.filteredIds.size()) {
             this.selectedRule = BiomeRuleRegistry.get(this.filteredIds.get(idx));
+        }
+        // Clear stale edit messages when browsing another biome (unsaved edits are not shown).
+        if (prev != idx && !this.editing) {
+            this.status = "";
         }
         this.refreshEditVisibility();
     }

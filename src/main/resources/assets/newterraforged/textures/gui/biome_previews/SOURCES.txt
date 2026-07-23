@@ -1,11 +1,21 @@
-Biome preview sources (compressed to 144x144 PNG; originals not shipped)
+Biome preview sources (compressed to 144x144 palette PNG; originals not shipped)
 
-BYG (76):
-  https://github.com/Potion-Studios/BYG
-  path: Common/.../assets/byg/textures/biome_previews/
-  branch: 1.18.X
-  License: see BYG repository
+Shipped per-biome screenshots:
+  BYG / Oh The Biomes You'll Go (~76):
+    https://github.com/Potion-Studios/BYG
+    path: Common/.../assets/byg/textures/biome_previews/ (branch 1.18.X)
 
-Regions Unexplored (71):
-  https://gist.github.com/catter1/1f90b77263e3746c20c1fd93a7393f69
-  Vanilla (non-shader) screenshot per biome, center-cropped + downscaled
+  Regions Unexplored (~71):
+    https://gist.github.com/catter1/1f90b77263e3746c20c1fd93a7393f69
+    Vanilla (non-shader) screenshot per biome, center-cropped + downscaled
+
+  Vanilla-ish fallbacks in biome_previews/*.png (plains, river, desert, …)
+
+Not available from the mod JARs (no biome_previews pack):
+  Biomes O' Plenty — only advancement background texture; no per-biome shots
+  WWOO / Wythers — datapack-style; no per-biome preview textures
+  Terralith — no biome_preview textures in the jar
+
+For those mods the UI uses name heuristics (e.g. bayou→swamp) or generic.png.
+To add real shots later: drop 144x144 PNGs under
+  assets/newterraforged/textures/gui/biome_previews/<namespace>/<biome_path>.png
