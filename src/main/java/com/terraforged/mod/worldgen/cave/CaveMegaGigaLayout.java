@@ -34,6 +34,21 @@ public final class CaveMegaGigaLayout {
         return cfg != null ? cfg.conditionRelax : 0.0f;
     }
 
+    /** Human-scale condition targets (± delta) + regional temp/humidity/fertility barriers. */
+    static boolean passesClimateConditions(CaveBiomeEntry entry, CaveStatVector pool) {
+        if (entry == null || pool == null) {
+            return false;
+        }
+        CaveBiomeRule rule = CaveBiomeRuleRegistry.get(entry.biome());
+        if (rule != null) {
+            return rule.matchesPool(pool);
+        }
+        int t = CaveClimateScale.tempFromInternal(pool.temperature());
+        int h = CaveClimateScale.humidityFromInternal(pool.moisture());
+        int f = CaveClimateScale.fertilityFromInternal(pool.fertility());
+        return CaveClimateScale.regionAllowsBiome(entry.biome(), t, h, f);
+    }
+
     private final float centerX;
     private final float centerZ;
     private final float blurRadius;
@@ -327,6 +342,7 @@ public final class CaveMegaGigaLayout {
         for (CaveBiomeEntry entry : this.shellPool) {
             float score;
             if (entry.statGenerator() || CaveBiomeIds.isEmptyStoneCave(entry.biome()) || excluded != null && excluded.contains(entry.biome()) || !CaveBiomeClimateAffinity.matches(entry.biome(), this.climateType, stats.temperature(), thermalOasis)) continue;
+            if (!CaveMegaGigaLayout.passesClimateConditions(entry, stats)) continue;
             float w = this.vegetationWeightBias(x, z, entry, entry.weight());
             if (CaveBiomeIds.isSparseCaveBiome(entry.biome())) {
                 w *= 0.22f;

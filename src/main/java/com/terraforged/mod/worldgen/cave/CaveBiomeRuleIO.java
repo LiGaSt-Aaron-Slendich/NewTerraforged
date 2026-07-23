@@ -91,6 +91,20 @@ public final class CaveBiomeRuleIO {
         if (obj.has("stats") && obj.get("stats").isJsonObject()) {
             stats = parseStats(obj.getAsJsonObject("stats"));
         }
+        boolean hasNew = obj.has("cond_temp") || obj.has("cond_humidity") || obj.has("cond_fertility");
+        if (hasNew) {
+            int ct = obj.has("cond_temp") ? obj.get("cond_temp").getAsInt() : CaveClimateScale.UNSET;
+            int dt = obj.has("delta_temp") ? obj.get("delta_temp").getAsInt() : CaveClimateScale.DEFAULT_DELTA_TEMP;
+            int ch = obj.has("cond_humidity") ? obj.get("cond_humidity").getAsInt() : CaveClimateScale.UNSET;
+            int dh = obj.has("delta_humidity") ? obj.get("delta_humidity").getAsInt() : CaveClimateScale.DEFAULT_DELTA_HUM;
+            int cf = obj.has("cond_fertility") ? obj.get("cond_fertility").getAsInt() : CaveClimateScale.UNSET;
+            int df = obj.has("delta_fertility") ? obj.get("delta_fertility").getAsInt() : CaveClimateScale.DEFAULT_DELTA_FERT;
+            return new LoadResult(new CaveBiomeRule(
+                    biome, cat, placement, climates, systems, dimension,
+                    temperature, veg, weight, cmin, cmax, island, stats, generator, auto,
+                    ct, dt, ch, dh, cf, df
+            ), null);
+        }
         return new LoadResult(new CaveBiomeRule(
                 biome, cat, placement, climates, systems, dimension,
                 temperature, veg, weight, cmin, cmax, island, stats, generator, auto
@@ -121,6 +135,20 @@ public final class CaveBiomeRuleIO {
         obj.add("systems", systems);
         obj.addProperty("dimension", rule.dimension.alias());
         obj.addProperty("temperature", rule.temperature);
+        obj.addProperty("vegetation_density", rule.vegetationDensity);
+        obj.addProperty("weight", rule.weight);
+        if (rule.condTemp != CaveClimateScale.UNSET) {
+            obj.addProperty("cond_temp", rule.condTemp);
+            obj.addProperty("delta_temp", rule.deltaTemp);
+        }
+        if (rule.condHumidity != CaveClimateScale.UNSET) {
+            obj.addProperty("cond_humidity", rule.condHumidity);
+            obj.addProperty("delta_humidity", rule.deltaHumidity);
+        }
+        if (rule.condFertility != CaveClimateScale.UNSET) {
+            obj.addProperty("cond_fertility", rule.condFertility);
+            obj.addProperty("delta_fertility", rule.deltaFertility);
+        }
         obj.addProperty("vegetation_density", rule.vegetationDensity);
         obj.addProperty("weight", rule.weight);
         obj.addProperty("ceiling_patch_min", rule.ceilingPatchMin);
