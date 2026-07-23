@@ -40,6 +40,8 @@ public final class CaveBiomeRuleRegistry {
             TerraForged.LOG.error("[CaveBiomeRules] cannot create {}", root, e);
             return;
         }
+        // Prefer hand-curated classpath Biomes over primitive toml/autogen.
+        CaveBiomeCuratedDefaults.seedInto(root);
         int onDisk = countJson(root);
         if (onDisk == 0 && config != null) {
             int written = migrateToml(config, root);

@@ -3,9 +3,8 @@ package com.terraforged.mod.worldgen.cave;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Hand-curated cave climate condition defaults from biome names / known IDs.
- * Values are human scales: t° (−50..150), Humidity% (0..100), Fertility (0..200).
- * Not a fuzzy autogen — each family was chosen by reading the name meaning.
+ * Emergency Cond fill when a cave biome has no curated JSON and legacy stats left axes UNSET.
+ * Prefer hand-authored {@code Cave_configs/Biomes/*.json} from {@link CaveBiomeCuratedDefaults}.
  */
 public final class CaveCondNameDefaults {
     private CaveCondNameDefaults() {

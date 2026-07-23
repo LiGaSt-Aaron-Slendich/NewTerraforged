@@ -37,5 +37,6 @@
     }
   },
   "ceiling_patch_min": 0.25,
-  "ceiling_patch_max": 0.5
+  "ceiling_patch_max": 0.5,
+  "curated_revision": 1
 }

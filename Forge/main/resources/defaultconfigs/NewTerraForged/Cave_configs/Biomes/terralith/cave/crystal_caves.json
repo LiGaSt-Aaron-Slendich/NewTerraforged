@@ -36,5 +36,6 @@
       "falloff_per_hop": 1.2
     }
   },
-  "island_max_radius": 2.8
+  "island_max_radius": 2.8,
+  "curated_revision": 1
 }

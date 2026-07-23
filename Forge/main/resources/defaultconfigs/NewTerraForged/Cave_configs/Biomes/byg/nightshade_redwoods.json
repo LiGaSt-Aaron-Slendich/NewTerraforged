@@ -36,5 +36,6 @@
       "fertility": 1,
       "falloff_per_hop": 0.95
     }
-  }
+  },
+  "curated_revision": 1
 }

@@ -69,6 +69,24 @@ public final class BiomeRuleDefaults {
         BY_ID.clear();
     }
 
+    /** True when an exact Defaults/by_id/{ns}/{path}.json exists (config or classpath). */
+    public static boolean hasExactById(ResourceLocation biomeId) {
+        ensureLoaded();
+        if (!ENABLED || biomeId == null) {
+            return false;
+        }
+        Path config = configRoot().resolve("by_id").resolve(biomeId.getNamespace()).resolve(biomeId.getPath() + ".json");
+        if (Files.isRegularFile(config)) {
+            return true;
+        }
+        String resource = CLASS_ROOT + "by_id/" + biomeId.getNamespace() + "/" + biomeId.getPath() + ".json";
+        try (InputStream in = BiomeRuleDefaults.class.getResourceAsStream(resource)) {
+            return in != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static Optional<BiomeRule> tryCopyFor(ResourceLocation biomeId) {
         ensureLoaded();
         if (!ENABLED || biomeId == null) {
