@@ -1021,7 +1021,8 @@ public final class NvFlagPanel extends Screen {
         int panelX = left + 4;
         int panelY = 40;
         int panelW = this.width - panelX - 8;
-        int panelH = this.height - panelY - 36;
+        // Leave room for Back / Save at height-26
+        int panelH = this.height - panelY - 40;
         fill(pose, panelX, panelY, panelX + panelW, panelY + panelH, 0x88000000);
 
         if (this.selectedCaveRule == null) {
@@ -1054,7 +1055,7 @@ public final class NvFlagPanel extends Screen {
         blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
         this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add system")));
         this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_CAVE_SYSTEM)));
-        y += 6;
+        y += 2;
         this.renderCaveStatControls(pose, panelX + 8, y);
 
         if (!this.status.isEmpty()) {
@@ -1086,80 +1087,67 @@ public final class NvFlagPanel extends Screen {
         }
         this.clickHits.add(new ClickHit(gx, row, box + 2, box + 2, 0,
                 () -> this.mutateCaveRule(r.withStats(r.stats, !r.statGenerator))));
-        row += 16;
-
-        // Placement (Weight / Cave Temp / Vegetation) — fixed-width number fields
-        this.drawFixedFloatStepper(pose, x, row, "Weight", r.weight, 4,
-                () -> this.nudgePlacement("wt", -0.05F),
-                () -> this.resetPlacement("wt"),
-                () -> this.nudgePlacement("wt", 0.05F));
-        this.drawFixedFloatStepper(pose, x + 130, row, "Cave Temp", r.temperature, 4,
-                () -> this.nudgePlacement("temp", -0.05F),
-                () -> this.resetPlacement("temp"),
-                () -> this.nudgePlacement("temp", 0.05F));
-        this.drawFixedFloatStepper(pose, x + 280, row, "Vegetation", r.vegetationDensity, 4,
-                () -> this.nudgePlacement("veg", -0.05F),
-                () -> this.resetPlacement("veg"),
-                () -> this.nudgePlacement("veg", 0.05F));
-        row += 16;
-
-        drawString(pose, this.font, "Conditions (target ± delta):", x, row + 1, 0xFFFFE080);
+        // Weight / Cave Temp / Vegetation come from the original biome entry — not editable here.
+        // Filtering uses Conditions (target ± delta) against the regional climate pool.
+        drawString(pose, this.font,
+                String.format(Locale.ROOT, "Weight %.2f (from biome)", r.weight),
+                gx + box + 10, row + 1, 0xFFAAAAAA);
         row += 14;
 
-        // t° + Δt°
+        drawString(pose, this.font, "Conditions (filter = region \u00B1 \u0394):", x, row + 1, 0xFFFFE080);
+        row += 12;
+
         int t = r.condTemp == CaveClimateScale.UNSET ? 20 : r.condTemp;
         int dT = r.deltaTemp;
-        this.drawFixedIntStepper(pose, x, row, "t\u00B0", t, 4,
+        int h = r.condHumidity == CaveClimateScale.UNSET ? 50 : r.condHumidity;
+        int dH = r.deltaHumidity;
+        int f = r.condFertility == CaveClimateScale.UNSET ? 100 : r.condFertility;
+        int dF = r.deltaFertility;
+
+        // Row 1: temperature + humidity (compact two-pair layout)
+        int col2 = x + 168;
+        this.drawFixedIntStepper(pose, x, row, "t\u00B0", t,
                 () -> this.nudgeCond("temp", -1, false),
                 () -> this.nudgeCond("temp", 0, true),
                 () -> this.nudgeCond("temp", 1, false));
-        this.drawFixedIntStepper(pose, x + 118, row, "\u0394t\u00B0", dT, 3,
+        this.drawFixedIntStepper(pose, x + 78, row, "\u0394t\u00B0", dT,
                 () -> this.nudgeCond("dtemp", -1, false),
                 () -> this.nudgeCond("dtemp", 0, true),
                 () -> this.nudgeCond("dtemp", 1, false));
-        row += 14;
-
-        // Humidity% + Δ
-        int h = r.condHumidity == CaveClimateScale.UNSET ? 50 : r.condHumidity;
-        int dH = r.deltaHumidity;
-        this.drawFixedIntStepper(pose, x, row, "Humidity%", h, 3,
+        this.drawFixedIntStepper(pose, col2, row, "Humidity%", h,
                 () -> this.nudgeCond("hum", -1, false),
                 () -> this.nudgeCond("hum", 0, true),
                 () -> this.nudgeCond("hum", 1, false));
-        this.drawFixedIntStepper(pose, x + 150, row, "\u0394Hum%", dH, 3,
+        this.drawFixedIntStepper(pose, col2 + 118, row, "\u0394%", dH,
                 () -> this.nudgeCond("dhum", -1, false),
                 () -> this.nudgeCond("dhum", 0, true),
                 () -> this.nudgeCond("dhum", 1, false));
-        row += 14;
+        row += 13;
 
-        // Fertility + Δ
-        int f = r.condFertility == CaveClimateScale.UNSET ? 100 : r.condFertility;
-        int dF = r.deltaFertility;
-        this.drawFixedIntStepper(pose, x, row, "Fertility", f, 3,
+        // Row 2: fertility
+        this.drawFixedIntStepper(pose, x, row, "Fertility", f,
                 () -> this.nudgeCond("fert", -1, false),
                 () -> this.nudgeCond("fert", 0, true),
                 () -> this.nudgeCond("fert", 1, false));
-        this.drawFixedIntStepper(pose, x + 150, row, "\u0394Fertility", dF, 3,
+        this.drawFixedIntStepper(pose, x + 118, row, "\u0394Fert", dF,
                 () -> this.nudgeCond("dfert", -1, false),
                 () -> this.nudgeCond("dfert", 0, true),
                 () -> this.nudgeCond("dfert", 1, false));
-        row += 16;
 
         if (r.statGenerator) {
-            drawString(pose, this.font, "Generator stats (local pulse):", x, row + 1, 0xFFFFE080);
-            row += 14;
+            row += 13;
             int gt = CaveClimateScale.tempFromInternal(r.stats.local().temperature());
             int gh = CaveClimateScale.humidityFromInternal(r.stats.local().moisture());
             int gf = CaveClimateScale.fertilityFromInternal(r.stats.local().fertility());
-            this.drawFixedIntStepper(pose, x, row, "t\u00B0+", gt, 4,
+            this.drawFixedIntStepper(pose, x, row, "t\u00B0+", gt,
                     () -> this.nudgeGenPlus("temp", -1),
                     () -> this.nudgeGenPlus("temp", Integer.MIN_VALUE),
                     () -> this.nudgeGenPlus("temp", 1));
-            this.drawFixedIntStepper(pose, x + 120, row, "Hum%+", gh, 3,
+            this.drawFixedIntStepper(pose, x + 90, row, "Hum%+", gh,
                     () -> this.nudgeGenPlus("hum", -1),
                     () -> this.nudgeGenPlus("hum", Integer.MIN_VALUE),
                     () -> this.nudgeGenPlus("hum", 1));
-            this.drawFixedIntStepper(pose, x + 250, row, "Fertility+", gf, 3,
+            this.drawFixedIntStepper(pose, x + 200, row, "Fert+", gf,
                     () -> this.nudgeGenPlus("fert", -1),
                     () -> this.nudgeGenPlus("fert", Integer.MIN_VALUE),
                     () -> this.nudgeGenPlus("fert", 1));
@@ -1168,27 +1156,15 @@ public final class NvFlagPanel extends Screen {
 
     private static final int NUM_FIELD_W = 30;
 
-    private void drawFixedFloatStepper(PoseStack pose, int x, int y, String label, float value, int decimals,
+    private void drawFixedIntStepper(PoseStack pose, int x, int y, String label, int value,
             Runnable minus, Runnable reset, Runnable plus) {
         drawString(pose, this.font, label, x, y + 1, 0xFFDDDDDD);
-        int sx = x + this.font.width(label) + 4;
+        int sx = x + this.font.width(label) + 3;
         sx = this.drawHitChar(pose, sx, y, "-", minus);
-        String vs = String.format(Locale.ROOT, "%." + decimals + "f", value);
-        this.drawFixedNumBox(pose, sx + 2, y, vs);
-        sx += 2 + NUM_FIELD_W + 2;
+        this.drawFixedNumBox(pose, sx + 1, y, Integer.toString(value));
+        sx += 1 + NUM_FIELD_W + 1;
         sx = this.drawHitChar(pose, sx, y, ".", reset);
-        this.drawHitChar(pose, sx + 2, y, "+", plus);
-    }
-
-    private void drawFixedIntStepper(PoseStack pose, int x, int y, String label, int value, int unusedWidthHint,
-            Runnable minus, Runnable reset, Runnable plus) {
-        drawString(pose, this.font, label, x, y + 1, 0xFFDDDDDD);
-        int sx = x + this.font.width(label) + 4;
-        sx = this.drawHitChar(pose, sx, y, "-", minus);
-        this.drawFixedNumBox(pose, sx + 2, y, Integer.toString(value));
-        sx += 2 + NUM_FIELD_W + 2;
-        sx = this.drawHitChar(pose, sx, y, ".", reset);
-        this.drawHitChar(pose, sx + 2, y, "+", plus);
+        this.drawHitChar(pose, sx + 1, y, "+", plus);
     }
 
     private void drawFixedNumBox(PoseStack pose, int x, int y, String text) {
@@ -1274,44 +1250,6 @@ public final class NvFlagPanel extends Screen {
         drawCenteredString(pose, this.font, ch, x + w / 2, y + 2, 0xFFFFFFAA);
         this.clickHits.add(new ClickHit(x, y, w, h, 0, action));
         return x + w;
-    }
-
-    private void nudgePlacement(String which, float delta) {
-        CaveBiomeRule r = this.selectedCaveRule;
-        if (r == null) {
-            return;
-        }
-        float t = r.temperature;
-        float v = r.vegetationDensity;
-        float w = r.weight;
-        switch (which) {
-            case "temp" -> t = clamp(t + delta, 0.0F, 1.0F);
-            case "veg" -> v = clamp(v + delta, 0.0F, 1.0F);
-            case "wt" -> w = clamp(w + delta, 0.0F, 10.0F);
-            default -> {
-                return;
-            }
-        }
-        this.mutateCaveRule(r.withPlacement(t, v, w));
-    }
-
-    private void resetPlacement(String which) {
-        CaveBiomeRule r = this.selectedCaveRule;
-        if (r == null) {
-            return;
-        }
-        float t = r.temperature;
-        float v = r.vegetationDensity;
-        float w = r.weight;
-        switch (which) {
-            case "temp" -> t = 0.5F;
-            case "veg" -> v = 0.5F;
-            case "wt" -> w = 1.0F;
-            default -> {
-                return;
-            }
-        }
-        this.mutateCaveRule(r.withPlacement(t, v, w));
     }
 
     private void nudgeStatAxis(String which, String axis, float deltaOrNaN) {
