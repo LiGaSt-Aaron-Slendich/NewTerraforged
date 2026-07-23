@@ -35,14 +35,6 @@ public final class BiomeTerrainIntegration {
         boolean steep = SubterrainResolver.isSteepSlope(sample, sub);
         ZoneContext zone = ZoneContext.from(sample);
 
-        // Conditional subterrains: if nobody matches this subterrain, deactivate it.
-        if (!SubterrainResolver.NONE.equals(sub)) {
-            int withSub = BiomeRuleRegistry.countMatching(java.util.Arrays.asList(climatePool.getValues()), terrain, sub, steep, zone);
-            if (withSub == 0) {
-                sub = SubterrainResolver.NONE;
-            }
-        }
-
         List<Holder<Biome>> values = new ArrayList<>();
         List<Float> weights = new ArrayList<>();
         for (Holder<Biome> holder : climatePool.getValues()) {
@@ -55,7 +47,6 @@ public final class BiomeTerrainIntegration {
             }
             BiomeRule rule = BiomeRuleRegistry.get(id);
             if (rule == null) {
-                // No rule file indexed (ocean etc.) — allow as climate-only candidate.
                 values.add(holder);
                 weights.add(1.0F);
                 continue;
