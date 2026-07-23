@@ -1032,35 +1032,60 @@ public final class NvFlagPanel extends Screen {
 
         int y = panelY + 6;
         int addX = panelX + panelW - 28;
+        int statsH = caveStatControlsHeight(this.selectedCaveRule);
+        int statsTop = panelY + panelH - statsH - 2;
+        int iconsBottom = Math.max(y + 8, statsTop - 4);
 
         drawString(pose, this.font, "Generation type (click to change):", panelX + 8, y, 0xFFFFE080);
         y += 12;
-        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.caveGenerationIcons(), false, false);
-        blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
-        this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Change generation type")));
-        this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_GENERATION)));
-        y += 4;
+        if (y < iconsBottom) {
+            y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.caveGenerationIcons(), false, false);
+            if (y - ICON - 4 < iconsBottom) {
+                blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
+                this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Change generation type")));
+                this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_GENERATION)));
+            }
+            y += 2;
+        }
 
-        drawString(pose, this.font, "Climates (click to remove):", panelX + 8, y, 0xFFFFE080);
-        y += 12;
-        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.caveClimateIcons(), false, false);
-        blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
-        this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add climate")));
-        this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_CAVE_CLIMATE)));
-        y += 4;
+        if (y + 24 < iconsBottom) {
+            drawString(pose, this.font, "Climates (click to remove):", panelX + 8, y, 0xFFFFE080);
+            y += 12;
+            y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.caveClimateIcons(), false, false);
+            if (y - ICON - 4 < iconsBottom) {
+                blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
+                this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add climate")));
+                this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_CAVE_CLIMATE)));
+            }
+            y += 2;
+        }
 
-        drawString(pose, this.font, "Systems (click to remove):", panelX + 8, y, 0xFFFFE080);
-        y += 12;
-        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.caveSystemIcons(), false, false);
-        blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
-        this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add system")));
-        this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_CAVE_SYSTEM)));
-        y += 2;
-        this.renderCaveStatControls(pose, panelX + 8, y);
+        if (y + 24 < iconsBottom) {
+            drawString(pose, this.font, "Systems (click to remove):", panelX + 8, y, 0xFFFFE080);
+            y += 12;
+            y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.caveSystemIcons(), false, false);
+            if (y - ICON - 4 < iconsBottom) {
+                blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
+                this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add system")));
+                this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_CAVE_SYSTEM)));
+            }
+        }
+
+        // Always pin Dim / Conditions / Gen+ above Back+Save — never overlap footer buttons.
+        this.renderCaveStatControls(pose, panelX + 8, statsTop);
 
         if (!this.status.isEmpty()) {
             drawString(pose, this.font, this.status, left + 4, this.height - 40, 0xFFAAFFAA);
         }
+    }
+
+    private static int caveStatControlsHeight(CaveBiomeRule r) {
+        // Dim/Gen row + Conditions header + 2 cond rows + optional Gen+ row
+        int h = 14 + 12 + 13 + 13;
+        if (r != null && r.statGenerator) {
+            h += 13;
+        }
+        return h + 2;
     }
 
     private void renderCaveStatControls(PoseStack pose, int x, int y) {
@@ -1069,16 +1094,15 @@ public final class NvFlagPanel extends Screen {
             return;
         }
         int row = y;
-        // Dim / Generator
-        drawString(pose, this.font, "Dimension:", x, row + 1, 0xFFFFE080);
-        int bx = x + this.font.width("Dimension: ") + 2;
-        bx = this.drawToggleChip(pose, bx, row, "Overworld", r.dimension == CaveBiomeRule.Dimension.OVERWORLD,
+        drawString(pose, this.font, "Dim:", x, row + 1, 0xFFFFE080);
+        int bx = x + this.font.width("Dim: ") + 2;
+        bx = this.drawToggleChip(pose, bx, row, "OW", r.dimension == CaveBiomeRule.Dimension.OVERWORLD,
                 () -> this.mutateCaveRule(r.withDimension(CaveBiomeRule.Dimension.OVERWORLD)));
-        bx = this.drawToggleChip(pose, bx + 6, row, "Nether", r.dimension == CaveBiomeRule.Dimension.NETHER,
+        bx = this.drawToggleChip(pose, bx + 4, row, "Nether", r.dimension == CaveBiomeRule.Dimension.NETHER,
                 () -> this.mutateCaveRule(r.withDimension(CaveBiomeRule.Dimension.NETHER)));
-        int gx = bx + 16;
-        drawString(pose, this.font, "Generator:", gx, row + 1, 0xFFFFE080);
-        gx += this.font.width("Generator: ") + 2;
+        int gx = bx + 10;
+        drawString(pose, this.font, "Gen:", gx, row + 1, 0xFFFFE080);
+        gx += this.font.width("Gen: ") + 2;
         int box = 10;
         fill(pose, gx, row, gx + box, row + box, 0xFF000000);
         fill(pose, gx + 1, row + 1, gx + box - 1, row + box - 1, 0xFF555555);
@@ -1087,14 +1111,12 @@ public final class NvFlagPanel extends Screen {
         }
         this.clickHits.add(new ClickHit(gx, row, box + 2, box + 2, 0,
                 () -> this.mutateCaveRule(r.withStats(r.stats, !r.statGenerator))));
-        // Weight / Cave Temp / Vegetation come from the original biome entry — not editable here.
-        // Filtering uses Conditions (target ± delta) against the regional climate pool.
         drawString(pose, this.font,
-                String.format(Locale.ROOT, "Weight %.2f (from biome)", r.weight),
-                gx + box + 10, row + 1, 0xFFAAAAAA);
+                String.format(Locale.ROOT, "wt %.2f", r.weight),
+                gx + box + 8, row + 1, 0xFFAAAAAA);
         row += 14;
 
-        drawString(pose, this.font, "Conditions (filter = region \u00B1 \u0394):", x, row + 1, 0xFFFFE080);
+        drawString(pose, this.font, "Conditions (\u00B1\u0394):", x, row + 1, 0xFFFFE080);
         row += 12;
 
         int t = r.condTemp == CaveClimateScale.UNSET ? 20 : r.condTemp;
@@ -1104,7 +1126,6 @@ public final class NvFlagPanel extends Screen {
         int f = r.condFertility == CaveClimateScale.UNSET ? 100 : r.condFertility;
         int dF = r.deltaFertility;
 
-        // Row 1: temperature + humidity (compact two-pair layout)
         int col2 = x + 168;
         this.drawFixedIntStepper(pose, x, row, "t\u00B0", t,
                 () -> this.nudgeCond("temp", -1, false),
@@ -1124,7 +1145,6 @@ public final class NvFlagPanel extends Screen {
                 () -> this.nudgeCond("dhum", 1, false));
         row += 13;
 
-        // Row 2: fertility
         this.drawFixedIntStepper(pose, x, row, "Fertility", f,
                 () -> this.nudgeCond("fert", -1, false),
                 () -> this.nudgeCond("fert", 0, true),
@@ -1139,15 +1159,17 @@ public final class NvFlagPanel extends Screen {
             int gt = CaveClimateScale.tempFromInternal(r.stats.local().temperature());
             int gh = CaveClimateScale.humidityFromInternal(r.stats.local().moisture());
             int gf = CaveClimateScale.fertilityFromInternal(r.stats.local().fertility());
-            this.drawFixedIntStepper(pose, x, row, "t\u00B0+", gt,
+            drawString(pose, this.font, "Gen pulse:", x, row + 1, 0xFF88FF88);
+            int px = x + this.font.width("Gen pulse: ") + 2;
+            this.drawFixedIntStepper(pose, px, row, "t\u00B0+", gt,
                     () -> this.nudgeGenPlus("temp", -1),
                     () -> this.nudgeGenPlus("temp", Integer.MIN_VALUE),
                     () -> this.nudgeGenPlus("temp", 1));
-            this.drawFixedIntStepper(pose, x + 90, row, "Hum%+", gh,
+            this.drawFixedIntStepper(pose, px + 90, row, "Hum%+", gh,
                     () -> this.nudgeGenPlus("hum", -1),
                     () -> this.nudgeGenPlus("hum", Integer.MIN_VALUE),
                     () -> this.nudgeGenPlus("hum", 1));
-            this.drawFixedIntStepper(pose, x + 200, row, "Fert+", gf,
+            this.drawFixedIntStepper(pose, px + 200, row, "Fert+", gf,
                     () -> this.nudgeGenPlus("fert", -1),
                     () -> this.nudgeGenPlus("fert", Integer.MIN_VALUE),
                     () -> this.nudgeGenPlus("fert", 1));

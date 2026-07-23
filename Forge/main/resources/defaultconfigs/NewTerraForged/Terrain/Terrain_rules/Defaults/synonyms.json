@@ -1,5 +1,5 @@
 {
-  "_comment": "canonical_name -> synonym biome path tokens / full paths. Used when BiomeRuleDefaults.ENABLED=true.",
+  "_comment": "canonical_name -> synonym biome path tokens / full paths. Used when BiomeRuleDefaults.ENABLED=true. Form tokens beat climate adjectives.",
   "plains": [
     "plains",
     "plain",
@@ -8,13 +8,26 @@
     "field",
     "fields",
     "land",
-    "lands"
+    "lands",
+    "grove",
+    "clearing"
+  ],
+  "forest": [
+    "forest",
+    "woods",
+    "woodland",
+    "woodlands",
+    "orchard"
   ],
   "steppe": [
     "steppe",
     "prairie",
     "prairies",
-    "savanna_plateau_edge"
+    "savanna",
+    "savannah",
+    "veld",
+    "pampa",
+    "pampas"
   ],
   "hills": [
     "hill",
@@ -39,15 +52,11 @@
   ],
   "plateau": [
     "plateau",
-    "tableland",
-    "highland",
-    "highlands"
+    "tableland"
   ],
   "volcano": [
     "volcano",
-    "volcanic",
-    "volcanic_peaks",
-    "volcanic_plains"
+    "volcanic_peaks"
   ],
   "volcanic_crater": [
     "volcanic_crater",
@@ -60,7 +69,9 @@
     "desert",
     "dunes",
     "dryland",
-    "outback"
+    "outback",
+    "arid",
+    "wasteland"
   ],
   "swamp": [
     "swamp",
@@ -95,16 +106,21 @@
     "jungle",
     "rainforest",
     "tropical_jungle",
-    "bamboo"
+    "bamboo",
+    "tropics"
   ],
   "taiga": [
     "taiga",
     "boreal",
-    "coniferous"
+    "coniferous",
+    "pine_forest",
+    "spruce"
   ],
   "tundra": [
     "tundra",
     "frozen",
-    "snowy_plains"
+    "snowy_plains",
+    "snowfield",
+    "permafrost"
   ]
 }

@@ -141,8 +141,8 @@ public final class BiomeRuleDefaults {
     }
 
     private static final String[] FORM_CANONICAL_PRIORITY = {
-            "river", "beach", "volcanic_crater", "volcano", "swamp", "badlands", "mountains", "hills", "plateau", "steppe", "desert", "jungle",
-            "taiga", "tundra", "plains"
+            "river", "beach", "volcanic_crater", "volcano", "swamp", "badlands", "mountains", "hills", "plateau",
+            "jungle", "taiga", "tundra", "desert", "forest", "steppe", "plains"
     };
 
     private static String bestFormSynonym(String[] tokens) {

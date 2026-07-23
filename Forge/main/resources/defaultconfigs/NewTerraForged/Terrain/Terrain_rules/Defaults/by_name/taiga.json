@@ -1,0 +1,15 @@
+{
+  "biome": "template:taiga",
+  "can_be_on_slope": true,
+  "climate_tags": ["cold", "temperate"],
+  "terrains": {
+    "hills_1": 1.0,
+    "hills_2": 0.85,
+    "plains": 0.6,
+    "dales": 0.5,
+    "island_hills": 0.5
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

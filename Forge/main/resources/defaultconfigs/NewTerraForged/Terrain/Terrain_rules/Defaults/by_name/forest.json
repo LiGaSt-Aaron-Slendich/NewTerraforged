@@ -1,0 +1,15 @@
+{
+  "biome": "template:forest",
+  "can_be_on_slope": false,
+  "climate_tags": ["temperate"],
+  "terrains": {
+    "plains": 1.0,
+    "dales": 0.85,
+    "hills_1": 0.55,
+    "hills_2": 0.4,
+    "island_flats": 0.45
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

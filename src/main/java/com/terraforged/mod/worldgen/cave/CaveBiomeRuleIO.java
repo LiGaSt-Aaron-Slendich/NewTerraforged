@@ -92,6 +92,20 @@ public final class CaveBiomeRuleIO {
             stats = parseStats(obj.getAsJsonObject("stats"));
         }
         boolean hasNew = obj.has("cond_temp") || obj.has("cond_humidity") || obj.has("cond_fertility");
+        if (auto) {
+            // Auto rules always pick up curated name Cond defaults (player Save clears auto_generated).
+            int[] named;
+            try {
+                named = CaveCondNameDefaults.targetsFor(new net.minecraft.resources.ResourceLocation(biome));
+            } catch (Exception e) {
+                named = CaveCondNameDefaults.targetsFor(null);
+            }
+            return new LoadResult(new CaveBiomeRule(
+                    biome, cat, placement, climates, systems, dimension,
+                    temperature, veg, weight, cmin, cmax, island, stats, generator, auto,
+                    named[0], named[1], named[2], named[3], named[4], named[5]
+            ), null);
+        }
         if (hasNew) {
             int ct = obj.has("cond_temp") ? obj.get("cond_temp").getAsInt() : CaveClimateScale.UNSET;
             int dt = obj.has("delta_temp") ? obj.get("delta_temp").getAsInt() : CaveClimateScale.DEFAULT_DELTA_TEMP;
@@ -99,6 +113,17 @@ public final class CaveBiomeRuleIO {
             int dh = obj.has("delta_humidity") ? obj.get("delta_humidity").getAsInt() : CaveClimateScale.DEFAULT_DELTA_HUM;
             int cf = obj.has("cond_fertility") ? obj.get("cond_fertility").getAsInt() : CaveClimateScale.UNSET;
             int df = obj.has("delta_fertility") ? obj.get("delta_fertility").getAsInt() : CaveClimateScale.DEFAULT_DELTA_FERT;
+            try {
+                int[] merged = CaveCondNameDefaults.mergeWithExisting(
+                        new net.minecraft.resources.ResourceLocation(biome), ct, dt, ch, dh, cf, df);
+                ct = merged[0];
+                dt = merged[1];
+                ch = merged[2];
+                dh = merged[3];
+                cf = merged[4];
+                df = merged[5];
+            } catch (Exception ignored) {
+            }
             return new LoadResult(new CaveBiomeRule(
                     biome, cat, placement, climates, systems, dimension,
                     temperature, veg, weight, cmin, cmax, island, stats, generator, auto,

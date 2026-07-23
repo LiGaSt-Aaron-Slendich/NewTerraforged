@@ -191,12 +191,29 @@ public final class CaveBiomeRule {
 
         if (deriveTargetsFromLegacy) {
             int[] derived = deriveFromStats(this.stats);
-            this.condTemp = derived[0];
-            this.deltaTemp = CaveClimateScale.DEFAULT_DELTA_TEMP;
-            this.condHumidity = derived[1];
-            this.deltaHumidity = CaveClimateScale.DEFAULT_DELTA_HUM;
-            this.condFertility = derived[2];
-            this.deltaFertility = CaveClimateScale.DEFAULT_DELTA_FERT;
+            int t = derived[0];
+            int dT = CaveClimateScale.DEFAULT_DELTA_TEMP;
+            int h = derived[1];
+            int dH = CaveClimateScale.DEFAULT_DELTA_HUM;
+            int f = derived[2];
+            int dF = CaveClimateScale.DEFAULT_DELTA_FERT;
+            try {
+                ResourceLocation id = new ResourceLocation(biome);
+                int[] merged = CaveCondNameDefaults.mergeWithExisting(id, t, dT, h, dH, f, dF);
+                t = merged[0];
+                dT = merged[1];
+                h = merged[2];
+                dH = merged[3];
+                f = merged[4];
+                dF = merged[5];
+            } catch (Exception ignored) {
+            }
+            this.condTemp = t;
+            this.deltaTemp = dT;
+            this.condHumidity = h;
+            this.deltaHumidity = dH;
+            this.condFertility = f;
+            this.deltaFertility = dF;
         } else {
             this.condTemp = condTemp;
             this.deltaTemp = Math.max(0, deltaTemp);
@@ -209,15 +226,11 @@ public final class CaveBiomeRule {
 
     private static int[] deriveFromStats(CaveBiomeStats s) {
         CaveStatVector c = s.conditions();
-        // Legacy "no requirement" sentinel (−10,−10,−10)
-        if (c.moisture() <= -9.5F && c.temperature() <= -9.5F && c.fertility() <= -9.5F) {
-            return new int[]{CaveClimateScale.UNSET, CaveClimateScale.UNSET, CaveClimateScale.UNSET};
-        }
-        return new int[]{
-                CaveClimateScale.tempFromInternal(c.temperature()),
-                CaveClimateScale.humidityFromInternal(c.moisture()),
-                CaveClimateScale.fertilityFromInternal(c.fertility())
-        };
+        // Per-axis: legacy −10 sentinel means "no requirement" → UNSET (filled by CaveCondNameDefaults).
+        int t = c.temperature() <= -9.5F ? CaveClimateScale.UNSET : CaveClimateScale.tempFromInternal(c.temperature());
+        int h = c.moisture() <= -9.5F ? CaveClimateScale.UNSET : CaveClimateScale.humidityFromInternal(c.moisture());
+        int f = c.fertility() <= -9.5F ? CaveClimateScale.UNSET : CaveClimateScale.fertilityFromInternal(c.fertility());
+        return new int[]{t, h, f};
     }
 
     public boolean hasCondTargets() {
