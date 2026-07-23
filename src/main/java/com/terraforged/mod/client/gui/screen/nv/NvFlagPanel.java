@@ -13,6 +13,7 @@ import com.terraforged.mod.worldgen.cave.CaveBiomeCategory;
 import com.terraforged.mod.worldgen.cave.CaveBiomeRule;
 import com.terraforged.mod.worldgen.cave.CaveBiomeRuleRegistry;
 import com.terraforged.mod.worldgen.cave.CaveClimateType;
+import com.terraforged.mod.worldgen.cave.CaveStatVector;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -37,7 +38,8 @@ import net.minecraft.resources.ResourceLocation;
  * side tabs, token search, icon rows, full edit panel with chance popup / add / slope checkbox.
  */
 public final class NvFlagPanel extends Screen {
-    private enum Tab { UNTESTED, SURFACE_BIOMES, CAVE_BIOMES }
+    private enum Tab { UNTESTED, BIOME_RULES }
+    private enum RulesSub { SURFACE, CAVE }
 
     private enum Popup {
         NONE,
@@ -53,7 +55,6 @@ public final class NvFlagPanel extends Screen {
 
     private static final int TAB_W = 28;
     private static final int TAB_H = 108;
-    private static final int TAB_ICON_H = 40;
     private static final int TAB_TEX = 32;
     private static final int ICON = BiomeRuleIcons.SIZE;
     private static final int ICON_GAP = 2;
@@ -80,6 +81,7 @@ public final class NvFlagPanel extends Screen {
 
     private final Screen parent;
     private Tab tab = Tab.UNTESTED;
+    private RulesSub rulesSub = RulesSub.SURFACE;
     private boolean editing;
     private Popup popup = Popup.NONE;
     private boolean popupSub;
@@ -98,6 +100,7 @@ public final class NvFlagPanel extends Screen {
     private BiomeRule selectedRule;
     private CaveBiomeRule selectedCaveRule;
     private String status = "";
+    private long statusUntilMs = 0;
 
     private final List<IconHit> iconHits = new ArrayList<>();
     private final List<ClickHit> clickHits = new ArrayList<>();
@@ -116,11 +119,33 @@ public final class NvFlagPanel extends Screen {
     }
 
     private boolean isRulesTab() {
-        return this.tab == Tab.SURFACE_BIOMES || this.tab == Tab.CAVE_BIOMES;
+        return this.tab == Tab.BIOME_RULES;
     }
 
     private boolean isCaveTab() {
-        return this.tab == Tab.CAVE_BIOMES;
+        return this.tab == Tab.BIOME_RULES && this.rulesSub == RulesSub.CAVE;
+    }
+
+    private void setStatus(String msg) {
+        this.setStatus(msg, 3500L);
+    }
+
+    private void setStatus(String msg, long durationMs) {
+        this.status = msg == null ? "" : msg;
+        if (this.status.isBlank()) {
+            this.statusUntilMs = 0;
+        } else {
+            this.statusUntilMs = System.currentTimeMillis() + durationMs;
+        }
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.statusUntilMs > 0 && System.currentTimeMillis() >= this.statusUntilMs) {
+            this.status = "";
+            this.statusUntilMs = 0;
+        }
     }
 
     @Override
@@ -149,7 +174,22 @@ public final class NvFlagPanel extends Screen {
         this.tab = next;
         this.editing = false;
         this.popup = Popup.NONE;
-        this.status = "";
+        this.setStatus("");
+        this.selectedIndex = -1;
+        this.selectedRule = null;
+        this.selectedCaveRule = null;
+        this.listScroll = 0;
+        this.init();
+    }
+
+    private void setRulesSub(RulesSub next) {
+        if (this.rulesSub == next) {
+            return;
+        }
+        this.rulesSub = next;
+        this.editing = false;
+        this.popup = Popup.NONE;
+        this.setStatus("");
         this.selectedIndex = -1;
         this.selectedRule = null;
         this.selectedCaveRule = null;
@@ -213,11 +253,12 @@ public final class NvFlagPanel extends Screen {
                             TFCaveBiomeConfig.load();
                         }
                         CaveBiomeRuleRegistry.reload();
+                        CaveBiomeRuleRegistry.purgeNonCaveRules();
                     } else {
                         BiomeRuleRegistry.syncAtGameLaunch();
                     }
                     this.reloadBiomeIds();
-                    this.status = "Reloaded (" + this.biomeIds.size() + ")";
+                    this.setStatus("Reloaded (" + this.biomeIds.size() + ")");
                     this.selectIndex(this.selectedIndex);
                 }
         ));
@@ -249,7 +290,7 @@ public final class NvFlagPanel extends Screen {
     private void exitEdit() {
         this.editing = false;
         this.popup = Popup.NONE;
-        this.status = "";
+        this.setStatus("");
         // Discard unsaved in-memory edits by reloading the rule from the registry.
         if (this.selectedIndex >= 0 && this.selectedIndex < this.filteredIds.size()) {
             ResourceLocation id = this.filteredIds.get(this.selectedIndex);
@@ -267,14 +308,14 @@ public final class NvFlagPanel extends Screen {
     private void openEdit() {
         if (this.isCaveTab()) {
             if (this.selectedCaveRule == null) {
-                this.status = "Select a biome first";
+                this.setStatus("Select a biome first");
                 return;
             }
         } else if (this.selectedRule == null) {
-            this.status = "Select a biome first";
+            this.setStatus("Select a biome first");
             return;
         }
-        this.status = "";
+        this.setStatus("");
         this.editing = true;
         this.popup = Popup.NONE;
         this.init();
@@ -349,7 +390,7 @@ public final class NvFlagPanel extends Screen {
         }
         // Clear stale edit messages when browsing another biome (unsaved edits are not shown).
         if (prev != idx && !this.editing) {
-            this.status = "";
+            this.setStatus("");
         }
         this.refreshEditVisibility();
     }
@@ -374,6 +415,7 @@ public final class NvFlagPanel extends Screen {
                 r.placementType,
                 climates,
                 systems,
+                r.dimension,
                 r.temperature,
                 r.vegetationDensity,
                 r.weight,
@@ -419,7 +461,7 @@ public final class NvFlagPanel extends Screen {
                 false
         ));
         this.popup = Popup.NONE;
-        this.status = "Added climate " + tag;
+        this.setStatus("Added climate " + tag);
         this.init();
     }
 
@@ -438,7 +480,7 @@ public final class NvFlagPanel extends Screen {
                 this.selectedRule.zoneFlags,
                 false
         ));
-        this.status = "Removed climate " + tag;
+        this.setStatus("Removed climate " + tag);
     }
 
     private void addZone(String key) {
@@ -457,7 +499,7 @@ public final class NvFlagPanel extends Screen {
                 false
         ));
         this.popup = Popup.NONE;
-        this.status = "Added zone " + key;
+        this.setStatus("Added zone " + key);
         this.init();
     }
 
@@ -476,7 +518,7 @@ public final class NvFlagPanel extends Screen {
                 zones,
                 false
         ));
-        this.status = "Removed zone " + key;
+        this.setStatus("Removed zone " + key);
     }
 
     private void addCaveClimate(String alias) {
@@ -489,7 +531,7 @@ public final class NvFlagPanel extends Screen {
         climates.add(CaveClimateType.fromAlias(alias));
         this.mutateCaveRule(this.copyCave(this.selectedCaveRule.category, climates, this.selectedCaveRule.systems));
         this.popup = Popup.NONE;
-        this.status = "Added climate " + alias;
+        this.setStatus("Added climate " + alias);
         this.init();
     }
 
@@ -502,7 +544,7 @@ public final class NvFlagPanel extends Screen {
                 : EnumSet.copyOf(this.selectedCaveRule.climates);
         climates.remove(CaveClimateType.fromAlias(alias));
         this.mutateCaveRule(this.copyCave(this.selectedCaveRule.category, climates, this.selectedCaveRule.systems));
-        this.status = "Removed climate " + alias;
+        this.setStatus("Removed climate " + alias);
     }
 
     private void addCaveSystem(String system) {
@@ -513,7 +555,7 @@ public final class NvFlagPanel extends Screen {
         systems.add(system.toLowerCase(Locale.ROOT));
         this.mutateCaveRule(this.copyCave(this.selectedCaveRule.category, this.selectedCaveRule.climates, systems));
         this.popup = Popup.NONE;
-        this.status = "Added system " + system;
+        this.setStatus("Added system " + system);
         this.init();
     }
 
@@ -524,7 +566,7 @@ public final class NvFlagPanel extends Screen {
         LinkedHashSet<String> systems = new LinkedHashSet<>(this.selectedCaveRule.systems);
         systems.remove(system.toLowerCase(Locale.ROOT));
         this.mutateCaveRule(this.copyCave(this.selectedCaveRule.category, this.selectedCaveRule.climates, systems));
-        this.status = "Removed system " + system;
+        this.setStatus("Removed system " + system);
     }
 
     private void setCaveGeneration(String gen) {
@@ -534,7 +576,7 @@ public final class NvFlagPanel extends Screen {
         CaveBiomeCategory cat = CaveBiomeRule.categoryFromGeneration(gen);
         this.mutateCaveRule(this.copyCave(cat, this.selectedCaveRule.climates, this.selectedCaveRule.systems));
         this.popup = Popup.NONE;
-        this.status = "Generation: " + CaveBiomeRule.generationAlias(cat);
+        this.setStatus("Generation: " + CaveBiomeRule.generationAlias(cat));
         this.init();
     }
 
@@ -557,7 +599,7 @@ public final class NvFlagPanel extends Screen {
                 terrains.put(key, chance);
             }
             if (terrains.isEmpty()) {
-                this.status = "Keep at least one terrain";
+                this.setStatus("Keep at least one terrain");
                 return;
             }
         }
@@ -593,7 +635,7 @@ public final class NvFlagPanel extends Screen {
                 false
         ));
         this.popup = Popup.NONE;
-        this.status = "Added " + key;
+        this.setStatus("Added " + key);
         this.init();
     }
 
@@ -632,7 +674,7 @@ public final class NvFlagPanel extends Screen {
             this.popup = Popup.NONE;
             this.init();
         } catch (NumberFormatException e) {
-            this.status = "Bad chance value";
+            this.setStatus("Bad chance value");
         }
     }
 
@@ -655,13 +697,13 @@ public final class NvFlagPanel extends Screen {
 
     private void saveSelected() {
         if (this.selectedIndex < 0 || this.selectedIndex >= this.filteredIds.size()) {
-            this.status = "Nothing to save";
+            this.setStatus("Nothing to save");
             return;
         }
         ResourceLocation id = this.filteredIds.get(this.selectedIndex);
         if (this.isCaveTab()) {
             if (this.selectedCaveRule == null) {
-                this.status = "Nothing to save";
+                this.setStatus("Nothing to save");
                 return;
             }
             CaveBiomeRule toSave = this.copyCave(
@@ -678,15 +720,15 @@ public final class NvFlagPanel extends Screen {
                         break;
                     }
                 }
-                this.status = "Saved " + id;
+                this.setStatus("Saved " + id);
             } catch (Exception e) {
-                this.status = "Save failed: " + e.getMessage();
+                this.setStatus("Save failed: " + e.getMessage(), 8000L);
                 TerraForged.LOG.error("[CaveBiomeRules] save failed {}", id, e);
             }
             return;
         }
         if (this.selectedRule == null) {
-            this.status = "Nothing to save";
+            this.setStatus("Nothing to save");
             return;
         }
         // Force non-auto so future sync keeps player/default edits.
@@ -714,9 +756,9 @@ public final class NvFlagPanel extends Screen {
                     break;
                 }
             }
-            this.status = "Saved " + id + (BiomeRuleDefaults.isEnabled() ? " (+ default)" : "");
+            this.setStatus("Saved " + id + (BiomeRuleDefaults.isEnabled() ? " (+ default)" : ""));
         } catch (Exception e) {
-            this.status = "Save failed: " + e.getMessage();
+            this.setStatus("Save failed: " + e.getMessage(), 8000L);
             TerraForged.LOG.error("[BiomeRules] save failed {}", id, e);
         }
     }
@@ -731,6 +773,9 @@ public final class NvFlagPanel extends Screen {
         this.iconHits.clear();
         this.clickHits.clear();
         this.renderSideTabs(pose, mouseX, mouseY);
+        if (this.isRulesTab()) {
+            this.renderRulesSubTabs(pose, mouseX, mouseY);
+        }
 
         if (this.tab == Tab.UNTESTED) {
             int mid = (this.contentLeft() + this.width) / 2;
@@ -758,10 +803,29 @@ public final class NvFlagPanel extends Screen {
     private void renderSideTabs(PoseStack pose, int mouseX, int mouseY) {
         int y1 = 28;
         int y2 = y1 + TAB_H + 6;
-        int y3 = y2 + TAB_ICON_H + 4;
         this.drawSideTab(pose, 0, y1, Tab.UNTESTED, "1", "Untested", mouseX, mouseY);
-        this.drawSideIconTab(pose, 0, y2, Tab.SURFACE_BIOMES, BiomeRuleIcons.tabSurface(), "Surface Biomes", mouseX, mouseY);
-        this.drawSideIconTab(pose, 0, y3, Tab.CAVE_BIOMES, BiomeRuleIcons.tabCave(), "Cave Biomes", mouseX, mouseY);
+        this.drawSideTab(pose, 0, y2, Tab.BIOME_RULES, "2", "Rules", mouseX, mouseY);
+    }
+
+    private void renderRulesSubTabs(PoseStack pose, int mouseX, int mouseY) {
+        int left = this.contentLeft();
+        int sx = left + 228;
+        int sy = 8;
+        this.drawRulesSubIcon(pose, sx, sy, RulesSub.SURFACE, BiomeRuleIcons.tabSurface(), "Surface Biomes", mouseX, mouseY);
+        this.drawRulesSubIcon(pose, sx + TAB_TEX + 4, sy, RulesSub.CAVE, BiomeRuleIcons.tabCave(), "Cave Biomes", mouseX, mouseY);
+    }
+
+    private void drawRulesSubIcon(
+            PoseStack pose, int x, int y, RulesSub which, ResourceLocation icon, String tip, int mouseX, int mouseY
+    ) {
+        boolean active = this.rulesSub == which;
+        boolean hover = mouseX >= x && mouseX < x + TAB_TEX && mouseY >= y && mouseY < y + TAB_TEX;
+        int edge = active ? 0xFF66CC66 : (hover ? 0xFFE0C060 : 0xFF555555);
+        fill(pose, x - 2, y - 2, x + TAB_TEX + 2, y + TAB_TEX + 2, edge);
+        fill(pose, x - 1, y - 1, x + TAB_TEX + 1, y + TAB_TEX + 1, active ? 0xFF2A3A2A : 0xFF1A1A1A);
+        blitTabIcon(pose, icon, x, y);
+        this.iconHits.add(new IconHit(x - 2, y - 2, TAB_TEX + 4, TAB_TEX + 4, List.of(tip)));
+        this.clickHits.add(new ClickHit(x - 2, y - 2, TAB_TEX + 4, TAB_TEX + 4, 0, () -> this.setRulesSub(which)));
     }
 
     private void drawSideTab(PoseStack pose, int x, int y, Tab which, String num, String title, int mouseX, int mouseY) {
@@ -776,23 +840,6 @@ public final class NvFlagPanel extends Screen {
         fill(pose, x, y + TAB_H - 2, x + w, y + TAB_H, edge);
         drawCenteredString(pose, this.font, num, x + w / 2, y + 8, active ? 0xFFFFE080 : 0xFFCCCCCC);
         this.drawVerticalLabel(pose, title, x + (w - 8) / 2, y + 24, active ? 0xFFFFE080 : 0xFFAAAAAA);
-    }
-
-    private void drawSideIconTab(PoseStack pose, int x, int y, Tab which, ResourceLocation icon, String tip, int mouseX, int mouseY) {
-        boolean active = this.tab == which;
-        boolean hover = mouseX >= x && mouseX < x + TAB_W + (active ? 4 : 0) && mouseY >= y && mouseY < y + TAB_ICON_H;
-        int w = active ? TAB_W + 4 : TAB_W;
-        int bg = active ? 0xFF3A3A3A : (hover ? 0xFF2A2A2A : 0xFF1A1A1A);
-        int edge = active ? 0xFFE0C060 : 0xFF666666;
-        fill(pose, x, y, x + w, y + TAB_ICON_H, bg);
-        fill(pose, x + w - 2, y, x + w, y + TAB_ICON_H, edge);
-        fill(pose, x, y, x + w, y + 2, edge);
-        fill(pose, x, y + TAB_ICON_H - 2, x + w, y + TAB_ICON_H, edge);
-        int ix = x + (w - TAB_TEX) / 2;
-        int iy = y + (TAB_ICON_H - TAB_TEX) / 2;
-        // Clip slightly into the narrow tab: draw centered 32×32 (may overhang left/right a bit — OK for crisp icons).
-        blitTabIcon(pose, icon, ix, iy);
-        this.iconHits.add(new IconHit(x, y, w, TAB_ICON_H, List.of(tip)));
     }
 
     private void drawVerticalLabel(PoseStack pose, String text, int x, int y, int color) {
@@ -899,7 +946,8 @@ public final class NvFlagPanel extends Screen {
         drawString(pose, this.font, trim(name, textW), textX, hy + 6, 0xFFFFFFFF);
         String desc = this.selectedCaveRule == null
                 ? "Pick a cave biome, then Edit."
-                : "gen=" + CaveBiomeRule.generationAlias(this.selectedCaveRule.category);
+                : "dim=" + this.selectedCaveRule.dimension.shortLabel()
+                        + "  gen=" + (this.selectedCaveRule.statGenerator ? "yes" : "no");
         drawString(pose, this.font, trim(desc, textW), textX, hy + 22, 0xFFCCCCCC);
 
         int rowY = hy + preview + 8;
@@ -1021,10 +1069,174 @@ public final class NvFlagPanel extends Screen {
         blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
         this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add system")));
         this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_CAVE_SYSTEM)));
+        y += 6;
+        this.renderCaveStatControls(pose, panelX + 8, y);
 
         if (!this.status.isEmpty()) {
             drawString(pose, this.font, this.status, left + 4, this.height - 40, 0xFFAAFFAA);
         }
+    }
+
+    private void renderCaveStatControls(PoseStack pose, int x, int y) {
+        CaveBiomeRule r = this.selectedCaveRule;
+        if (r == null) {
+            return;
+        }
+        int row = y;
+        // Dim: [OW] [Neth]     Gen: [x]
+        drawString(pose, this.font, "Dim:", x, row + 1, 0xFFFFE080);
+        int bx = x + this.font.width("Dim: ") + 2;
+        bx = this.drawToggleChip(pose, bx, row, "OW", r.dimension == CaveBiomeRule.Dimension.OVERWORLD,
+                () -> this.mutateCaveRule(r.withDimension(CaveBiomeRule.Dimension.OVERWORLD)));
+        bx = this.drawToggleChip(pose, bx + 4, row, "Neth", r.dimension == CaveBiomeRule.Dimension.NETHER,
+                () -> this.mutateCaveRule(r.withDimension(CaveBiomeRule.Dimension.NETHER)));
+        int gx = bx + 14;
+        drawString(pose, this.font, "Gen:", gx, row + 1, 0xFFFFE080);
+        gx += this.font.width("Gen: ") + 2;
+        int box = 10;
+        fill(pose, gx, row, gx + box, row + box, 0xFF000000);
+        fill(pose, gx + 1, row + 1, gx + box - 1, row + box - 1, 0xFF555555);
+        if (r.statGenerator) {
+            fill(pose, gx + 2, row + 2, gx + box - 2, row + box - 2, 0xFF88FF88);
+        }
+        this.clickHits.add(new ClickHit(gx, row, box + 2, box + 2, 0,
+                () -> this.mutateCaveRule(r.withStats(r.stats, !r.statGenerator))));
+        row += 14;
+
+        // Wt / CaveT / Veg placement
+        this.drawFloatStepper(pose, x, row, "Wt", r.weight,
+                () -> this.nudgePlacement("wt", -0.05F),
+                () -> this.resetPlacement("wt"),
+                () -> this.nudgePlacement("wt", 0.05F));
+        this.drawFloatStepper(pose, x + 78, row, "CaveT", r.temperature,
+                () -> this.nudgePlacement("temp", -0.05F),
+                () -> this.resetPlacement("temp"),
+                () -> this.nudgePlacement("temp", 0.05F));
+        this.drawFloatStepper(pose, x + 168, row, "Veg", r.vegetationDensity,
+                () -> this.nudgePlacement("veg", -0.05F),
+                () -> this.resetPlacement("veg"),
+                () -> this.nudgePlacement("veg", 0.05F));
+        row += 14;
+
+        // Cond vector
+        drawString(pose, this.font, "Cond:", x, row + 1, 0xFFFFE080);
+        int cx = x + this.font.width("Cond: ") + 2;
+        cx = this.drawAxisStepper(pose, cx, row, "Moist", r.stats.conditions().moisture(), "conditions", "moist");
+        cx = this.drawAxisStepper(pose, cx + 6, row, "Temp", r.stats.conditions().temperature(), "conditions", "temp");
+        this.drawAxisStepper(pose, cx + 6, row, "Fert", r.stats.conditions().fertility(), "conditions", "fert");
+        row += 14;
+
+        if (r.statGenerator) {
+            drawString(pose, this.font, "Gen+:", x, row + 1, 0xFFFFE080);
+            int lx = x + this.font.width("Gen+: ") + 2;
+            lx = this.drawAxisStepper(pose, lx, row, "Moist+", r.stats.local().moisture(), "local", "moist");
+            lx = this.drawAxisStepper(pose, lx + 6, row, "Temp+", r.stats.local().temperature(), "local", "temp");
+            this.drawAxisStepper(pose, lx + 6, row, "Fert+", r.stats.local().fertility(), "local", "fert");
+        }
+    }
+
+    private int drawToggleChip(PoseStack pose, int x, int y, String label, boolean on, Runnable action) {
+        int w = this.font.width(label) + 6;
+        int h = 11;
+        fill(pose, x, y, x + w, y + h, on ? 0xAA226644 : 0xAA333333);
+        drawString(pose, this.font, label, x + 3, y + 2, on ? 0xFF88FF88 : 0xFFCCCCCC);
+        this.clickHits.add(new ClickHit(x, y, w, h, 0, action));
+        return x + w;
+    }
+
+    private void drawFloatStepper(PoseStack pose, int x, int y, String label, float value,
+            Runnable minus, Runnable reset, Runnable plus) {
+        drawString(pose, this.font, label, x, y + 1, 0xFFDDDDDD);
+        int sx = x + this.font.width(label) + 4;
+        sx = this.drawHitChar(pose, sx, y, "-", minus);
+        drawString(pose, this.font, fmt(value), sx + 2, y + 1, 0xFFFFFFFF);
+        sx += this.font.width(fmt(value)) + 4;
+        sx = this.drawHitChar(pose, sx, y, ".", reset);
+        this.drawHitChar(pose, sx + 2, y, "+", plus);
+    }
+
+    private int drawAxisStepper(PoseStack pose, int x, int y, String label, float value, String which, String axis) {
+        drawString(pose, this.font, label, x, y + 1, 0xFFDDDDDD);
+        int sx = x + this.font.width(label) + 3;
+        sx = this.drawHitChar(pose, sx, y, "-", () -> this.nudgeStatAxis(which, axis, -1.0F));
+        String vs = fmt(value);
+        drawString(pose, this.font, vs, sx + 2, y + 1, 0xFFFFFFFF);
+        sx += this.font.width(vs) + 4;
+        sx = this.drawHitChar(pose, sx, y, ".", () -> this.nudgeStatAxis(which, axis, Float.NaN));
+        return this.drawHitChar(pose, sx + 2, y, "+", () -> this.nudgeStatAxis(which, axis, 1.0F));
+    }
+
+    private int drawHitChar(PoseStack pose, int x, int y, String ch, Runnable action) {
+        int w = Math.max(8, this.font.width(ch) + 4);
+        int h = 11;
+        fill(pose, x, y, x + w, y + h, 0xAA444444);
+        drawCenteredString(pose, this.font, ch, x + w / 2, y + 2, 0xFFFFFFAA);
+        this.clickHits.add(new ClickHit(x, y, w, h, 0, action));
+        return x + w;
+    }
+
+    private void nudgePlacement(String which, float delta) {
+        CaveBiomeRule r = this.selectedCaveRule;
+        if (r == null) {
+            return;
+        }
+        float t = r.temperature;
+        float v = r.vegetationDensity;
+        float w = r.weight;
+        switch (which) {
+            case "temp" -> t = clamp(t + delta, 0.0F, 1.0F);
+            case "veg" -> v = clamp(v + delta, 0.0F, 1.0F);
+            case "wt" -> w = clamp(w + delta, 0.0F, 10.0F);
+            default -> {
+                return;
+            }
+        }
+        this.mutateCaveRule(r.withPlacement(t, v, w));
+    }
+
+    private void resetPlacement(String which) {
+        CaveBiomeRule r = this.selectedCaveRule;
+        if (r == null) {
+            return;
+        }
+        float t = r.temperature;
+        float v = r.vegetationDensity;
+        float w = r.weight;
+        switch (which) {
+            case "temp" -> t = 0.5F;
+            case "veg" -> v = 0.5F;
+            case "wt" -> w = 1.0F;
+            default -> {
+                return;
+            }
+        }
+        this.mutateCaveRule(r.withPlacement(t, v, w));
+    }
+
+    private void nudgeStatAxis(String which, String axis, float deltaOrNaN) {
+        CaveBiomeRule r = this.selectedCaveRule;
+        if (r == null) {
+            return;
+        }
+        float cur = axisValue(
+                "local".equals(which) ? r.stats.local() : r.stats.conditions(),
+                axis
+        );
+        float next = Float.isNaN(deltaOrNaN) ? 0.0F : clamp(cur + deltaOrNaN, -10.0F, 10.0F);
+        this.mutateCaveRule(r.withStats(r.stats.withAxis(which, axis, next), r.statGenerator));
+    }
+
+    private static float axisValue(CaveStatVector vec, String axis) {
+        return switch (axis) {
+            case "moist" -> vec.moisture();
+            case "temp" -> vec.temperature();
+            case "fert" -> vec.fertility();
+            default -> 0.0F;
+        };
+    }
+
+    private static float clamp(float v, float min, float max) {
+        return Math.max(min, Math.min(max, v));
     }
 
     private void renderPopup(PoseStack pose, int mouseX, int mouseY) {
@@ -1264,7 +1476,7 @@ public final class NvFlagPanel extends Screen {
                     this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 0, () -> this.openChancePopup(key, sub)));
                     this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 1, () -> {
                         this.setChance(key, sub, 0.0F);
-                        this.status = "Removed " + key;
+                        this.setStatus("Removed " + key);
                     }));
                 } else if (spec.kind == IconSpec.Kind.CLIMATE) {
                     Runnable rem = () -> this.removeClimate(key);
@@ -1365,18 +1577,13 @@ public final class NvFlagPanel extends Screen {
         if (button == 0 || button == 1) {
             int y1 = 28;
             int y2 = y1 + TAB_H + 6;
-            int y3 = y2 + TAB_ICON_H + 4;
             if (button == 0 && mouseX >= 0 && mouseX < TAB_W + 6) {
                 if (mouseY >= y1 && mouseY < y1 + TAB_H) {
                     this.setTab(Tab.UNTESTED);
                     return true;
                 }
-                if (mouseY >= y2 && mouseY < y2 + TAB_ICON_H) {
-                    this.setTab(Tab.SURFACE_BIOMES);
-                    return true;
-                }
-                if (mouseY >= y3 && mouseY < y3 + TAB_ICON_H) {
-                    this.setTab(Tab.CAVE_BIOMES);
+                if (mouseY >= y2 && mouseY < y2 + TAB_H) {
+                    this.setTab(Tab.BIOME_RULES);
                     return true;
                 }
             }
