@@ -69,6 +69,10 @@ public final class BiomeTerrainIntegration {
                 continue;
             }
             float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep, zone);
+            // Dormant cones: allow normal land biomes (hills/mountains/plains), not only volcanic kits.
+            if (chance <= 0.0F && zone.onDormantVolcano) {
+                chance = dormantConeChance(rule, sub, steep, zone);
+            }
             if (chance <= 0.0F) {
                 continue;
             }
@@ -82,9 +86,8 @@ public final class BiomeTerrainIntegration {
             return v != null ? v : fallback;
         }
 
-        // Keep mod volcano kits together (Terralith peaks+crater, not mixed with BYG on the same cone).
-        boolean volcanicCell = ZoneContext.isVolcanoTerrain(terrainObj);
-        if (volcanicCell) {
+        // Keep mod volcano kits together on *active* cones only.
+        if (zone.onActiveVolcano) {
             String preferredNs = VolcanoBiomeKits.preferredNamespace(blockX, blockZ, ids);
             VolcanoBiomeKits.Role need = ZoneContext.isPipeTerrain(terrainObj)
                     ? VolcanoBiomeKits.Role.CRATER
@@ -106,6 +109,14 @@ public final class BiomeTerrainIntegration {
                     weights.set(i, w);
                 }
             }
+        } else if (zone.onDormantVolcano) {
+            // Soft-prefer land biomes over volcanic kits on dormant cones.
+            for (int i = 0; i < values.size(); i++) {
+                VolcanoBiomeKits.Role role = VolcanoBiomeKits.role(ids.get(i));
+                if (role != VolcanoBiomeKits.Role.OTHER) {
+                    weights.set(i, weights.get(i) * 0.35F);
+                }
+            }
         }
 
         @SuppressWarnings("unchecked")
@@ -117,6 +128,16 @@ public final class BiomeTerrainIntegration {
         WeightMap<Holder<Biome>> candidates = new WeightMap<>(arr, w);
         Holder<Biome> picked = candidates.getValue(noise);
         return picked != null ? picked : fallback;
+    }
+
+    /** Try common land terrains so non-volcanic biomes can sit on dormant volcano cells. */
+    private static float dormantConeChance(BiomeRule rule, String sub, boolean steep, ZoneContext zone) {
+        String[] alts = {"hills_1", "hills_2", "mountains_1", "mountains_2", "plateau", "plains", "steppe"};
+        float best = 0.0F;
+        for (String alt : alts) {
+            best = Math.max(best, BiomeRuleRegistry.matchChance(rule, alt, sub, steep, zone));
+        }
+        return best;
     }
 
     /** @deprecated Use {@link #pick}; kept for any leftover call sites. */

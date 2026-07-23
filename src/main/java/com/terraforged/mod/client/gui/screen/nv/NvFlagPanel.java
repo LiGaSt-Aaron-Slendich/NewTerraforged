@@ -62,7 +62,8 @@ public final class NvFlagPanel extends Screen {
             "jungle", "alpine", "volcanic", "mesa"
     );
     private static final List<String> ADDABLE_ZONES = List.of(
-            BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO
+            BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO,
+            BiomeRule.ZONE_NEAR_DORMANT_VOLCANO
     );
 
     private final Screen parent;

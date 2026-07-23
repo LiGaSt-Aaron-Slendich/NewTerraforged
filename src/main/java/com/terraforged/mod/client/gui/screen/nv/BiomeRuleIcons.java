@@ -111,6 +111,10 @@ public final class BiomeRuleIcons {
 
     public static ResourceLocation zone(String flagId) {
         String id = norm(flagId);
+        if (BiomeRule.ZONE_NEAR_DORMANT_VOLCANO.equals(id) || id.contains("dormant")) {
+            // Reuse active icon asset until a dedicated dormant texture ships.
+            return tex("zone_near_active_volcano");
+        }
         if (BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO.equals(id) || id.contains("volcano")) {
             return tex("zone_near_active_volcano");
         }

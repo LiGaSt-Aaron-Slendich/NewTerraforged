@@ -347,18 +347,45 @@ public final class BiomeRuleRegistry {
         if (steepSlope && !rule.canBeOnSlope) {
             return 0.0F;
         }
-        if (rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO)) {
-            if (zone == null || !zone.nearActiveVolcano) {
+
+        boolean needsActive = rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
+        boolean needsDormant = rule.requiresZone(BiomeRule.ZONE_NEAR_DORMANT_VOLCANO);
+
+        // near_active_volcano: only near a volcano — active OR dormant (nowhere else).
+        if (needsActive) {
+            if (zone == null || !zone.nearAnyVolcano()) {
                 return 0.0F;
             }
             BiomeRule.ZoneFlag z = rule.zone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
             if (z != null && z.chance() <= 0.0F) {
                 return 0.0F;
             }
-            // Honour radius_blocks: probe may find volcano farther than this rule allows.
+            if (z != null && zone.volcanoDistanceBlocks > z.radiusBlocks() * zone.edgeScale) {
+                return 0.0F;
+            }
+        }
+
+        // near_dormant_volcano: optional exclusive-to-dormant flag.
+        if (needsDormant) {
+            if (zone == null || !(zone.nearDormantVolcano || zone.onDormantVolcano)) {
+                return 0.0F;
+            }
+            BiomeRule.ZoneFlag z = rule.zone(BiomeRule.ZONE_NEAR_DORMANT_VOLCANO);
+            if (z != null && z.chance() <= 0.0F) {
+                return 0.0F;
+            }
             if (z != null && zone.volcanoDistanceBlocks > z.radiusBlocks()) {
                 return 0.0F;
             }
+        }
+
+        // Active volcano footprint: only volcanic biomes (flag / cone-crater / volcanic climate).
+        if (zone != null && zone.onActiveVolcano && !isActiveVolcanoBiome(rule)) {
+            return 0.0F;
+        }
+        // Active ring (not on the cone): only biomes with near_active_volcano.
+        if (zone != null && zone.nearActiveVolcano && !zone.onActiveVolcano && !needsActive) {
+            return 0.0F;
         }
 
         boolean hasSubs = !rule.subterrains.isEmpty();
@@ -386,13 +413,32 @@ public final class BiomeRuleRegistry {
             }
         }
 
-        if (rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO)) {
+        if (needsActive) {
             BiomeRule.ZoneFlag z = rule.zone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
             if (z != null) {
                 terrainChance *= Math.max(0.0F, z.chance());
             }
         }
+        if (needsDormant) {
+            BiomeRule.ZoneFlag z = rule.zone(BiomeRule.ZONE_NEAR_DORMANT_VOLCANO);
+            if (z != null) {
+                terrainChance *= Math.max(0.0F, z.chance());
+            }
+        }
         return terrainChance * subChance;
+    }
+
+    /** Cone / crater / volcanic-climate / near_active — allowed on an active volcano cell. */
+    private static boolean isActiveVolcanoBiome(BiomeRule rule) {
+        if (rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO)) {
+            return true;
+        }
+        if (rule.climateTags.contains("volcanic")) {
+            return true;
+        }
+        return rule.terrains.containsKey("volcano")
+                || rule.terrains.containsKey("volcano_pipe")
+                || rule.terrains.containsKey("island_volcano");
     }
 
     private static float chanceOnTerrain(BiomeRule rule, String terrainName) {
