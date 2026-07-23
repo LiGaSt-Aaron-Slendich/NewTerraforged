@@ -22,6 +22,11 @@ public class CaveBiomeRegistryLoader {
     private static CaveBiomeRegistry cached;
     private static int cachedBiomeCount = -1;
 
+    public static void invalidateCache() {
+        cached = null;
+        cachedBiomeCount = -1;
+    }
+
     public static CaveBiomeRegistry build(Registry<Biome> biomeRegistry, TFCaveBiomeConfig config) {
         int biomeCount = biomeRegistry.size();
         if (cached != null && cachedBiomeCount == biomeCount) {

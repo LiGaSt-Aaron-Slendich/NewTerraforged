@@ -42,6 +42,7 @@ public class Source extends BiomeSource {
       this.possibleBiomes = new ObjectLinkedOpenHashSet(other.possibleBiomes);
       this.biomeSampler = new BiomeSampler(noise, other.biomeMapManager);
       this.caveBiomeSampler = new CaveBiomeSampler(seed, other.caveBiomeSampler);
+      this.caveBiomeSampler.setNoiseGenerator(noise);
    }
 
    public Source(long seed, INoiseGenerator noise, RegistryAccess access) {
@@ -59,6 +60,7 @@ public class Source extends BiomeSource {
          ? TFCaveSystemConfig.INSTANCE.toSystemConfig()
          : CaveSystemConfig.DEFAULT;
       this.caveBiomeSampler = new CaveBiomeSampler(seed, 800, this.biomeMapManager, registry, systemConfig);
+      this.caveBiomeSampler.setNoiseGenerator(noise);
    }
 
    public Set<Holder<Biome>> possibleBiomes() {

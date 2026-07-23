@@ -90,6 +90,22 @@ public final class TFCaveBiomeConfig {
         this.transition.addAll(TFCaveBiomeConfig.readTable((Config)root, "transition"));
         this.special.addAll(TFCaveBiomeConfig.readTable((Config)root, "special"));
         this.coastal.addAll(TFCaveBiomeConfig.readTable((Config)root, "coastal"));
+        // Prefer per-biome JSON under Cave_configs/Biomes (migrates from toml tables once).
+        com.terraforged.mod.worldgen.cave.CaveBiomeRuleRegistry.syncFromConfig(this);
+        if (com.terraforged.mod.worldgen.cave.CaveBiomeRuleRegistry.isSynced()) {
+            this.primary.clear();
+            this.transition.clear();
+            this.special.clear();
+            this.coastal.clear();
+            this.primary.addAll(com.terraforged.mod.worldgen.cave.CaveBiomeRuleRegistry.entriesFor(
+                    com.terraforged.mod.worldgen.cave.CaveBiomeCategory.PRIMARY));
+            this.transition.addAll(com.terraforged.mod.worldgen.cave.CaveBiomeRuleRegistry.entriesFor(
+                    com.terraforged.mod.worldgen.cave.CaveBiomeCategory.TRANSITION));
+            this.special.addAll(com.terraforged.mod.worldgen.cave.CaveBiomeRuleRegistry.entriesFor(
+                    com.terraforged.mod.worldgen.cave.CaveBiomeCategory.SPECIAL));
+            this.coastal.addAll(com.terraforged.mod.worldgen.cave.CaveBiomeRuleRegistry.entriesFor(
+                    com.terraforged.mod.worldgen.cave.CaveBiomeCategory.COASTAL));
+        }
     }
 
     private void enforceExclusiveDecorationMode() {

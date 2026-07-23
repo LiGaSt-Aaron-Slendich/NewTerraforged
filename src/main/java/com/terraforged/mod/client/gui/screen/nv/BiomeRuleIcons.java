@@ -121,6 +121,48 @@ public final class BiomeRuleIcons {
         return tex("terrain_generic");
     }
 
+    public static ResourceLocation tabSurface() {
+        return tex("tab_surface_biomes");
+    }
+
+    public static ResourceLocation tabCave() {
+        return tex("tab_cave_biomes");
+    }
+
+    public static ResourceLocation caveClimate(String alias) {
+        String id = norm(alias);
+        return switch (id) {
+            case "hot", "warm" -> tex("cave_climate_hot");
+            case "volcanic", "volcano" -> tex("cave_climate_volcanic");
+            case "dry", "arid" -> tex("cave_climate_dry");
+            case "humid", "wet", "moist" -> tex("cave_climate_humid");
+            case "cold", "frost", "ice" -> tex("cave_climate_cold");
+            case "normal" -> tex("cave_climate_normal");
+            default -> tex("cave_climate_normal");
+        };
+    }
+
+    public static ResourceLocation caveSystem(String system) {
+        String id = norm(system);
+        return switch (id) {
+            case "mega" -> tex("cave_system_mega");
+            case "giga" -> tex("cave_system_giga");
+            case "synapse", "global" -> tex("cave_system_synapse");
+            default -> tex("terrain_generic");
+        };
+    }
+
+    public static ResourceLocation caveGeneration(String gen) {
+        String id = norm(gen);
+        return switch (id) {
+            case "primary" -> tex("cave_gen_primary");
+            case "transition" -> tex("cave_gen_transition");
+            case "patch", "special" -> tex("cave_gen_patch");
+            case "coastal" -> tex("cave_gen_transition");
+            default -> tex("cave_gen_primary");
+        };
+    }
+
     public static ResourceLocation slope() {
         return tex("flag_slope");
     }

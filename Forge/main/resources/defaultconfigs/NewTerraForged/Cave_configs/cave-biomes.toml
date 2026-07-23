@@ -1,7 +1,9 @@
 # NewTerraForged — underground cave biomes (Forge registry IDs)
 # Path: config/NewTerraForged/Cave_configs/cave-biomes.toml
+# Per-biome placement now lives under Cave_configs/Biomes/{mod}/{biome}.json
+# (toml biome tables are migrated once into that folder; decoration flags stay here).
 # config_version: bundled default revision (informational — user edits are kept unless the file is empty/corrupt).
-config_version = 4
+config_version = 5
 
 # CaveBiomeIds resolves terralith:X -> terralith:cave/X. Missing biomes are skipped with a warning.
 #

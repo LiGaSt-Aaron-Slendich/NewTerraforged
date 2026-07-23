@@ -8,6 +8,8 @@ public final class TFConfigPaths {
     public static final String CRITICAL_OPTIONS = "NewTerraForged/Critical Options";
     public static final String CAVES = "NewTerraForged/Cave_configs/caves.toml";
     public static final String CAVE_BIOMES = "NewTerraForged/Cave_configs/cave-biomes.toml";
+    /** Per-biome cave rules: {@code Cave_configs/Biomes/{mod}/{biome}.json} */
+    public static final String CAVE_RULES_BIOMES = "NewTerraForged/Cave_configs/Biomes";
     public static final String SURFACE_BIOMES = "NewTerraForged/Terrain/surface-biomes.toml";
     /** @deprecated Replaced by per-biome JSON under {@link #TERRAIN_RULES_BIOMES}. Kept for migration only. */
     @Deprecated

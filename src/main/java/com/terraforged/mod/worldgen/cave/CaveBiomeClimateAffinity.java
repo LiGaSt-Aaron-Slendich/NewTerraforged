@@ -1,6 +1,5 @@
 package com.terraforged.mod.worldgen.cave;
 
-import com.terraforged.mod.worldgen.cave.CaveClimateType;
 import java.util.EnumSet;
 import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
@@ -12,6 +11,10 @@ public final class CaveBiomeClimateAffinity {
     public static boolean matches(ResourceLocation id, CaveClimateType climate) {
         if (id == null || climate == null) {
             return false;
+        }
+        CaveBiomeRule rule = CaveBiomeRuleRegistry.get(id);
+        if (rule != null && !rule.climates.isEmpty()) {
+            return rule.allowsClimate(climate);
         }
         return CaveBiomeClimateAffinity.affinityFor(id).contains(climate);
     }
@@ -52,22 +55,25 @@ public final class CaveBiomeClimateAffinity {
             return CaveBiomeClimateAffinity.only(CaveClimateType.FROST);
         }
         if (path.contains("frostfire")) {
-            return CaveBiomeClimateAffinity.of(CaveClimateType.FROST, CaveClimateType.DRY, CaveClimateType.NORMAL);
+            return CaveBiomeClimateAffinity.of(CaveClimateType.FROST, CaveClimateType.DRY, CaveClimateType.HOT, CaveClimateType.NORMAL);
+        }
+        if (CaveBiomeClimateAffinity.containsAny(path, "scorching", "mantle", "brimstone", "magma", "ashen", "volcanic_cave", "lava_cave")) {
+            return CaveBiomeClimateAffinity.of(CaveClimateType.VOLCANIC, CaveClimateType.HOT, CaveClimateType.DRY);
         }
         if (CaveBiomeClimateAffinity.containsAny(path, "desert_caves", "quartz_desert", "arid", "sand_caves")) {
             return CaveBiomeClimateAffinity.only(CaveClimateType.DRY);
         }
         if (CaveBiomeClimateAffinity.containsAny(path, "brimstone", "mantle")) {
-            return CaveBiomeClimateAffinity.of(CaveClimateType.DRY, CaveClimateType.NORMAL);
+            return CaveBiomeClimateAffinity.of(CaveClimateType.VOLCANIC, CaveClimateType.HOT, CaveClimateType.DRY, CaveClimateType.NORMAL);
         }
         if (CaveBiomeClimateAffinity.containsAny(path, "underground_jungle", "steaming_jungle", "undergarden", "glowing_grotto", "embur_bog", "ancient_delta", "mossy_caves")) {
-            return CaveBiomeClimateAffinity.of(CaveClimateType.WET, CaveClimateType.NORMAL);
+            return CaveBiomeClimateAffinity.of(CaveClimateType.WET, CaveClimateType.HOT, CaveClimateType.NORMAL);
         }
         if (CaveBiomeClimateAffinity.containsAny(path, "fungal", "mycotoxic", "glowshroom", "bioshroom", "crimson_gardens")) {
             return CaveBiomeClimateAffinity.of(CaveClimateType.WET, CaveClimateType.NORMAL);
         }
         if (path.contains("thermal_springs") || path.contains("thermal_caves")) {
-            return CaveBiomeClimateAffinity.of(CaveClimateType.WET, CaveClimateType.DRY, CaveClimateType.NORMAL);
+            return CaveBiomeClimateAffinity.of(CaveClimateType.HOT, CaveClimateType.WET, CaveClimateType.DRY, CaveClimateType.VOLCANIC, CaveClimateType.NORMAL);
         }
         if (CaveBiomeClimateAffinity.containsAny(path, "crystal_caves", "crystal", "prismachasm", "prisma", "skyris")) {
             return CaveBiomeClimateAffinity.of(CaveClimateType.NORMAL, CaveClimateType.FROST, CaveClimateType.WET);
@@ -84,7 +90,7 @@ public final class CaveBiomeClimateAffinity {
             return false;
         }
         String path = id.getPath().toLowerCase();
-        return path.contains("mantle") || path.contains("brimstone") || path.contains("magma");
+        return path.contains("mantle") || path.contains("brimstone") || path.contains("magma") || path.contains("scorching");
     }
 
     public static boolean isSpringGenerator(ResourceLocation id) {

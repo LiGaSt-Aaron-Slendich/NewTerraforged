@@ -11,6 +11,7 @@ import com.terraforged.mod.worldgen.cave.CaveRegionMap;
 import com.terraforged.mod.worldgen.cave.CaveSystemConfig;
 import com.terraforged.mod.worldgen.cave.CaveTemperatureCalculator;
 import com.terraforged.mod.worldgen.cave.CaveType;
+import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import com.terraforged.noise.util.Noise;
 import com.terraforged.noise.util.NoiseUtil;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ public class CaveBiomeSampler {
     private final CaveSystemConfig systemConfig;
     private final Registry<Biome> biomeRegistry;
     private final Map<CaveType, WeightMap<Holder<Biome>>> typeMap = new java.util.EnumMap<>(CaveType.class);
+    private INoiseGenerator noiseGenerator;
 
     public CaveBiomeSampler(int scale, BiomeMapManager biomeMapManager, CaveBiomeRegistry caveBiomeRegistry, CaveSystemConfig systemConfig) {
         this(0L, scale, biomeMapManager, caveBiomeRegistry, systemConfig);
@@ -70,10 +72,19 @@ public class CaveBiomeSampler {
         this.biomeRegistry = other.biomeRegistry;
         this.fallbackBiome = other.fallbackBiome;
         this.typeMap.putAll(other.typeMap);
+        this.noiseGenerator = other.noiseGenerator;
     }
 
     public CaveBiomeSampler(long seed, int scale, BiomeMapManager biomeMapManager) {
         this(seed, scale, biomeMapManager, null, CaveSystemConfig.DEFAULT);
+    }
+
+    public void setNoiseGenerator(INoiseGenerator noise) {
+        this.noiseGenerator = noise;
+    }
+
+    public INoiseGenerator getNoiseGenerator() {
+        return this.noiseGenerator;
     }
 
     public CaveBiomeRegistry getRegistry() {
@@ -249,7 +260,7 @@ public class CaveBiomeSampler {
         int seed, int cx, int cz, int radius, boolean isMega, Holder<Biome> surfaceBiome, int sampleY, int surfaceY
     ) {
         Holder<Biome> surface = surfaceBiome != null ? surfaceBiome : this.fallbackBiome;
-        return new CaveRegionMap(seed, cx, cz, radius, this.caveBiomeRegistry, this.systemConfig, isMega, surface, sampleY, surfaceY);
+        return new CaveRegionMap(seed, cx, cz, radius, this.caveBiomeRegistry, this.systemConfig, isMega, surface, sampleY, surfaceY, this.noiseGenerator);
     }
 
     private Holder<Biome> getNormalCaveBiome(int seed, int x, int z, float caveTemp) {
