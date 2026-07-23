@@ -1,26 +1,60 @@
 """
-Recompress biome_previews PNGs with palette quantization (visually near-lossless at 144px).
-Does not change resolution. Overwrites in place.
+Stronger biome-preview compression without shipping HD.
+
+Pipeline (keeps 144x144):
+  1) RGB FASTOCTREE palette (default 128 colors) — much smaller than MEDIANCUT@256
+  2) PNG optimize compress_level=9
+  3) oxipng lossless recompress (level 4–6)
+
+Quality: at 144px UI icons, 128-color octree is usually near-indistinguishable from 256-color median.
 """
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from PIL import Image
 
+try:
+    import oxipng
+except ImportError:  # pragma: no cover
+    oxipng = None
+
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "src/main/resources/assets/newterraforged/textures/gui/biome_previews"
-COLORS = 256
+SIZE = 144
+COLORS = 128  # sweet spot for 144px screenshots
 
 
-def recompress(path: Path) -> tuple[int, int]:
+def recompress(path: Path, colors: int = COLORS) -> tuple[int, int]:
     before = path.stat().st_size
     im = Image.open(path).convert("RGBA")
-    # Composite onto opaque bg so we can use MEDIANCUT (RGBA only allows FASTOCTREE).
+    # Opaque composite so octree can run (and MC blit ignores alpha for these icons).
     bg = Image.new("RGBA", im.size, (32, 32, 32, 255))
-    composed = Image.alpha_composite(bg, im).convert("RGB")
-    quantized = composed.quantize(colors=COLORS, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-    quantized.save(path, format="PNG", optimize=True, compress_level=9)
+    rgb = Image.alpha_composite(bg, im).convert("RGB")
+    if rgb.size != (SIZE, SIZE):
+        rgb = rgb.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+
+    quantized = rgb.quantize(
+        colors=colors,
+        method=Image.Quantize.FASTOCTREE,
+        dither=Image.Dither.NONE,
+    )
+    buf = io.BytesIO()
+    quantized.save(buf, format="PNG", optimize=True, compress_level=9)
+    data = buf.getvalue()
+
+    if oxipng is not None:
+        try:
+            data = oxipng.optimize_from_memory(
+                data,
+                level=6,
+                strip=oxipng.StripChunks.safe(),
+            )
+        except Exception:
+            pass
+
+    path.write_bytes(data)
     after = path.stat().st_size
     return before, after
 
@@ -32,9 +66,13 @@ def main() -> None:
         b, a = recompress(p)
         total_b += b
         total_a += a
-        if i < 5 or i % 40 == 0:
+        if i < 8 or i % 80 == 0 or i + 1 == len(files):
             print(f"[{i+1}/{len(files)}] {p.relative_to(OUT)}: {b} -> {a}")
-    print(f"DONE files={len(files)} bytes {total_b} -> {total_a} ({100.0 * total_a / max(1, total_b):.1f}%)")
+    pct = 100.0 * total_a / max(1, total_b)
+    print(
+        f"DONE files={len(files)} bytes {total_b} -> {total_a} "
+        f"({pct:.1f}%, saved {(total_b - total_a) / 1e6:.2f} MB)"
+    )
 
 
 if __name__ == "__main__":

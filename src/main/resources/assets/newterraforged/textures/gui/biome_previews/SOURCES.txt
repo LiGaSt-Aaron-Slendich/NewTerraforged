@@ -1,20 +1,14 @@
 ﻿Biome preview sources (compressed to 144x144 palette PNG; originals not shipped)
 
-Shipped per-biome screenshots:
-  BYG / Oh The Biomes You'll Go (~76):
-    https://github.com/Potion-Studios/BYG .../biome_previews/ (1.18.X)
+Compression pipeline (tools/recompress_biome_previews.py):
+  FASTOCTREE 128-color palette + PNG optimize + oxipng lossless
 
-  Regions Unexplored (~71):
-    https://gist.github.com/catter1/1f90b77263e3746c20c1fd93a7393f69
-
-  Biomes O' Plenty (~153 including 1.18 id aliases):
-    Biomes O' Plenty Fandom wiki pageimages
-    tools/fetch_bop_wythers_previews.py
-
-  Wythers / WWOO / WWEE (~188 under wythers/):
-    Name-matched crops from BYG/RU/BOP/vanilla heuristics
-    Namespace aliases in BiomePreviewIcons: wythers, wwoo, expanded_ecosphere, wwee
-
+Shipped packs:
+  BYG / Oh The Biomes You'll Go (~76)
+  Regions Unexplored (~71)
+  Biomes O' Plenty (~153 incl. 1.18 id aliases) — Fandom wiki pageimages
+  Wythers / WWOO / WWEE (~188 under wythers/) — name-matched + heuristics
+    Namespace aliases: wythers, wwoo, expanded_ecosphere, wwee
   Vanilla-ish fallbacks in biome_previews/*.png
 
 Fetcher tools:
