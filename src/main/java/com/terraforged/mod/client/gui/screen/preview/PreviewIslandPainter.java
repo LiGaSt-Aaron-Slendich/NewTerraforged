@@ -23,8 +23,9 @@ public final class PreviewIslandPainter {
             return;
         }
         WorldSettings.Islands islands = settings.world.islands != null ? settings.world.islands : new WorldSettings.Islands();
-        float coastal = NoiseUtil.clamp(islands.coastalIslandsChance, 0.0F, 1.0F);
-        float volcanic = NoiseUtil.clamp(islands.volcanicIslandsChance, 0.0F, 1.0F);
+        boolean egfIslands = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.islandsEnabled();
+        float coastal = egfIslands ? NoiseUtil.clamp(islands.coastalIslandsChance, 0.0F, 1.0F) : 0.0F;
+        float volcanic = egfIslands ? NoiseUtil.clamp(islands.volcanicIslandsChance, 0.0F, 1.0F) : 0.0F;
         boolean archOn = islands.archipelago
                 && com.terraforged.mod.platform.forge.TFNoiseVariantFlags.archipelagoEnabled();
         float archChance = NoiseUtil.clamp(islands.archipelagoChance, 0.0F, 1.0F);

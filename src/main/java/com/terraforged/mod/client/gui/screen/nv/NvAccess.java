@@ -33,6 +33,15 @@ public final class NvAccess {
         return n.equals("scatteredarchipelago") || n.equals("scatteredarchipelagochance");
     }
 
+    public static boolean isIslandsSetting(String fieldName) {
+        if (fieldName == null) {
+            return false;
+        }
+        String n = fieldName.toLowerCase(Locale.ROOT);
+        return n.equals("coastalislands") || n.equals("coastalislandschance")
+                || n.equals("volcanicislands") || n.equals("volcanicislandschance");
+    }
+
     public static boolean isBlockedSetting(String fieldName) {
         if (isArchipelagoSetting(fieldName)) {
             return !TFNoiseVariantFlags.archipelagoEnabled();
@@ -40,11 +49,15 @@ public final class NvAccess {
         if (isScatteredArchipelagoSetting(fieldName)) {
             return !TFNoiseVariantFlags.scatteredArchipelagoEnabled();
         }
+        if (isIslandsSetting(fieldName)) {
+            return !TFNoiseVariantFlags.islandsEnabled();
+        }
         return false;
     }
 
     public static boolean shipwreckedWorldTypeAllowed() {
         return TFNoiseVariantFlags.archipelagoEnabled()
-                || TFNoiseVariantFlags.scatteredArchipelagoEnabled();
+                || TFNoiseVariantFlags.scatteredArchipelagoEnabled()
+                || TFNoiseVariantFlags.islandsEnabled();
     }
 }

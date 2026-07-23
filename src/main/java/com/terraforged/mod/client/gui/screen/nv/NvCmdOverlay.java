@@ -91,7 +91,8 @@ public final class NvCmdOverlay extends Screen {
             return;
         }
         if (lower.equals("egf open") || lower.equals("egf")) {
-            Minecraft.getInstance().setScreen(new NvFlagPanel(this));
+            // Close the console overlay — EGF's parent is the underlying title/menu screen.
+            Minecraft.getInstance().setScreen(new NvFlagPanel(this.parent));
         }
     }
 

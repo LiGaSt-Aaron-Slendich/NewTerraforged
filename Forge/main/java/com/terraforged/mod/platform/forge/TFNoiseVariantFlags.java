@@ -27,6 +27,7 @@ public final class TFNoiseVariantFlags {
 
     public boolean archipelago = false;
     public boolean scatteredArchipelago = false;
+    public boolean islands = false;
 
     private TFNoiseVariantFlags() {
     }
@@ -46,6 +47,10 @@ public final class TFNoiseVariantFlags {
         return INSTANCE != null && INSTANCE.scatteredArchipelago;
     }
 
+    public static boolean islandsEnabled() {
+        return INSTANCE != null && INSTANCE.islands;
+    }
+
     public static void setArchipelago(boolean value) {
         ensure();
         INSTANCE.archipelago = value;
@@ -55,6 +60,12 @@ public final class TFNoiseVariantFlags {
     public static void setScatteredArchipelago(boolean value) {
         ensure();
         INSTANCE.scatteredArchipelago = value;
+        INSTANCE.writeEncrypted();
+    }
+
+    public static void setIslands(boolean value) {
+        ensure();
+        INSTANCE.islands = value;
         INSTANCE.writeEncrypted();
     }
 
@@ -105,6 +116,7 @@ public final class TFNoiseVariantFlags {
             int flags = ByteBuffer.wrap(plain).getInt();
             this.archipelago = (flags & 1) != 0;
             this.scatteredArchipelago = (flags & 2) != 0;
+            this.islands = (flags & 4) != 0;
             return true;
         } catch (Exception e) {
             return false;
@@ -123,6 +135,9 @@ public final class TFNoiseVariantFlags {
             }
             if (this.scatteredArchipelago) {
                 flags |= 2;
+            }
+            if (this.islands) {
+                flags |= 4;
             }
             byte[] plain = ByteBuffer.allocate(4).putInt(flags).array();
             byte[] iv = new byte[IV_LEN];

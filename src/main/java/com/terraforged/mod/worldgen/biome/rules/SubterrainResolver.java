@@ -22,6 +22,9 @@ public final class SubterrainResolver {
         if (t.isRiver() || t == TerrainType.RIVER) {
             return "river_bank";
         }
+        if (t == TerrainType.BEACH || "beach".equalsIgnoreCase(t.getName())) {
+            return "ocean_beach";
+        }
         if (t.isLake() || t == TerrainType.LAKE) {
             if (matchesKind(t, TerrainType.MOUNTAINS) || sample.heightNoise > 0.62F) {
                 return "mountain_lake";

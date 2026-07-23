@@ -49,8 +49,12 @@ public final class ContinentShapeWiring {
         config.shape.guaranteedContinents = Math.max(1, Math.min(16, continent.guaranteedContinents));
         config.shape.guaranteedContinentsEnabled = continent.guaranteedContinentsEnabled;
         config.shape.continentsSpread = spread;
-        config.shape.coastalIslandsChance = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
-        config.shape.volcanicIslandsChance = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
+        // Coastal / volcanic islands + island_flats paint are EGF (Islands) — off unless enabled.
+        boolean egfIslands = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.islandsEnabled();
+        float coastal = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
+        float volcanic = effectiveChance(islands.volcanicIslandsChance, islands.volcanicIslands);
+        config.shape.coastalIslandsChance = egfIslands ? coastal : 0.0F;
+        config.shape.volcanicIslandsChance = egfIslands ? volcanic : 0.0F;
         // Archipelago / Scattered are Experimental Generation Features (EGF) — off unless enabled.
         // Both EGF master switch AND Customize toggle must be on (defaults are OFF).
         boolean egfArch = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.archipelagoEnabled();
@@ -75,6 +79,7 @@ public final class ContinentShapeWiring {
         config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
         boolean egfArch = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.archipelagoEnabled();
         boolean egfScattered = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.scatteredArchipelagoEnabled();
+        boolean egfIslands = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.islandsEnabled();
         if (egfArch) {
             config.shape.archipelago = true;
             if (config.shape.archipelagoChance < 0.40F) {
@@ -93,11 +98,16 @@ public final class ContinentShapeWiring {
             config.shape.scatteredArchipelago = false;
             config.shape.scatteredArchipelagoChance = 0.0F;
         }
-        if (config.shape.volcanicIslandsChance < 0.20F) {
-            config.shape.volcanicIslandsChance = 0.28F;
-        }
-        if (config.shape.coastalIslandsChance < 0.35F) {
-            config.shape.coastalIslandsChance = 0.40F;
+        if (egfIslands) {
+            if (config.shape.volcanicIslandsChance < 0.20F) {
+                config.shape.volcanicIslandsChance = 0.28F;
+            }
+            if (config.shape.coastalIslandsChance < 0.35F) {
+                config.shape.coastalIslandsChance = 0.40F;
+            }
+        } else {
+            config.shape.volcanicIslandsChance = 0.0F;
+            config.shape.coastalIslandsChance = 0.0F;
         }
     }
 

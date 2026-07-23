@@ -2,11 +2,13 @@ package com.terraforged.mod.client.gui.screen.nv;
 
 import com.terraforged.mod.TerraForged;
 import java.util.Locale;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 /**
- * Biome header previews at {@link #SIZE}px (center-cropped + downscaled from GitHub screenshots).
- * Namespaced packs: {@code byg/}, {@code regions_unexplored/}; fallbacks in root.
+ * Biome header previews at {@link #SIZE}px.
+ * Only returns locations that exist in the resource pack — never points at missing PNGs.
  */
 public final class BiomePreviewIcons {
     public static final int SIZE = 144;
@@ -28,20 +30,45 @@ public final class BiomePreviewIcons {
         }
         path = path.replace('-', '_');
 
-        // Pack-specific screenshots first (byg / regions_unexplored)
+        // Pack-specific screenshots first (only if the file is actually present).
         if ("byg".equals(ns) || "biomeswevegone".equals(ns) || "oh_the_biomes_youll_go".equals(ns)) {
-            return namespaced("byg", path);
+            ResourceLocation byg = namespaced("byg", path);
+            if (exists(byg)) {
+                return byg;
+            }
         }
         if ("regions_unexplored".equals(ns) || "regionsunexplored".equals(ns)) {
-            return namespaced("regions_unexplored", path);
+            ResourceLocation ru = namespaced("regions_unexplored", path);
+            if (exists(ru)) {
+                return ru;
+            }
+        }
+        if ("biomesoplenty".equals(ns) || "bop".equals(ns)) {
+            ResourceLocation bop = namespaced("biomesoplenty", path);
+            if (exists(bop)) {
+                return bop;
+            }
+        }
+        if ("terralith".equals(ns)) {
+            ResourceLocation tl = namespaced("terralith", path);
+            if (exists(tl)) {
+                return tl;
+            }
         }
 
-        // Exact / known aliases
         ResourceLocation exact = tryExact(path);
-        if (exact != null) {
+        if (exact != null && exists(exact)) {
             return exact;
         }
-        // Token heuristics for mod biomes
+
+        ResourceLocation heur = heuristic(path);
+        if (heur != null && exists(heur)) {
+            return heur;
+        }
+        return tex("generic");
+    }
+
+    private static ResourceLocation heuristic(String path) {
         if (contains(path, "frozen_river") || (contains(path, "frozen") && contains(path, "river"))) {
             return tex("frozen_river");
         }
@@ -75,13 +102,10 @@ public final class BiomePreviewIcons {
         if (contains(path, "snowy") || contains(path, "frozen") || contains(path, "tundra")) {
             return tex("snowy_plains");
         }
-        if (contains(path, "jagged") || contains(path, "peak")) {
-            return tex("jagged_peaks");
-        }
         if (contains(path, "stony_peak")) {
             return tex("stony_peaks");
         }
-        if (contains(path, "mountain") || contains(path, "alps")) {
+        if (contains(path, "jagged") || contains(path, "peak") || contains(path, "mountain") || contains(path, "alps")) {
             return tex("jagged_peaks");
         }
         if (contains(path, "beach") || contains(path, "shore")) {
@@ -114,10 +138,10 @@ public final class BiomePreviewIcons {
         if (contains(path, "hill") || contains(path, "height")) {
             return tex("windswept_hills");
         }
-        if (contains(path, "plain") || contains(path, "grass") || contains(path, "field")) {
+        if (contains(path, "plain") || contains(path, "grass") || contains(path, "field") || contains(path, "land")) {
             return tex("plains");
         }
-        return tex("generic");
+        return null;
     }
 
     private static ResourceLocation tryExact(String path) {
@@ -154,6 +178,25 @@ public final class BiomePreviewIcons {
 
     private static boolean contains(String path, String token) {
         return path.contains(token);
+    }
+
+    private static boolean exists(ResourceLocation loc) {
+        if (loc == null) {
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) {
+            return true;
+        }
+        ResourceManager rm = mc.getResourceManager();
+        if (rm == null) {
+            return true;
+        }
+        try {
+            return rm.hasResource(loc);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static ResourceLocation namespaced(String folder, String path) {

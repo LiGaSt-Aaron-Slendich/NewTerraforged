@@ -36,7 +36,9 @@ public final class NvFlagPanel extends Screen {
         NONE,
         CHANCE,
         ADD_TERRAIN,
-        ADD_SUBTERRAIN
+        ADD_SUBTERRAIN,
+        ADD_CLIMATE,
+        ADD_ZONE
     }
 
     private static final int TAB_W = 28;
@@ -54,6 +56,13 @@ public final class NvFlagPanel extends Screen {
     private static final List<String> ADDABLE_SUBS = List.of(
             "river_bank", "canyon", "desert_canyon", "ocean_beach", "sea_beach", "volcanic_beach",
             "mountain_peak", "bare_mountain_peak", "mountain_body", "mountain_foothill", "bare_mountain"
+    );
+    private static final List<String> ADDABLE_CLIMATES = List.of(
+            "temperate", "warm", "hot", "cold", "snowy", "wet", "desert", "savanna", "taiga", "tundra",
+            "jungle", "alpine", "volcanic", "mesa"
+    );
+    private static final List<String> ADDABLE_ZONES = List.of(
+            BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO
     );
 
     private final Screen parent;
@@ -80,7 +89,8 @@ public final class NvFlagPanel extends Screen {
     private final List<ClickHit> clickHits = new ArrayList<>();
 
     private record IconHit(int x, int y, int w, int h, List<String> tip) {}
-    private record ClickHit(int x, int y, int w, int h, Runnable action) {}
+    /** button: 0 = LMB, 1 = RMB, -1 = any */
+    private record ClickHit(int x, int y, int w, int h, int button, Runnable action) {}
 
     public NvFlagPanel(Screen parent) {
         super(new TextComponent("Experimental Generation Features"));
@@ -98,7 +108,10 @@ public final class NvFlagPanel extends Screen {
         this.clickHits.clear();
         this.popup = Popup.NONE;
 
-        this.addRenderableWidget(new Button(this.width / 2 - 60, this.height - 26, 120, 20, new TextComponent("Done"), b -> this.onClose()));
+        // Global Done only outside biome-rule edit mode (edit uses Back/Save at bottom).
+        if (!(this.tab == Tab.BIOME_RULES && this.editing)) {
+            this.addRenderableWidget(new Button(this.width / 2 - 60, this.height - 26, 120, 20, new TextComponent("Done"), b -> this.onClose()));
+        }
 
         if (this.tab == Tab.UNTESTED) {
             this.editing = false;
@@ -137,6 +150,16 @@ public final class NvFlagPanel extends Screen {
                     boolean next = !TFNoiseVariantFlags.scatteredArchipelagoEnabled();
                     TFNoiseVariantFlags.setScatteredArchipelago(next);
                     b.setMessage(label("Scattered Archipelago", next));
+                }
+        ));
+        y += 28;
+        this.addRenderableWidget(new Button(
+                cx - 140, y, 280, 20,
+                label("Islands", TFNoiseVariantFlags.islandsEnabled()),
+                b -> {
+                    boolean next = !TFNoiseVariantFlags.islandsEnabled();
+                    TFNoiseVariantFlags.setIslands(next);
+                    b.setMessage(label("Islands", next));
                 }
         ));
     }
@@ -182,14 +205,16 @@ public final class NvFlagPanel extends Screen {
 
     private void initEditMode() {
         int left = this.contentLeft();
-        int btnY = this.height - 50;
-        this.addRenderableWidget(new Button(left + 4, btnY, 70, 20, new TextComponent("Back"), b -> {
-            this.editing = false;
-            this.popup = Popup.NONE;
-            this.init();
-        }));
-        this.addRenderableWidget(new Button(left + 78, btnY, 100, 20, new TextComponent("Save rule"), b -> this.saveSelected()));
-        this.addRenderableWidget(new Button(left + 184, btnY, 190, 20, new TextComponent("Toggle near_active_volcano"), b -> this.toggleNearVolcano()));
+        int btnY = this.height - 26;
+        int mid = (left + this.width) / 2;
+        this.addRenderableWidget(new Button(mid - 110, btnY, 100, 20, new TextComponent("Back"), b -> this.exitEdit()));
+        this.addRenderableWidget(new Button(mid + 10, btnY, 100, 20, new TextComponent("Save rule"), b -> this.saveSelected()));
+    }
+
+    private void exitEdit() {
+        this.editing = false;
+        this.popup = Popup.NONE;
+        this.init();
     }
 
     private void openEdit() {
@@ -280,19 +305,52 @@ public final class NvFlagPanel extends Screen {
         ));
     }
 
-    private void toggleNearVolcano() {
-        if (this.selectedRule == null) {
-            this.status = "No biome selected";
+    private void addClimate(String tag) {
+        if (this.selectedRule == null || tag == null || tag.isBlank()) {
+            return;
+        }
+        List<String> tags = new ArrayList<>(this.selectedRule.climateTags);
+        if (!tags.contains(tag)) {
+            tags.add(tag);
+        }
+        this.mutateRule(new BiomeRule(
+                this.selectedRule.biome,
+                this.selectedRule.canBeOnSlope,
+                tags,
+                this.selectedRule.terrains,
+                this.selectedRule.subterrains,
+                this.selectedRule.zoneFlags,
+                false
+        ));
+        this.popup = Popup.NONE;
+        this.status = "Added climate " + tag;
+        this.init();
+    }
+
+    private void removeClimate(String tag) {
+        if (this.selectedRule == null || tag == null) {
+            return;
+        }
+        List<String> tags = new ArrayList<>(this.selectedRule.climateTags);
+        tags.remove(tag);
+        this.mutateRule(new BiomeRule(
+                this.selectedRule.biome,
+                this.selectedRule.canBeOnSlope,
+                tags,
+                this.selectedRule.terrains,
+                this.selectedRule.subterrains,
+                this.selectedRule.zoneFlags,
+                false
+        ));
+        this.status = "Removed climate " + tag;
+    }
+
+    private void addZone(String key) {
+        if (this.selectedRule == null || key == null) {
             return;
         }
         Map<String, BiomeRule.ZoneFlag> zones = new LinkedHashMap<>(this.selectedRule.zoneFlags);
-        if (this.selectedRule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO)) {
-            zones.remove(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
-            this.status = "Removed near_active_volcano";
-        } else {
-            zones.put(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO, BiomeRule.ZoneFlag.enabled(96.0F, 1.0F));
-            this.status = "Added near_active_volcano (radius 96)";
-        }
+        zones.putIfAbsent(key, BiomeRule.ZoneFlag.enabled(96.0F, 1.0F));
         this.mutateRule(new BiomeRule(
                 this.selectedRule.biome,
                 this.selectedRule.canBeOnSlope,
@@ -302,6 +360,27 @@ public final class NvFlagPanel extends Screen {
                 zones,
                 false
         ));
+        this.popup = Popup.NONE;
+        this.status = "Added zone " + key;
+        this.init();
+    }
+
+    private void removeZone(String key) {
+        if (this.selectedRule == null || key == null) {
+            return;
+        }
+        Map<String, BiomeRule.ZoneFlag> zones = new LinkedHashMap<>(this.selectedRule.zoneFlags);
+        zones.remove(key);
+        this.mutateRule(new BiomeRule(
+                this.selectedRule.biome,
+                this.selectedRule.canBeOnSlope,
+                this.selectedRule.climateTags,
+                this.selectedRule.terrains,
+                this.selectedRule.subterrains,
+                zones,
+                false
+        ));
+        this.status = "Removed zone " + key;
     }
 
     private void setChance(String key, boolean sub, float chance) {
@@ -360,6 +439,7 @@ public final class NvFlagPanel extends Screen {
         ));
         this.popup = Popup.NONE;
         this.status = "Added " + key;
+        this.init();
     }
 
     private void openChancePopup(String key, boolean sub) {
@@ -373,61 +453,48 @@ public final class NvFlagPanel extends Screen {
                 cur = v;
             }
         }
-        this.clearWidgetsKeepDoneAndEditChrome();
-        int px = this.width / 2 - 80;
-        int py = this.height / 2 - 40;
-        this.chanceBox = new EditBox(this.font, px + 10, py + 28, 60, 18, new TextComponent("chance"));
+        this.clearWidgetsKeepEditChrome();
+        int px = this.width / 2 - 54;
+        int py = this.height / 2 - 22;
+        this.chanceBox = new EditBox(this.font, px + 8, py + 18, 92, 16, new TextComponent("chance"));
         this.chanceBox.setMaxLength(8);
         this.chanceBox.setValue(fmt(cur));
+        this.chanceBox.setBordered(true);
         this.addRenderableWidget(this.chanceBox);
-        this.addRenderableWidget(new Button(px + 80, py + 26, 50, 20, new TextComponent("OK"), b -> {
-            try {
-                float v = Float.parseFloat(this.chanceBox.getValue().trim());
-                this.setChance(this.popupKey, this.popupSub, v);
-                this.popup = Popup.NONE;
-                this.init();
-            } catch (NumberFormatException e) {
-                this.status = "Bad chance value";
-            }
-        }));
-        this.addRenderableWidget(new Button(px + 10, py + 52, 70, 20, new TextComponent("Remove"), b -> {
-            this.setChance(this.popupKey, this.popupSub, 0.0F);
-            this.popup = Popup.NONE;
-            this.init();
-        }));
-        this.addRenderableWidget(new Button(px + 90, py + 52, 70, 20, new TextComponent("Cancel"), b -> {
-            this.popup = Popup.NONE;
-            this.init();
-        }));
+        this.setInitialFocus(this.chanceBox);
+        this.chanceBox.setFocus(true);
     }
 
-    private void openAddPopup(boolean sub) {
-        this.popup = sub ? Popup.ADD_SUBTERRAIN : Popup.ADD_TERRAIN;
-        this.popupSub = sub;
+    private void commitChancePopup() {
+        if (this.chanceBox == null) {
+            this.popup = Popup.NONE;
+            this.init();
+            return;
+        }
+        try {
+            float v = Float.parseFloat(this.chanceBox.getValue().trim());
+            this.setChance(this.popupKey, this.popupSub, v);
+            this.popup = Popup.NONE;
+            this.init();
+        } catch (NumberFormatException e) {
+            this.status = "Bad chance value";
+        }
+    }
+
+    private void openAddPopup(Popup kind) {
+        this.popup = kind;
+        this.popupSub = kind == Popup.ADD_SUBTERRAIN;
         this.addScroll = 0;
-        this.clearWidgetsKeepDoneAndEditChrome();
-        int px = this.width / 2 - 100;
-        int py = this.height / 2 - 70;
-        this.addRenderableWidget(new Button(px + 60, py + 130, 80, 20, new TextComponent("Close"), b -> {
-            this.popup = Popup.NONE;
-            this.init();
-        }));
+        this.clearWidgetsKeepEditChrome();
     }
 
-    /** Keep Done + edit bottom buttons while showing a popup overlay. */
-    private void clearWidgetsKeepDoneAndEditChrome() {
+    /** Keep Back/Save (edit) or Done (browse) while showing a popup overlay. */
+    private void clearWidgetsKeepEditChrome() {
         this.clearWidgets();
-        this.addRenderableWidget(new Button(this.width / 2 - 60, this.height - 26, 120, 20, new TextComponent("Done"), b -> this.onClose()));
         if (this.editing) {
-            int left = this.contentLeft();
-            int btnY = this.height - 50;
-            this.addRenderableWidget(new Button(left + 4, btnY, 70, 20, new TextComponent("Back"), b -> {
-                this.editing = false;
-                this.popup = Popup.NONE;
-                this.init();
-            }));
-            this.addRenderableWidget(new Button(left + 78, btnY, 100, 20, new TextComponent("Save rule"), b -> this.saveSelected()));
-            this.addRenderableWidget(new Button(left + 184, btnY, 190, 20, new TextComponent("Toggle near_active_volcano"), b -> this.toggleNearVolcano()));
+            this.initEditMode();
+        } else {
+            this.addRenderableWidget(new Button(this.width / 2 - 60, this.height - 26, 120, 20, new TextComponent("Done"), b -> this.onClose()));
         }
     }
 
@@ -612,7 +679,7 @@ public final class NvFlagPanel extends Screen {
         int panelX = left + 4;
         int panelY = 40;
         int panelW = this.width - panelX - 8;
-        int panelH = this.height - panelY - 56;
+        int panelH = this.height - panelY - 36;
         fill(pose, panelX, panelY, panelX + panelW, panelY + panelH, 0x88000000);
 
         if (this.selectedRule == null) {
@@ -629,35 +696,41 @@ public final class NvFlagPanel extends Screen {
             fill(pose, panelX + 10, y + 2, panelX + 6 + box, y + box - 2, 0xFF88FF88);
         }
         drawString(pose, this.font, "Slope (can_be_on_slope)", panelX + 22, y + 1, 0xFFFFFFFF);
-        this.clickHits.add(new ClickHit(panelX + 8, y, 160, box + 2, this::toggleSlope));
+        this.clickHits.add(new ClickHit(panelX + 8, y, 160, box + 2, -1, this::toggleSlope));
         y += 18;
 
-        drawString(pose, this.font, "Terrains (click icon = edit chance):", panelX + 8, y, 0xFFFFE080);
+        drawString(pose, this.font, "Terrains (LMB=chance, RMB=remove):", panelX + 8, y, 0xFFFFE080);
         y += 12;
-        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 24, mouseX, mouseY, this.terrainIcons(), true, false);
-        // + add terrain
+        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.terrainIcons(), true, false);
         int addX = panelX + panelW - 28;
         int addY = y - ICON - 4;
         blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, addY);
         this.iconHits.add(new IconHit(addX, addY, ICON, ICON, List.of("Add terrain")));
-        this.clickHits.add(new ClickHit(addX, addY, ICON, ICON, () -> this.openAddPopup(false)));
+        this.clickHits.add(new ClickHit(addX, addY, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_TERRAIN)));
         y += 4;
 
         drawString(pose, this.font, "Subterrains:", panelX + 8, y, 0xFFFFE080);
         y += 12;
-        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 24, mouseX, mouseY, this.subterrainIcons(), true, true);
+        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.subterrainIcons(), true, true);
         blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
         this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add subterrain")));
-        this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, () -> this.openAddPopup(true)));
+        this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_SUBTERRAIN)));
         y += 4;
 
         drawString(pose, this.font, "Climate:", panelX + 8, y, 0xFFFFE080);
         y += 12;
-        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 16, mouseX, mouseY, this.climateIcons(), false, false) + 4;
+        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.climateIcons(), false, false);
+        blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
+        this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add climate")));
+        this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_CLIMATE)));
+        y += 4;
 
         drawString(pose, this.font, "Zone flags:", panelX + 8, y, 0xFFFFE080);
         y += 12;
-        this.drawIconRow(pose, null, panelX + 8, y, panelW - 16, mouseX, mouseY, this.zoneIcons(), false, false);
+        y = this.drawIconRow(pose, null, panelX + 8, y, panelW - 40, mouseX, mouseY, this.zoneIcons(), false, false);
+        blitIcon(pose, BiomeRuleIcons.ui("icon_add"), addX, y - ICON - 4);
+        this.iconHits.add(new IconHit(addX, y - ICON - 4, ICON, ICON, List.of("Add zone flag")));
+        this.clickHits.add(new ClickHit(addX, y - ICON - 4, ICON, ICON, 0, () -> this.openAddPopup(Popup.ADD_ZONE)));
 
         if (!this.status.isEmpty()) {
             drawString(pose, this.font, this.status, left + 4, this.height - 40, 0xFFAAFFAA);
@@ -665,26 +738,49 @@ public final class NvFlagPanel extends Screen {
     }
 
     private void renderPopup(PoseStack pose, int mouseX, int mouseY) {
-        fill(pose, 0, 0, this.width, this.height, 0x99000000);
+        fill(pose, 0, 0, this.width, this.height, 0x66000000);
         if (this.popup == Popup.CHANCE) {
-            int px = this.width / 2 - 90;
-            int py = this.height / 2 - 48;
-            fill(pose, px, py, px + 180, py + 96, 0xFF2A2A2A);
-            drawCenteredString(pose, this.font, (this.popupSub ? "Subterrain" : "Terrain") + " chance", this.width / 2, py + 8, 0xFFFFE080);
-            drawString(pose, this.font, this.popupKey, px + 10, py + 22, 0xFFFFFFFF);
+            int px = this.width / 2 - 54;
+            int py = this.height / 2 - 22;
+            fill(pose, px, py, px + 108, py + 42, 0xEE1A1A1A);
+            fill(pose, px, py, px + 108, py + 1, 0xFFE0C060);
+            fill(pose, px, py + 41, px + 108, py + 42, 0xFFE0C060);
+            drawCenteredString(pose, this.font, this.popupKey, this.width / 2, py + 4, 0xFFFFE080);
+            drawCenteredString(pose, this.font, "chance  [Enter]", this.width / 2, py + 36, 0xFFAAAAAA);
             return;
         }
         // ADD list
         int px = this.width / 2 - 110;
         int py = this.height / 2 - 80;
         fill(pose, px, py, px + 220, py + 160, 0xFF2A2A2A);
-        drawCenteredString(pose, this.font, this.popup == Popup.ADD_SUBTERRAIN ? "Add subterrain" : "Add terrain", this.width / 2, py + 6, 0xFFFFE080);
-        List<String> options = this.popup == Popup.ADD_SUBTERRAIN ? ADDABLE_SUBS : ADDABLE_TERRAINS;
-        Set<String> have = this.selectedRule == null ? Set.of()
-                : (this.popup == Popup.ADD_SUBTERRAIN ? this.selectedRule.subterrains.keySet() : this.selectedRule.terrains.keySet());
+        String title = switch (this.popup) {
+            case ADD_SUBTERRAIN -> "Add subterrain";
+            case ADD_CLIMATE -> "Add climate";
+            case ADD_ZONE -> "Add zone flag";
+            default -> "Add terrain";
+        };
+        drawCenteredString(pose, this.font, title, this.width / 2, py + 6, 0xFFFFE080);
+        List<String> options = switch (this.popup) {
+            case ADD_SUBTERRAIN -> ADDABLE_SUBS;
+            case ADD_CLIMATE -> ADDABLE_CLIMATES;
+            case ADD_ZONE -> ADDABLE_ZONES;
+            default -> ADDABLE_TERRAINS;
+        };
+        Set<String> have;
+        if (this.selectedRule == null) {
+            have = Set.of();
+        } else if (this.popup == Popup.ADD_SUBTERRAIN) {
+            have = this.selectedRule.subterrains.keySet();
+        } else if (this.popup == Popup.ADD_CLIMATE) {
+            have = Set.copyOf(this.selectedRule.climateTags);
+        } else if (this.popup == Popup.ADD_ZONE) {
+            have = this.selectedRule.zoneFlags.keySet();
+        } else {
+            have = this.selectedRule.terrains.keySet();
+        }
         int rowH = 12;
         int listTop = py + 22;
-        int visible = 8;
+        int visible = 9;
         int shown = 0;
         int skipped = 0;
         for (String opt : options) {
@@ -705,12 +801,24 @@ public final class NvFlagPanel extends Screen {
             }
             drawString(pose, this.font, opt, px + 10, yy + 2, 0xFFFFFFFF);
             final String pick = opt;
-            this.clickHits.add(new ClickHit(px + 6, yy, 208, rowH, () -> this.addNamed(pick, this.popup == Popup.ADD_SUBTERRAIN)));
+            Runnable action = switch (this.popup) {
+                case ADD_SUBTERRAIN -> () -> this.addNamed(pick, true);
+                case ADD_CLIMATE -> () -> this.addClimate(pick);
+                case ADD_ZONE -> () -> this.addZone(pick);
+                default -> () -> this.addNamed(pick, false);
+            };
+            this.clickHits.add(new ClickHit(px + 6, yy, 208, rowH, 0, action));
             shown++;
         }
+        drawCenteredString(pose, this.font, "RMB / Esc = close", this.width / 2, py + 142, 0xFF888888);
     }
 
-    private record IconSpec(ResourceLocation tex, String key, String title, String detail, boolean editable, boolean sub) {}
+    private record IconSpec(
+            ResourceLocation tex, String key, String title, String detail,
+            boolean chanceEditable, boolean sub, Kind kind
+    ) {
+        enum Kind { TERRAIN, SUB, CLIMATE, ZONE }
+    }
 
     private List<IconSpec> terrainIcons() {
         List<IconSpec> out = new ArrayList<>();
@@ -718,7 +826,7 @@ public final class NvFlagPanel extends Screen {
             return out;
         }
         for (Map.Entry<String, Float> e : this.selectedRule.terrains.entrySet()) {
-            out.add(new IconSpec(BiomeRuleIcons.terrain(e.getKey()), e.getKey(), e.getKey(), "chance " + fmt(e.getValue()), true, false));
+            out.add(new IconSpec(BiomeRuleIcons.terrain(e.getKey()), e.getKey(), e.getKey(), "chance " + fmt(e.getValue()), true, false, IconSpec.Kind.TERRAIN));
         }
         return out;
     }
@@ -733,7 +841,7 @@ public final class NvFlagPanel extends Screen {
             if (icon == null) {
                 icon = BiomeRuleIcons.terrain(e.getKey());
             }
-            out.add(new IconSpec(icon, e.getKey(), e.getKey(), "chance " + fmt(e.getValue()), true, true));
+            out.add(new IconSpec(icon, e.getKey(), e.getKey(), "chance " + fmt(e.getValue()), true, true, IconSpec.Kind.SUB));
         }
         return out;
     }
@@ -744,7 +852,7 @@ public final class NvFlagPanel extends Screen {
             return out;
         }
         for (String tag : this.selectedRule.climateTags) {
-            out.add(new IconSpec(BiomeRuleIcons.climate(tag), tag, tag, "climate tag", false, false));
+            out.add(new IconSpec(BiomeRuleIcons.climate(tag), tag, tag, "climate tag", false, false, IconSpec.Kind.CLIMATE));
         }
         return out;
     }
@@ -765,7 +873,8 @@ public final class NvFlagPanel extends Screen {
                     e.getKey(),
                     "radius " + fmt(z.radiusBlocks()) + "  chance " + fmt(z.chance()),
                     false,
-                    false
+                    false,
+                    IconSpec.Kind.ZONE
             ));
         }
         return out;
@@ -793,10 +902,24 @@ public final class NvFlagPanel extends Screen {
             }
             blitIcon(pose, spec.tex, ix, iySafe(y));
             this.iconHits.add(new IconHit(ix, y, ICON, ICON, List.of(spec.title, spec.detail)));
-            if (clickEdits && spec.editable && this.editing && this.popup == Popup.NONE) {
+            if (this.editing && this.popup == Popup.NONE) {
                 final String key = spec.key;
                 final boolean sub = spec.sub || subDefault;
-                this.clickHits.add(new ClickHit(ix, y, ICON, ICON, () -> this.openChancePopup(key, sub)));
+                if (clickEdits && spec.chanceEditable) {
+                    this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 0, () -> this.openChancePopup(key, sub)));
+                    this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 1, () -> {
+                        this.setChance(key, sub, 0.0F);
+                        this.status = "Removed " + key;
+                    }));
+                } else if (spec.kind == IconSpec.Kind.CLIMATE) {
+                    Runnable rem = () -> this.removeClimate(key);
+                    this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 0, rem));
+                    this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 1, rem));
+                } else if (spec.kind == IconSpec.Kind.ZONE) {
+                    Runnable rem = () -> this.removeZone(key);
+                    this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 0, rem));
+                    this.clickHits.add(new ClickHit(ix, y, ICON, ICON, 1, rem));
+                }
             }
             if (mouseX >= ix && mouseX < ix + ICON && mouseY >= y && mouseY < y + ICON) {
                 fill(pose, ix - 1, y - 1, ix + ICON + 1, y, 0xFFFFFFFF);
@@ -861,10 +984,15 @@ public final class NvFlagPanel extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) {
+        if (button == 1 && this.popup != Popup.NONE && this.popup != Popup.CHANCE) {
+            this.popup = Popup.NONE;
+            this.init();
+            return true;
+        }
+        if (button == 0 || button == 1) {
             int y1 = 28;
             int y2 = y1 + TAB_H + 6;
-            if (mouseX >= 0 && mouseX < TAB_W + 6) {
+            if (button == 0 && mouseX >= 0 && mouseX < TAB_W + 6) {
                 if (mouseY >= y1 && mouseY < y1 + TAB_H) {
                     this.setTab(Tab.UNTESTED);
                     return true;
@@ -878,13 +1006,16 @@ public final class NvFlagPanel extends Screen {
             // Popup / edit click hits first
             for (int i = this.clickHits.size() - 1; i >= 0; i--) {
                 ClickHit h = this.clickHits.get(i);
+                if (h.button != -1 && h.button != button) {
+                    continue;
+                }
                 if (mouseX >= h.x && mouseX < h.x + h.w && mouseY >= h.y && mouseY < h.y + h.h) {
                     h.action.run();
                     return true;
                 }
             }
 
-            if (this.tab == Tab.BIOME_RULES && !this.editing && this.popup == Popup.NONE) {
+            if (button == 0 && this.tab == Tab.BIOME_RULES && !this.editing && this.popup == Popup.NONE) {
                 int left = this.contentLeft();
                 int listX = left + 4;
                 int listY = 50;
@@ -913,7 +1044,8 @@ public final class NvFlagPanel extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        if (this.popup == Popup.ADD_TERRAIN || this.popup == Popup.ADD_SUBTERRAIN) {
+        if (this.popup == Popup.ADD_TERRAIN || this.popup == Popup.ADD_SUBTERRAIN
+                || this.popup == Popup.ADD_CLIMATE || this.popup == Popup.ADD_ZONE) {
             this.addScroll = Math.max(0, this.addScroll - (int) Math.signum(delta));
             return true;
         }
@@ -929,6 +1061,30 @@ public final class NvFlagPanel extends Screen {
             }
         }
         return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Enter commits chance tooltip.
+        if (this.popup == Popup.CHANCE && (keyCode == 257 || keyCode == 335)) {
+            this.commitChancePopup();
+            return true;
+        }
+        // Esc: close popup → exit edit → close EGF
+        if (keyCode == 256) {
+            if (this.popup != Popup.NONE) {
+                this.popup = Popup.NONE;
+                this.init();
+                return true;
+            }
+            if (this.editing) {
+                this.exitEdit();
+                return true;
+            }
+            this.onClose();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override

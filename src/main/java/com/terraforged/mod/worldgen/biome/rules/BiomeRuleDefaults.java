@@ -87,15 +87,7 @@ public final class BiomeRuleDefaults {
             return Optional.of(retarget(byPath, id));
         }
 
-        String canonical = SYNONYM_TO_CANONICAL.get(path);
-        if (canonical == null) {
-            for (String token : path.split("[_/\\-]+")) {
-                canonical = SYNONYM_TO_CANONICAL.get(token);
-                if (canonical != null) {
-                    break;
-                }
-            }
-        }
+        String canonical = resolveCanonical(path);
         if (canonical != null) {
             BiomeRule named = loadByName(canonical);
             if (named != null) {
@@ -103,6 +95,73 @@ public final class BiomeRuleDefaults {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Prefer terrain-form synonyms (river, hills, …) over climate adjectives (frozen→tundra).
+     * For {@code X_of_Y}, prefer the left side (land_of_rivers → land/plains, not rivers).
+     */
+    private static String resolveCanonical(String path) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+        String direct = SYNONYM_TO_CANONICAL.get(path);
+        if (direct != null) {
+            return direct;
+        }
+        String[] tokens = path.split("[_/\\-]+");
+        int of = -1;
+        for (int i = 0; i < tokens.length; i++) {
+            if ("of".equals(tokens[i])) {
+                of = i;
+                break;
+            }
+        }
+        String[] primary = of > 0 ? java.util.Arrays.copyOfRange(tokens, 0, of) : tokens;
+        String[] secondary = of >= 0 && of + 1 < tokens.length
+                ? java.util.Arrays.copyOfRange(tokens, of + 1, tokens.length)
+                : new String[0];
+
+        String best = bestFormSynonym(primary);
+        if (best != null) {
+            return best;
+        }
+        best = bestFormSynonym(secondary);
+        if (best != null) {
+            return best;
+        }
+        // Last resort: first matching token anywhere (climate-ish synonyms).
+        for (String token : tokens) {
+            String c = SYNONYM_TO_CANONICAL.get(token);
+            if (c != null) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    private static final String[] FORM_CANONICAL_PRIORITY = {
+            "river", "beach", "volcano", "swamp", "badlands", "mountains", "hills", "plateau", "steppe", "desert", "jungle",
+            "taiga", "tundra", "plains"
+    };
+
+    private static String bestFormSynonym(String[] tokens) {
+        if (tokens == null || tokens.length == 0) {
+            return null;
+        }
+        java.util.Set<String> hits = new java.util.HashSet<>();
+        for (String token : tokens) {
+            String c = SYNONYM_TO_CANONICAL.get(token);
+            if (c != null) {
+                hits.add(c);
+            }
+        }
+        for (String prefer : FORM_CANONICAL_PRIORITY) {
+            if (hits.contains(prefer)) {
+                return prefer;
+            }
+        }
+        return hits.isEmpty() ? null : hits.iterator().next();
     }
 
     /** Persist editor save into config Defaults/by_id so it becomes the default for this biome. */

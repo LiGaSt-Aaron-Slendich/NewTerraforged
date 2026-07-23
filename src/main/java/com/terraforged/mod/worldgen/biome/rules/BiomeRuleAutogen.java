@@ -85,7 +85,6 @@ public final class BiomeRuleAutogen {
                 terrains.put("dales", 1.0F);
                 terrains.put("plains", 0.5F);
                 terrains.put("island_flats", 0.5F);
-                subterrains.put("river_bank", 0.3F);
                 climateTags.add("wet");
             }
             case RIVER -> {
@@ -137,11 +136,13 @@ public final class BiomeRuleAutogen {
         }
 
         applyClimateFromName(climateTags, parsed.climateTokens(), form);
+        // Secondary form from X_of_Y right side (land_of_rivers → plains primary + river secondary).
+        mergeSecondaryForm(terrains, subterrains, parsed.secondaryFormTokens());
+
         // Fallback to MC climate only when name gave nothing useful.
         if (climateTags.isEmpty()) {
             applyClimateFromBiome(climateTags, biome);
         } else {
-            // Still honour snow precip as additive.
             if (biome.getPrecipitation() == Precipitation.SNOW && !climateTags.contains("snowy")) {
                 climateTags.add("snowy");
             }
@@ -184,9 +185,92 @@ public final class BiomeRuleAutogen {
         return new BiomeRule(id.toString(), canSlope, distinct(climateTags), terrains, subterrains, zoneFlags, true);
     }
 
+    /** Merge secondary of-pattern forms at slightly lower weight (does not replace primary). */
+    private static void mergeSecondaryForm(
+            Map<String, Float> terrains, Map<String, Float> subterrains, List<String> secondaryTokens
+    ) {
+        if (secondaryTokens == null || secondaryTokens.isEmpty()) {
+            return;
+        }
+        Form secondary = detectForm(secondaryTokens);
+        switch (secondary) {
+            case RIVER -> {
+                terrains.putIfAbsent("river", 0.85F);
+                subterrains.putIfAbsent("river_bank", 0.85F);
+            }
+            case STEPPE -> terrains.putIfAbsent("steppe", 0.7F);
+            case HILLS -> {
+                terrains.putIfAbsent("hills_1", 0.7F);
+                terrains.putIfAbsent("hills_2", 0.7F);
+            }
+            case FLAT -> {
+                terrains.putIfAbsent("plains", 0.7F);
+                terrains.putIfAbsent("dales", 0.5F);
+            }
+            case SWAMP -> terrains.putIfAbsent("dales", 0.7F);
+            case BEACH -> terrains.putIfAbsent("beach", 0.7F);
+            case BADLANDS -> terrains.putIfAbsent("badlands", 0.7F);
+            case PLATEAU -> terrains.putIfAbsent("plateau", 0.7F);
+            case MOUNTAIN, PEAK -> {
+                terrains.putIfAbsent("mountains_1", 0.7F);
+                terrains.putIfAbsent("mountains_2", 0.7F);
+            }
+            case VOLCANO -> terrains.putIfAbsent("volcano", 0.7F);
+        }
+    }
+
+    /**
+     * Overlay name-driven climate / river fixes onto a curated default copy.
+     * Keeps cold_desert = cold+desert even when synonym template is desert-only.
+     */
+    public static BiomeRule enrichFromName(ResourceLocation id, BiomeRule base) {
+        if (id == null || base == null) {
+            return base;
+        }
+        BiomeNameTokens.Parsed parsed = BiomeNameTokens.parsePath(id.getPath());
+        List<String> climate = new ArrayList<>(base.climateTags);
+        applyClimateFromName(climate, parsed.climateTokens(), detectForm(parsed.formTokens()));
+        Map<String, Float> terrains = new LinkedHashMap<>(base.terrains);
+        Map<String, Float> subterrains = new LinkedHashMap<>(base.subterrains);
+        // Pure *river* biomes (not land_of_rivers) must be river-primary (not plains/tundra leftovers).
+        boolean ofPattern = id.getPath().toLowerCase(Locale.ROOT).contains("_of_");
+        if (!ofPattern && tokensContain(parsed.all(), FORM_RIVER)) {
+            float riverW = terrains.getOrDefault("river", 0.0F);
+            float bestOther = 0.0F;
+            for (Map.Entry<String, Float> e : terrains.entrySet()) {
+                if (!"river".equals(e.getKey())) {
+                    bestOther = Math.max(bestOther, e.getValue());
+                }
+            }
+            if (riverW <= 0.0F || riverW + 0.001F < bestOther) {
+                terrains.clear();
+                subterrains.clear();
+                terrains.put("river", 1.0F);
+                subterrains.put("river_bank", 1.0F);
+            }
+        }
+        mergeSecondaryForm(terrains, subterrains, parsed.secondaryFormTokens());
+        if (ofPattern && tokensContain(parsed.formTokens(), FORM_FLAT) && tokensContain(parsed.secondaryFormTokens(), FORM_RIVER)) {
+            terrains.putIfAbsent("plains", 1.0F);
+            terrains.putIfAbsent("dales", 0.6F);
+            terrains.putIfAbsent("steppe", 0.5F);
+            terrains.putIfAbsent("river", 0.85F);
+            subterrains.putIfAbsent("river_bank", 0.85F);
+        }
+        return new BiomeRule(
+                base.biome,
+                base.canBeOnSlope,
+                distinct(climate),
+                terrains,
+                subterrains,
+                base.zoneFlags,
+                base.autoGenerated
+        );
+    }
+
     /**
      * Name-driven climate. Examples:
-     * warm_river → warm; muddy_river → temperate + wet; frozen_river → cold + snowy.
+     * warm_river → warm; muddy_river → temperate + wet; cold_desert → cold + desert.
      */
     private static void applyClimateFromName(List<String> climateTags, List<String> tokens, Form form) {
         boolean named = false;

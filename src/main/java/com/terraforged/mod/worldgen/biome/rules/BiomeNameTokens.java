@@ -8,27 +8,28 @@ import java.util.Set;
 
 /**
  * Tokenizes biome paths and applies {@code X_of_Y} splitting:
- * first side = form base, second side = climate / tag source.
- * If the left side is vague ({@code land}, {@code realm}…) and the right carries a real form
- * word ({@code rivers}), form also reads the right side.
+ * <ul>
+ *   <li>left = primary form base (land_of_rivers → land/plains first)</li>
+ *   <li>right = climate/tags + secondary form (rivers → also add river terrain)</li>
+ * </ul>
  */
 public final class BiomeNameTokens {
-    private static final Set<String> VAGUE_BASE = Set.of(
-            "land", "lands", "realm", "realms", "region", "regions", "place", "places",
-            "world", "domain", "area", "zone", "biome", "biomes", "vale", "valley"
-    );
-
     private BiomeNameTokens() {
     }
 
-    public record Parsed(List<String> all, List<String> formTokens, List<String> climateTokens) {}
+    public record Parsed(
+            List<String> all,
+            List<String> formTokens,
+            List<String> secondaryFormTokens,
+            List<String> climateTokens
+    ) {}
 
     public static Parsed parsePath(String path) {
         List<String> raw = tokenizeKeepOf(path == null ? "" : path);
         int of = raw.indexOf("of");
         if (of < 0) {
             List<String> tokens = stripOf(raw);
-            return new Parsed(tokens, tokens, tokens);
+            return new Parsed(tokens, tokens, List.of(), tokens);
         }
         List<String> left = new ArrayList<>();
         for (int i = 0; i < of; i++) {
@@ -44,20 +45,12 @@ public final class BiomeNameTokens {
                 right.add(t);
             }
         }
-
-        // First word(s) = form base; second side = climate/tag.
+        // Primary form from left only (land stays land — do NOT promote rivers to primary).
         List<String> form = new ArrayList<>(left);
+        List<String> secondary = new ArrayList<>(right);
         List<String> climate = new ArrayList<>(right);
-
-        // land_of_rivers: vague left → also take form from right (rivers → river terrain).
-        boolean vague = left.isEmpty() || left.stream().allMatch(VAGUE_BASE::contains);
-        if (vague) {
-            form.addAll(right);
-        }
-        // Left-side climate adjectives still apply (warm_land_of_…).
         climate.addAll(left);
-
-        return new Parsed(distinct(stripOf(raw)), distinct(form), distinct(climate));
+        return new Parsed(distinct(stripOf(raw)), distinct(form), distinct(secondary), distinct(climate));
     }
 
     public static List<String> tokenizeKeepOf(String path) {
