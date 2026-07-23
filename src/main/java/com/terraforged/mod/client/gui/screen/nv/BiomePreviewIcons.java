@@ -49,6 +49,16 @@ public final class BiomePreviewIcons {
                 return bop;
             }
         }
+        // WWEE (Expanded Ecosphere) and WWOO share Wythers biome ids / style.
+        if ("wythers".equals(ns) || "wwoo".equals(ns) || "expanded_ecosphere".equals(ns)
+                || "expandedecosphere".equals(ns) || "wwee".equals(ns)) {
+            for (String folder : new String[]{"wythers", "wwoo", "expanded_ecosphere"}) {
+                ResourceLocation loc = namespaced(folder, path);
+                if (exists(loc)) {
+                    return loc;
+                }
+            }
+        }
         if ("terralith".equals(ns)) {
             ResourceLocation tl = namespaced("terralith", path);
             if (exists(tl)) {
