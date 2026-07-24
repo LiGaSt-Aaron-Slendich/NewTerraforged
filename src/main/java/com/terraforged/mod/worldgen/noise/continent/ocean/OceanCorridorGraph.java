@@ -23,10 +23,10 @@ import java.util.List;
 public final class OceanCorridorGraph {
     public static final int LIA_MAJORITY_INCOMING = 3;
     private static final int MIN_CONTINENT_CELLS = 2;
-    private static final int MAX_CONTINENTS = 16;
-    /** Tiny stepped window — world-create must stay instant. */
-    private static final int SCAN_HALF = 12;
-    private static final int SCAN_STEP = 2;
+    private static final int MAX_CONTINENTS = 12;
+    /** Very small stepped window — must stay trivial even if forced on create-world. */
+    private static final int SCAN_HALF = 8;
+    private static final int SCAN_STEP = 4;
 
     private final LongSet directedEdges;
     private final List<DirectedEdge> edgeList;
@@ -121,6 +121,11 @@ public final class OceanCorridorGraph {
                 new LongOpenHashSet(),
                 new Long2IntOpenHashMap(),
                 false);
+    }
+
+    /** Public empty graph for lazy/fallback init (never blocks world-create). */
+    public static OceanCorridorGraph emptyGraph() {
+        return empty();
     }
 
     private static List<LandNode> collectLandNodes(ContinentGenerator continent) {

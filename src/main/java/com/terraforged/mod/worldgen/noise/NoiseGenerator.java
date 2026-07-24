@@ -138,11 +138,13 @@ public class NoiseGenerator implements INoiseGenerator {
    private long findContinentPaintedTerrain(int x, int z, int minRadius, int maxRadius, Terrain terrain) {
       int step = 16;
       int minCell = Math.max(0, minRadius / step);
-      int maxCell = Math.max(minCell + 1, maxRadius / step);
+      // Cap search — uncapped spirals freeze structure/feature placement.
+      int maxCell = Math.min(256, Math.max(minCell + 1, maxRadius / step));
       SpiralIterator spiral = new SpiralIterator(NoiseUtil.floor(x / (float) step), NoiseUtil.floor(z / (float) step), minCell, maxCell);
       NoiseSample sample = this.localSample.get().reset();
       String want = terrain.getName();
-      while (spiral.hasNext()) {
+      int guard = 0;
+      while (spiral.hasNext() && guard++ < 2048) {
          long packed = spiral.next();
          int cx = PosUtil.unpackLeft(packed);
          int cz = PosUtil.unpackRight(packed);
@@ -396,7 +398,7 @@ public class NoiseGenerator implements INoiseGenerator {
       settings.world.seed = seed;
       settings.world.properties.seaLevel = levels.seaLevel;
       settings.world.properties.worldHeight = levels.maxY;
-      GeneratorContext generatorcontext = new GeneratorContext(settings);
+      GeneratorContext generatorcontext = GeneratorContext.createNoCache(settings);
       return new ContinentNoise(levels, generatorcontext);
    }
 }

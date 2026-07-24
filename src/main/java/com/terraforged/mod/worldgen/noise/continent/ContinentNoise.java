@@ -4,6 +4,7 @@ import com.terraforged.engine.settings.WorldSettings;
 import com.terraforged.engine.world.GeneratorContext;
 import com.terraforged.engine.world.heightmap.ControlPoints;
 import com.terraforged.engine.world.terrain.TerrainType;
+import com.terraforged.mod.TerraForged;
 import com.terraforged.mod.worldgen.noise.IContinentNoise;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
@@ -29,30 +30,31 @@ public class ContinentNoise implements IContinentNoise {
    protected final OceanLandscapeOverlay oceanLandscape;
    protected final CoastalLiaOverlay coastalLia;
    protected final boolean shipwrecked;
+   private boolean liaGraphBound;
 
    public ContinentNoise(TerrainLevels levels, GeneratorContext context) {
+      long t0 = System.nanoTime();
       this.levels = levels;
       this.context = context;
       this.controlPoints = new ControlPoints(context.settings.world.controlPoints);
       ContinentConfig config = createConfig(context);
       this.generator = new ContinentGenerator(config, levels.noiseLevels, this.controlPoints);
-      // Resolve spawn offset BEFORE corridor graph — graph scan must never block world-create.
+      // Instant — no spiral search (was freezing create-world at 0%).
       this.offset = this.generator.getWorldOffset();
       this.islandOverlay = new IslandFeatureOverlay(config);
+      // Corridor graph is lazy inside overlay — do not build here.
       this.oceanLandscape = new OceanLandscapeOverlay(config, this.generator);
       this.coastalLia = new CoastalLiaOverlay(config.shape.seed0);
-      if (OceanLandscapeOverlay.isActive()) {
-         this.coastalLia.bindCorridorGraph(
-               this.generator,
-               this.oceanLandscape.corridorGraph(),
-               context.settings.world.continent.continentScale);
-      }
       this.frequency = 1.0F / context.settings.world.continent.continentScale;
       this.shipwrecked = context.settings.world.properties != null
             && context.settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;
       double d0 = 0.2;
       Builder builder = Source.builder().octaves(3).lacunarity(2.2).frequency(3.0).gain(0.3);
       this.warp = Domain.warp(builder.seed(context.seed.next()).perlin2(), builder.seed(context.seed.next()).perlin2(), Source.constant(d0));
+      TerraForged.LOG.info("[ContinentNoise] init {} ms (offset={}, ol={})",
+            (System.nanoTime() - t0) / 1_000_000L,
+            this.offset,
+            OceanLandscapeOverlay.isActive());
    }
 
    @Override
@@ -83,14 +85,25 @@ public class ContinentNoise implements IContinentNoise {
       float islandZ = f1 / this.frequency * invNoise;
       if (OceanLandscapeOverlay.isActive()) {
          this.oceanLandscape.apply(islandX, islandZ, f, f1, sample);
+         ensureLiaGraphBound();
       } else {
          this.islandOverlay.apply(islandX, islandZ, sample, this.levels.seaLevel);
       }
       // Little Ice Age coastal warp after islands so island paint stays intact.
-      // When OL graph is bound, LIA is gated by incoming corridor count per continent.
       if (!this.shipwrecked) {
          this.coastalLia.applyContinent(islandX, islandZ, f, f1, sample);
       }
+   }
+
+   private void ensureLiaGraphBound() {
+      if (this.liaGraphBound) {
+         return;
+      }
+      this.coastalLia.bindCorridorGraph(
+            this.generator,
+            this.oceanLandscape.corridorGraph(),
+            this.context.settings.world.continent.continentScale);
+      this.liaGraphBound = true;
    }
 
    @Override
