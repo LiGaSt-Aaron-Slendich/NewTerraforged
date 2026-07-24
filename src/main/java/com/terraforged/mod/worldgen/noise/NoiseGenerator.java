@@ -361,13 +361,17 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected void applyMountainBeltLand(NoiseSample sample, float belt) {
-      if (belt < 0.05F || sample == null) {
+      if (belt < 0.08F || sample == null) {
          return;
       }
-      // Extra spine height on top of mountain landforms — readable in HEIGHT normals.
-      float boost = belt * belt * 0.16F;
-      sample.heightNoise = NoiseUtil.clamp(sample.heightNoise + boost * (1.0F - sample.heightNoise * 0.35F), 0.0F, 1.0F);
-      if (belt > 0.72F && sample.terrainType != null && sample.terrainType.isOverground()
+      // Soft apron boost: lift existing height toward a highland target instead of a wall spike.
+      float soft = belt * belt * (3.0F - 2.0F * belt); // smoothstep-ish on [0,1]
+      float target = NoiseUtil.lerp(sample.heightNoise, 0.78F, soft * 0.55F);
+      // Never drop below current; blend up gently so foothills rewrite plains without cliffs.
+      float blended = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), soft * 0.65F);
+      sample.heightNoise = NoiseUtil.clamp(blended, 0.0F, 1.0F);
+      // Only retag crest cells; foothills keep hills/plains labels from WeightMap.
+      if (belt > 0.82F && sample.terrainType != null && sample.terrainType.isOverground()
             && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
             && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
          sample.terrainType = TerrainType.MOUNTAINS;

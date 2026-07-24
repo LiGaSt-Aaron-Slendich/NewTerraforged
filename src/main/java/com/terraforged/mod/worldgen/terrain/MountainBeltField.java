@@ -4,9 +4,8 @@ import com.terraforged.mod.util.MathUtil;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Continent-scale mountain spines: continuous ridged belts that can run across a
- * landmass (and continue offshore as weaker seafloor relief). Independent of the
- * Voronoi terrain-region patches.
+ * Continent-scale mountain spines with wide foothills (not knife-edge walls).
+ * Peak sits on a soft apron so height rises over hundreds of blocks.
  */
 public final class MountainBeltField {
     private MountainBeltField() {
@@ -16,42 +15,44 @@ public final class MountainBeltField {
      * @param worldX worldZ block coordinates
      * @param seed world/continent seed
      * @param continentScale {@code WorldSettings.Continent.continentScale}
-     * @return belt strength 0..1 (core of a spine near 1)
+     * @return belt strength 0..1 (core of a spine near 1, foothills ~0.2–0.6)
      */
     public static float strength(float worldX, float worldZ, long seed, int continentScale) {
         int scale = Math.max(400, continentScale);
         int s = (int) seed ^ 0xB3175EED;
-        // Primary wavelength ≈ half a continent — one clear spine across a landmass.
-        float wl = scale * 0.55F;
+        // Wider wavelength → broader ridges (~0.7 continent across for the envelope).
+        float wl = scale * 0.70F;
         float freq = 1.0F / wl;
-        // Soft warp so belts curve instead of ruler-straight.
-        float warpAmt = scale * 0.12F;
-        float wx = worldX + (valueNoise(s ^ 0x11, worldX * freq * 0.35F, worldZ * freq * 0.35F) - 0.5F) * warpAmt;
-        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * freq * 0.35F, worldZ * freq * 0.35F) - 0.5F) * warpAmt;
+        float warpAmt = scale * 0.14F;
+        float wx = worldX + (valueNoise(s ^ 0x11, worldX * freq * 0.32F, worldZ * freq * 0.32F) - 0.5F) * warpAmt;
+        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * freq * 0.32F, worldZ * freq * 0.32F) - 0.5F) * warpAmt;
 
-        float primary = ridged(s ^ 0xA1, wx * freq, wz * freq);
-        // Parallel weaker spine for a mountain-chain feel.
-        float secondary = ridged(s ^ 0xA2, wx * freq * 1.65F + 17.3F, wz * freq * 1.65F - 9.1F);
-        // Along-belt modulation so the ridge rises and falls (peaks / passes).
-        float along = valueNoise(s ^ 0xA3, wx * freq * 0.55F, wz * freq * 0.55F);
+        // Soft ridge (less squaring) = wider shoulders / foothills.
+        float primary = softRidge(s ^ 0xA1, wx * freq, wz * freq);
+        float secondary = softRidge(s ^ 0xA2, wx * freq * 1.35F + 17.3F, wz * freq * 1.35F - 9.1F);
+        // Mild along-belt variation — avoid sudden peak/pass cliffs.
+        float along = valueNoise(s ^ 0xA3, wx * freq * 0.40F, wz * freq * 0.40F);
 
-        float core = smoothstep(0.58F, 0.86F, primary);
-        float side = smoothstep(0.70F, 0.92F, secondary) * 0.42F;
-        float belt = NoiseUtil.clamp(core + side, 0.0F, 1.0F);
-        // Keep a continuous spine but vary height along its length.
-        float profile = 0.55F + 0.45F * along;
+        // Broad apron starts early; crest is only the top of the same field.
+        float foothills = smoothstep(0.22F, 0.52F, primary);
+        float crest = smoothstep(0.48F, 0.82F, primary);
+        float side = smoothstep(0.55F, 0.85F, secondary) * 0.28F;
+        float belt = NoiseUtil.clamp(foothills * 0.62F + crest * 0.48F + side, 0.0F, 1.0F);
+        // Soften lengthwise height jitter (was 0.55–1.0 → walls between peaks).
+        float profile = 0.82F + 0.18F * along;
         return NoiseUtil.clamp(belt * profile, 0.0F, 1.0F);
     }
 
     /** Weaker offshore continuation of the same spine (for seafloor relief). */
     public static float underwaterStrength(float worldX, float worldZ, long seed, int continentScale) {
-        return strength(worldX, worldZ, seed, continentScale) * 0.48F;
+        return strength(worldX, worldZ, seed, continentScale) * 0.40F;
     }
 
-    private static float ridged(int seed, float x, float z) {
+    /** Ridged noise with gentle shoulders (sqrt of classic ridge). */
+    private static float softRidge(int seed, float x, float z) {
         float n = valueNoise(seed, x, z);
         float r = 1.0F - Math.abs(n * 2.0F - 1.0F);
-        return r * r;
+        return (float) Math.sqrt(Math.max(0.0F, r));
     }
 
     private static float valueNoise(int seed, float x, float z) {

@@ -8,9 +8,8 @@ import com.terraforged.mod.worldgen.terrain.MountainBeltField;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Preview-only height lift for continent-scale mountain spines so HEIGHT normals
- * show continuous belts across land and a weaker continuation offshore.
- * Worldgen applies the same field in {@code NoiseGenerator}.
+ * Preview height lift for wide mountain belts (soft foothills + crest).
+ * Matches {@code NoiseGenerator} belt semantics for HEIGHT normals.
  */
 public final class PreviewMountainBeltPainter {
     private PreviewMountainBeltPainter() {
@@ -33,23 +32,25 @@ public final class PreviewMountainBeltPainter {
             int worldX = centerX + (lx - half) * zoom;
             int worldZ = centerZ + (lz - half) * zoom;
             float belt = MountainBeltField.strength(worldX, worldZ, beltSeed, continentScale);
-            if (belt < 0.06F) {
+            if (belt < 0.08F) {
                 return;
             }
             if (cell.value >= water - 0.002F) {
-                // Land / emergent: strong spine.
-                float boost = belt * belt * 0.14F;
-                cell.value = NoiseUtil.clamp(cell.value + boost * (1.0F - (cell.value - water) * 0.5F), 0.0F, 1.0F);
-                if (belt > 0.70F && cell.terrain != null && cell.terrain.isOverground()
+                float soft = belt * belt * (3.0F - 2.0F * belt);
+                float target = NoiseUtil.lerp(cell.value, water + 0.22F, soft * 0.55F);
+                cell.value = NoiseUtil.clamp(
+                        NoiseUtil.lerp(cell.value, Math.max(cell.value, target), soft * 0.65F),
+                        0.0F,
+                        1.0F);
+                if (belt > 0.82F && cell.terrain != null && cell.terrain.isOverground()
                         && !cell.terrain.isRiver() && !cell.terrain.isLake()) {
                     cell.terrain = TerrainType.MOUNTAINS;
                 }
             } else {
-                // Offshore continuation — weaker seafloor ridge toward sea level.
                 float under = MountainBeltField.underwaterStrength(worldX, worldZ, beltSeed, continentScale);
                 float cn = NoiseUtil.clamp(cell.continentEdge, 0.0F, 1.0F);
                 float nearShore = NoiseUtil.clamp(1.0F - cn / 0.45F, 0.0F, 1.0F);
-                float lift = under * (0.35F + 0.65F * nearShore) * 0.055F;
+                float lift = under * (0.35F + 0.65F * nearShore) * 0.045F;
                 cell.value = Math.min(water - 0.004F, cell.value + lift);
             }
         });

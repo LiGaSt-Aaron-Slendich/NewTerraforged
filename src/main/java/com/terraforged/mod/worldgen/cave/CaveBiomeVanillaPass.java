@@ -195,16 +195,6 @@ public final class CaveBiomeVanillaPass {
     }
 
     private static int findCarvedFloor(ChunkAccess chunk, int lx, int lz, int minY, int maxY) {
-        for (int y = maxY; y >= minY; --y) {
-            BlockPos pos = new BlockPos(lx, y, lz);
-            if (!chunk.getBlockState(pos).isAir()) {
-                continue;
-            }
-            if (chunk.getBlockState(pos.below()).isAir()) {
-                continue;
-            }
-            return y;
-        }
-        return -1;
+        return CaveColumnScan.findFloorNearSurface(chunk, lx, lz, minY, maxY);
     }
 }

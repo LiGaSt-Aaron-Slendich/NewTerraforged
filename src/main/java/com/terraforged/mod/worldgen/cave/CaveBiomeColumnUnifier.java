@@ -38,7 +38,7 @@ public final class CaveBiomeColumnUnifier {
                 if (!columns.matches(config.getType(), lx, lz)) {
                     continue;
                 }
-                int floorY = CaveColumnScan.findLowestFloor(chunk, lx, lz, minY, maxY);
+                int floorY = CaveColumnScan.findFloorNearSurface(chunk, lx, lz, minY, maxY);
                 if (floorY < 0) {
                     continue;
                 }

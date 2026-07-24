@@ -51,8 +51,20 @@ public class ChunkUtil {
          }
       }
 
-      for (int i1 = levelheightaccessor.getMinSection(); i1 < levelheightaccessor.getMaxSection(); i1++) {
-         LevelChunkSection levelchunksection = chunk.getSection(chunk.getSectionIndexFromSectionY(i1));
+      // Paint biomes into sections that intersect the build column. Upper empty sky
+      // sections still need a biome — fill them from the same 2D buffer, but skip
+      // allocating work for sections that MC has not created yet (null).
+      int minSection = levelheightaccessor.getMinSection();
+      int maxSection = levelheightaccessor.getMaxSection();
+      for (int i1 = minSection; i1 < maxSection; i1++) {
+         int sectionIndex = chunk.getSectionIndexFromSectionY(i1);
+         if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) {
+            continue;
+         }
+         LevelChunkSection levelchunksection = chunk.getSection(sectionIndex);
+         if (levelchunksection == null) {
+            continue;
+         }
          fillNoiseBiomes(levelchunksection, holder, biomes, plainsFallback);
       }
    }

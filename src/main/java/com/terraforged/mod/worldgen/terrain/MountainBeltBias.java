@@ -7,22 +7,28 @@ import com.terraforged.mod.worldgen.asset.TerrainNoise;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Pulls WeightMap picks toward mountain landforms along {@link MountainBeltField} spines
- * so belts get mountain heights/types — not just a cosmetic height bump on plains.
+ * Soft landform pull along mountain belts: foothills → hills/plateau, crest → mountains.
+ * Never hard-snaps to a knife-edge mountain WeightMap slot.
  */
 public final class MountainBeltBias {
     private MountainBeltBias() {
     }
 
     public static float biasNoiseIndex(float noise, float belt, WeightMap<TerrainNoise> terrains) {
-        if (terrains == null || terrains.isEmpty() || belt < 0.08F) {
+        if (terrains == null || terrains.isEmpty() || belt < 0.10F) {
             return noise;
         }
         float n = NoiseUtil.clamp(noise, 0.0F, 0.9999F);
+        float hills = hillsIndex(terrains);
         float mountains = mountainsIndex(terrains);
-        float t = NoiseUtil.clamp((belt - 0.08F) / 0.72F, 0.0F, 1.0F);
-        t = t * t * (3.0F - 2.0F * t);
-        return NoiseUtil.lerp(n, mountains, t * 0.94F);
+        // Mid belt prefers hills; only the crest leans hard into mountains.
+        float crest = NoiseUtil.clamp((belt - 0.45F) / 0.50F, 0.0F, 1.0F);
+        crest = crest * crest * (3.0F - 2.0F * crest);
+        float target = NoiseUtil.lerp(hills, mountains, crest);
+        float pull = NoiseUtil.clamp((belt - 0.10F) / 0.70F, 0.0F, 1.0F);
+        pull = pull * pull * (3.0F - 2.0F * pull);
+        // Soft rewrite — keep some of the underlying landform so ridges don't ignore terrain.
+        return NoiseUtil.lerp(n, target, pull * 0.72F);
     }
 
     public static boolean isMountainLandform(Terrain terrain) {
@@ -43,8 +49,12 @@ public final class MountainBeltBias {
     }
 
     private static float mountainsIndex(WeightMap<TerrainNoise> terrains) {
+        return indexMatching(terrains, true, 0.55F);
+    }
+
+    private static float hillsIndex(WeightMap<TerrainNoise> terrains) {
         TerrainNoise[] values = terrains.getValues();
-        float best = 0.55F;
+        float best = 0.35F;
         float cursor = 0.0F;
         float sum = 0.0F;
         for (TerrainNoise tn : values) {
@@ -62,12 +72,43 @@ public final class MountainBeltBias {
             float w = Math.max(0.0F, tn.weight());
             float mid = (cursor + w * 0.5F) / sum;
             cursor += w;
-            if (isMountainLandform(tn.terrain())) {
+            Terrain t = tn.terrain();
+            if (t == null) {
+                continue;
+            }
+            String name = t.getName();
+            if (t == TerrainType.HILLS || (name != null && name.toLowerCase().contains("hills"))) {
                 return NoiseUtil.clamp(mid, 0.0F, 0.9999F);
             }
-            Terrain t = tn.terrain();
-            if (t != null && (t == TerrainType.HILLS || t == TerrainType.PLATEAU)) {
+            if (t == TerrainType.PLATEAU || (name != null && name.toLowerCase().contains("plateau"))) {
                 best = mid;
+            }
+        }
+        return NoiseUtil.clamp(best, 0.0F, 0.9999F);
+    }
+
+    private static float indexMatching(WeightMap<TerrainNoise> terrains, boolean mountains, float fallback) {
+        TerrainNoise[] values = terrains.getValues();
+        float best = fallback;
+        float cursor = 0.0F;
+        float sum = 0.0F;
+        for (TerrainNoise tn : values) {
+            if (tn != null) {
+                sum += Math.max(0.0F, tn.weight());
+            }
+        }
+        if (sum < 1.0E-4F) {
+            return best;
+        }
+        for (TerrainNoise tn : values) {
+            if (tn == null) {
+                continue;
+            }
+            float w = Math.max(0.0F, tn.weight());
+            float mid = (cursor + w * 0.5F) / sum;
+            cursor += w;
+            if (mountains && isMountainLandform(tn.terrain())) {
+                return NoiseUtil.clamp(mid, 0.0F, 0.9999F);
             }
         }
         return NoiseUtil.clamp(best, 0.0F, 0.9999F);
