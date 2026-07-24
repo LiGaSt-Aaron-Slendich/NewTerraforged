@@ -35,6 +35,7 @@ public final class PreviewOceanLandscapePainter {
                 ? settings.world.oceanLandscape
                 : new WorldSettings.OceanLandscape();
         float noiseScale = NoiseUtil.clamp(ol.noiseScale, 0.25F, 3.0F);
+        float landscapeScale = NoiseUtil.clamp(ol.landscapeScale, 0.5F, 4.0F);
         float corridorStrength = NoiseUtil.clamp(ol.corridorStrength, 0.0F, 1.0F);
         float shelfStrength = NoiseUtil.clamp(ol.shelfStrength, 0.0F, 1.0F);
         float volcanoDensity = NoiseUtil.clamp(ol.volcanoDensity, 0.0F, 1.0F);
@@ -101,7 +102,7 @@ public final class PreviewOceanLandscapePainter {
             }
 
             if (corridor > 0.04F) {
-                float relief = SeafloorLandscape.relief(worldX, worldZ, paintSeed, noiseScale);
+                float relief = SeafloorLandscape.relief(worldX, worldZ, paintSeed, noiseScale, landscapeScale);
                 float masked = relief * corridor;
                 float emergeAt = shipwrecked
                         ? SeafloorLandscape.SHIP_EMERGE_THRESHOLD

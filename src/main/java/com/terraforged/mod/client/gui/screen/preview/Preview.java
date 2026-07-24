@@ -316,7 +316,17 @@ public final class Preview extends AbstractWidget {
             return argb;
         }
         String name = cell.terrain != null ? cell.terrain.getName() : "";
-        boolean match = name.toLowerCase().contains(filter.toLowerCase());
+        String f = filter.toLowerCase();
+        String n = name.toLowerCase();
+        boolean match;
+        if ("volcano".equals(f)) {
+            // Cone + island volcano — not pipe (use volcano_pipe filter for vents).
+            match = "volcano".equals(n) || "island_volcano".equals(n);
+        } else if ("volcano_pipe".equals(f)) {
+            match = "volcano_pipe".equals(n);
+        } else {
+            match = n.contains(f);
+        }
         if (match) {
             // Bright yellow highlight.
             return 0xFF00FFFF;

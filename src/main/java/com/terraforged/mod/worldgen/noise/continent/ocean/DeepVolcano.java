@@ -58,6 +58,8 @@ public final class DeepVolcano {
         return cone(worldX, worldZ, centerX + jx, centerZ + jz, radius, seed);
     }
 
+    /** Larger crater so vents stay visible even on zoomed preview maps. */
+
     public static Result cone(float worldX, float worldZ, float centerX, float centerZ, float radius) {
         return cone(worldX, worldZ, centerX, centerZ, radius, 0);
     }
@@ -77,8 +79,9 @@ public final class DeepVolcano {
             return Result.NONE;
         }
         float t = 1.0F - dist / radius;
-        float craterR = Math.max(22.0F, radius * 0.36F);
-        float rimR = Math.max(craterR + 16.0F, radius * 0.55F);
+        // Wider pipe so each cone has a visible vent (preview zoom often skipped the old ~22-block throat).
+        float craterR = Math.max(48.0F, radius * 0.42F);
+        float rimR = Math.max(craterR + 20.0F, radius * 0.58F);
         if (rimR > radius * 0.92F) {
             rimR = radius * 0.92F;
         }

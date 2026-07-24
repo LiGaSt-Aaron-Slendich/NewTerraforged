@@ -274,12 +274,14 @@ public final class NvFlagPanel extends Screen {
         this.layoutUntestedButtons();
     }
 
+    /** Below subtitle; matches the red clip line on Untested tab. */
     private int untestedViewTop() {
-        return 48;
+        return 44;
     }
 
+    /** Above Done button; matches the red clip line on Untested tab. */
     private int untestedViewBottom() {
-        return this.height - 36;
+        return this.height - 32;
     }
 
     private void layoutUntestedButtons() {
@@ -293,7 +295,8 @@ public final class NvFlagPanel extends Screen {
             b.x = (this.contentLeft() + this.width) / 2 - 140;
             b.setWidth(280);
             b.y = y;
-            boolean inView = b.y + b.getHeight() > viewTop && b.y < viewBottom;
+            // Fully inside the clip band — partial rows disappear instead of overlapping title/Done.
+            boolean inView = b.y >= viewTop && b.y + b.getHeight() <= viewBottom;
             b.visible = inView;
             b.active = inView;
             y += 28;
@@ -836,10 +839,6 @@ public final class NvFlagPanel extends Screen {
             drawCenteredString(pose, this.font, "Unstable / unfinished worldgen. Default OFF for releases.", mid, 28, 0xFFAAAAAA);
             // Keep button Y in sync if window was resized without re-init.
             this.layoutUntestedButtons();
-            int viewH = Math.max(40, this.untestedViewBottom() - this.untestedViewTop());
-            if (this.untestedContentHeight > viewH) {
-                drawCenteredString(pose, this.font, "Scroll for more…", mid, this.height - 48, 0xFF888888);
-            }
         } else if (this.editing) {
             this.renderEditPanel(pose, mouseX, mouseY);
         } else {

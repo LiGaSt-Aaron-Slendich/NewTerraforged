@@ -51,12 +51,14 @@ public class ContinentConfig {
       public boolean shipwrecked = false;
 
       // --- Ocean Landscape (EGF) tunables ---
-      /** Seafloor noise frequency scale. 1 = default; lower = smoother. */
-      public float oceanNoiseScale = 1.0F;
+      /** Underwater feature size; higher = larger / smoother banks. */
+      public float oceanLandscapeScale = 1.5F;
+      /** Seafloor detail / grain. Lower = smoother. */
+      public float oceanNoiseScale = 0.45F;
       /** Each continent links to this many nearest neighbours for seafloor corridors. */
       public int oceanCorridorPartners = 2;
       /** Overall corridor / bank strength 0..1. */
-      public float oceanCorridorStrength = 0.85F;
+      public float oceanCorridorStrength = 0.92F;
       /** Max partner distance in cell-pitch units (≈ × continentScale in world blocks). */
       public float oceanCorridorMaxDistance = 8.0F;
       /** Coastal shelf along linked continents 0..1. */

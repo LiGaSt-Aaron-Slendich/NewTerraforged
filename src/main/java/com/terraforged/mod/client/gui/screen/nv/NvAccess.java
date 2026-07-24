@@ -48,6 +48,7 @@ public final class NvAccess {
         }
         String n = fieldName.toLowerCase(Locale.ROOT);
         return n.equals("noisescale")
+                || n.equals("landscapescale")
                 || n.equals("corridorpartners")
                 || n.equals("corridorstrength")
                 || n.equals("corridormaxdistance")

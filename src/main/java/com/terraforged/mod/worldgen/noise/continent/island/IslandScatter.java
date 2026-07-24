@@ -724,8 +724,8 @@ public final class IslandScatter {
         }
         float t = 1.0F - dist / radius;
         // Pipe must be findable in-world: floor size scales with cone, with a solid minimum.
-        float craterR = Math.max(18.0F, radius * 0.34F);
-        float rimR = Math.max(craterR + 14.0F, radius * 0.52F);
+        float craterR = Math.max(48.0F, radius * 0.42F);
+        float rimR = Math.max(craterR + 20.0F, radius * 0.58F);
         if (rimR > radius * 0.92F) {
             rimR = radius * 0.92F;
         }

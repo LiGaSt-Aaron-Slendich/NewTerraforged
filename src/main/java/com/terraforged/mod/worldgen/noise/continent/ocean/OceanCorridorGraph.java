@@ -5,6 +5,7 @@ import com.terraforged.mod.worldgen.noise.continent.ContinentGenerator;
 import com.terraforged.mod.worldgen.noise.continent.GuaranteedContinentMask;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
@@ -13,16 +14,18 @@ import java.util.List;
 
 /**
  * Directed corridor graph: each continent may emit up to {@code partnersPerContinent}
- * outgoing corridors toward nearest neighbours within {@code maxDistance}
- * (cell-pitch ≈ × continent scale). Incoming corridors are unlimited.
+ * outgoing corridors toward nearest neighbours within {@code maxDistance}.
+ * Edges are strictly one-way: if A→B exists, B→A is never added.
  *
- * <p>Only large landmasses participate (guaranteed centres, or clustered Voronoi land
- * components) — never island freckles. When inactive, no corridors exist.
+ * <p>Only large landmasses participate. Graph build is intentionally cheap
+ * (stepped scan + cached positions) so worldgen cannot stall at 0%.
  */
 public final class OceanCorridorGraph {
     public static final int LIA_MAJORITY_INCOMING = 3;
-    private static final int MIN_CONTINENT_CELLS = 3;
-    private static final int MAX_CONTINENTS = 32;
+    private static final int MIN_CONTINENT_CELLS = 2;
+    private static final int MAX_CONTINENTS = 24;
+    private static final int SCAN_HALF = 20;
+    private static final int SCAN_STEP = 2;
 
     private final LongSet directedEdges;
     private final List<DirectedEdge> edgeList;
@@ -72,25 +75,39 @@ public final class OceanCorridorGraph {
         Long2IntOpenHashMap incoming = new Long2IntOpenHashMap();
         incoming.defaultReturnValue(0);
 
-        for (LandNode a : nodes) {
-            List<LandNode> others = new ArrayList<>(nodes.size());
-            for (LandNode b : nodes) {
-                if (a.key == b.key) {
+        // Nearest-first across all pairs so the first direction wins (no A↔B).
+        List<Candidate> candidates = new ArrayList<>();
+        for (int i = 0; i < nodes.size(); i++) {
+            LandNode a = nodes.get(i);
+            for (int j = 0; j < nodes.size(); j++) {
+                if (i == j) {
                     continue;
                 }
-                if (dist2(a.px, a.py, b.px, b.py) <= maxDist2) {
-                    others.add(b);
+                LandNode b = nodes.get(j);
+                float d2 = dist2(a.px, a.py, b.px, b.py);
+                if (d2 <= maxDist2) {
+                    candidates.add(new Candidate(a, b, d2));
                 }
             }
-            others.sort(Comparator.comparingDouble(b -> dist2(a.px, a.py, b.px, b.py)));
-            int n = Math.min(outgoingLimit, others.size());
-            for (int i = 0; i < n; i++) {
-                LandNode b = others.get(i);
-                long edge = directedKey(a.key, b.key);
-                if (edges.add(edge)) {
-                    incoming.addTo(b.key, 1);
-                    edgeList.add(new DirectedEdge(a.key, b.key, a.px, a.py, b.px, b.py));
-                }
+        }
+        candidates.sort(Comparator.comparingDouble(c -> c.d2));
+
+        Long2IntOpenHashMap outgoing = new Long2IntOpenHashMap();
+        outgoing.defaultReturnValue(0);
+        for (Candidate c : candidates) {
+            if (outgoing.get(c.from.key) >= outgoingLimit) {
+                continue;
+            }
+            long fwd = directedKey(c.from.key, c.to.key);
+            long rev = directedKey(c.to.key, c.from.key);
+            if (edges.contains(fwd) || edges.contains(rev)) {
+                continue;
+            }
+            if (edges.add(fwd)) {
+                outgoing.addTo(c.from.key, 1);
+                incoming.addTo(c.to.key, 1);
+                edgeList.add(new DirectedEdge(
+                        c.from.key, c.to.key, c.from.px, c.from.py, c.to.px, c.to.py));
             }
         }
         return new OceanCorridorGraph(edges, List.copyOf(edgeList), landKeys, incoming, !edges.isEmpty());
@@ -121,24 +138,24 @@ public final class OceanCorridorGraph {
     }
 
     /**
-     * Cluster adjacent Voronoi land cells into landmasses; drop island-scale freckles.
-     * One node per landmass at the component centroid.
+     * Stepped land scan + 4-neighbour clusters. Positions are cached so LossyCache
+     * thrashing cannot freeze worldgen.
      */
     private static List<LandNode> clusterContinentNodes(ContinentGenerator continent) {
-        int halfCells = Math.max(10, Math.min(48, GuaranteedContinentMask.HALF / 4000));
-        LongOpenHashSet land = new LongOpenHashSet();
-        for (int cy = -halfCells; cy <= halfCells; cy++) {
-            for (int cx = -halfCells; cx <= halfCells; cx++) {
+        Long2ObjectOpenHashMap<float[]> landPos = new Long2ObjectOpenHashMap<>();
+        for (int cy = -SCAN_HALF; cy <= SCAN_HALF; cy += SCAN_STEP) {
+            for (int cx = -SCAN_HALF; cx <= SCAN_HALF; cx += SCAN_STEP) {
                 CellPoint cell = continent.getCell(cx, cy);
                 if (continent.shapeGenerator.getThresholdValue(cell) > 0.0F) {
-                    land.add(PosUtil.pack(cx, cy));
+                    landPos.put(PosUtil.pack(cx, cy), new float[] {cell.px, cell.py});
                 }
             }
         }
-        if (land.isEmpty()) {
+        if (landPos.isEmpty()) {
             return List.of();
         }
 
+        LongOpenHashSet land = new LongOpenHashSet(landPos.keySet());
         LongOpenHashSet seen = new LongOpenHashSet();
         List<Component> components = new ArrayList<>();
         long[] queue = new long[Math.max(1, land.size())];
@@ -157,54 +174,55 @@ public final class OceanCorridorGraph {
 
             while (qh < qt) {
                 long key = queue[qh++];
-                int cx = PosUtil.unpackLeft(key);
-                int cy = PosUtil.unpackRight(key);
-                CellPoint cell = continent.getCell(cx, cy);
-                sumX += cell.px;
-                sumY += cell.py;
+                float[] pos = landPos.get(key);
+                if (pos == null) {
+                    continue;
+                }
+                sumX += pos[0];
+                sumY += pos[1];
                 area++;
                 members.add(key);
-                qt = enqueue(queue, qt, seen, land, cx + 1, cy);
-                qt = enqueue(queue, qt, seen, land, cx - 1, cy);
-                qt = enqueue(queue, qt, seen, land, cx, cy + 1);
-                qt = enqueue(queue, qt, seen, land, cx, cy - 1);
+                int cx = PosUtil.unpackLeft(key);
+                int cy = PosUtil.unpackRight(key);
+                qt = enqueue(queue, qt, seen, land, cx + SCAN_STEP, cy);
+                qt = enqueue(queue, qt, seen, land, cx - SCAN_STEP, cy);
+                qt = enqueue(queue, qt, seen, land, cx, cy + SCAN_STEP);
+                qt = enqueue(queue, qt, seen, land, cx, cy - SCAN_STEP);
             }
-            if (area >= MIN_CONTINENT_CELLS) {
-                components.add(new Component(sumX / area, sumY / area, area, members));
+            if (area < MIN_CONTINENT_CELLS) {
+                continue;
             }
+            float cx0 = sumX / area;
+            float cy0 = sumY / area;
+            long bestKey = members.get(0);
+            float bestD2 = Float.MAX_VALUE;
+            for (long key : members) {
+                float[] pos = landPos.get(key);
+                if (pos == null) {
+                    continue;
+                }
+                float d2 = dist2(pos[0], pos[1], cx0, cy0);
+                if (d2 < bestD2) {
+                    bestD2 = d2;
+                    bestKey = key;
+                }
+            }
+            components.add(new Component(bestKey, cx0, cy0, area));
         }
 
         components.sort(Comparator.comparingInt((Component c) -> c.area).reversed());
         if (components.size() > MAX_CONTINENTS) {
             components = new ArrayList<>(components.subList(0, MAX_CONTINENTS));
         }
-
         List<LandNode> nodes = new ArrayList<>(components.size());
         for (Component c : components) {
-            long bestKey = c.members.get(0);
-            float bestD2 = Float.MAX_VALUE;
-            for (long key : c.members) {
-                int cx = PosUtil.unpackLeft(key);
-                int cy = PosUtil.unpackRight(key);
-                CellPoint cell = continent.getCell(cx, cy);
-                float d2 = dist2(cell.px, cell.py, c.cx, c.cy);
-                if (d2 < bestD2) {
-                    bestD2 = d2;
-                    bestKey = key;
-                }
-            }
-            nodes.add(new LandNode(bestKey, c.cx, c.cy));
+            nodes.add(new LandNode(c.key, c.cx, c.cy));
         }
         return nodes;
     }
 
     private static int enqueue(
-            long[] queue,
-            int qt,
-            LongOpenHashSet seen,
-            LongOpenHashSet land,
-            int cx,
-            int cy
+            long[] queue, int qt, LongOpenHashSet seen, LongOpenHashSet land, int cx, int cy
     ) {
         long key = PosUtil.pack(cx, cy);
         if (!land.contains(key) || !seen.add(key)) {
@@ -303,6 +321,9 @@ public final class OceanCorridorGraph {
     private record LandNode(long key, float px, float py) {
     }
 
-    private record Component(float cx, float cy, int area, List<Long> members) {
+    private record Candidate(LandNode from, LandNode to, float d2) {
+    }
+
+    private record Component(long key, float cx, float cy, int area) {
     }
 }

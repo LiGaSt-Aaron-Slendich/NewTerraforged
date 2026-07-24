@@ -38,13 +38,19 @@ public class WorldSettings {
 
     @Serializable
     public static class OceanLandscape {
+        @Range(min = 0.5f, max = 4.0f)
+        @Comment(value = {
+                "Overall size of underwater landscape features (corridor banks / seafloor hills).",
+                "Higher = larger, smoother forms. Requires EGF Untested → Ocean Landscape ON."
+        })
+        public float landscapeScale = 1.5f;
+
         @Range(min = 0.25f, max = 3.0f)
         @Comment(value = {
-                "Seafloor noise scale for Ocean Landscape corridors.",
-                "Lower = smoother banks / larger features. Higher = noisier / finer detail.",
-                "Requires EGF Untested → Ocean Landscape ON."
+                "Fine detail / grain on Ocean Landscape seafloor.",
+                "Lower = smoother banks. Higher = noisier. Requires EGF Ocean Landscape ON."
         })
-        public float noiseScale = 1.0f;
+        public float noiseScale = 0.45f;
 
         @Range(min = 1.0f, max = 4.0f)
         @Comment(value = {
@@ -59,7 +65,7 @@ public class WorldSettings {
                 "Strength of inter-continent seafloor corridors / banks.",
                 "0 = almost none, 1 = strong. Requires EGF Ocean Landscape ON."
         })
-        public float corridorStrength = 0.85f;
+        public float corridorStrength = 0.92f;
 
         @Range(min = 2.0f, max = 24.0f)
         @Comment(value = {

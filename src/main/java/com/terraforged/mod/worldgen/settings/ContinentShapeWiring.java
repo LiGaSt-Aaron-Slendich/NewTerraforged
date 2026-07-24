@@ -103,6 +103,7 @@ public final class ContinentShapeWiring {
 
     private static void wireOceanLandscape(ContinentConfig config, WorldSettings.OceanLandscape ol) {
         WorldSettings.OceanLandscape src = ol != null ? ol : new WorldSettings.OceanLandscape();
+        config.shape.oceanLandscapeScale = NoiseUtil.clamp(src.landscapeScale, 0.5F, 4.0F);
         config.shape.oceanNoiseScale = NoiseUtil.clamp(src.noiseScale, 0.25F, 3.0F);
         config.shape.oceanCorridorPartners = Math.max(1, Math.min(4, src.corridorPartners));
         config.shape.oceanCorridorStrength = NoiseUtil.clamp(src.corridorStrength, 0.0F, 1.0F);

@@ -101,24 +101,34 @@ public final class PreviewTileContinentGraph {
         int partners = Math.max(1, Math.min(4, outgoingPartners));
         float maxWorld = Math.max(continentScale * 2.0F, continentScale * Math.max(2.0F, maxDistanceScale));
         float maxWorld2 = maxWorld * maxWorld;
-        List<Edge> edges = new ArrayList<>();
+        record Cand(Node from, Node to, float d2) {
+        }
+        List<Cand> cands = new ArrayList<>();
         for (Node a : nodes) {
-            List<Node> others = new ArrayList<>();
             for (Node b : nodes) {
                 if (a.id == b.id) {
                     continue;
                 }
                 float d2 = dist2(a.worldX, a.worldZ, b.worldX, b.worldZ);
                 if (d2 <= maxWorld2) {
-                    others.add(b);
+                    cands.add(new Cand(a, b, d2));
                 }
             }
-            others.sort(Comparator.comparingDouble(b -> dist2(a.worldX, a.worldZ, b.worldX, b.worldZ)));
-            int n = Math.min(partners, others.size());
-            for (int i = 0; i < n; i++) {
-                Node b = others.get(i);
-                edges.add(new Edge(a.id, b.id, a.px, a.pz, b.px, b.pz));
+        }
+        cands.sort(Comparator.comparingDouble(c -> c.d2));
+        boolean[][] linked = new boolean[nodes.size()][nodes.size()];
+        int[] outgoing = new int[nodes.size()];
+        List<Edge> edges = new ArrayList<>();
+        for (Cand c : cands) {
+            if (outgoing[c.from.id] >= partners) {
+                continue;
             }
+            if (linked[c.from.id][c.to.id] || linked[c.to.id][c.from.id]) {
+                continue;
+            }
+            linked[c.from.id][c.to.id] = true;
+            outgoing[c.from.id]++;
+            edges.add(new Edge(c.from.id, c.to.id, c.from.px, c.from.pz, c.to.px, c.to.pz));
         }
         return new Graph(List.copyOf(nodes), List.copyOf(edges));
     }

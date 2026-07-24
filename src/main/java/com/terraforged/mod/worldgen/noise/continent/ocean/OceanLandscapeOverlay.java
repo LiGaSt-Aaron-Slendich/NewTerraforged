@@ -16,6 +16,7 @@ public final class OceanLandscapeOverlay {
     private final OceanCorridorGraph corridorGraph;
     private final boolean shipwrecked;
     private final float noiseScale;
+    private final float landscapeScale;
     private final float corridorStrength;
     private final float shelfStrength;
     private final float volcanoDensity;
@@ -25,6 +26,7 @@ public final class OceanLandscapeOverlay {
         this.continent = continent;
         this.shipwrecked = config.shape.shipwrecked;
         this.noiseScale = config.shape.oceanNoiseScale;
+        this.landscapeScale = config.shape.oceanLandscapeScale;
         this.corridorStrength = config.shape.oceanCorridorStrength;
         this.shelfStrength = config.shape.oceanShelfStrength;
         this.volcanoDensity = config.shape.oceanVolcanoDensity;
@@ -74,7 +76,8 @@ public final class OceanLandscapeOverlay {
         }
 
         if (!volcano.hit() && zone.corridor() > 0.04F) {
-            float relief = SeafloorLandscape.relief(worldX, worldZ, this.seed, this.noiseScale);
+            float relief = SeafloorLandscape.relief(
+                    worldX, worldZ, this.seed, this.noiseScale, this.landscapeScale);
             float masked = relief * zone.corridor();
             float emergeAt = this.shipwrecked
                     ? SeafloorLandscape.SHIP_EMERGE_THRESHOLD

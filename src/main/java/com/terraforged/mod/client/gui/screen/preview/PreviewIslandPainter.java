@@ -24,6 +24,7 @@ public final class PreviewIslandPainter {
         }
         if (PreviewOceanLandscapePainter.shouldApply()) {
             PreviewOceanLandscapePainter.apply(tile, settings, seed, centerX, centerZ, zoom);
+            PreviewVolcanoVentFix.apply(tile);
             return;
         }
         WorldSettings.Islands islands = settings.world.islands != null ? settings.world.islands : new WorldSettings.Islands();
@@ -100,6 +101,7 @@ public final class PreviewIslandPainter {
                         worldX, worldZ, paintSeed, coastal, volcanic, cn), water, cn, shipwrecked);
             }
         });
+        PreviewVolcanoVentFix.apply(tile);
     }
 
     private static void paintEval(

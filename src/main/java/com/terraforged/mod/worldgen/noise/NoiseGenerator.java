@@ -11,6 +11,7 @@ import com.terraforged.mod.data.ModTerrainTypes;
 import com.terraforged.mod.worldgen.asset.TerrainNoise;
 import com.terraforged.mod.worldgen.noise.continent.ContinentNoise;
 import com.terraforged.mod.worldgen.noise.continent.CoastalLiaOverlay;
+import com.terraforged.mod.worldgen.noise.continent.ocean.IslandTerrainLabels;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
@@ -350,7 +351,8 @@ public class NoiseGenerator implements INoiseGenerator {
       if (painted == null) {
          return;
       }
-      sample.terrainType = painted;
+      // Keep explicit island_* labels after WeightMap so Find filters can see them.
+      sample.terrainType = IslandTerrainLabels.finalizeIsland(painted);
       if (painted == ModTerrainTypes.LAGUNA || painted.isRiver() || painted.isLake()) {
          sample.heightNoise = Math.min(sample.heightNoise, paintedHeight);
       } else if (painted == TerrainType.VOLCANO_PIPE) {
