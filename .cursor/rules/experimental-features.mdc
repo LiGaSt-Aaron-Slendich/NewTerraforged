@@ -27,7 +27,7 @@ alwaysApply: true
 | `coastalLia` | 8 | Coastal Little Ice Age | Coastal LIA overlay; when Ocean Landscape is on, gated per-continent by incoming corridors |
 | `oceanLandscape` | 16 | Ocean Landscape | Directed corridor seafloor + deep volcanoes; replaces IslandFeatureOverlay when on |
 | `guaranteedContinents` | 32 | Guaranteed Continents | N±1 landmasses in 640k window; Customize knobs Feature Blocked until on |
-| `corridorDirectionOverlay` | 64 | Corridor Direction Overlay | Preview-only: draw directed A→B corridor arrows (no worldgen change) |
+| `corridorDirectionOverlay` | 64 | Corridor Direction Overlay | Access gate: unlocks Corridors On/Off toggle in Customize preview (default Off) |
 
 ## When adding a new feature
 

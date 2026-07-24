@@ -103,6 +103,11 @@ public final class NvFlagPanel extends Screen {
     private String status = "";
     private long statusUntilMs = 0;
 
+    /** Untested-tab vertical scroll (pixels). */
+    private int untestedScroll;
+    private int untestedContentHeight;
+    private final List<Button> untestedButtons = new ArrayList<>();
+
     private final List<IconHit> iconHits = new ArrayList<>();
     private final List<ClickHit> clickHits = new ArrayList<>();
 
@@ -180,6 +185,7 @@ public final class NvFlagPanel extends Screen {
         this.selectedRule = null;
         this.selectedCaveRule = null;
         this.listScroll = 0;
+        this.untestedScroll = 0;
         this.init();
     }
 
@@ -199,77 +205,99 @@ public final class NvFlagPanel extends Screen {
     }
 
     private void initUntestedTab() {
+        this.untestedButtons.clear();
         int cx = (this.contentLeft() + this.width) / 2;
-        int y = 48;
-        this.addRenderableWidget(new Button(
-                cx - 140, y, 280, 20,
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
                 label("Archipelago", TFNoiseVariantFlags.archipelagoEnabled()),
                 b -> {
                     boolean next = !TFNoiseVariantFlags.archipelagoEnabled();
                     TFNoiseVariantFlags.setArchipelago(next);
                     b.setMessage(label("Archipelago", next));
                 }
-        ));
-        y += 28;
-        this.addRenderableWidget(new Button(
-                cx - 140, y, 280, 20,
+        )));
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
                 label("Scattered Archipelago", TFNoiseVariantFlags.scatteredArchipelagoEnabled()),
                 b -> {
                     boolean next = !TFNoiseVariantFlags.scatteredArchipelagoEnabled();
                     TFNoiseVariantFlags.setScatteredArchipelago(next);
                     b.setMessage(label("Scattered Archipelago", next));
                 }
-        ));
-        y += 28;
-        this.addRenderableWidget(new Button(
-                cx - 140, y, 280, 20,
+        )));
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
                 label("Islands", TFNoiseVariantFlags.islandsEnabled()),
                 b -> {
                     boolean next = !TFNoiseVariantFlags.islandsEnabled();
                     TFNoiseVariantFlags.setIslands(next);
                     b.setMessage(label("Islands", next));
                 }
-        ));
-        y += 28;
-        this.addRenderableWidget(new Button(
-                cx - 140, y, 280, 20,
+        )));
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
                 label("Coastal Little Ice Age", TFNoiseVariantFlags.coastalLiaEnabled()),
                 b -> {
                     boolean next = !TFNoiseVariantFlags.coastalLiaEnabled();
                     TFNoiseVariantFlags.setCoastalLia(next);
                     b.setMessage(label("Coastal Little Ice Age", next));
                 }
-        ));
-        y += 28;
-        this.addRenderableWidget(new Button(
-                cx - 140, y, 280, 20,
+        )));
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
                 label("Ocean Landscape", TFNoiseVariantFlags.oceanLandscapeEnabled()),
                 b -> {
                     boolean next = !TFNoiseVariantFlags.oceanLandscapeEnabled();
                     TFNoiseVariantFlags.setOceanLandscape(next);
                     b.setMessage(label("Ocean Landscape", next));
                 }
-        ));
-        y += 28;
-        this.addRenderableWidget(new Button(
-                cx - 140, y, 280, 20,
+        )));
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
                 label("Guaranteed Continents", TFNoiseVariantFlags.guaranteedContinentsEnabled()),
                 b -> {
                     boolean next = !TFNoiseVariantFlags.guaranteedContinentsEnabled();
                     TFNoiseVariantFlags.setGuaranteedContinents(next);
                     b.setMessage(label("Guaranteed Continents", next));
                 }
-        ));
-        y += 28;
-        this.addRenderableWidget(new Button(
-                cx - 140, y, 280, 20,
+        )));
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
                 label("Corridor Direction Overlay", TFNoiseVariantFlags.corridorDirectionOverlayEnabled()),
                 b -> {
                     boolean next = !TFNoiseVariantFlags.corridorDirectionOverlayEnabled();
                     TFNoiseVariantFlags.setCorridorDirectionOverlay(next);
                     b.setMessage(label("Corridor Direction Overlay", next));
                 }
-        ));
+        )));
+        this.untestedContentHeight = this.untestedButtons.size() * 28;
+        this.layoutUntestedButtons();
+    }
+
+    private int untestedViewTop() {
+        return 48;
+    }
+
+    private int untestedViewBottom() {
+        return this.height - 36;
+    }
+
+    private void layoutUntestedButtons() {
+        int viewTop = this.untestedViewTop();
+        int viewBottom = this.untestedViewBottom();
+        int viewH = Math.max(40, viewBottom - viewTop);
+        int maxScroll = Math.max(0, this.untestedContentHeight - viewH);
+        this.untestedScroll = Math.max(0, Math.min(maxScroll, this.untestedScroll));
+        int y = viewTop - this.untestedScroll;
+        for (Button b : this.untestedButtons) {
+            b.x = (this.contentLeft() + this.width) / 2 - 140;
+            b.setWidth(280);
+            b.y = y;
+            boolean inView = b.y + b.getHeight() > viewTop && b.y < viewBottom;
+            b.visible = inView;
+            b.active = inView;
+            y += 28;
+        }
     }
 
     private void initBrowseMode() {
@@ -806,6 +834,12 @@ public final class NvFlagPanel extends Screen {
             int mid = (this.contentLeft() + this.width) / 2;
             drawCenteredString(pose, this.font, this.title, mid, 14, 0xFFE080);
             drawCenteredString(pose, this.font, "Unstable / unfinished worldgen. Default OFF for releases.", mid, 28, 0xFFAAAAAA);
+            // Keep button Y in sync if window was resized without re-init.
+            this.layoutUntestedButtons();
+            int viewH = Math.max(40, this.untestedViewBottom() - this.untestedViewTop());
+            if (this.untestedContentHeight > viewH) {
+                drawCenteredString(pose, this.font, "Scroll for more…", mid, this.height - 48, 0xFF888888);
+            }
         } else if (this.editing) {
             this.renderEditPanel(pose, mouseX, mouseY);
         } else {
@@ -1736,6 +1770,17 @@ public final class NvFlagPanel extends Screen {
                 || this.popup == Popup.ADD_GENERATION) {
             this.addScroll = Math.max(0, this.addScroll - (int) Math.signum(delta));
             return true;
+        }
+        if (this.tab == Tab.UNTESTED) {
+            int viewTop = this.untestedViewTop();
+            int viewBottom = this.untestedViewBottom();
+            int viewH = Math.max(40, viewBottom - viewTop);
+            int maxScroll = Math.max(0, this.untestedContentHeight - viewH);
+            if (maxScroll > 0 && mouseY >= viewTop && mouseY <= viewBottom) {
+                this.untestedScroll = (int) Math.max(0, Math.min(maxScroll, this.untestedScroll - delta * 14.0D));
+                this.layoutUntestedButtons();
+                return true;
+            }
         }
         if (this.isRulesTab() && !this.editing) {
             int left = this.contentLeft();

@@ -304,7 +304,8 @@ public final class Preview extends AbstractWidget {
                     this.center.x,
                     this.center.z,
                     this.getZoom(),
-                    width);
+                    width,
+                    this.previewSettings.showCorridorDirections);
         } catch (Throwable ignored) {
         }
         this.texture.upload();

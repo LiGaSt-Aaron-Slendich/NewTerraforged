@@ -41,8 +41,9 @@ public final class TFNoiseVariantFlags {
      */
     public boolean guaranteedContinents = false;
     /**
-     * Preview-only overlay: draw directed Ocean Landscape corridor arrows (A→B).
-     * Separate experimental debug/view feature — does not change worldgen.
+     * Preview-only: unlocks the Corridors On/Off toggle in Customize preview.
+     * Does not draw arrows by itself — user must enable the preview checkbox.
+     * Access gate so non-dev players cannot casually reach the overlay.
      */
     public boolean corridorDirectionOverlay = false;
 

@@ -50,9 +50,15 @@ public final class PreviewPage implements Page {
     @Override
     public void init(ConfigScreen screen, int left, int top, int width, int height) {
         this.tipButtons.clear();
+        boolean corrGate = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.corridorDirectionOverlayEnabled();
+        if (!corrGate) {
+            this.preview.previewSettings().showCorridorDirections = false;
+        }
         int gap = Math.max(1, width / 120);
         int btnH = Mth.clamp(height / 22, 16, 20);
-        int controlsH = btnH + Math.max(2, height / 80);
+        int rowGap = Math.max(2, height / 100);
+        int controlRows = corrGate ? 2 : 1;
+        int controlsH = btnH * controlRows + rowGap * controlRows;
         this.infoH = Mth.clamp(height / 12, 40, 56);
         int mapPad = Math.max(2, height / 100);
         int mapSize = Math.min(Preview.SIZE, Math.min(width, Math.max(64, height - controlsH - this.infoH - mapPad)));
@@ -120,6 +126,22 @@ public final class PreviewPage implements Page {
                     this.refresh();
                 },
                 () -> new TextComponent("Zoom in"))));
+
+        if (corrGate) {
+            int row2 = top + btnH + rowGap;
+            boolean on = this.preview.previewSettings().showCorridorDirections;
+            this.tipButtons.add(screen.addRenderableWidget(new HoverTipButton(
+                    left, row2, Math.min(width, btnW * 2 + gap), btnH,
+                    new TextComponent(on ? "Corridors: On" : "Corridors: Off"),
+                    b -> {
+                        this.preview.previewSettings().showCorridorDirections =
+                                !this.preview.previewSettings().showCorridorDirections;
+                        boolean next = this.preview.previewSettings().showCorridorDirections;
+                        b.setMessage(new TextComponent(next ? "Corridors: On" : "Corridors: Off"));
+                        this.refresh();
+                    },
+                    () -> new TextComponent("Toggle directed corridor overlay (A→B arrows)"))));
+        }
 
         screen.addRenderableWidget(this.preview);
         this.refresh();

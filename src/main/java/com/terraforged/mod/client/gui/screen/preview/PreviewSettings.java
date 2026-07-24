@@ -25,4 +25,11 @@ public class PreviewSettings {
      * Cycled from the preview UI (e.g. archipelago, volcano, coastal).
      */
     public String terrainFilter = "";
+
+    /**
+     * Draw directed Ocean Landscape corridor arrows on the preview map.
+     * Only available when EGF Untested → Corridor Direction Overlay is ON
+     * (access gate for non-dev users). Default off even when EGF is unlocked.
+     */
+    public boolean showCorridorDirections = false;
 }

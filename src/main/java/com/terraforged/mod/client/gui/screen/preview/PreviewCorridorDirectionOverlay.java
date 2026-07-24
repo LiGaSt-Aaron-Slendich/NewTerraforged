@@ -26,8 +26,8 @@ public final class PreviewCorridorDirectionOverlay {
     private PreviewCorridorDirectionOverlay() {
     }
 
-    public static boolean shouldApply() {
-        return TFNoiseVariantFlags.corridorDirectionOverlayEnabled();
+    public static boolean shouldApply(boolean previewToggle) {
+        return previewToggle && TFNoiseVariantFlags.corridorDirectionOverlayEnabled();
     }
 
     public static void apply(
@@ -37,9 +37,10 @@ public final class PreviewCorridorDirectionOverlay {
             int centerX,
             int centerZ,
             int zoom,
-            int tileSize
+            int tileSize,
+            boolean previewToggle
     ) {
-        if (!shouldApply() || image == null || settings == null || settings.world == null) {
+        if (!shouldApply(previewToggle) || image == null || settings == null || settings.world == null) {
             return;
         }
         try {
@@ -47,6 +48,20 @@ public final class PreviewCorridorDirectionOverlay {
         } catch (Throwable ignored) {
             // Never crash Customize if overlay math fails.
         }
+    }
+
+    /** @deprecated use {@link #apply(NativeImage, Settings, int, int, int, int, int, boolean)} */
+    @Deprecated
+    public static void apply(
+            NativeImage image,
+            Settings settings,
+            int seed,
+            int centerX,
+            int centerZ,
+            int zoom,
+            int tileSize
+    ) {
+        apply(image, settings, seed, centerX, centerZ, zoom, tileSize, false);
     }
 
     private static void paint(
