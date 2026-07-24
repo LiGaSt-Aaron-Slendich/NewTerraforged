@@ -40,27 +40,41 @@ public final class DeepVolcano {
         float centerX = (cx + 0.5F) * cell + (hash01(seed, cx, cz) - 0.5F) * cell * 0.4F;
         float centerZ = (cz + 0.5F) * cell + (hash01(seed ^ 3, cx, cz) - 0.5F) * cell * 0.4F;
         float radius = 55.0F + hash01(seed ^ 9, cx, cz) * 200.0F;
-        // Mild organic jitter so cones are not perfect circles.
-        float jitter = (valueNoise2(seed ^ 11, worldX * 0.02F, worldZ * 0.02F) - 0.5F) * radius * 0.08F;
-        return cone(worldX, worldZ, centerX + jitter, centerZ - jitter * 0.6F, radius);
+        // Stable per-cell offset only — per-sample jitter moved the crater every block
+        // and erased VOLCANO_PIPE (cone looked solid with no pipe).
+        float jx = (hash01(seed ^ 11, cx, cz) - 0.5F) * radius * 0.10F;
+        float jz = (hash01(seed ^ 12, cx, cz) - 0.5F) * radius * 0.10F;
+        return cone(worldX, worldZ, centerX + jx, centerZ + jz, radius, seed);
     }
 
     public static Result cone(float worldX, float worldZ, float centerX, float centerZ, float radius) {
+        return cone(worldX, worldZ, centerX, centerZ, radius, 0);
+    }
+
+    public static Result cone(
+            float worldX, float worldZ, float centerX, float centerZ, float radius, int seed
+    ) {
         float dx = worldX - centerX;
         float dz = worldZ - centerZ;
         float dist = NoiseUtil.sqrt(dx * dx + dz * dz);
+        // Mild edge warp only — does not relocate the crater centre.
+        if (seed != 0) {
+            float edgeWarp = (valueNoise2(seed ^ 0xE061, worldX * 0.035F, worldZ * 0.035F) - 0.5F) * 0.10F;
+            dist *= 1.0F + edgeWarp;
+        }
         if (dist > radius) {
             return Result.NONE;
         }
         float t = 1.0F - dist / radius;
-        float craterR = Math.max(18.0F, radius * 0.34F);
-        float rimR = Math.max(craterR + 14.0F, radius * 0.52F);
+        float craterR = Math.max(22.0F, radius * 0.36F);
+        float rimR = Math.max(craterR + 16.0F, radius * 0.55F);
         if (rimR > radius * 0.92F) {
             rimR = radius * 0.92F;
         }
         if (dist <= craterR) {
             float inner = dist / Math.max(1.0F, craterR);
-            return new Result(true, true, 0.30F + inner * 0.08F, t);
+            // Absolute heightNoise for pipe floor — kept below WeightMap rim so crater reads.
+            return new Result(true, true, 0.34F + inner * 0.08F, t);
         }
         if (dist <= rimR) {
             float rim = (dist - craterR) / Math.max(1.0E-3F, rimR - craterR);

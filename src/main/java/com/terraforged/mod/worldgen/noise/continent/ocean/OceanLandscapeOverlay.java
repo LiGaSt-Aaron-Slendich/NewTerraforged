@@ -36,7 +36,14 @@ public final class OceanLandscapeOverlay {
         float cn = sample.continentNoise;
         OceanZoneMask.Zone zone = OceanZoneMask.evaluate(this.continent, shapeX, shapeY, cn, this.shipwrecked);
 
-        if (zone.corridor() > 0.04F) {
+        // Volcano first so pipe/crater is never overwritten by corridor island emerge.
+        DeepVolcano.Result volcano = DeepVolcano.Result.NONE;
+        if (zone.deep() > 0.08F) {
+            volcano = DeepVolcano.eval(worldX, worldZ, this.seed, zone.deep(), this.shipwrecked);
+            IslandEmergence.emergeVolcano(sample, volcano);
+        }
+
+        if (!volcano.hit() && zone.corridor() > 0.04F) {
             float relief = SeafloorLandscape.relief(worldX, worldZ, this.seed);
             float masked = relief * zone.corridor();
             float emergeAt = this.shipwrecked
@@ -49,11 +56,6 @@ public final class OceanLandscapeOverlay {
             } else {
                 sample.oceanRelief = Math.max(sample.oceanRelief, masked);
             }
-        }
-
-        if (zone.deep() > 0.08F) {
-            DeepVolcano.Result volcano = DeepVolcano.eval(worldX, worldZ, this.seed, zone.deep(), this.shipwrecked);
-            IslandEmergence.emergeVolcano(sample, volcano);
         }
     }
 }
