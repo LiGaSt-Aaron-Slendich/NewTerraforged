@@ -171,6 +171,7 @@ public final class PreviewPage implements Page {
             case BIOME -> "BiomeId";
             case MACRO_NOISE -> "Macro";
             case TERRAIN_REGION -> "Terrain";
+            case HEIGHT -> "Height";
         };
     }
 
@@ -183,6 +184,7 @@ public final class PreviewPage implements Page {
             case BIOME -> "Display: Biome id";
             case MACRO_NOISE -> "Display: Macro noise";
             case TERRAIN_REGION -> "Display: Terrain region";
+            case HEIGHT -> "Display: Height (land + seafloor)";
         };
     }
 

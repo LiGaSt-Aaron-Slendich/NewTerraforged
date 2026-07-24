@@ -35,6 +35,11 @@ public final class TFNoiseVariantFlags {
      * When on, replaces the legacy IslandFeatureOverlay path.
      */
     public boolean oceanLandscape = false;
+    /**
+     * Guaranteed continent placement (N±1 landmasses in the 640k window).
+     * Experimental — Customize knobs are Feature Blocked until this EGF is on.
+     */
+    public boolean guaranteedContinents = false;
 
     private TFNoiseVariantFlags() {
     }
@@ -66,6 +71,10 @@ public final class TFNoiseVariantFlags {
         return INSTANCE != null && INSTANCE.oceanLandscape;
     }
 
+    public static boolean guaranteedContinentsEnabled() {
+        return INSTANCE != null && INSTANCE.guaranteedContinents;
+    }
+
     public static void setArchipelago(boolean value) {
         ensure();
         INSTANCE.archipelago = value;
@@ -93,6 +102,12 @@ public final class TFNoiseVariantFlags {
     public static void setOceanLandscape(boolean value) {
         ensure();
         INSTANCE.oceanLandscape = value;
+        INSTANCE.writeEncrypted();
+    }
+
+    public static void setGuaranteedContinents(boolean value) {
+        ensure();
+        INSTANCE.guaranteedContinents = value;
         INSTANCE.writeEncrypted();
     }
 
@@ -146,6 +161,7 @@ public final class TFNoiseVariantFlags {
             this.islands = (flags & 4) != 0;
             this.coastalLia = (flags & 8) != 0;
             this.oceanLandscape = (flags & 16) != 0;
+            this.guaranteedContinents = (flags & 32) != 0;
             return true;
         } catch (Exception e) {
             return false;
@@ -173,6 +189,9 @@ public final class TFNoiseVariantFlags {
             }
             if (this.oceanLandscape) {
                 flags |= 16;
+            }
+            if (this.guaranteedContinents) {
+                flags |= 32;
             }
             byte[] plain = ByteBuffer.allocate(4).putInt(flags).array();
             byte[] iv = new byte[IV_LEN];

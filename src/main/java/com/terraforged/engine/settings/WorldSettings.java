@@ -48,8 +48,8 @@ public class WorldSettings {
 
         @Range(min = 1.0f, max = 4.0f)
         @Comment(value = {
-                "Each continent forms seafloor corridors only toward this many nearest continents",
-                "(2–3 recommended). Stops a full mesh of ridges between every landmass.",
+                "Outgoing corridor limit: each continent may send seafloor corridors toward",
+                "this many nearest continents (2–3 recommended). Incoming corridors are unlimited.",
                 "Requires EGF Untested → Ocean Landscape ON."
         })
         public int corridorPartners = 2;
@@ -193,15 +193,17 @@ public class WorldSettings {
     @Serializable
     public static class Continent {
         @Comment(value = {
-                "When ON, about Guaranteed Continents (±1) landmasses are forced inside the 640000x640000 window.",
+                "EXPERIMENTAL (EGF Untested → Guaranteed Continents): When ON, about Guaranteed Continents (±1)",
+                "landmasses are forced inside the 640000x640000 window.",
                 "Cut zones stay mostly ocean but keep islands / archipelago freckles (soft cut).",
-                "When OFF, continent count follows normal noise / skipping (no guarantee)."
+                "When OFF (or EGF off), continent count follows normal noise / skipping (no guarantee)."
         })
         public boolean guaranteedContinentsEnabled = true;
 
         @Range(min = 1.0f, max = 16.0f)
         @Comment(value = {
-                "Target number of continents inside the 640000x640000 preview/guarantee window.",
+                "EXPERIMENTAL (EGF Untested → Guaranteed Continents): Target number of continents",
+                "inside the 640000x640000 preview/guarantee window.",
                 "Actual count may be target−1, target, or target+1. Only used when Guaranteed Continents Enabled is ON."
         })
         public int guaranteedContinents = 3;

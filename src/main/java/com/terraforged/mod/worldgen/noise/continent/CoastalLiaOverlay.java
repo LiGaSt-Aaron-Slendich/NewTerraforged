@@ -1,7 +1,10 @@
 package com.terraforged.mod.worldgen.noise.continent;
 
+import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
+import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
 import com.terraforged.mod.worldgen.noise.continent.island.IslandScatter;
+import com.terraforged.mod.worldgen.noise.continent.ocean.OceanCorridorGraph;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
@@ -10,12 +13,14 @@ import com.terraforged.noise.util.NoiseUtil;
  * height modulation.
  *
  * <p>Experimental (EGF Untested → Coastal LIA) until explicitly released.
- * Tunables are constants for now (future EGF sliders).
+ * When Ocean Landscape provides a directed corridor graph, LIA is gated per continent:
+ * 0 incoming corridors → no LIA; 3+ incoming → absolute-majority ragged coast.
  */
 public final class CoastalLiaOverlay {
     /**
      * Master kill-switch in code. Runtime enable still requires
-     * {@link com.terraforged.mod.platform.forge.TFNoiseVariantFlags#coastalLiaEnabled()}.
+     * {@link com.terraforged.mod.platform.forge.TFNoiseVariantFlags#coastalLiaEnabled()}
+     * and/or an active Ocean Landscape corridor graph.
      */
     public static final boolean CODE_ENABLED = true;
 
@@ -45,23 +50,55 @@ public final class CoastalLiaOverlay {
     public static final float ROCKY_STRENGTH_MIN = 0.35F;
 
     private final int seed;
+    private ContinentGenerator continent;
+    private OceanCorridorGraph corridorGraph;
+    private float shapeFrequency = 1.0F / 3000.0F;
 
     public CoastalLiaOverlay(int seed) {
         this.seed = seed ^ 0xC0A571A;
     }
 
-    /** True when EGF Untested → Coastal LIA is on (and code switch allows it). */
+    /**
+     * Optional Ocean Landscape graph: when active, incoming corridor count gates LIA
+     * (0 → none, 3+ → majority ragged coast).
+     */
+    public void bindCorridorGraph(ContinentGenerator continent, OceanCorridorGraph graph, float continentScale) {
+        this.continent = continent;
+        this.corridorGraph = graph;
+        this.shapeFrequency = 1.0F / Math.max(100.0F, continentScale);
+    }
+
+    /** @deprecated prefer {@link #bindCorridorGraph(ContinentGenerator, OceanCorridorGraph, float)} */
+    @Deprecated
+    public void bindCorridorGraph(ContinentGenerator continent, OceanCorridorGraph graph) {
+        bindCorridorGraph(continent, graph, 3000.0F);
+    }
+
+    /** True when EGF Coastal LIA is on, or Ocean Landscape drives LIA via corridors. */
     public static boolean isActive() {
-        return CODE_ENABLED && com.terraforged.mod.platform.forge.TFNoiseVariantFlags.coastalLiaEnabled();
+        if (!CODE_ENABLED) {
+            return false;
+        }
+        return com.terraforged.mod.platform.forge.TFNoiseVariantFlags.coastalLiaEnabled()
+                || com.terraforged.mod.platform.forge.TFNoiseVariantFlags.oceanLandscapeEnabled();
     }
 
     /**
      * Warp {@code continentNoise} near the shoreline after shape + islands.
      *
      * @param worldX worldZ block-equivalent coords (same frame as {@code IslandFeatureOverlay})
+     * @param shapeX shapeY continent cell-space (same as Ocean Landscape) — used for LIA gate
      */
     public void applyContinent(float worldX, float worldZ, NoiseSample sample) {
+        applyContinent(worldX, worldZ, Float.NaN, Float.NaN, sample);
+    }
+
+    public void applyContinent(float worldX, float worldZ, float shapeX, float shapeY, NoiseSample sample) {
         if (!isActive() || sample == null) {
+            return;
+        }
+        float liaGate = corridorLiaFactor(shapeX, shapeY, worldX, worldZ);
+        if (liaGate <= 0.0F) {
             return;
         }
         float cn = sample.continentNoise;
@@ -69,7 +106,11 @@ public final class CoastalLiaOverlay {
         if (mask <= 0.0F) {
             return;
         }
-        float strength = regionStrength(worldX, worldZ);
+        float strength = regionStrength(worldX, worldZ) * liaGate;
+        // Majority incoming (≥3): push nearly all coast into eroded/ragged regime.
+        if (liaGate >= 0.99F) {
+            strength = Math.max(strength, 0.82F);
+        }
         if (strength <= 0.02F) {
             return;
         }
@@ -85,11 +126,17 @@ public final class CoastalLiaOverlay {
 
     /**
      * Mild coastal height lift/carve in the land/sea blend band.
-     *
-     * @param worldX worldZ block-equivalent coords
      */
     public void applyHeight(float worldX, float worldZ, NoiseSample sample) {
+        applyHeight(worldX, worldZ, Float.NaN, Float.NaN, sample);
+    }
+
+    public void applyHeight(float worldX, float worldZ, float shapeX, float shapeY, NoiseSample sample) {
         if (!isActive() || sample == null) {
+            return;
+        }
+        float liaGate = corridorLiaFactor(shapeX, shapeY, worldX, worldZ);
+        if (liaGate <= 0.0F) {
             return;
         }
         float cn = sample.continentNoise;
@@ -97,7 +144,10 @@ public final class CoastalLiaOverlay {
         if (mask <= 0.0F) {
             return;
         }
-        float strength = regionStrength(worldX, worldZ);
+        float strength = regionStrength(worldX, worldZ) * liaGate;
+        if (liaGate >= 0.99F) {
+            strength = Math.max(strength, 0.82F);
+        }
         if (strength <= 0.02F) {
             return;
         }
@@ -114,10 +164,12 @@ public final class CoastalLiaOverlay {
 
     /**
      * Beach-band biome pick: rocky LIA segment → stony shore instead of sand.
-     * Uses the same cliff phase / region strength as height modulation.
      */
     public boolean isRockyShore(float worldX, float worldZ, float continentNoise) {
         if (!isActive()) {
+            return false;
+        }
+        if (corridorLiaFactor(Float.NaN, Float.NaN, worldX, worldZ) <= 0.0F) {
             return false;
         }
         if (continentNoise <= 0.5F || continentNoise > 0.505F) {
@@ -137,6 +189,49 @@ public final class CoastalLiaOverlay {
 
     public float cliffPhase(float worldX, float worldZ) {
         return IslandScatter.valueNoise2(this.seed ^ 0xC11F0, worldX / CLIFF_CELL, worldZ / CLIFF_CELL);
+    }
+
+    /**
+     * When Ocean Landscape graph is bound: LIA factor from nearest landmass incoming count.
+     * When no graph (classic Coastal LIA only): 1.0 if EGF Coastal LIA on, else 0.
+     */
+    private float corridorLiaFactor(float shapeX, float shapeY, float worldX, float worldZ) {
+        boolean coastalEgf = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.coastalLiaEnabled();
+        boolean olEgf = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.oceanLandscapeEnabled();
+        if (this.corridorGraph != null && this.corridorGraph.active() && this.continent != null && olEgf) {
+            long nearest = nearestLandKey(shapeX, shapeY, worldX, worldZ);
+            if (nearest == Long.MIN_VALUE) {
+                return 0.0F;
+            }
+            return this.corridorGraph.liaFactor(nearest);
+        }
+        // No OL graph — classic Coastal LIA EGF only.
+        return coastalEgf ? 1.0F : 0.0F;
+    }
+
+    private long nearestLandKey(float shapeX, float shapeY, float worldX, float worldZ) {
+        float x;
+        float y;
+        if (!Float.isNaN(shapeX) && !Float.isNaN(shapeY)) {
+            x = this.continent.cellShape.adjustX(shapeX);
+            y = this.continent.cellShape.adjustY(shapeY);
+        } else {
+            x = this.continent.cellShape.adjustX(worldX * this.shapeFrequency);
+            y = this.continent.cellShape.adjustY(worldZ * this.shapeFrequency);
+        }
+        float best = Float.MAX_VALUE;
+        long bestKey = Long.MIN_VALUE;
+        for (long key : this.corridorGraph.landKeys()) {
+            int cx = PosUtil.unpackLeft(key);
+            int cy = PosUtil.unpackRight(key);
+            CellPoint cell = this.continent.getCell(cx, cy);
+            float dist = NoiseUtil.dist2(x, y, cell.px, cell.py);
+            if (dist < best) {
+                best = dist;
+                bestKey = key;
+            }
+        }
+        return bestKey;
     }
 
     private static float bandMask(float cn, float min, float max) {

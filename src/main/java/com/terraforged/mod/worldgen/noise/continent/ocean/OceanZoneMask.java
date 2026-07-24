@@ -162,7 +162,7 @@ public final class OceanZoneMask {
                 k1 = key;
             }
         }
-        if (d1 >= Float.MAX_VALUE * 0.5F || !graph.allowsPair(k0, k1)) {
+        if (d1 >= Float.MAX_VALUE * 0.5F || !graph.allowsCorridor(k0, k1)) {
             return 0.0F;
         }
         return ridgeStrength(d0, d1);
@@ -194,7 +194,7 @@ public final class OceanZoneMask {
                 k1 = key;
             }
         }
-        if (d1 >= Float.MAX_VALUE * 0.5F || (graph != null && !graph.allowsPair(k0, k1))) {
+        if (d1 >= Float.MAX_VALUE * 0.5F || (graph != null && !graph.allowsCorridor(k0, k1))) {
             return 0.0F;
         }
         return ridgeStrength(d0, d1);

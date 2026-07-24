@@ -93,6 +93,46 @@ public enum RenderMode {
         public int getColor(Cell cell, Levels levels, float scale, float bias) {
             return rgba(cell.terrain.getRenderHue(), 0.7F, 0.8F);
         }
+    },
+    /**
+     * Approximate landscape elevation only (no trees/buildings). Includes seafloor /
+     * underwater relief so deep basins and submarine ridges are visible.
+     */
+    HEIGHT {
+        @Override
+        public boolean handlesWater() {
+            return true;
+        }
+
+        @Override
+        public int getColor(Cell cell, Levels levels, float scale, float bias) {
+            // cell.value is water-relative height in 0..1; map full column incl. below sea.
+            float h = NoiseUtil.clamp(cell.value, 0.0F, 1.0F);
+            float water = levels.water;
+            if (h < water) {
+                // Deep navy → cyan toward the surface.
+                float t = NoiseUtil.clamp(h / Math.max(1.0E-4F, water), 0.0F, 1.0F);
+                return lerpRgb(8, 18, 48, 40, 140, 200, t);
+            }
+            // Shore green → highland yellow → peak white.
+            float land = NoiseUtil.clamp((h - water) / Math.max(1.0E-4F, 1.0F - water), 0.0F, 1.0F);
+            land = (float) NoiseUtil.round(land * 12.0F) / 12.0F; // light banding
+            if (land < 0.35F) {
+                return lerpRgb(48, 120, 52, 160, 170, 70, land / 0.35F);
+            }
+            if (land < 0.70F) {
+                return lerpRgb(160, 170, 70, 190, 140, 70, (land - 0.35F) / 0.35F);
+            }
+            return lerpRgb(190, 140, 70, 235, 235, 230, (land - 0.70F) / 0.30F);
+        }
+
+        private static int lerpRgb(int r0, int g0, int b0, int r1, int g1, int b1, float t) {
+            t = NoiseUtil.clamp(t, 0.0F, 1.0F);
+            int r = NoiseUtil.round(r0 + (r1 - r0) * t);
+            int g = NoiseUtil.round(g0 + (g1 - g0) * t);
+            int b = NoiseUtil.round(b0 + (b1 - b0) * t);
+            return rgba(r, g, b);
+        }
     };
 
     public int getColor(Cell cell, Levels levels) {

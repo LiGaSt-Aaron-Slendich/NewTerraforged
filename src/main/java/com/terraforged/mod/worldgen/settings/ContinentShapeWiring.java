@@ -47,8 +47,10 @@ public final class ContinentShapeWiring {
         float skip = NoiseUtil.clamp(continent.continentSkipping, 0.0F, 1.0F);
         float skipWithSpread = NoiseUtil.clamp(NoiseUtil.lerp(skip, Math.min(1.0F, skip + 0.40F), spread), 0.0F, 1.0F);
         config.shape.threshold = NoiseUtil.lerp(0.35F, 0.72F, skipWithSpread);
-        // Mild cell-pitch stretch with spread: centres move apart without directional bias.
-        if (!continent.guaranteedContinentsEnabled) {
+        boolean egfGuarantee = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.guaranteedContinentsEnabled();
+        boolean guaranteeActive = egfGuarantee && continent.guaranteedContinentsEnabled;
+        // Mild cell-pitch stretch with spread when guarantee is inactive.
+        if (!guaranteeActive) {
             float pitch = NoiseUtil.lerp(1.0F, 1.65F, spread);
             config.shape.scale = Math.max(100, Math.round(config.shape.scale * pitch));
         }
@@ -63,7 +65,8 @@ public final class ContinentShapeWiring {
         config.noise.baseNoiseFalloff = 1.5F + config.shape.sizeVariance * 0.5F;
 
         config.shape.guaranteedContinents = Math.max(1, Math.min(16, continent.guaranteedContinents));
-        config.shape.guaranteedContinentsEnabled = continent.guaranteedContinentsEnabled;
+        // EGF master switch + Customize toggle must both be on.
+        config.shape.guaranteedContinentsEnabled = guaranteeActive;
         config.shape.continentsSpread = spread;
         wireOceanLandscape(config, oceanLandscape);
         // Ocean Landscape replaces legacy island paint when EGF is on.

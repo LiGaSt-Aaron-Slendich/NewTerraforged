@@ -56,6 +56,15 @@ public final class NvAccess {
                 || n.equals("oceanlandscape");
     }
 
+    public static boolean isGuaranteedContinentsSetting(String fieldName) {
+        if (fieldName == null) {
+            return false;
+        }
+        String n = fieldName.toLowerCase(Locale.ROOT);
+        return n.equals("guaranteedcontinentsenabled")
+                || n.equals("guaranteedcontinents");
+    }
+
     public static boolean isBlockedSetting(String fieldName) {
         if (isArchipelagoSetting(fieldName)) {
             return !TFNoiseVariantFlags.archipelagoEnabled();
@@ -68,6 +77,9 @@ public final class NvAccess {
         }
         if (isOceanLandscapeSetting(fieldName)) {
             return !TFNoiseVariantFlags.oceanLandscapeEnabled();
+        }
+        if (isGuaranteedContinentsSetting(fieldName)) {
+            return !TFNoiseVariantFlags.guaranteedContinentsEnabled();
         }
         return false;
     }

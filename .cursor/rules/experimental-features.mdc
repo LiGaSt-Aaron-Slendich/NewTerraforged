@@ -24,8 +24,9 @@ alwaysApply: true
 | `archipelago` | 1 | Archipelago | Existing (legacy; skipped when Ocean Landscape on) |
 | `scatteredArchipelago` | 2 | Scattered Archipelago | Existing (legacy; skipped when Ocean Landscape on) |
 | `islands` | 4 | Islands | Existing (legacy; skipped when Ocean Landscape on) |
-| `coastalLia` | 8 | Coastal Little Ice Age | Coastal LIA overlay |
-| `oceanLandscape` | 16 | Ocean Landscape | Corridor seafloor + deep volcanoes; replaces IslandFeatureOverlay when on |
+| `coastalLia` | 8 | Coastal Little Ice Age | Coastal LIA overlay; when Ocean Landscape is on, gated per-continent by incoming corridors |
+| `oceanLandscape` | 16 | Ocean Landscape | Directed corridor seafloor + deep volcanoes; replaces IslandFeatureOverlay when on |
+| `guaranteedContinents` | 32 | Guaranteed Continents | N±1 landmasses in 640k window; Customize knobs Feature Blocked until on |
 
 ## When adding a new feature
 

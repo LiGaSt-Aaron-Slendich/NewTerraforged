@@ -4,6 +4,7 @@ import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.mod.worldgen.noise.continent.ContinentGenerator;
 import com.terraforged.mod.worldgen.noise.continent.GuaranteedContinentMask;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
@@ -11,19 +12,32 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Undirected corridor graph: each landmass links only to its
- * {@code partnersPerContinent} nearest neighbours within {@code maxDistance}
- * (cell-pitch units ≈ multiples of continent scale). Prevents long deep-ocean bridges
- * and a full mesh of seafloor ridges.
+ * Directed corridor graph: each landmass may emit up to {@code partnersPerContinent}
+ * outgoing corridors toward its nearest neighbours within {@code maxDistance}
+ * (cell-pitch ≈ × continent scale). Incoming corridors are unlimited.
+ *
+ * <p>Seafloor ridges exist for either direction of an edge. Coastal LIA uses
+ * {@link #incomingCount(long)} / {@link #liaFactor(long)}: 0 incoming → no LIA;
+ * 3+ incoming → absolute-majority ragged LIA coast.
  */
 public final class OceanCorridorGraph {
-    private final LongSet allowedPairs;
+    /** Incoming corridors at/above this → majority LIA coast. */
+    public static final int LIA_MAJORITY_INCOMING = 3;
+
+    private final LongSet directedEdges;
     private final LongSet landKeys;
+    private final Long2IntOpenHashMap incoming;
     private final boolean active;
 
-    private OceanCorridorGraph(LongSet allowedPairs, LongSet landKeys, boolean active) {
-        this.allowedPairs = allowedPairs;
+    private OceanCorridorGraph(
+            LongSet directedEdges,
+            LongSet landKeys,
+            Long2IntOpenHashMap incoming,
+            boolean active
+    ) {
+        this.directedEdges = directedEdges;
         this.landKeys = landKeys;
+        this.incoming = incoming;
         this.active = active;
     }
 
@@ -36,13 +50,14 @@ public final class OceanCorridorGraph {
             int partnersPerContinent,
             float maxDistanceCellPitch
     ) {
-        int partners = Math.max(1, Math.min(4, partnersPerContinent));
+        int outgoingLimit = Math.max(1, Math.min(4, partnersPerContinent));
         float maxDist = Math.max(1.5F, maxDistanceCellPitch);
         float maxDist2 = maxDist * maxDist;
 
         List<LandNode> nodes = collectLandNodes(continent);
         if (nodes.size() < 2) {
-            return new OceanCorridorGraph(new LongOpenHashSet(), new LongOpenHashSet(), false);
+            return new OceanCorridorGraph(
+                    new LongOpenHashSet(), new LongOpenHashSet(), new Long2IntOpenHashMap(), false);
         }
 
         LongOpenHashSet landKeys = new LongOpenHashSet(nodes.size() * 2);
@@ -50,7 +65,10 @@ public final class OceanCorridorGraph {
             landKeys.add(n.key);
         }
 
-        LongOpenHashSet pairs = new LongOpenHashSet();
+        LongOpenHashSet edges = new LongOpenHashSet();
+        Long2IntOpenHashMap incoming = new Long2IntOpenHashMap();
+        incoming.defaultReturnValue(0);
+
         for (LandNode a : nodes) {
             List<LandNode> others = new ArrayList<>(nodes.size());
             for (LandNode b : nodes) {
@@ -63,12 +81,16 @@ public final class OceanCorridorGraph {
                 }
             }
             others.sort(Comparator.comparingDouble(b -> dist2(a.px, a.py, b.px, b.py)));
-            int n = Math.min(partners, others.size());
+            int n = Math.min(outgoingLimit, others.size());
             for (int i = 0; i < n; i++) {
-                pairs.add(pairKey(a.key, others.get(i).key));
+                LandNode b = others.get(i);
+                long edge = directedKey(a.key, b.key);
+                if (edges.add(edge)) {
+                    incoming.addTo(b.key, 1);
+                }
             }
         }
-        return new OceanCorridorGraph(pairs, landKeys, !pairs.isEmpty());
+        return new OceanCorridorGraph(edges, landKeys, incoming, !edges.isEmpty());
     }
 
     private static List<LandNode> collectLandNodes(ContinentGenerator continent) {
@@ -84,7 +106,6 @@ public final class OceanCorridorGraph {
             return nodes;
         }
 
-        // Guarantee off: sample land cells inside a window so corridors still track continents.
         int halfCells = Math.max(10, Math.min(40, GuaranteedContinentMask.HALF / 4000));
         for (int cy = -halfCells; cy <= halfCells; cy++) {
             for (int cx = -halfCells; cx <= halfCells; cx++) {
@@ -106,26 +127,74 @@ public final class OceanCorridorGraph {
         return this.active && this.landKeys.contains(cellKey);
     }
 
-    public boolean allowsPair(long cellKeyA, long cellKeyB) {
+    /** True if A→B exists. */
+    public boolean hasDirected(long fromKey, long toKey) {
+        if (!this.active || fromKey == toKey) {
+            return false;
+        }
+        return this.directedEdges.contains(directedKey(fromKey, toKey));
+    }
+
+    /**
+     * Seafloor corridor between two centres if either direction is linked
+     * (physical ridge does not care about arrow; LIA does).
+     */
+    public boolean allowsCorridor(long cellKeyA, long cellKeyB) {
         if (!this.active) {
-            // No graph — allow any land-land edge (legacy soft behaviour).
             return true;
         }
         if (cellKeyA == cellKeyB) {
             return false;
         }
-        return this.allowedPairs.contains(pairKey(cellKeyA, cellKeyB));
+        return hasDirected(cellKeyA, cellKeyB) || hasDirected(cellKeyB, cellKeyA);
+    }
+
+    /** @deprecated use {@link #allowsCorridor(long, long)} */
+    @Deprecated
+    public boolean allowsPair(long cellKeyA, long cellKeyB) {
+        return allowsCorridor(cellKeyA, cellKeyB);
+    }
+
+    public int incomingCount(long cellKey) {
+        return this.incoming.get(cellKey);
+    }
+
+    /**
+     * Coastal LIA strength for a landmass: 0 if no incoming corridors,
+     * ramps up, and reaches 1.0 (majority ragged coast) at {@link #LIA_MAJORITY_INCOMING}+.
+     */
+    public float liaFactor(long cellKey) {
+        if (!this.active) {
+            return 1.0F;
+        }
+        int inc = incomingCount(cellKey);
+        if (inc <= 0) {
+            return 0.0F;
+        }
+        if (inc >= LIA_MAJORITY_INCOMING) {
+            return 1.0F;
+        }
+        if (inc == 1) {
+            return 0.38F;
+        }
+        return 0.68F; // 2 incoming
     }
 
     public int pairCount() {
-        return this.allowedPairs.size();
+        return this.directedEdges.size();
     }
 
     public LongSet landKeys() {
         return this.landKeys;
     }
 
-    /** Stable undirected key from two packed cell keys. */
+    /** Directed edge key: from → to (order matters). */
+    public static long directedKey(long from, long to) {
+        return from * 0x9E3779B97F4A7C15L ^ (to + 0xC2B2AE3D27D4EB4FL);
+    }
+
+    /** @deprecated undirected helper kept for callers; prefer {@link #directedKey}. */
+    @Deprecated
     public static long pairKey(long a, long b) {
         long lo = Math.min(a, b);
         long hi = Math.max(a, b);

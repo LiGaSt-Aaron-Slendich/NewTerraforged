@@ -65,13 +65,11 @@ public final class ConfigScreen extends Screen {
         }
         this.previewPage = new PreviewPage(this.draft);
         Runnable refresh = this.previewPage::refresh;
-        // Hide guarantee knobs from Customize (system still uses defaults / NBT under the hood).
         // Hide nested oceanLandscape here — it has its own page when EGF is on.
+        // Guaranteed Continents knobs stay on World but are Feature Blocked until EGF Untested is on.
         Set<String> worldSkip = this.shipwreckedMode
-                ? Set.of("continent", "worldStyle", "oceanLandscape",
-                        "guaranteedContinentsEnabled", "guaranteedContinents")
-                : Set.of("worldStyle", "oceanLandscape",
-                        "guaranteedContinentsEnabled", "guaranteedContinents");
+                ? Set.of("continent", "worldStyle", "oceanLandscape")
+                : Set.of("worldStyle", "oceanLandscape");
         java.util.ArrayList<Page> pageList = new java.util.ArrayList<>();
         pageList.add(new PresetsPage(this.draft, refresh));
         pageList.add(new SettingsSectionPage(

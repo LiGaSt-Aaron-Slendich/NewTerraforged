@@ -34,6 +34,14 @@ public final class OceanLandscapeOverlay {
                 config.shape.oceanCorridorMaxDistance);
     }
 
+    public OceanCorridorGraph corridorGraph() {
+        return this.corridorGraph;
+    }
+
+    public ContinentGenerator continent() {
+        return this.continent;
+    }
+
     public static boolean isActive() {
         return TFNoiseVariantFlags.oceanLandscapeEnabled();
     }

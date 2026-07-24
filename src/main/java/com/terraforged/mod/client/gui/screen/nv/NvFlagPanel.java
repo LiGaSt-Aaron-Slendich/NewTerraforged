@@ -250,6 +250,16 @@ public final class NvFlagPanel extends Screen {
                     b.setMessage(label("Ocean Landscape", next));
                 }
         ));
+        y += 28;
+        this.addRenderableWidget(new Button(
+                cx - 140, y, 280, 20,
+                label("Guaranteed Continents", TFNoiseVariantFlags.guaranteedContinentsEnabled()),
+                b -> {
+                    boolean next = !TFNoiseVariantFlags.guaranteedContinentsEnabled();
+                    TFNoiseVariantFlags.setGuaranteedContinents(next);
+                    b.setMessage(label("Guaranteed Continents", next));
+                }
+        ));
     }
 
     private void initBrowseMode() {

@@ -39,6 +39,12 @@ public class ContinentNoise implements IContinentNoise {
       this.islandOverlay = new IslandFeatureOverlay(config);
       this.oceanLandscape = new OceanLandscapeOverlay(config, this.generator);
       this.coastalLia = new CoastalLiaOverlay(config.shape.seed0);
+      if (OceanLandscapeOverlay.isActive()) {
+         this.coastalLia.bindCorridorGraph(
+               this.generator,
+               this.oceanLandscape.corridorGraph(),
+               context.settings.world.continent.continentScale);
+      }
       this.offset = this.generator.getWorldOffset();
       this.frequency = 1.0F / context.settings.world.continent.continentScale;
       this.shipwrecked = context.settings.world.properties != null
@@ -80,8 +86,9 @@ public class ContinentNoise implements IContinentNoise {
          this.islandOverlay.apply(islandX, islandZ, sample, this.levels.seaLevel);
       }
       // Little Ice Age coastal warp after islands so island paint stays intact.
+      // When OL graph is bound, LIA is gated by incoming corridor count per continent.
       if (!this.shipwrecked) {
-         this.coastalLia.applyContinent(islandX, islandZ, sample);
+         this.coastalLia.applyContinent(islandX, islandZ, f, f1, sample);
       }
    }
 
