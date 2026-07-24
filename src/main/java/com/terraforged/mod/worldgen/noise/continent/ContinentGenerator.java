@@ -21,8 +21,10 @@ import com.terraforged.noise.util.Vec2f;
 public class ContinentGenerator {
    public static final int CONTINENT_SAMPLE_SCALE = 400;
    protected static final int SAMPLE_SEED_OFFSET = 6569;
-   protected static final int VALID_SPAWN_RADIUS = 3;
-   protected static final int SPAWN_SEARCH_RADIUS = 100000;
+   protected static final int VALID_SPAWN_RADIUS = 1;
+   /** Hard cap — old 100000 spiral freezes world-create at 0% when land is sparse. */
+   protected static final int SPAWN_SEARCH_RADIUS = 256;
+   protected static final int SPAWN_SEARCH_MAX_CELLS = 4096;
    protected static final int CELL_POINT_CACHE_SIZE = 2048;
    public final int seed;
    public final float jitter;
@@ -73,26 +75,42 @@ public class ContinentGenerator {
 
    public Vec2f getWorldOffset() {
       // Shipwrecked suppresses continents (threshold ~0.98). Searching for a continent center
-      // would spiral through SPAWN_SEARCH_RADIUS empty cells on the create-world thread and freeze.
+      // would spiral forever on the create-world thread and freeze at 0%.
       if (this.shipwrecked) {
          return Vec2f.ZERO;
       }
-      SpiralIterator spiraliterator = new SpiralIterator(0, 0, 0, 100000);
-      CellPoint cellpoint = new CellPoint();
+      // Prefer a guaranteed continent centre when the mask is active.
+      GuaranteedContinentMask mask = this.guaranteeMask;
+      if (mask != null && mask.active() && !mask.landCellKeys().isEmpty()) {
+         long key = mask.landCellKeys().iterator().nextLong();
+         CellPoint cell = this.getCell(PosUtil.unpackLeft(key), PosUtil.unpackRight(key));
+         return new Vec2f(cell.px, cell.py);
+      }
 
-      while (spiraliterator.hasNext()) {
+      SpiralIterator spiraliterator = new SpiralIterator(0, 0, 0, SPAWN_SEARCH_RADIUS);
+      CellPoint cellpoint = new CellPoint();
+      Vec2f firstLand = null;
+      int checked = 0;
+
+      while (spiraliterator.hasNext() && checked < SPAWN_SEARCH_MAX_CELLS) {
          long i = spiraliterator.next();
+         checked++;
          this.computeCell(i, 0, 0, cellpoint);
-         if (this.shapeGenerator.getThresholdValue(cellpoint) != 0.0F) {
-            float f = cellpoint.px;
-            float f1 = cellpoint.py;
-            if (this.isValidSpawn(i, 3, cellpoint)) {
-               return new Vec2f(f, f1);
-            }
+         if (this.shapeGenerator.getThresholdValue(cellpoint) == 0.0F) {
+            continue;
+         }
+         float f = cellpoint.px;
+         float f1 = cellpoint.py;
+         if (firstLand == null) {
+            firstLand = new Vec2f(f, f1);
+         }
+         if (this.isValidSpawn(i, VALID_SPAWN_RADIUS, cellpoint)) {
+            return new Vec2f(f, f1);
          }
       }
 
-      return Vec2f.ZERO;
+      // Any land cell is better than scanning forever / returning origin blindly.
+      return firstLand != null ? firstLand : Vec2f.ZERO;
    }
 
    public CellPoint getCell(int cx, int cy) {

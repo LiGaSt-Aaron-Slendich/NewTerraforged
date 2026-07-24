@@ -36,6 +36,8 @@ public class ContinentNoise implements IContinentNoise {
       this.controlPoints = new ControlPoints(context.settings.world.controlPoints);
       ContinentConfig config = createConfig(context);
       this.generator = new ContinentGenerator(config, levels.noiseLevels, this.controlPoints);
+      // Resolve spawn offset BEFORE corridor graph — graph scan must never block world-create.
+      this.offset = this.generator.getWorldOffset();
       this.islandOverlay = new IslandFeatureOverlay(config);
       this.oceanLandscape = new OceanLandscapeOverlay(config, this.generator);
       this.coastalLia = new CoastalLiaOverlay(config.shape.seed0);
@@ -45,7 +47,6 @@ public class ContinentNoise implements IContinentNoise {
                this.oceanLandscape.corridorGraph(),
                context.settings.world.continent.continentScale);
       }
-      this.offset = this.generator.getWorldOffset();
       this.frequency = 1.0F / context.settings.world.continent.continentScale;
       this.shipwrecked = context.settings.world.properties != null
             && context.settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;

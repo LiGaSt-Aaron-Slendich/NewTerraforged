@@ -23,8 +23,9 @@ import java.util.List;
 public final class OceanCorridorGraph {
     public static final int LIA_MAJORITY_INCOMING = 3;
     private static final int MIN_CONTINENT_CELLS = 2;
-    private static final int MAX_CONTINENTS = 24;
-    private static final int SCAN_HALF = 20;
+    private static final int MAX_CONTINENTS = 16;
+    /** Tiny stepped window — world-create must stay instant. */
+    private static final int SCAN_HALF = 12;
     private static final int SCAN_STEP = 2;
 
     private final LongSet directedEdges;

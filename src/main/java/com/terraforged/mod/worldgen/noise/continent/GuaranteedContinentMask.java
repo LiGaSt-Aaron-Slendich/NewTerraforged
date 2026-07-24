@@ -66,8 +66,8 @@ public final class GuaranteedContinentMask {
         float spread = clamp01(continent.continentsSpread);
         // spread=0 → clustered (smaller minSep); spread=1 → widely spaced.
         // Divisor goes 2.4 → 0.75 so high spread roughly triples separation vs low.
-        float sepDiv = 2.4F - spread * 1.65F;
-        int minSep = Math.max(1, (int) (span / (Math.sqrt(n) * Math.max(0.55F, sepDiv))));
+        float sepDiv = 2.6F - spread * 2.0F;
+        int minSep = Math.max(1, (int) (span / (Math.sqrt(n) * Math.max(0.40F, sepDiv))));
 
         int attempts = 0;
         int placed = 0;

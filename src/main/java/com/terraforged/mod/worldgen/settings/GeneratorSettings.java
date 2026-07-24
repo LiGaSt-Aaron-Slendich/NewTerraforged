@@ -416,6 +416,11 @@ public final class GeneratorSettings {
         engine.world.continent.continentScale = WorldSettings.DEFAULT_CONTINENT_SCALE;
         engine.filters.erosion.dropletsPerChunk = 350;
         engine.terrain.volcano.weight = 0.85F;
+        // Let mountain peaks use the full 640-block column (datapack height=1024).
+        engine.terrain.general.globalVerticalScale = 1.12F;
+        engine.terrain.mountains.verticalScale = 1.35F;
+        engine.terrain.hills.verticalScale = 1.15F;
+        engine.terrain.torridonian.verticalScale = 1.25F;
         return fromEngine(engine);
     }
 

@@ -102,10 +102,14 @@ public class TerrainLevels {
       public static final int MIN_MIN_Y = DimensionType.MIN_Y;
       public static final int MAX_MIN_Y = 0;
       public static final int MIN_SEA_LEVEL = 32;
-      public static final int MAX_SEA_LEVEL = DimensionType.Y_SIZE;
+      public static final int MAX_SEA_LEVEL = 512;
       public static final int MIN_SEA_FLOOR = 0;
       public static final int MAX_SEA_FLOOR = MAX_SEA_LEVEL;
       public static final int MIN_MAX_Y = 128;
-      public static final int MAX_MAX_Y = DimensionType.Y_SIZE;
+      /**
+       * Match datapack overworld height (1024 from min_y=-64). Do not use
+       * {@link DimensionType#Y_SIZE} (vanilla 384) — it silently capped mountains below 640.
+       */
+      public static final int MAX_MAX_Y = 1024;
    }
 }

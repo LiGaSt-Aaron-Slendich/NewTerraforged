@@ -155,8 +155,8 @@ public final class SettingsDraft {
     }
 
     /**
-     * Engine {@code @Range} caps worldHeight at 256 / seaLevel at 255, but NewTF uses
-     * maxY=480 and sea up to maxY/2. Widen slider metadata so the UI can express that.
+     * Engine {@code @Range} used to cap worldHeight at 256, but NewTF overworld is
+     * height=1024 (min_y=-64) and terrain max_y defaults to 640. Widen slider metadata.
      * Also raises continent / climate scale caps beyond stock TerraForged.
      */
     private static void patchWorldPropertyRanges(CompoundTag root, TerrainLevels levels) {
@@ -166,13 +166,13 @@ public final class SettingsDraft {
         }
         CompoundTag props = world.getCompound("properties");
         if (!props.isEmpty()) {
-            int maxY = Math.max(levels.maxY, props.getInt("worldHeight"));
+            int maxY = Math.max(Math.max(levels.maxY, props.getInt("worldHeight")), 640);
             int maxSea = Math.max(32, maxY >> 1);
-            putBoundMax(props, "worldHeight", maxY);
+            putBoundMax(props, "worldHeight", Math.max(maxY, 1024));
             putBoundMax(props, "seaLevel", maxSea);
             // Ensure values themselves are not silently clamped by a 0–256 slider.
-            if (props.getInt("worldHeight") < levels.maxY) {
-                props.putInt("worldHeight", levels.maxY);
+            if (props.getInt("worldHeight") < 640) {
+                props.putInt("worldHeight", Math.max(levels.maxY, 640));
             }
             if (props.contains("seaLevel")) {
                 int sea = props.getInt("seaLevel");
@@ -215,11 +215,15 @@ public final class SettingsDraft {
         settings.world.seed = seed;
         settings.world.continent.continentScale = com.terraforged.engine.settings.WorldSettings.DEFAULT_CONTINENT_SCALE;
         settings.world.properties.seaLevel = levels.seaLevel;
-        settings.world.properties.worldHeight = levels.maxY;
+        settings.world.properties.worldHeight = Math.max(levels.maxY, 640);
         settings.filters.erosion.dropletsPerChunk = 350;
         // Stock TF default volcano weight=5 floods continents. Moderate mainland presence;
         // ocean volcanic islands come from Islands.volcanicIslandsChance.
         settings.terrain.volcano.weight = 0.85F;
+        settings.terrain.general.globalVerticalScale = 1.12F;
+        settings.terrain.mountains.verticalScale = 1.35F;
+        settings.terrain.hills.verticalScale = 1.15F;
+        settings.terrain.torridonian.verticalScale = 1.25F;
         return settings;
     }
 

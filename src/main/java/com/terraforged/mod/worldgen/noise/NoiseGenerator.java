@@ -23,7 +23,7 @@ import com.terraforged.noise.util.NoiseUtil;
 import java.util.function.Consumer;
 
 public class NoiseGenerator implements INoiseGenerator {
-   protected final float heightMultiplier = 1.35F;
+   protected final float heightMultiplier = 1.55F;
    protected final long seed;
    protected final TerrainLevels levels;
    protected final Settings settings;
@@ -278,7 +278,7 @@ public class NoiseGenerator implements INoiseGenerator {
          return;
       }
       float f = sample.baseNoise;
-      float f1 = this.land.getValue(x, z, blender) * 1.35F;
+      float f1 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
       restorePainted(sample, painted, paintedH);
@@ -304,7 +304,7 @@ public class NoiseGenerator implements INoiseGenerator {
       } else if (sample.continentNoise < 0.55F) {
          float f5 = this.levels.noiseLevels.heightMin;
          float f6 = sample.baseNoise;
-         float f7 = this.land.getValue(x, z, blender) * 1.35F;
+         float f7 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
          float f8 = this.levels.noiseLevels.toHeightNoise(f6, f7);
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);

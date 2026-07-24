@@ -154,10 +154,10 @@ public class WorldSettings {
 
         @Comment(value = {"Set whether spawn should be close to x=0,z=0 or the centre of the nearest continent"})
         public SpawnType spawnType = SpawnType.CONTINENT_CENTER;
-        @Range(min = 0.0f, max = 256.0f)
-        @Comment(value = {"Controls the world height"})
-        public int worldHeight = 256;
-        @Range(min = 0.0f, max = 255.0f)
+        @Range(min = 128.0f, max = 1024.0f)
+        @Comment(value = {"Controls the world height (block Y ceiling for terrain). Default 640."})
+        public int worldHeight = 640;
+        @Range(min = 0.0f, max = 512.0f)
         @Comment(value = {"Controls the sea level"})
         public int seaLevel = 63;
     }
@@ -218,6 +218,8 @@ public class WorldSettings {
         @Comment(value = {
                 "Increases the distance between continents (ocean gaps grow).",
                 "0 = more clustered landmasses, 1 = widely spaced.",
+                "Works without Guaranteed Continents (raises land threshold + cell pitch).",
+                "With Guaranteed Continents ON, also increases min separation between forced centres.",
                 "Does not shift the whole map in one direction."
         })
         public float continentsSpread = 0.5f;

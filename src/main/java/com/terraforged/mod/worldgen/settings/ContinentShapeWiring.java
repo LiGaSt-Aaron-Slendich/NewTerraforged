@@ -42,18 +42,18 @@ public final class ContinentShapeWiring {
         // Jitter is user-controlled only — do not bake spread into it (that looked like a one-way shift).
         config.shape.jitter = NoiseUtil.clamp(continent.continentJitter, 0.0F, 1.0F);
 
-        // Outside the guarantee window, keep a moderate ocean/land mix from user skipping.
-        // Spread also thins land so surviving landmasses sit farther apart when guarantee is off.
+        // Spread always widens oceans / separates landmasses (works with or without Guaranteed Continents).
         float skip = NoiseUtil.clamp(continent.continentSkipping, 0.0F, 1.0F);
-        float skipWithSpread = NoiseUtil.clamp(NoiseUtil.lerp(skip, Math.min(1.0F, skip + 0.40F), spread), 0.0F, 1.0F);
-        config.shape.threshold = NoiseUtil.lerp(0.35F, 0.72F, skipWithSpread);
+        float skipWithSpread = NoiseUtil.clamp(NoiseUtil.lerp(skip, Math.min(1.0F, skip + 0.55F), spread), 0.0F, 1.0F);
+        config.shape.threshold = NoiseUtil.lerp(0.30F, 0.82F, skipWithSpread);
         boolean egfGuarantee = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.guaranteedContinentsEnabled();
         boolean guaranteeActive = egfGuarantee && continent.guaranteedContinentsEnabled;
-        // Mild cell-pitch stretch with spread when guarantee is inactive.
-        if (!guaranteeActive) {
-            float pitch = NoiseUtil.lerp(1.0F, 1.65F, spread);
-            config.shape.scale = Math.max(100, Math.round(config.shape.scale * pitch));
-        }
+        // Cell-pitch stretch: higher spread → larger gaps between Voronoi land blobs.
+        // Stronger when guarantee is off (guarantee uses minSep instead).
+        float pitch = guaranteeActive
+                ? NoiseUtil.lerp(1.0F, 1.25F, spread)
+                : NoiseUtil.lerp(1.0F, 2.35F, spread);
+        config.shape.scale = Math.max(100, Math.round(config.shape.scale * pitch));
 
         config.shape.noiseOctaves = Math.max(1, Math.min(8, continent.continentNoiseOctaves));
         // Mild bump so outlines stay irregular even on older presets with low gain.
@@ -164,10 +164,8 @@ public final class ContinentShapeWiring {
     }
 
     /**
-     * Preview TileGenerator only reads continent.*; do not bake island chances into
-     * continentSkipping — that made volcanic/archipelago knobs spawn extra continents.
-     * Spread is applied by NewTF ContinentShapeWiring / GuaranteedContinentMask — do not
-     * mutate jitter here (one-way shift look).
+     * Preview TileGenerator only reads continent.*; bake island/spread knobs the engine understands.
+     * Spread must mutate skipping + scale here or Customize preview shows zero effect.
      */
     public static void bakeIslandsIntoEngine(Settings settings) {
         if (settings == null || settings.world == null) {
@@ -175,6 +173,11 @@ public final class ContinentShapeWiring {
         }
         ContinentGuarantee.syncIslandsMirror(settings.world);
         WorldSettings.Continent c = settings.world.continent;
+        float spread = NoiseUtil.clamp(c.continentsSpread, 0.0F, 1.0F);
+        float skip = NoiseUtil.clamp(c.continentSkipping, 0.0F, 1.0F);
+        c.continentSkipping = NoiseUtil.clamp(NoiseUtil.lerp(skip, Math.min(1.0F, skip + 0.55F), spread), 0.0F, 1.0F);
+        float pitch = NoiseUtil.lerp(1.0F, 2.35F, spread);
+        c.continentScale = Math.max(100, Math.round(c.continentScale * pitch));
         if (settings.world.properties != null && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED) {
             c.guaranteedContinentsEnabled = false;
             // Engine preview TileGenerator still reads continentSkipping; push fully ocean.
