@@ -86,8 +86,13 @@ public final class BiomeTerrainIntegration {
         }
 
         if (values.isEmpty()) {
-            // Never fall back to the unfiltered climate pool — that ignored terrain rules
-            // (e.g. terralith:highlands on badlands when every filtered candidate failed).
+            // If landform was never resolved (none/blank), keep climate distribution instead of
+            // hard plains. Concrete terrains with zero matches still use the plains fallback
+            // so rule exclusions (e.g. highlands on badlands) stay authoritative.
+            if (terrain == null || terrain.isBlank() || "none".equalsIgnoreCase(terrain)) {
+                Holder<Biome> climatePick = climatePool.getValue(noise);
+                return climatePick != null ? climatePick : fallback;
+            }
             return fallback;
         }
 

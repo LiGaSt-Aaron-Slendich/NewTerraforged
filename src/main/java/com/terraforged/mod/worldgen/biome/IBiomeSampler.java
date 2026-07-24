@@ -45,6 +45,18 @@ public interface IBiomeSampler {
          this.noiseGenerator.getContinent().sampleContinent(f, f1, climatesample);
          this.noiseGenerator.getContinent().sampleRiver(f, f1, climatesample);
          this.climateNoise.sample(f, f1, climatesample);
+         // Inland biome rules need the same landform as height (WeightMap + mountain belt).
+         // Continent alone leaves terrainType=NONE, which emptied the rule filter → plains.
+         if (climatesample.continentNoise > 0.5F) {
+            var land = this.noiseGenerator.getNoiseSample(x, z);
+            climatesample.terrainType = land.terrainType;
+            climatesample.heightNoise = land.heightNoise;
+            climatesample.baseNoise = land.baseNoise;
+            climatesample.riverNoise = land.riverNoise;
+            climatesample.oceanRelief = land.oceanRelief;
+            climatesample.continentNoise = land.continentNoise;
+            climatesample.continentCentre = land.continentCentre;
+         }
          climatesample.climateType = SurfaceBiomeClimate.adjustForTerrain(
                climatesample.climateType, climatesample.terrainType, climatesample.temperature, climatesample.moisture);
          return climatesample;

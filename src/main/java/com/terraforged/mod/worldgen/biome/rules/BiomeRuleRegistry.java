@@ -474,12 +474,16 @@ public final class BiomeRuleRegistry {
             return 0.0F;
         }
         String concrete = terrainName.toLowerCase(Locale.ROOT);
+        Set<String> aliases = TerrainGroup.aliasesForEngineName(concrete);
         float best = 0.0F;
         for (Map.Entry<String, Float> e : rule.terrains.entrySet()) {
             Set<String> expanded = new HashSet<>(TerrainGroup.expand(java.util.List.of(e.getKey())));
             expanded.add(e.getKey().toLowerCase(Locale.ROOT));
-            if (expanded.contains(concrete)) {
-                best = Math.max(best, e.getValue());
+            for (String alias : aliases) {
+                if (expanded.contains(alias)) {
+                    best = Math.max(best, e.getValue());
+                    break;
+                }
             }
         }
         return best;

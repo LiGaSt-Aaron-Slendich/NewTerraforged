@@ -64,6 +64,40 @@ public final class TerrainGroup {
         return out.isEmpty() ? Set.of() : Collections.unmodifiableSet(out);
     }
 
+    /**
+     * Engine WeightMap often exposes parent type names ({@code mountains}, {@code flats}, {@code hills})
+     * while biome rules list concrete slots ({@code mountains_1}, {@code plains}). Expand both sides
+     * so chance matching intersects.
+     */
+    public static Set<String> aliasesForEngineName(String engineName) {
+        if (engineName == null || engineName.isBlank()) {
+            return Set.of();
+        }
+        String key = engineName.trim().toLowerCase(Locale.ROOT);
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        out.add(key);
+        Set<String> group = GROUPS.get(key);
+        if (group != null) {
+            out.addAll(group);
+        }
+        // TerrainType.FLATS.getName() is "flats"; rules / groups use plains + steppe.
+        if ("flats".equals(key)) {
+            out.add("plains");
+            Set<String> plains = GROUPS.get("plains");
+            if (plains != null) {
+                out.addAll(plains);
+            }
+        }
+        if ("mountain_chain".equals(key)) {
+            out.add("mountains");
+            Set<String> mountains = GROUPS.get("mountains");
+            if (mountains != null) {
+                out.addAll(mountains);
+            }
+        }
+        return Collections.unmodifiableSet(out);
+    }
+
     public static boolean isKnownGroup(String name) {
         if (name == null || name.isBlank()) {
             return false;
