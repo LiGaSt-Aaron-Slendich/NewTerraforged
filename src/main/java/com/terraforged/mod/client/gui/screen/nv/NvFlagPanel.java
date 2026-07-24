@@ -260,6 +260,16 @@ public final class NvFlagPanel extends Screen {
                     b.setMessage(label("Guaranteed Continents", next));
                 }
         ));
+        y += 28;
+        this.addRenderableWidget(new Button(
+                cx - 140, y, 280, 20,
+                label("Corridor Direction Overlay", TFNoiseVariantFlags.corridorDirectionOverlayEnabled()),
+                b -> {
+                    boolean next = !TFNoiseVariantFlags.corridorDirectionOverlayEnabled();
+                    TFNoiseVariantFlags.setCorridorDirectionOverlay(next);
+                    b.setMessage(label("Corridor Direction Overlay", next));
+                }
+        ));
     }
 
     private void initBrowseMode() {

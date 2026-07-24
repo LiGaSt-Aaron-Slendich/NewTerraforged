@@ -295,6 +295,14 @@ public final class Preview extends AbstractWidget {
                 image.setPixelRGBA(x, z, argb);
             }
         });
+        PreviewCorridorDirectionOverlay.apply(
+                image,
+                this.settings,
+                this.seed,
+                this.center.x,
+                this.center.z,
+                this.getZoom(),
+                width);
         this.texture.upload();
     }
 

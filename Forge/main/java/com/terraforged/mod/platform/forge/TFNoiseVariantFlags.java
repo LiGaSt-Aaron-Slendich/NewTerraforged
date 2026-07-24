@@ -40,6 +40,11 @@ public final class TFNoiseVariantFlags {
      * Experimental — Customize knobs are Feature Blocked until this EGF is on.
      */
     public boolean guaranteedContinents = false;
+    /**
+     * Preview-only overlay: draw directed Ocean Landscape corridor arrows (A→B).
+     * Separate experimental debug/view feature — does not change worldgen.
+     */
+    public boolean corridorDirectionOverlay = false;
 
     private TFNoiseVariantFlags() {
     }
@@ -75,6 +80,10 @@ public final class TFNoiseVariantFlags {
         return INSTANCE != null && INSTANCE.guaranteedContinents;
     }
 
+    public static boolean corridorDirectionOverlayEnabled() {
+        return INSTANCE != null && INSTANCE.corridorDirectionOverlay;
+    }
+
     public static void setArchipelago(boolean value) {
         ensure();
         INSTANCE.archipelago = value;
@@ -108,6 +117,12 @@ public final class TFNoiseVariantFlags {
     public static void setGuaranteedContinents(boolean value) {
         ensure();
         INSTANCE.guaranteedContinents = value;
+        INSTANCE.writeEncrypted();
+    }
+
+    public static void setCorridorDirectionOverlay(boolean value) {
+        ensure();
+        INSTANCE.corridorDirectionOverlay = value;
         INSTANCE.writeEncrypted();
     }
 
@@ -162,6 +177,7 @@ public final class TFNoiseVariantFlags {
             this.coastalLia = (flags & 8) != 0;
             this.oceanLandscape = (flags & 16) != 0;
             this.guaranteedContinents = (flags & 32) != 0;
+            this.corridorDirectionOverlay = (flags & 64) != 0;
             return true;
         } catch (Exception e) {
             return false;
@@ -192,6 +208,9 @@ public final class TFNoiseVariantFlags {
             }
             if (this.guaranteedContinents) {
                 flags |= 32;
+            }
+            if (this.corridorDirectionOverlay) {
+                flags |= 64;
             }
             byte[] plain = ByteBuffer.allocate(4).putInt(flags).array();
             byte[] iv = new byte[IV_LEN];

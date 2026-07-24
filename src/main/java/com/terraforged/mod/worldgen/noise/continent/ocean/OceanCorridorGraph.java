@@ -25,17 +25,20 @@ public final class OceanCorridorGraph {
     public static final int LIA_MAJORITY_INCOMING = 3;
 
     private final LongSet directedEdges;
+    private final List<DirectedEdge> edgeList;
     private final LongSet landKeys;
     private final Long2IntOpenHashMap incoming;
     private final boolean active;
 
     private OceanCorridorGraph(
             LongSet directedEdges,
+            List<DirectedEdge> edgeList,
             LongSet landKeys,
             Long2IntOpenHashMap incoming,
             boolean active
     ) {
         this.directedEdges = directedEdges;
+        this.edgeList = edgeList;
         this.landKeys = landKeys;
         this.incoming = incoming;
         this.active = active;
@@ -57,7 +60,11 @@ public final class OceanCorridorGraph {
         List<LandNode> nodes = collectLandNodes(continent);
         if (nodes.size() < 2) {
             return new OceanCorridorGraph(
-                    new LongOpenHashSet(), new LongOpenHashSet(), new Long2IntOpenHashMap(), false);
+                    new LongOpenHashSet(),
+                    List.of(),
+                    new LongOpenHashSet(),
+                    new Long2IntOpenHashMap(),
+                    false);
         }
 
         LongOpenHashSet landKeys = new LongOpenHashSet(nodes.size() * 2);
@@ -66,6 +73,7 @@ public final class OceanCorridorGraph {
         }
 
         LongOpenHashSet edges = new LongOpenHashSet();
+        List<DirectedEdge> edgeList = new ArrayList<>();
         Long2IntOpenHashMap incoming = new Long2IntOpenHashMap();
         incoming.defaultReturnValue(0);
 
@@ -87,10 +95,11 @@ public final class OceanCorridorGraph {
                 long edge = directedKey(a.key, b.key);
                 if (edges.add(edge)) {
                     incoming.addTo(b.key, 1);
+                    edgeList.add(new DirectedEdge(a.key, b.key, a.px, a.py, b.px, b.py));
                 }
             }
         }
-        return new OceanCorridorGraph(edges, landKeys, incoming, !edges.isEmpty());
+        return new OceanCorridorGraph(edges, List.copyOf(edgeList), landKeys, incoming, !edges.isEmpty());
     }
 
     private static List<LandNode> collectLandNodes(ContinentGenerator continent) {
@@ -188,6 +197,11 @@ public final class OceanCorridorGraph {
         return this.landKeys;
     }
 
+    /** Directed edges with shape-space endpoints (for preview overlays). */
+    public List<DirectedEdge> edges() {
+        return this.edgeList;
+    }
+
     /** Directed edge key: from → to (order matters). */
     public static long directedKey(long from, long to) {
         return from * 0x9E3779B97F4A7C15L ^ (to + 0xC2B2AE3D27D4EB4FL);
@@ -205,6 +219,10 @@ public final class OceanCorridorGraph {
         float dx = ax - bx;
         float dy = ay - by;
         return dx * dx + dy * dy;
+    }
+
+    /** Shape-space directed corridor A→B. */
+    public record DirectedEdge(long fromKey, long toKey, float fromX, float fromY, float toX, float toY) {
     }
 
     private record LandNode(long key, float px, float py) {
