@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Policy
 
-1. **New features** (worldgen overlays, major systems, player-facing behavior that is not a bugfix) ship as **experimental** until the user says to release them.
+1. **New features** (worldgen overlays, major systems, player-facing behavior that is not a bug fix) ship as **experimental** until the user says to release them.
 2. **Bug fixes, polish, UI tweaks, refactors, performance** → **never** put behind experimental. Ship normally.
 3. When the user says **release / релізим** a named feature → remove the EGF flag gate so the feature is always on (or permanently productized), drop the Untested toggle, and update this list.
 
@@ -21,10 +21,11 @@ alwaysApply: true
 
 | Flag | Bit | UI label | Notes |
 |------|-----|----------|--------|
-| `archipelago` | 1 | Archipelago | Existing |
-| `scatteredArchipelago` | 2 | Scattered Archipelago | Existing |
-| `islands` | 4 | Islands | Existing |
+| `archipelago` | 1 | Archipelago | Existing (legacy; skipped when Ocean Landscape on) |
+| `scatteredArchipelago` | 2 | Scattered Archipelago | Existing (legacy; skipped when Ocean Landscape on) |
+| `islands` | 4 | Islands | Existing (legacy; skipped when Ocean Landscape on) |
 | `coastalLia` | 8 | Coastal Little Ice Age | Coastal LIA overlay |
+| `oceanLandscape` | 16 | Ocean Landscape | Corridor seafloor + deep volcanoes; replaces IslandFeatureOverlay when on |
 
 ## When adding a new feature
 

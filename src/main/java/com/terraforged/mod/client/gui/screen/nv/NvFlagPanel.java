@@ -240,6 +240,16 @@ public final class NvFlagPanel extends Screen {
                     b.setMessage(label("Coastal Little Ice Age", next));
                 }
         ));
+        y += 28;
+        this.addRenderableWidget(new Button(
+                cx - 140, y, 280, 20,
+                label("Ocean Landscape", TFNoiseVariantFlags.oceanLandscapeEnabled()),
+                b -> {
+                    boolean next = !TFNoiseVariantFlags.oceanLandscapeEnabled();
+                    TFNoiseVariantFlags.setOceanLandscape(next);
+                    b.setMessage(label("Ocean Landscape", next));
+                }
+        ));
     }
 
     private void initBrowseMode() {

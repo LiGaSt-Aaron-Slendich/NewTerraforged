@@ -22,7 +22,7 @@ import com.terraforged.noise.util.NoiseUtil;
 import java.util.function.Consumer;
 
 public class NoiseGenerator implements INoiseGenerator {
-   protected final float heightMultiplier = 1.2F;
+   protected final float heightMultiplier = 1.35F;
    protected final long seed;
    protected final TerrainLevels levels;
    protected final Settings settings;
@@ -260,6 +260,13 @@ public class NoiseGenerator implements INoiseGenerator {
       float f = this.ocean.getValue(x, z);
       sample.heightNoise = this.levels.noiseLevels.toDepthNoise(f);
       sample.terrainType = TerrainType.DEEP_OCEAN;
+      // Ocean-landscape submerged ridges: lift bathymetry without flipping biomes.
+      if (sample.oceanRelief > 0.0F) {
+         float lift = NoiseUtil.clamp(sample.oceanRelief, 0.0F, 1.0F);
+         float towardSea = NoiseUtil.lerp(sample.heightNoise, this.levels.noiseLevels.heightMin, lift * 0.85F);
+         float peak = this.levels.noiseLevels.heightMin + lift * 0.04F;
+         sample.heightNoise = Math.max(towardSea, NoiseUtil.lerp(sample.heightNoise, peak, lift));
+      }
       restorePainted(sample, painted, paintedH);
    }
 
@@ -270,7 +277,7 @@ public class NoiseGenerator implements INoiseGenerator {
          return;
       }
       float f = sample.baseNoise;
-      float f1 = this.land.getValue(x, z, blender) * 1.2F;
+      float f1 = this.land.getValue(x, z, blender) * 1.35F;
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
       restorePainted(sample, painted, paintedH);
@@ -288,10 +295,15 @@ public class NoiseGenerator implements INoiseGenerator {
          float f2 = this.levels.noiseLevels.heightMin;
          float f3 = (sample.continentNoise - 0.25F) / 0.25F;
          sample.heightNoise = NoiseUtil.lerp(f1, f2, f3);
+         if (sample.oceanRelief > 0.0F) {
+            float lift = NoiseUtil.clamp(sample.oceanRelief, 0.0F, 1.0F);
+            sample.heightNoise = NoiseUtil.lerp(sample.heightNoise,
+                  Math.min(1.0F, f2 + lift * 0.06F), lift * 0.9F);
+         }
       } else if (sample.continentNoise < 0.55F) {
          float f5 = this.levels.noiseLevels.heightMin;
          float f6 = sample.baseNoise;
-         float f7 = this.land.getValue(x, z, blender) * 1.2F;
+         float f7 = this.land.getValue(x, z, blender) * 1.35F;
          float f8 = this.levels.noiseLevels.toHeightNoise(f6, f7);
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);

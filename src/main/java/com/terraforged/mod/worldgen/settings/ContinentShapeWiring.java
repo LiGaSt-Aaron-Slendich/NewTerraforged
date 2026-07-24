@@ -49,6 +49,17 @@ public final class ContinentShapeWiring {
         config.shape.guaranteedContinents = Math.max(1, Math.min(16, continent.guaranteedContinents));
         config.shape.guaranteedContinentsEnabled = continent.guaranteedContinentsEnabled;
         config.shape.continentsSpread = spread;
+        // Ocean Landscape replaces legacy island paint when EGF is on.
+        if (com.terraforged.mod.platform.forge.TFNoiseVariantFlags.oceanLandscapeEnabled()) {
+            config.shape.coastalIslandsChance = 0.0F;
+            config.shape.volcanicIslandsChance = 0.0F;
+            config.shape.archipelago = false;
+            config.shape.archipelagoChance = 0.0F;
+            config.shape.scatteredArchipelago = false;
+            config.shape.scatteredArchipelagoChance = 0.0F;
+            config.shape.shipwrecked = false;
+            return;
+        }
         // Coastal / volcanic islands + island_flats paint are EGF (Islands) — off unless enabled.
         boolean egfIslands = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.islandsEnabled();
         float coastal = effectiveChance(islands.coastalIslandsChance, islands.coastalIslands);
@@ -77,6 +88,16 @@ public final class ContinentShapeWiring {
         // Above any possible cell.noise so shape never forms mainland.
         config.shape.threshold = 1.01F;
         config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
+        // Ocean Landscape owns Shipwrecked islands when EGF is on.
+        if (com.terraforged.mod.platform.forge.TFNoiseVariantFlags.oceanLandscapeEnabled()) {
+            config.shape.archipelago = false;
+            config.shape.archipelagoChance = 0.0F;
+            config.shape.scatteredArchipelago = false;
+            config.shape.scatteredArchipelagoChance = 0.0F;
+            config.shape.volcanicIslandsChance = 0.0F;
+            config.shape.coastalIslandsChance = 0.0F;
+            return;
+        }
         boolean egfArch = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.archipelagoEnabled();
         boolean egfScattered = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.scatteredArchipelagoEnabled();
         boolean egfIslands = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.islandsEnabled();

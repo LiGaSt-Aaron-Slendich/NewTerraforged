@@ -27,7 +27,7 @@ public final class GeneratorSettings {
                             Codec.FLOAT.optionalFieldOf("coast", 0.448F).forGetter(s -> s.coast),
                             Codec.FLOAT.optionalFieldOf("inland", 0.502F).forGetter(s -> s.inland),
                             Codec.INT.optionalFieldOf("sea_level", 62).forGetter(s -> s.seaLevel),
-                            Codec.INT.optionalFieldOf("world_height", 480).forGetter(s -> s.worldHeight),
+                            Codec.INT.optionalFieldOf("world_height", 640).forGetter(s -> s.worldHeight),
                             Codec.STRING.optionalFieldOf("spawn_type", SpawnType.CONTINENT_CENTER.name()).forGetter(s -> s.spawnType)
                     )
                     .apply(i, WorldSlice::new)

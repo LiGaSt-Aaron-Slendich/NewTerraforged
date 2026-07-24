@@ -58,6 +58,7 @@ public final class NvAccess {
     public static boolean shipwreckedWorldTypeAllowed() {
         return TFNoiseVariantFlags.archipelagoEnabled()
                 || TFNoiseVariantFlags.scatteredArchipelagoEnabled()
-                || TFNoiseVariantFlags.islandsEnabled();
+                || TFNoiseVariantFlags.islandsEnabled()
+                || TFNoiseVariantFlags.oceanLandscapeEnabled();
     }
 }

@@ -10,6 +10,8 @@ public class NoiseSample {
    public float baseNoise = 0.0F;
    public float heightNoise = 0.0F;
    public float riverNoise = 1.0F;
+   /** Submerged seafloor lift 0..1 when ocean-landscape keeps cn in ocean bands. */
+   public float oceanRelief = 0.0F;
    public Terrain terrainType = TerrainType.NONE.getTerrain();
 
    public NoiseSample() {
@@ -29,6 +31,7 @@ public class NoiseSample {
       this.heightNoise = other.heightNoise;
       this.baseNoise = other.baseNoise;
       this.riverNoise = other.riverNoise;
+      this.oceanRelief = other.oceanRelief;
       this.terrainType = other.terrainType;
       return this;
    }

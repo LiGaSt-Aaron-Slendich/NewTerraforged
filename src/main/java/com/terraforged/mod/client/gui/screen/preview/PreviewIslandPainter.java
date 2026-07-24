@@ -22,6 +22,10 @@ public final class PreviewIslandPainter {
         if (tile == null || settings == null || settings.world == null) {
             return;
         }
+        if (PreviewOceanLandscapePainter.shouldApply()) {
+            PreviewOceanLandscapePainter.apply(tile, settings, seed, centerX, centerZ, zoom);
+            return;
+        }
         WorldSettings.Islands islands = settings.world.islands != null ? settings.world.islands : new WorldSettings.Islands();
         boolean egfIslands = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.islandsEnabled();
         float coastal = egfIslands ? NoiseUtil.clamp(islands.coastalIslandsChance, 0.0F, 1.0F) : 0.0F;

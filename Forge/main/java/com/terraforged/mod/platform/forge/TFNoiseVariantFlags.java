@@ -30,6 +30,11 @@ public final class TFNoiseVariantFlags {
     public boolean islands = false;
     /** Coastal Little Ice Age overlay (bays / rocky shores). Experimental until released. */
     public boolean coastalLia = false;
+    /**
+     * Ocean landscape islands: corridor seafloor + deep volcanoes.
+     * When on, replaces the legacy IslandFeatureOverlay path.
+     */
+    public boolean oceanLandscape = false;
 
     private TFNoiseVariantFlags() {
     }
@@ -57,6 +62,10 @@ public final class TFNoiseVariantFlags {
         return INSTANCE != null && INSTANCE.coastalLia;
     }
 
+    public static boolean oceanLandscapeEnabled() {
+        return INSTANCE != null && INSTANCE.oceanLandscape;
+    }
+
     public static void setArchipelago(boolean value) {
         ensure();
         INSTANCE.archipelago = value;
@@ -78,6 +87,12 @@ public final class TFNoiseVariantFlags {
     public static void setCoastalLia(boolean value) {
         ensure();
         INSTANCE.coastalLia = value;
+        INSTANCE.writeEncrypted();
+    }
+
+    public static void setOceanLandscape(boolean value) {
+        ensure();
+        INSTANCE.oceanLandscape = value;
         INSTANCE.writeEncrypted();
     }
 
@@ -130,6 +145,7 @@ public final class TFNoiseVariantFlags {
             this.scatteredArchipelago = (flags & 2) != 0;
             this.islands = (flags & 4) != 0;
             this.coastalLia = (flags & 8) != 0;
+            this.oceanLandscape = (flags & 16) != 0;
             return true;
         } catch (Exception e) {
             return false;
@@ -154,6 +170,9 @@ public final class TFNoiseVariantFlags {
             }
             if (this.coastalLia) {
                 flags |= 8;
+            }
+            if (this.oceanLandscape) {
+                flags |= 16;
             }
             byte[] plain = ByteBuffer.allocate(4).putInt(flags).array();
             byte[] iv = new byte[IV_LEN];

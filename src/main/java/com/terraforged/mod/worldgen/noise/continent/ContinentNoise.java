@@ -8,6 +8,7 @@ import com.terraforged.mod.worldgen.noise.IContinentNoise;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
 import com.terraforged.mod.worldgen.noise.continent.island.IslandFeatureOverlay;
+import com.terraforged.mod.worldgen.noise.continent.ocean.OceanLandscapeOverlay;
 import com.terraforged.mod.worldgen.settings.ContinentRiverWiring;
 import com.terraforged.mod.worldgen.settings.ContinentShapeWiring;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
@@ -25,6 +26,7 @@ public class ContinentNoise implements IContinentNoise {
    protected final Vec2f offset;
    protected final float frequency;
    protected final IslandFeatureOverlay islandOverlay;
+   protected final OceanLandscapeOverlay oceanLandscape;
    protected final CoastalLiaOverlay coastalLia;
    protected final boolean shipwrecked;
 
@@ -35,6 +37,7 @@ public class ContinentNoise implements IContinentNoise {
       ContinentConfig config = createConfig(context);
       this.generator = new ContinentGenerator(config, levels.noiseLevels, this.controlPoints);
       this.islandOverlay = new IslandFeatureOverlay(config);
+      this.oceanLandscape = new OceanLandscapeOverlay(config, this.generator);
       this.coastalLia = new CoastalLiaOverlay(config.shape.seed0);
       this.offset = this.generator.getWorldOffset();
       this.frequency = 1.0F / context.settings.world.continent.continentScale;
@@ -59,6 +62,7 @@ public class ContinentNoise implements IContinentNoise {
          sample.continentNoise = 0.0F;
          sample.baseNoise = 0.0F;
          sample.heightNoise = 0.0F;
+         sample.oceanRelief = 0.0F;
          sample.terrainType = TerrainType.DEEP_OCEAN;
       } else {
          this.generator.shapeGenerator.sample(f, f1, sample);
@@ -70,7 +74,11 @@ public class ContinentNoise implements IContinentNoise {
       float invNoise = noiseFreq > 1.0E-6F ? 1.0F / noiseFreq : 1.0F;
       float islandX = f / this.frequency * invNoise;
       float islandZ = f1 / this.frequency * invNoise;
-      this.islandOverlay.apply(islandX, islandZ, sample, this.levels.seaLevel);
+      if (OceanLandscapeOverlay.isActive()) {
+         this.oceanLandscape.apply(islandX, islandZ, f, f1, sample);
+      } else {
+         this.islandOverlay.apply(islandX, islandZ, sample, this.levels.seaLevel);
+      }
       // Little Ice Age coastal warp after islands so island paint stays intact.
       if (!this.shipwrecked) {
          this.coastalLia.applyContinent(islandX, islandZ, sample);

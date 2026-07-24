@@ -25,7 +25,7 @@ public class TerrainLevels {
          )
          .apply(instance, TerrainLevels::new)
    );
-   public static final Supplier<TerrainLevels> DEFAULT = Suppliers.memoize(() -> new TerrainLevels(true, 1.0F, -64, 480, 128, 62, 22));
+   public static final Supplier<TerrainLevels> DEFAULT = Suppliers.memoize(() -> new TerrainLevels(true, 1.0F, -64, 640, 128, 62, 22));
    public final int minY;
    public final int maxY;
    public final int baseHeight;
@@ -35,7 +35,7 @@ public class TerrainLevels {
 
    public TerrainLevels() {
       this.minY = 64;
-      this.maxY = 480;
+      this.maxY = 640;
       this.baseHeight = 128;
       this.seaFloor = 22;
       this.seaLevel = 62;
@@ -91,7 +91,7 @@ public class TerrainLevels {
    public static class Defaults {
       public static final float SCALE = 1.0F;
       public static final int MIN_Y = -64;
-      public static final int MAX_Y = 480;
+      public static final int MAX_Y = 640;
       public static final int MAX_BASE_HEIGHT = 128;
       public static final int SEA_LEVEL = 62;
       public static final int SEA_FLOOR = 22;
