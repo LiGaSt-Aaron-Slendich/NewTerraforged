@@ -3,6 +3,7 @@ package com.terraforged.mod.client.gui.screen.preview;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.terraforged.engine.settings.Settings;
 import com.terraforged.engine.settings.WorldSettings;
+import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.engine.world.heightmap.ControlPoints;
 import com.terraforged.mod.platform.forge.TFNoiseVariantFlags;
 import com.terraforged.mod.worldgen.noise.NoiseLevels;
@@ -41,6 +42,22 @@ public final class PreviewCorridorDirectionOverlay {
         if (!shouldApply() || image == null || settings == null || settings.world == null) {
             return;
         }
+        try {
+            paint(image, settings, seed, centerX, centerZ, zoom, tileSize);
+        } catch (Throwable ignored) {
+            // Never crash Customize if overlay math fails.
+        }
+    }
+
+    private static void paint(
+            NativeImage image,
+            Settings settings,
+            int seed,
+            int centerX,
+            int centerZ,
+            int zoom,
+            int tileSize
+    ) {
         if (settings.world.properties != null
                 && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED) {
             return;
@@ -56,62 +73,51 @@ public final class PreviewCorridorDirectionOverlay {
         float frequency = 1.0F / continentScale;
         int half = tileSize / 2;
 
-        ContinentGenerator continent;
-        OceanCorridorGraph graph;
-        try {
-            continent = buildPreviewContinent(settings, seed);
-            graph = OceanCorridorGraph.build(continent, partners, maxDist);
-        } catch (Throwable t) {
-            return;
-        }
+        ContinentGenerator continent = buildPreviewContinent(settings, seed);
+        OceanCorridorGraph graph = OceanCorridorGraph.build(continent, partners, maxDist);
         if (graph == null || !graph.active()) {
             return;
         }
 
-        // Landmass centres first (red dots).
         for (long key : graph.landKeys()) {
-            int cx = com.terraforged.engine.util.pos.PosUtil.unpackLeft(key);
-            int cy = com.terraforged.engine.util.pos.PosUtil.unpackRight(key);
+            int cx = PosUtil.unpackLeft(key);
+            int cy = PosUtil.unpackRight(key);
             var cell = continent.getCell(cx, cy);
-            int[] pxz = shapeToPixel(cell.px, cell.py, frequency, centerX, centerZ, zoom, half);
-            fillDisk(image, pxz[0], pxz[1], 3, NODE, tileSize);
+            int px = shapeToPixel(cell.px, frequency, centerX, zoom, half);
+            int pz = shapeToPixel(cell.py, frequency, centerZ, zoom, half);
+            fillDisk(image, px, pz, 3, NODE, tileSize);
         }
 
         for (OceanCorridorGraph.DirectedEdge edge : graph.edges()) {
-            int[] a = shapeToPixel(edge.fromX(), edge.fromY(), frequency, centerX, centerZ, zoom, half);
-            int[] b = shapeToPixel(edge.toX(), edge.toY(), frequency, centerX, centerZ, zoom, half);
-            drawArrow(image, a[0], a[1], b[0], b[1], tileSize);
+            int x0 = shapeToPixel(edge.fromX(), frequency, centerX, zoom, half);
+            int y0 = shapeToPixel(edge.fromY(), frequency, centerZ, zoom, half);
+            int x1 = shapeToPixel(edge.toX(), frequency, centerX, zoom, half);
+            int y1 = shapeToPixel(edge.toY(), frequency, centerZ, zoom, half);
+            drawArrow(image, x0, y0, x1, y1, tileSize);
         }
     }
 
-    private static int[] shapeToPixel(
-            float shapeX,
-            float shapeY,
-            float frequency,
-            int centerX,
-            int centerZ,
-            int zoom,
-            int half
-    ) {
-        // Inverse of preview world→shape: shape ≈ world * frequency.
-        float worldX = shapeX / Math.max(1.0E-6F, frequency);
-        float worldZ = shapeY / Math.max(1.0E-6F, frequency);
-        int lx = NoiseUtil.round((worldX - centerX) / (float) Math.max(1, zoom) + half);
-        int lz = NoiseUtil.round((worldZ - centerZ) / (float) Math.max(1, zoom) + half);
-        return new int[]{lx, lz};
+    private static int shapeToPixel(float shape, float frequency, int center, int zoom, int half) {
+        float world = shape / Math.max(1.0E-6F, frequency);
+        if (!Float.isFinite(world)) {
+            return Integer.MIN_VALUE / 4;
+        }
+        return NoiseUtil.round((world - center) / (float) Math.max(1, zoom) + half);
     }
 
     private static void drawArrow(NativeImage image, int x0, int y0, int x1, int y1, int size) {
-        drawLine(image, x0, y0, x1, y1, LINE, size, 1);
+        if (!finiteSegment(x0, y0, x1, y1)) {
+            return;
+        }
+        drawLineClipped(image, x0, y0, x1, y1, LINE, size);
         float dx = x1 - x0;
         float dy = y1 - y0;
         float len = NoiseUtil.sqrt(dx * dx + dy * dy);
-        if (len < 4.0F) {
+        if (len < 4.0F || !Float.isFinite(len)) {
             return;
         }
         float ux = dx / len;
         float uy = dy / len;
-        // Arrow head ~8px back from tip, ±5px wings.
         float hx = x1 - ux * 8.0F;
         float hy = y1 - uy * 8.0F;
         float px = -uy;
@@ -120,32 +126,41 @@ public final class PreviewCorridorDirectionOverlay {
         int ay = NoiseUtil.round(hy + py * 5.0F);
         int bx = NoiseUtil.round(hx - px * 5.0F);
         int by = NoiseUtil.round(hy - py * 5.0F);
-        drawLine(image, x1, y1, ax, ay, HEAD, size, 1);
-        drawLine(image, x1, y1, bx, by, HEAD, size, 1);
-        // Tip highlight.
+        drawLineClipped(image, x1, y1, ax, ay, HEAD, size);
+        drawLineClipped(image, x1, y1, bx, by, HEAD, size);
         plot(image, x1, y1, HEAD, size);
-        plot(image, x1 + 1, y1, HEAD, size);
-        plot(image, x1, y1 + 1, HEAD, size);
     }
 
-    private static void drawLine(NativeImage image, int x0, int y0, int x1, int y1, int color, int size, int thickness) {
+    private static boolean finiteSegment(int x0, int y0, int x1, int y1) {
+        // Reject absurd endpoints (would hang Bresenham / flood the image).
+        int lim = 1 << 20;
+        return Math.abs(x0) < lim && Math.abs(y0) < lim && Math.abs(x1) < lim && Math.abs(y1) < lim;
+    }
+
+    private static void drawLineClipped(NativeImage image, int x0, int y0, int x1, int y1, int color, int size) {
+        // Quick reject if both ends outside with no chance to cross the image.
+        int margin = size + 8;
+        boolean aOut = x0 < -margin || y0 < -margin || x0 >= size + margin || y0 >= size + margin;
+        boolean bOut = x1 < -margin || y1 < -margin || x1 >= size + margin || y1 >= size + margin;
+        if (aOut && bOut) {
+            // Still may cross the image — allow but hard-cap steps.
+        }
         int dx = Math.abs(x1 - x0);
         int dy = Math.abs(y1 - y0);
         int sx = x0 < x1 ? 1 : -1;
         int sy = y0 < y1 ? 1 : -1;
-        int err = dx - dy;
+        long err = dx - dy;
         int x = x0;
         int y = y0;
-        while (true) {
-            for (int ty = -thickness; ty <= thickness; ty++) {
-                for (int tx = -thickness; tx <= thickness; tx++) {
-                    plot(image, x + tx, y + ty, color, size);
-                }
-            }
+        int maxSteps = size * 4 + 16;
+        for (int step = 0; step < maxSteps; step++) {
+            plot(image, x, y, color, size);
+            plot(image, x + 1, y, color, size);
+            plot(image, x, y + 1, color, size);
             if (x == x1 && y == y1) {
-                break;
+                return;
             }
-            int e2 = 2 * err;
+            long e2 = err << 1;
             if (e2 > -dy) {
                 err -= dy;
                 x += sx;
@@ -158,6 +173,9 @@ public final class PreviewCorridorDirectionOverlay {
     }
 
     private static void fillDisk(NativeImage image, int cx, int cy, int r, int color, int size) {
+        if (cx < -r || cy < -r || cx >= size + r || cy >= size + r) {
+            return;
+        }
         int r2 = r * r;
         for (int dy = -r; dy <= r; dy++) {
             for (int dx = -r; dx <= r; dx++) {

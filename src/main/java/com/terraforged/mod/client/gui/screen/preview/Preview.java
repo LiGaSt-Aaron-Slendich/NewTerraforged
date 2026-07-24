@@ -152,10 +152,8 @@ public final class Preview extends AbstractWidget {
 
     public void close() {
         this.texture.close();
-        try {
-            this.threadPool.shutdown();
-        } catch (Throwable ignored) {
-        }
+        // Do NOT shutdown ThreadPools.createDefault() — it is a shared managed singleton.
+        // Shutting it down caused RejectedExecutionException on the next preview open.
         CacheManager.get().clear();
     }
 
@@ -272,7 +270,7 @@ public final class Preview extends AbstractWidget {
 
     private void renderTile(Tile tile) {
         NativeImage image = this.texture.getPixels();
-        if (image == null) {
+        if (image == null || tile == null) {
             return;
         }
 
@@ -284,8 +282,9 @@ public final class Preview extends AbstractWidget {
         tile.iterate((cell, x, z) -> {
             if (x < stroke || z < stroke || x >= width - stroke || z >= width - stroke) {
                 image.setPixelRGBA(x, z, Color.BLACK.getRGB());
-            } else {
-                // Match worldgen climate→terrain integrator path (BiomeSampler uses the same adjust).
+                return;
+            }
+            try {
                 if (cell.biome != null && cell.terrain != null) {
                     cell.biome = SurfaceBiomeClimate.adjustForTerrain(
                             cell.biome, cell.terrain, cell.temperature, cell.moisture);
@@ -293,16 +292,21 @@ public final class Preview extends AbstractWidget {
                 int argb = renderer.getColor(cell, levels);
                 argb = applyTerrainFilter(cell, argb);
                 image.setPixelRGBA(x, z, argb);
+            } catch (Throwable t) {
+                image.setPixelRGBA(x, z, 0xFF0000FF);
             }
         });
-        PreviewCorridorDirectionOverlay.apply(
-                image,
-                this.settings,
-                this.seed,
-                this.center.x,
-                this.center.z,
-                this.getZoom(),
-                width);
+        try {
+            PreviewCorridorDirectionOverlay.apply(
+                    image,
+                    this.settings,
+                    this.seed,
+                    this.center.x,
+                    this.center.z,
+                    this.getZoom(),
+                    width);
+        } catch (Throwable ignored) {
+        }
         this.texture.upload();
     }
 

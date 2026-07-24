@@ -15,11 +15,12 @@ public enum RenderMode {
 
         @Override
         public int getColor(Cell cell, Levels levels, float scale, float bias) {
-            // Flood by absolute water line first — otherwise DEEP/SHALLOW_OCEAN
-            // categories hide sea-level changes (heights are water-relative).
             Integer flooded = floodColor(cell, levels);
             if (flooded != null) {
                 return flooded;
+            }
+            if (cell.terrain == null) {
+                return rgba(0.5F, 0.5F, 0.5F);
             }
             switch (cell.terrain.getCategory()) {
                 case DEEP_OCEAN:
@@ -29,7 +30,7 @@ public enum RenderMode {
                 case BEACH:
                     return rgba(0.2F, 0.4F, 0.75F);
                 default:
-                    Color color = cell.biome.getColor();
+                    Color color = cell.biome != null ? cell.biome.getColor() : Color.GRAY;
                     float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), new float[3]);
                     return rgba(hsb[0], hsb[1], hsb[2] * scale + bias);
             }
@@ -46,6 +47,9 @@ public enum RenderMode {
             Integer flooded = floodColor(cell, levels);
             if (flooded != null) {
                 return flooded;
+            }
+            if (cell.terrain == null) {
+                return rgba(0.5F, 0.5F, 0.5F);
             }
             switch (cell.terrain.getCategory()) {
                 case DEEP_OCEAN:
@@ -91,7 +95,7 @@ public enum RenderMode {
     TERRAIN_REGION {
         @Override
         public int getColor(Cell cell, Levels levels, float scale, float bias) {
-            return rgba(cell.terrain.getRenderHue(), 0.7F, 0.8F);
+            return rgba(cell.terrain != null ? cell.terrain.getRenderHue() : 0.0F, 0.7F, 0.8F);
         }
     },
     /**

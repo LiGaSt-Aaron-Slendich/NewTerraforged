@@ -115,9 +115,13 @@ public final class OceanCorridorGraph {
             return nodes;
         }
 
+        // Cap density — a full ±40 cell scan can yield thousands of nodes and freeze the
+        // preview render thread (O(n²) partner search when the tile image paints).
+        final int maxNodes = 48;
         int halfCells = Math.max(10, Math.min(40, GuaranteedContinentMask.HALF / 4000));
-        for (int cy = -halfCells; cy <= halfCells; cy++) {
-            for (int cx = -halfCells; cx <= halfCells; cx++) {
+        int step = Math.max(1, (2 * halfCells + 1) / 24);
+        for (int cy = -halfCells; cy <= halfCells; cy += step) {
+            for (int cx = -halfCells; cx <= halfCells; cx += step) {
                 CellPoint cell = continent.getCell(cx, cy);
                 if (continent.shapeGenerator.getThresholdValue(cell) <= 0.0F) {
                     continue;
@@ -125,7 +129,11 @@ public final class OceanCorridorGraph {
                 nodes.add(new LandNode(PosUtil.pack(cx, cy), cell.px, cell.py));
             }
         }
-        return nodes;
+        if (nodes.size() <= maxNodes) {
+            return nodes;
+        }
+        nodes.sort(Comparator.comparingDouble(n -> n.px * n.px + n.py * n.py));
+        return new ArrayList<>(nodes.subList(0, maxNodes));
     }
 
     public boolean active() {
