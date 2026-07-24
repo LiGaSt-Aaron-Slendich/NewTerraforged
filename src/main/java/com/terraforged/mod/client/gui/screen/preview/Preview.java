@@ -20,7 +20,6 @@ import com.terraforged.engine.world.continent.MutableVeci;
 import com.terraforged.engine.world.continent.SpawnType;
 import com.terraforged.engine.world.heightmap.Levels;
 import com.terraforged.mod.util.serialization.DataUtils;
-import com.terraforged.mod.worldgen.biome.SurfaceBiomeClimate;
 import com.terraforged.noise.util.NoiseUtil;
 import java.awt.Color;
 import java.util.Objects;
@@ -230,11 +229,17 @@ public final class Preview extends AbstractWidget {
         int zoom = this.previewSettings.zoom;
         boolean shapeSame = Objects.equals(this.lastShapeSettings, shapeSettings);
         boolean zoomSame = this.lastZoom == zoom;
+        // Ocean Landscape knobs are applied as a post-paint on the tile. If the engine
+        // continent shape is unchanged but OL / islands changed, still force a regen so
+        // PreviewIslandPainter runs on a fresh tile (re-paint on a dirty tile stacks).
+        boolean overlaySame = Objects.equals(
+                oceanOverlayKey(this.lastWorldSettings),
+                oceanOverlayKey(worldSettings));
         this.lastWorldSettings = worldSettings;
         this.lastPreviewSettings = previewSnap;
 
-        // Sea level / display mode: recolor only. Zoom / continents / seed: regenerate.
-        if (shapeSame && zoomSame && this.tile != null && this.task == null) {
+        // Sea level / display mode: recolor only. Zoom / continents / OL / seed: regenerate.
+        if (shapeSame && zoomSame && overlaySame && this.tile != null && this.task == null) {
             this.renderTile(this.tile);
             return;
         }
@@ -242,6 +247,28 @@ public final class Preview extends AbstractWidget {
         this.lastShapeSettings = shapeSettings;
         this.lastZoom = zoom;
         this.task = this.generate(settings, prevSettings);
+    }
+
+    /** Subset of world NBT that PreviewIslandPainter / Ocean Landscape actually read. */
+    private static CompoundTag oceanOverlayKey(CompoundTag worldCompact) {
+        CompoundTag key = new CompoundTag();
+        if (worldCompact == null) {
+            return key;
+        }
+        CompoundTag world = worldCompact.getCompound("world");
+        if (!world.isEmpty()) {
+            if (world.contains("oceanLandscape")) {
+                key.put("oceanLandscape", world.getCompound("oceanLandscape").copy());
+            }
+            if (world.contains("islands")) {
+                key.put("islands", world.getCompound("islands").copy());
+            }
+            CompoundTag props = world.getCompound("properties");
+            if (props.contains("worldStyle")) {
+                key.putString("worldStyle", props.getString("worldStyle"));
+            }
+        }
+        return key;
     }
 
     private int getSize() {
@@ -286,10 +313,10 @@ public final class Preview extends AbstractWidget {
                 return;
             }
             try {
-                if (cell.biome != null && cell.terrain != null) {
-                    cell.biome = SurfaceBiomeClimate.adjustForTerrain(
-                            cell.biome, cell.terrain, cell.temperature, cell.moisture);
-                }
+                // Do NOT run SurfaceBiomeClimate.adjustForTerrain here: engine terrain
+                // cells are noisy (hills/mountains freckles), and remapping them to ALPINE
+                // paints white salt-and-pepper over an otherwise monolithic climate map
+                // (regression vs 2026-07-23 ~16:42 preview). Worldgen BiomeSampler still adjusts.
                 int argb;
                 if (heightNormals) {
                     float left = tile.getCell(Math.max(0, x - 1), z).value;

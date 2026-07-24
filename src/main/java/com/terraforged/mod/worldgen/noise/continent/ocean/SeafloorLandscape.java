@@ -23,23 +23,29 @@ public final class SeafloorLandscape {
     }
 
     /**
-     * @param landscapeScale feature size: 1 = default, higher = larger / smoother banks
-     * @param noiseScale detail amount 0.25..3 (lower = less grain)
+     * @param landscapeScale feature size: 0.5 = tight banks, 4 = very broad (wavelength ~0.5–8 km)
+     * @param noiseScale detail amount 0.25..3 (smooth → crunchy grain)
      * @return relief 0..1 before corridor multiply
      */
     public static float relief(float worldX, float worldZ, int seed, float noiseScale, float landscapeScale) {
         float size = NoiseUtil.clamp(landscapeScale, 0.5F, 4.0F);
         float detailAmt = NoiseUtil.clamp(noiseScale, 0.25F, 3.0F);
-        // Larger landscapeScale → lower frequency (bigger features).
-        float freq = 1.0F / size;
-        float hills = ridged(seed ^ 0x51F100, worldX * (0.0018F * freq), worldZ * (0.0018F * freq));
-        float macro = valueNoise2(seed ^ 0x51F102, worldX * (0.00035F * freq), worldZ * (0.00035F * freq));
-        // Detail is intentionally weak so the seafloor reads as broad banks, not hash.
-        float detailFreq = 0.0045F * freq * (0.55F + 0.45F * detailAmt);
+        // Map slider to feature wavelength in blocks so 0.5 vs 4.0 is obvious on preview.
+        float tSize = (size - 0.5F) / 3.5F;
+        float wavelength = NoiseUtil.lerp(480.0F, 8200.0F, tSize);
+        float freq = 1.0F / Math.max(64.0F, wavelength);
+        float hills = ridged(seed ^ 0x51F100, worldX * freq, worldZ * freq);
+        float macro = valueNoise2(seed ^ 0x51F102, worldX * (freq * 0.22F), worldZ * (freq * 0.22F));
+        float tDetail = (detailAmt - 0.25F) / 2.75F;
+        float detailFreq = freq * NoiseUtil.lerp(2.5F, 14.0F, tDetail);
         float detail = valueNoise2(seed ^ 0x51F101, worldX * detailFreq, worldZ * detailFreq);
-        float detailW = NoiseUtil.clamp(0.05F + 0.04F * detailAmt, 0.04F, 0.14F);
-        float peak = NoiseUtil.clamp(hills * 0.62F + macro * 0.28F + detail * detailW, 0.0F, 1.0F);
-        return NoiseUtil.clamp((peak - 0.22F) / 0.78F, 0.0F, 1.0F);
+        float detailW = NoiseUtil.lerp(0.02F, 0.42F, tDetail);
+        float hillW = NoiseUtil.lerp(0.72F, 0.40F, tDetail);
+        float macroW = Math.max(0.08F, 1.0F - hillW - detailW);
+        float peak = NoiseUtil.clamp(hills * hillW + macro * macroW + detail * detailW, 0.0F, 1.0F);
+        // Larger landscape → slightly easier emergence (broader banks).
+        float floor = NoiseUtil.lerp(0.28F, 0.16F, tSize);
+        return NoiseUtil.clamp((peak - floor) / Math.max(0.35F, 1.0F - floor), 0.0F, 1.0F);
     }
 
     /** @deprecated prefer {@link #relief(float, float, int, float, float)} */
