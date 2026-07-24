@@ -398,6 +398,28 @@ moisture = 2
 fertility = 2
 falloff_per_hop = 0.9
 
+[[primary]]
+id = "biomesoplenty:spider_nest"
+temperature = 0.55
+vegetation_density = 0.45
+weight = 0.85
+placement_type = "full_region"
+
+[primary.stats.conditions]
+moisture = 0
+temperature = -1
+fertility = 0
+
+[primary.stats.global]
+moisture = 1
+temperature = 0
+fertility = 1
+
+[primary.stats.local]
+moisture = 1
+fertility = 1
+falloff_per_hop = 0.9
+
 [[coastal]]
 id = "biomesoplenty:glowing_grotto"
 temperature = 0.65

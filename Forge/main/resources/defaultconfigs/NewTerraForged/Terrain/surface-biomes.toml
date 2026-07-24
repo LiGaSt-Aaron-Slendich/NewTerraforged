@@ -798,10 +798,6 @@ id = "biomesoplenty:rainbow_hills"
 weight = 1.0
 
 [[grassland]]
-id = "biomesoplenty:spider_nest"
-weight = 1.0
-
-[[grassland]]
 id = "biomesoplenty:undergrowth"
 weight = 1.0
 

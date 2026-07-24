@@ -253,7 +253,8 @@ public final class CaveBiomeIds {
                 || path.contains("grotto")
                 || path.contains("hypogeal")
                 || path.contains("prismachasm")
-                || path.contains("dripstone");
+                || path.contains("dripstone")
+                || path.contains("spider_nest");
     }
 
     /** Mega/giga shell biomes whose registry id has no "cave" suffix (legacy list — tag check preferred). */

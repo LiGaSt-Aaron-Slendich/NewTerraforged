@@ -61,6 +61,10 @@ public final class BiomeTerrainIntegration {
             if (id == null) {
                 continue;
             }
+            // Cave biomes never paint the surface, even if still listed in a climate WeightMap.
+            if (com.terraforged.mod.worldgen.cave.CaveBiomeIds.isUndergroundBiome(id)) {
+                continue;
+            }
             BiomeRule rule = BiomeRuleRegistry.get(id);
             if (rule == null) {
                 values.add(holder);
@@ -82,8 +86,9 @@ public final class BiomeTerrainIntegration {
         }
 
         if (values.isEmpty()) {
-            Holder<Biome> v = climatePool.getValue(noise);
-            return v != null ? v : fallback;
+            // Never fall back to the unfiltered climate pool — that ignored terrain rules
+            // (e.g. terralith:highlands on badlands when every filtered candidate failed).
+            return fallback;
         }
 
         // Keep mod volcano kits together on *active* cones only.
