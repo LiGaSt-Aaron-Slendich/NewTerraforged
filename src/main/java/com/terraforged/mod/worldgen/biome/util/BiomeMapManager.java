@@ -87,7 +87,7 @@ public class BiomeMapManager {
       }
 
       for (Holder<Biome> holder : this.overworldBiomes) {
-         if (!objectopenhashset.contains(holder)) {
+         if (!objectopenhashset.contains(holder) && !isCaveLeak(holder)) {
             BiomeType biometype = BiomeUtil.getType(holder);
             if (biometype != null) {
                hashmap.computeIfAbsent(biometype, t -> new Object2FloatLinkedOpenHashMap()).put(holder, 1.0F);
@@ -100,11 +100,21 @@ public class BiomeMapManager {
       for (var entry : overlay.explicit().entrySet()) {
          Object2FloatMap<Holder<Biome>> map = hashmap.computeIfAbsent(entry.getKey(), t -> newMutableWeightMap());
          for (var e : entry.getValue().object2FloatEntrySet()) {
+            if (isCaveLeak(e.getKey())) {
+               continue;
+            }
             map.put(e.getKey(), e.getFloatValue());
          }
       }
 
       return hashmap;
+   }
+
+   /** Cave / underground biomes must never enter surface climate WeightMaps. */
+   private static boolean isCaveLeak(Holder<Biome> holder) {
+      return holder != null && holder.unwrapKey()
+            .map(key -> com.terraforged.mod.worldgen.cave.CaveBiomeIds.isUndergroundBiome(key.location()))
+            .orElse(false);
    }
 
    private static Object2FloatMap<Holder<Biome>> getBiomeWeights(ClimateType type, Registry<Biome> biomes, Consumer<Holder<Biome>> registered) {
@@ -117,6 +127,9 @@ public class BiomeMapManager {
          // Skip missing biomes (standalone / optional biome mods) instead of crashing.
          var optionalBiome = biomes.getOptional(id);
          if (optionalBiome.isEmpty()) {
+            continue;
+         }
+         if (com.terraforged.mod.worldgen.cave.CaveBiomeIds.isUndergroundBiome(id)) {
             continue;
          }
          var optionalKey = biomes.getResourceKey(optionalBiome.get());

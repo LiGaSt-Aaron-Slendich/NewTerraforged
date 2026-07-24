@@ -26,7 +26,7 @@ public final class SurfaceBiomeClimate {
         if (terrain.isVolcano() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.VOLCANO)) {
             return SurfaceBiomeClimate.volcanicClimate(climate, temperature);
         }
-        if (SurfaceBiomeClimate.matchesKind(terrain, TerrainType.BADLANDS)) {
+        if (SurfaceBiomeClimate.isBadlandsTerrain(terrain)) {
             return SurfaceBiomeClimate.badlandsClimate(climate, moisture);
         }
         if (terrain.isWetland() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.WETLAND)) {
@@ -66,6 +66,23 @@ public final class SurfaceBiomeClimate {
             return climate;
         }
         return moisture < 0.55f ? BiomeType.DESERT : BiomeType.SAVANNA;
+    }
+
+    /**
+     * Same recognition as {@link com.terraforged.mod.worldgen.biome.rules.SubterrainResolver}:
+     * kind chain <em>or</em> terrain name. Without the name check, mesa-like cells whose
+     * Terrain wrapper does not delegate to {@link TerrainType#BADLANDS} keep raw temperate
+     * climate while terrain rules still see {@code "badlands"} — climate∩terrain mismatch.
+     */
+    private static boolean isBadlandsTerrain(Terrain terrain) {
+        if (terrain == null) {
+            return false;
+        }
+        if (SurfaceBiomeClimate.matchesKind(terrain, TerrainType.BADLANDS)) {
+            return true;
+        }
+        String name = terrain.getName();
+        return name != null && "badlands".equalsIgnoreCase(name);
     }
 
     private static BiomeType wetterClimate(BiomeType climate, float temperature) {
