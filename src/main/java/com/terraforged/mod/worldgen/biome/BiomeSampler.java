@@ -30,10 +30,10 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
             this.noiseGenerator,
             x,
             z);
-      return this.getBiomeOverride(holder, climatesample);
+      return this.getBiomeOverride(holder, climatesample, x, z);
    }
 
-   protected Holder<Biome> getBiomeOverride(Holder<Biome> input, ClimateSample sample) {
+   protected Holder<Biome> getBiomeOverride(Holder<Biome> input, ClimateSample sample, int x, int z) {
       BiomeType biometype = sample.climateType;
       if (sample.continentNoise <= 0.25F) {
          return switch (biometype) {
@@ -50,11 +50,18 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
             default -> this.biomeMapManager.get(Biomes.OCEAN);
          };
       } else if (sample.continentNoise <= 0.505F) {
-         return switch (biometype) {
-            case COLD_STEPPE -> this.biomeMapManager.get(Biomes.STONY_SHORE);
-            case TUNDRA -> this.biomeMapManager.get(Biomes.SNOWY_BEACH);
-            default -> this.biomeMapManager.get(Biomes.BEACH);
-         };
+         // Tundra stays snowy beach; elsewhere LIA rocky segments → stony shore.
+         if (biometype == BiomeType.TUNDRA) {
+            return this.biomeMapManager.get(Biomes.SNOWY_BEACH);
+         }
+         var lia = this.noiseGenerator.getContinent().getCoastalLia();
+         if (lia != null && lia.isRockyShore((float) x, (float) z, sample.continentNoise)) {
+            return this.biomeMapManager.get(Biomes.STONY_SHORE);
+         }
+         if (biometype == BiomeType.COLD_STEPPE) {
+            return this.biomeMapManager.get(Biomes.STONY_SHORE);
+         }
+         return this.biomeMapManager.get(Biomes.BEACH);
       } else if ((sample.terrainType.isRiver() || sample.terrainType.isLake()) && sample.riverNoise == 0.0F) {
          return biometype == BiomeType.TUNDRA ? this.biomeMapManager.get(Biomes.FROZEN_RIVER) : this.biomeMapManager.get(Biomes.RIVER);
       } else {

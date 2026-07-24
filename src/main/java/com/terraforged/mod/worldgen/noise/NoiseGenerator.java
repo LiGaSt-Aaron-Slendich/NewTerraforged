@@ -10,6 +10,7 @@ import com.terraforged.mod.util.SpiralIterator;
 import com.terraforged.mod.data.ModTerrainTypes;
 import com.terraforged.mod.worldgen.asset.TerrainNoise;
 import com.terraforged.mod.worldgen.noise.continent.ContinentNoise;
+import com.terraforged.mod.worldgen.noise.continent.CoastalLiaOverlay;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
@@ -295,6 +296,13 @@ public class NoiseGenerator implements INoiseGenerator {
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);
          sample.terrainType = this.land.getTerrain(blender);
+      }
+      // LIA mild cliff/carve after base blend height (before rivers/erosion tile).
+      CoastalLiaOverlay lia = this.continent.getCoastalLia();
+      if (lia != null) {
+         float freq = this.levels.noiseLevels.frequency;
+         float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
+         lia.applyHeight(x * inv, z * inv, sample);
       }
       restorePainted(sample, painted, paintedH);
    }

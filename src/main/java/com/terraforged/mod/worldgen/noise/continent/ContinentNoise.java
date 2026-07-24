@@ -25,6 +25,7 @@ public class ContinentNoise implements IContinentNoise {
    protected final Vec2f offset;
    protected final float frequency;
    protected final IslandFeatureOverlay islandOverlay;
+   protected final CoastalLiaOverlay coastalLia;
    protected final boolean shipwrecked;
 
    public ContinentNoise(TerrainLevels levels, GeneratorContext context) {
@@ -34,6 +35,7 @@ public class ContinentNoise implements IContinentNoise {
       ContinentConfig config = createConfig(context);
       this.generator = new ContinentGenerator(config, levels.noiseLevels, this.controlPoints);
       this.islandOverlay = new IslandFeatureOverlay(config);
+      this.coastalLia = new CoastalLiaOverlay(config.shape.seed0);
       this.offset = this.generator.getWorldOffset();
       this.frequency = 1.0F / context.settings.world.continent.continentScale;
       this.shipwrecked = context.settings.world.properties != null
@@ -69,6 +71,15 @@ public class ContinentNoise implements IContinentNoise {
       float islandX = f / this.frequency * invNoise;
       float islandZ = f1 / this.frequency * invNoise;
       this.islandOverlay.apply(islandX, islandZ, sample, this.levels.seaLevel);
+      // Little Ice Age coastal warp after islands so island paint stays intact.
+      if (!this.shipwrecked) {
+         this.coastalLia.applyContinent(islandX, islandZ, sample);
+      }
+   }
+
+   @Override
+   public CoastalLiaOverlay getCoastalLia() {
+      return this.coastalLia;
    }
 
    @Override
