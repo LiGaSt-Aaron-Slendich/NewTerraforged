@@ -23,15 +23,26 @@ public final class SeafloorLandscape {
     }
 
     /**
+     * @param noiseScale 1.0 = default frequencies; lower = smoother / larger features;
+     *                   higher = noisier / finer detail
      * @return relief 0..1 before corridor multiply
      */
-    public static float relief(float worldX, float worldZ, int seed) {
-        float hills = ridged(seed ^ 0x51F100, worldX * 0.0028F, worldZ * 0.0028F);
-        float detail = valueNoise2(seed ^ 0x51F101, worldX * 0.011F, worldZ * 0.011F);
-        float macro = valueNoise2(seed ^ 0x51F102, worldX * 0.00055F, worldZ * 0.00055F);
-        float peak = NoiseUtil.clamp(hills * 0.72F + detail * 0.18F + macro * 0.22F, 0.0F, 1.0F);
-        // Soften flats: push mid values down so only ridges emerge.
+    public static float relief(float worldX, float worldZ, int seed, float noiseScale) {
+        float scale = NoiseUtil.clamp(noiseScale, 0.25F, 4.0F);
+        float hills = ridged(seed ^ 0x51F100, worldX * (0.0028F * scale), worldZ * (0.0028F * scale));
+        float detail = valueNoise2(seed ^ 0x51F101, worldX * (0.011F * scale), worldZ * (0.011F * scale));
+        float macro = valueNoise2(seed ^ 0x51F102, worldX * (0.00055F * scale), worldZ * (0.00055F * scale));
+        // Higher scale also boosts detail weight slightly — clamp so it doesn't become hash.
+        float detailW = NoiseUtil.clamp(0.12F + 0.06F * scale, 0.10F, 0.28F);
+        float hillW = 1.0F - detailW - 0.22F;
+        float peak = NoiseUtil.clamp(hills * hillW + detail * detailW + macro * 0.22F, 0.0F, 1.0F);
         return NoiseUtil.clamp((peak - 0.28F) / 0.72F, 0.0F, 1.0F);
+    }
+
+    /** @deprecated prefer {@link #relief(float, float, int, float)} */
+    @Deprecated
+    public static float relief(float worldX, float worldZ, int seed) {
+        return relief(worldX, worldZ, seed, 1.0F);
     }
 
     public static Form formFor(float maskedRelief, int seed, int cellX, int cellZ) {

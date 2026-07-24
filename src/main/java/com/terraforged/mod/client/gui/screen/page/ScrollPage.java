@@ -37,6 +37,8 @@ public class ScrollPage implements Page {
     private final Component title;
     private final SettingsDraft draft;
     private final String sectionKey;
+    /** If non-null, section lives under {@code settingsData[parentKey][sectionKey]}. */
+    private final String parentKey;
     private final Supplier<Object> sectionSupplier;
     private final Runnable onChange;
     private final Set<String> skipKeys;
@@ -57,7 +59,7 @@ public class ScrollPage implements Page {
             Supplier<Object> sectionSupplier,
             Runnable onChange
     ) {
-        this(titleKey, draft, sectionKey, sectionSupplier, onChange, Collections.emptySet());
+        this(titleKey, draft, sectionKey, null, sectionSupplier, onChange, Collections.emptySet());
     }
 
     public ScrollPage(
@@ -68,9 +70,22 @@ public class ScrollPage implements Page {
             Runnable onChange,
             Set<String> skipKeys
     ) {
+        this(titleKey, draft, sectionKey, null, sectionSupplier, onChange, skipKeys);
+    }
+
+    public ScrollPage(
+            String titleKey,
+            SettingsDraft draft,
+            String sectionKey,
+            String parentKey,
+            Supplier<Object> sectionSupplier,
+            Runnable onChange,
+            Set<String> skipKeys
+    ) {
         this.title = new TranslatableComponent(titleKey);
         this.draft = draft;
         this.sectionKey = sectionKey;
+        this.parentKey = parentKey;
         this.sectionSupplier = sectionSupplier;
         this.onChange = onChange;
         this.skipKeys = skipKeys != null ? skipKeys : Collections.emptySet();
@@ -103,10 +118,21 @@ public class ScrollPage implements Page {
 
         this.draft.applyToSettings();
         this.draft.refreshNbt();
-        CompoundTag section = this.draft.settingsData().getCompound(this.sectionKey);
-        if (section.isEmpty() && this.sectionSupplier.get() != null) {
-            section = DataUtils.toNBT(this.sectionSupplier.get());
-            this.draft.settingsData().put(this.sectionKey, section);
+        CompoundTag section;
+        if (this.parentKey != null && !this.parentKey.isEmpty()) {
+            CompoundTag parent = this.draft.settingsData().getCompound(this.parentKey);
+            section = parent.getCompound(this.sectionKey);
+            if (section.isEmpty() && this.sectionSupplier.get() != null) {
+                section = DataUtils.toNBT(this.sectionSupplier.get());
+                parent.put(this.sectionKey, section);
+                this.draft.settingsData().put(this.parentKey, parent);
+            }
+        } else {
+            section = this.draft.settingsData().getCompound(this.sectionKey);
+            if (section.isEmpty() && this.sectionSupplier.get() != null) {
+                section = DataUtils.toNBT(this.sectionSupplier.get());
+                this.draft.settingsData().put(this.sectionKey, section);
+            }
         }
 
         AtomicInteger y = new AtomicInteger(0);

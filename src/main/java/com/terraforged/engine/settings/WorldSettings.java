@@ -20,6 +20,11 @@ public class WorldSettings {
     public transient long seed = 0L;
     /** Coastal / volcanic islands and landmass distribution (UI section before Continent). */
     public Islands islands = new Islands();
+    /**
+     * EGF Ocean Landscape tunables. Customize page is only reachable when
+     * Experimental → Ocean Landscape is ON.
+     */
+    public OceanLandscape oceanLandscape = new OceanLandscape();
     public Continent continent = new Continent();
     public ControlPoints controlPoints = new ControlPoints();
     public Properties properties = new Properties();
@@ -29,6 +34,39 @@ public class WorldSettings {
         CONTINENTS,
         /** Don't Starve: Shipwrecked inspired — no continents, only islands / archipelagos / volcanic islands. */
         SHIPWRECKED
+    }
+
+    @Serializable
+    public static class OceanLandscape {
+        @Range(min = 0.25f, max = 3.0f)
+        @Comment(value = {
+                "Seafloor noise scale for Ocean Landscape corridors.",
+                "Lower = smoother banks / larger features. Higher = noisier / finer detail.",
+                "Requires EGF Untested → Ocean Landscape ON."
+        })
+        public float noiseScale = 1.0f;
+
+        @Range(min = 1.0f, max = 4.0f)
+        @Comment(value = {
+                "Each continent forms seafloor corridors only toward this many nearest continents",
+                "(2–3 recommended). Stops a full mesh of ridges between every landmass.",
+                "Requires EGF Untested → Ocean Landscape ON."
+        })
+        public int corridorPartners = 2;
+
+        @Range(min = 0.0f, max = 1.0f)
+        @Comment(value = {
+                "Strength of inter-continent seafloor corridors / banks.",
+                "0 = almost none, 1 = strong. Requires EGF Ocean Landscape ON."
+        })
+        public float corridorStrength = 0.85f;
+
+        @Range(min = 0.0f, max = 1.0f)
+        @Comment(value = {
+                "Deep-ocean volcano density for Ocean Landscape.",
+                "0 = rare/none, 1 = denser. Requires EGF Ocean Landscape ON."
+        })
+        public float volcanoDensity = 0.55f;
     }
 
     @Serializable

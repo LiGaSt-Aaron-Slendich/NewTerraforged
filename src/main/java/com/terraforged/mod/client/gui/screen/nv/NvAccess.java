@@ -42,6 +42,18 @@ public final class NvAccess {
                 || n.equals("volcanicislands") || n.equals("volcanicislandschance");
     }
 
+    public static boolean isOceanLandscapeSetting(String fieldName) {
+        if (fieldName == null) {
+            return false;
+        }
+        String n = fieldName.toLowerCase(Locale.ROOT);
+        return n.equals("noisescale")
+                || n.equals("corridorpartners")
+                || n.equals("corridorstrength")
+                || n.equals("volcanodensity")
+                || n.equals("oceanlandscape");
+    }
+
     public static boolean isBlockedSetting(String fieldName) {
         if (isArchipelagoSetting(fieldName)) {
             return !TFNoiseVariantFlags.archipelagoEnabled();
@@ -51,6 +63,9 @@ public final class NvAccess {
         }
         if (isIslandsSetting(fieldName)) {
             return !TFNoiseVariantFlags.islandsEnabled();
+        }
+        if (isOceanLandscapeSetting(fieldName)) {
+            return !TFNoiseVariantFlags.oceanLandscapeEnabled();
         }
         return false;
     }

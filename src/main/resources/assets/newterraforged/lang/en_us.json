@@ -11,6 +11,8 @@
   "newterraforged.gui.page.world": "World",
   "newterraforged.gui.page.world.shipwrecked": "World (Islands)",
   "newterraforged.gui.page.world.body": "World size / spawn / continent controls — coming next.",
+  "newterraforged.gui.page.ocean_landscape": "Ocean Landscape",
+  "newterraforged.gui.page.ocean_landscape.body": "EGF Ocean Landscape: seafloor corridors and deep volcanoes. Enable via Untested → Ocean Landscape.",
   "newterraforged.gui.page.climate": "Climate",
   "newterraforged.gui.page.climate.body": "Temperature / moisture sliders — coming next. Preview already samples climate noise.",
   "newterraforged.gui.page.terrain": "Terrain",

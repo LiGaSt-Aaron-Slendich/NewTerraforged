@@ -13,12 +13,20 @@ import com.terraforged.noise.util.NoiseUtil;
 public final class OceanLandscapeOverlay {
     private final int seed;
     private final ContinentGenerator continent;
+    private final OceanCorridorGraph corridorGraph;
     private final boolean shipwrecked;
+    private final float noiseScale;
+    private final float corridorStrength;
+    private final float volcanoDensity;
 
     public OceanLandscapeOverlay(ContinentConfig config, ContinentGenerator continent) {
         this.seed = config.shape.seed0 ^ 0x0CEA11;
         this.continent = continent;
         this.shipwrecked = config.shape.shipwrecked;
+        this.noiseScale = config.shape.oceanNoiseScale;
+        this.corridorStrength = config.shape.oceanCorridorStrength;
+        this.volcanoDensity = config.shape.oceanVolcanoDensity;
+        this.corridorGraph = OceanCorridorGraph.build(continent, config.shape.oceanCorridorPartners);
     }
 
     public static boolean isActive() {
@@ -34,17 +42,25 @@ public final class OceanLandscapeOverlay {
             return;
         }
         float cn = sample.continentNoise;
-        OceanZoneMask.Zone zone = OceanZoneMask.evaluate(this.continent, shapeX, shapeY, cn, this.shipwrecked);
+        OceanZoneMask.Zone zone = OceanZoneMask.evaluate(
+                this.continent,
+                this.corridorGraph,
+                shapeX,
+                shapeY,
+                cn,
+                this.shipwrecked,
+                this.corridorStrength);
 
         // Volcano first so pipe/crater is never overwritten by corridor island emerge.
         DeepVolcano.Result volcano = DeepVolcano.Result.NONE;
-        if (zone.deep() > 0.08F) {
-            volcano = DeepVolcano.eval(worldX, worldZ, this.seed, zone.deep(), this.shipwrecked);
+        if (zone.deep() > 0.08F && this.volcanoDensity > 0.01F) {
+            volcano = DeepVolcano.eval(
+                    worldX, worldZ, this.seed, zone.deep(), this.shipwrecked, this.volcanoDensity);
             IslandEmergence.emergeVolcano(sample, volcano);
         }
 
         if (!volcano.hit() && zone.corridor() > 0.04F) {
-            float relief = SeafloorLandscape.relief(worldX, worldZ, this.seed);
+            float relief = SeafloorLandscape.relief(worldX, worldZ, this.seed, this.noiseScale);
             float masked = relief * zone.corridor();
             float emergeAt = this.shipwrecked
                     ? SeafloorLandscape.SHIP_EMERGE_THRESHOLD

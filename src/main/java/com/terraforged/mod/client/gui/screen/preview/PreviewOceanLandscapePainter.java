@@ -25,6 +25,12 @@ public final class PreviewOceanLandscapePainter {
         if (tile == null || settings == null || settings.world == null) {
             return;
         }
+        WorldSettings.OceanLandscape ol = settings.world.oceanLandscape != null
+                ? settings.world.oceanLandscape
+                : new WorldSettings.OceanLandscape();
+        float noiseScale = NoiseUtil.clamp(ol.noiseScale, 0.25F, 3.0F);
+        float corridorStrength = NoiseUtil.clamp(ol.corridorStrength, 0.0F, 1.0F);
+        float volcanoDensity = NoiseUtil.clamp(ol.volcanoDensity, 0.0F, 1.0F);
         boolean shipwrecked = settings.world.properties != null
                 && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED;
         Levels levels = new Levels(settings.world);
@@ -50,18 +56,18 @@ public final class PreviewOceanLandscapePainter {
             float corridor;
             if (shipwrecked) {
                 corridor = OceanZoneMask.shipwreckedBanks(worldX * 0.0004F, worldZ * 0.0004F, paintSeed)
-                        * OceanZoneMask.SHIP_BANK_CAP;
+                        * OceanZoneMask.SHIP_BANK_CAP * (0.55F + 0.45F * corridorStrength);
                 deep = Math.max(deep, 0.55F + (1.0F - NoiseUtil.clamp(cn, 0.0F, 1.0F)) * 0.35F);
             } else if (cn >= OceanZoneMask.SHORE_CN) {
                 corridor = 0.0F;
             } else {
-                // Preview lacks continent cells — approximate corridor via low-cn + ridge noise.
-                float ridge = SeafloorLandscape.relief(worldX, worldZ, paintSeed ^ 0xC0FF);
-                corridor = ridge * (1.0F - cn / OceanZoneMask.SHORE_CN) * 0.85F;
+                // Preview lacks ContinentGenerator — approximate corridor (worldgen uses guaranteed pairs).
+                float ridge = SeafloorLandscape.relief(worldX, worldZ, paintSeed ^ 0xC0FF, noiseScale);
+                corridor = ridge * (1.0F - cn / OceanZoneMask.SHORE_CN) * corridorStrength;
             }
 
             if (corridor > 0.04F) {
-                float relief = SeafloorLandscape.relief(worldX, worldZ, paintSeed);
+                float relief = SeafloorLandscape.relief(worldX, worldZ, paintSeed, noiseScale);
                 float masked = relief * corridor;
                 float emergeAt = shipwrecked
                         ? SeafloorLandscape.SHIP_EMERGE_THRESHOLD
@@ -81,8 +87,9 @@ public final class PreviewOceanLandscapePainter {
                 }
             }
 
-            if (deep > 0.08F) {
-                DeepVolcano.Result v = DeepVolcano.eval(worldX, worldZ, paintSeed, deep, shipwrecked);
+            if (deep > 0.08F && volcanoDensity > 0.01F) {
+                DeepVolcano.Result v = DeepVolcano.eval(
+                        worldX, worldZ, paintSeed, deep, shipwrecked, volcanoDensity);
                 if (v.hit()) {
                     if (v.pipe()) {
                         cell.terrain = TerrainType.VOLCANO_PIPE;

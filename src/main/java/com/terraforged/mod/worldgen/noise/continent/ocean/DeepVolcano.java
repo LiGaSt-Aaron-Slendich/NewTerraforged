@@ -24,10 +24,21 @@ public final class DeepVolcano {
             float deepAllow,
             boolean shipwrecked
     ) {
+        return eval(worldX, worldZ, seed, deepAllow, shipwrecked, shipwrecked ? 0.85F : 0.55F);
+    }
+
+    public static Result eval(
+            float worldX,
+            float worldZ,
+            int seed,
+            float deepAllow,
+            boolean shipwrecked,
+            float densitySlider
+    ) {
         if (deepAllow < 0.08F) {
             return Result.NONE;
         }
-        float density = shipwrecked ? 0.42F : 0.16F;
+        float density = NoiseUtil.clamp(densitySlider, 0.0F, 1.0F) * (shipwrecked ? 0.75F : 0.28F);
         float gate = deepAllow * (shipwrecked ? 1.15F : 1.0F);
         int cell = shipwrecked ? SHIP_VOLC_CELL : VOLC_CELL;
         int cx = NoiseUtil.floor(worldX / (float) cell);

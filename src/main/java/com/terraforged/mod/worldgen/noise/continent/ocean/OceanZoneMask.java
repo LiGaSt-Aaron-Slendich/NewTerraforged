@@ -3,13 +3,14 @@ package com.terraforged.mod.worldgen.noise.continent.ocean;
 import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.noise.continent.ContinentGenerator;
+import com.terraforged.mod.worldgen.noise.continent.GuaranteedContinentMask;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Sample-time ocean zoning for the ocean-landscape island system.
- * Corridor = soft Voronoi edge between two land cells (inter-continent ridge).
- * Deep = far from shore by continentNoise. Shipwrecked uses dense noise banks.
+ * Corridor = soft Voronoi edge between two linked continent centres
+ * (see {@link OceanCorridorGraph}). Deep = far from shore by continentNoise.
  */
 public final class OceanZoneMask {
     /** Above this cn the new system does not paint (coast left to LIA / blend). */
@@ -28,23 +29,26 @@ public final class OceanZoneMask {
 
     public static Zone evaluate(
             ContinentGenerator continent,
+            OceanCorridorGraph graph,
             float shapeX,
             float shapeY,
             float continentNoise,
-            boolean shipwrecked
+            boolean shipwrecked,
+            float corridorStrength
     ) {
         float cn = NoiseUtil.clamp(continentNoise, 0.0F, 1.0F);
         float deep = deepAllow(cn);
+        float strength = NoiseUtil.clamp(corridorStrength, 0.0F, 1.0F);
         float corridor;
         if (shipwrecked) {
-            corridor = shipwreckedBanks(shapeX, shapeY, continent.seed) * SHIP_BANK_CAP;
+            corridor = shipwreckedBanks(shapeX, shapeY, continent.seed) * SHIP_BANK_CAP * (0.55F + 0.45F * strength);
             deep = Math.max(deep, 0.55F + (1.0F - cn) * 0.35F);
         } else if (cn >= SHORE_CN) {
             corridor = 0.0F;
         } else {
-            float edge = landLandEdge(continent, shapeX, shapeY);
+            float edge = corridorEdge(continent, graph, shapeX, shapeY);
             float oceanFade = 1.0F - cn / SHORE_CN;
-            corridor = edge * oceanFade;
+            corridor = edge * oceanFade * strength;
         }
         return new Zone(corridor, deep);
     }
@@ -58,11 +62,60 @@ public final class OceanZoneMask {
     }
 
     /**
-     * Strength of equidistance ridge between the two nearest land continent cells.
+     * Equidistance ridge between the two nearest guaranteed land centres,
+     * only when that pair is in the corridor graph (2–3 nearest partners).
      */
-    public static float landLandEdge(ContinentGenerator continent, float shapeX, float shapeY) {
+    public static float corridorEdge(
+            ContinentGenerator continent,
+            OceanCorridorGraph graph,
+            float shapeX,
+            float shapeY
+    ) {
         float x = continent.cellShape.adjustX(shapeX);
         float y = continent.cellShape.adjustY(shapeY);
+        GuaranteedContinentMask mask = continent.guaranteeMask;
+        if (graph != null && graph.active() && mask != null && mask.active()) {
+            return guaranteedCorridor(continent, graph, mask, x, y);
+        }
+        return localLandLandEdge(continent, x, y);
+    }
+
+    private static float guaranteedCorridor(
+            ContinentGenerator continent,
+            OceanCorridorGraph graph,
+            GuaranteedContinentMask mask,
+            float x,
+            float y
+    ) {
+        float d0 = Float.MAX_VALUE;
+        float d1 = Float.MAX_VALUE;
+        long k0 = 0L;
+        long k1 = 0L;
+        for (long key : mask.landCellKeys()) {
+            int cx = PosUtil.unpackLeft(key);
+            int cy = PosUtil.unpackRight(key);
+            CellPoint cell = continent.getCell(cx, cy);
+            float dist = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cell.px, cell.py));
+            if (dist < d0) {
+                d1 = d0;
+                k1 = k0;
+                d0 = dist;
+                k0 = key;
+            } else if (dist < d1) {
+                d1 = dist;
+                k1 = key;
+            }
+        }
+        if (d1 >= Float.MAX_VALUE * 0.5F || !graph.allowsPair(k0, k1)) {
+            return 0.0F;
+        }
+        return ridgeStrength(d0, d1);
+    }
+
+    /**
+     * Fallback when guarantee is off: 5×5 land cells around nearest cell.
+     */
+    private static float localLandLandEdge(ContinentGenerator continent, float x, float y) {
         long nearest = continent.getNearestCell(x, y);
         int cx = PosUtil.unpackLeft(nearest);
         int cy = PosUtil.unpackRight(nearest);
@@ -71,8 +124,8 @@ public final class OceanZoneMask {
         float d1 = Float.MAX_VALUE;
         int landCount = 0;
 
-        for (int dz = -1; dz <= 1; dz++) {
-            for (int dx = -1; dx <= 1; dx++) {
+        for (int dz = -2; dz <= 2; dz++) {
+            for (int dx = -2; dx <= 2; dx++) {
                 CellPoint cell = continent.getCell(cx + dx, cy + dz);
                 if (continent.shapeGenerator.getThresholdValue(cell) <= 0.0F) {
                     continue;
@@ -91,11 +144,13 @@ public final class OceanZoneMask {
         if (landCount < 2 || d1 >= Float.MAX_VALUE * 0.5F) {
             return 0.0F;
         }
+        return ridgeStrength(d0, d1);
+    }
 
+    private static float ridgeStrength(float d0, float d1) {
         float avg = 0.5F * (d0 + d1);
-        float width = Math.max(0.04F, avg * 0.32F);
+        float width = Math.max(0.04F, avg * 0.28F);
         float edge = 1.0F - NoiseUtil.clamp(Math.abs(d0 - d1) / width, 0.0F, 1.0F);
-        // Prefer mid-ocean ridges: weaken if very close to a land centre.
         float away = NoiseUtil.clamp(d0 / Math.max(0.08F, avg * 0.9F), 0.0F, 1.0F);
         return NoiseUtil.clamp(edge * away, 0.0F, 1.0F);
     }

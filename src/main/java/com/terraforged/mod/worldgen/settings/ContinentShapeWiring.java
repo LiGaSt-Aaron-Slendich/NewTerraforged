@@ -17,17 +17,26 @@ public final class ContinentShapeWiring {
     }
 
     public static void apply(ContinentConfig config, Settings settings) {
-        apply(config, settings.world.continent, settings.world.islands);
+        apply(config, settings.world.continent, settings.world.islands, settings.world.oceanLandscape);
         if (settings.world.properties != null && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED) {
             applyShipwrecked(config);
         }
     }
 
     public static void apply(ContinentConfig config, WorldSettings.Continent continent) {
-        apply(config, continent, new WorldSettings.Islands());
+        apply(config, continent, new WorldSettings.Islands(), new WorldSettings.OceanLandscape());
     }
 
     public static void apply(ContinentConfig config, WorldSettings.Continent continent, WorldSettings.Islands islands) {
+        apply(config, continent, islands, new WorldSettings.OceanLandscape());
+    }
+
+    public static void apply(
+            ContinentConfig config,
+            WorldSettings.Continent continent,
+            WorldSettings.Islands islands,
+            WorldSettings.OceanLandscape oceanLandscape
+    ) {
         config.shape.scale = Math.max(100, continent.continentScale);
         float spread = NoiseUtil.clamp(continent.continentsSpread, 0.0F, 1.0F);
         float baseJitter = NoiseUtil.clamp(continent.continentJitter, 0.0F, 1.0F);
@@ -49,6 +58,7 @@ public final class ContinentShapeWiring {
         config.shape.guaranteedContinents = Math.max(1, Math.min(16, continent.guaranteedContinents));
         config.shape.guaranteedContinentsEnabled = continent.guaranteedContinentsEnabled;
         config.shape.continentsSpread = spread;
+        wireOceanLandscape(config, oceanLandscape);
         // Ocean Landscape replaces legacy island paint when EGF is on.
         if (com.terraforged.mod.platform.forge.TFNoiseVariantFlags.oceanLandscapeEnabled()) {
             config.shape.coastalIslandsChance = 0.0F;
@@ -79,6 +89,14 @@ public final class ContinentShapeWiring {
                 ? NoiseUtil.clamp(islands.scatteredArchipelagoChance, 0.0F, 1.0F)
                 : 0.0F;
         config.shape.shipwrecked = false;
+    }
+
+    private static void wireOceanLandscape(ContinentConfig config, WorldSettings.OceanLandscape ol) {
+        WorldSettings.OceanLandscape src = ol != null ? ol : new WorldSettings.OceanLandscape();
+        config.shape.oceanNoiseScale = NoiseUtil.clamp(src.noiseScale, 0.25F, 3.0F);
+        config.shape.oceanCorridorPartners = Math.max(1, Math.min(4, src.corridorPartners));
+        config.shape.oceanCorridorStrength = NoiseUtil.clamp(src.corridorStrength, 0.0F, 1.0F);
+        config.shape.oceanVolcanoDensity = NoiseUtil.clamp(src.volcanoDensity, 0.0F, 1.0F);
     }
 
     /** Islands-only mode: suppress continent land cells; overlay places all land. */

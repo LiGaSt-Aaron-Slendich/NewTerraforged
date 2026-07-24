@@ -49,5 +49,15 @@ public class ContinentConfig {
       public float scatteredArchipelagoChance = 0.35F;
       /** Don't Starve: Shipwrecked — suppress continents; islands only. */
       public boolean shipwrecked = false;
+
+      // --- Ocean Landscape (EGF) tunables ---
+      /** Seafloor noise frequency scale. 1 = default; lower = smoother. */
+      public float oceanNoiseScale = 1.0F;
+      /** Each continent links to this many nearest neighbours for seafloor corridors. */
+      public int oceanCorridorPartners = 2;
+      /** Overall corridor / bank strength 0..1. */
+      public float oceanCorridorStrength = 0.85F;
+      /** Deep-ocean volcano density multiplier 0..1. */
+      public float oceanVolcanoDensity = 0.55F;
    }
 }

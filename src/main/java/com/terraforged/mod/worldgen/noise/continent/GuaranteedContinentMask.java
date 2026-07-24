@@ -139,6 +139,11 @@ public final class GuaranteedContinentMask {
         return this.landCells.size();
     }
 
+    /** Guaranteed land cell keys ({@link PosUtil#pack} of cell X/Y). Empty when inactive. */
+    public LongSet landCellKeys() {
+        return this.landCells;
+    }
+
     /**
      * Soft cut in the guarantee window: fixed thresholds so island chances
      * (especially volcanic) never inflate continent / landmass count.

@@ -27,4 +27,16 @@ public final class SettingsSectionPage extends ScrollPage {
     ) {
         super(titleKey, draft, sectionKey, sectionSupplier, onChange, skipKeys);
     }
+
+    /** Nested section under a parent NBT compound (e.g. {@code world.oceanLandscape}). */
+    public SettingsSectionPage(
+            String titleKey,
+            SettingsDraft draft,
+            String parentKey,
+            String sectionKey,
+            Supplier<Object> sectionSupplier,
+            Runnable onChange
+    ) {
+        super(titleKey, draft, sectionKey, parentKey, sectionSupplier, onChange, Collections.emptySet());
+    }
 }

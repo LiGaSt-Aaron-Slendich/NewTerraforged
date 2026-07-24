@@ -66,24 +66,32 @@ public final class ConfigScreen extends Screen {
         this.previewPage = new PreviewPage(this.draft);
         Runnable refresh = this.previewPage::refresh;
         Set<String> worldSkip = this.shipwreckedMode
-                ? Set.of("continent", "worldStyle")
-                : Set.of("worldStyle");
-        this.pages = new Page[]{
-                new PresetsPage(this.draft, refresh),
-                new SettingsSectionPage(
-                        this.shipwreckedMode
-                                ? "newterraforged.gui.page.world.shipwrecked"
-                                : "newterraforged.gui.page.world",
-                        this.draft,
-                        "world",
-                        () -> this.draft.settings().world,
-                        refresh,
-                        worldSkip),
-                new SettingsSectionPage("newterraforged.gui.page.climate", this.draft, "climate", () -> this.draft.settings().climate, refresh),
-                new SettingsSectionPage("newterraforged.gui.page.terrain", this.draft, "terrain", () -> this.draft.settings().terrain, refresh),
-                new SettingsSectionPage("newterraforged.gui.page.rivers", this.draft, "rivers", () -> this.draft.settings().rivers, refresh),
-                new SettingsSectionPage("newterraforged.gui.page.filters", this.draft, "filters", () -> this.draft.settings().filters, refresh),
-        };
+                ? Set.of("continent", "worldStyle", "oceanLandscape")
+                : Set.of("worldStyle", "oceanLandscape");
+        java.util.ArrayList<Page> pageList = new java.util.ArrayList<>();
+        pageList.add(new PresetsPage(this.draft, refresh));
+        pageList.add(new SettingsSectionPage(
+                this.shipwreckedMode
+                        ? "newterraforged.gui.page.world.shipwrecked"
+                        : "newterraforged.gui.page.world",
+                this.draft,
+                "world",
+                () -> this.draft.settings().world,
+                refresh,
+                worldSkip));
+        // Separate page — only navigable when EGF Ocean Landscape is ON.
+        pageList.add(new SettingsSectionPage(
+                "newterraforged.gui.page.ocean_landscape",
+                this.draft,
+                "world",
+                "oceanLandscape",
+                () -> this.draft.settings().world.oceanLandscape,
+                refresh));
+        pageList.add(new SettingsSectionPage("newterraforged.gui.page.climate", this.draft, "climate", () -> this.draft.settings().climate, refresh));
+        pageList.add(new SettingsSectionPage("newterraforged.gui.page.terrain", this.draft, "terrain", () -> this.draft.settings().terrain, refresh));
+        pageList.add(new SettingsSectionPage("newterraforged.gui.page.rivers", this.draft, "rivers", () -> this.draft.settings().rivers, refresh));
+        pageList.add(new SettingsSectionPage("newterraforged.gui.page.filters", this.draft, "filters", () -> this.draft.settings().filters, refresh));
+        this.pages = pageList.toArray(Page[]::new);
     }
 
     public boolean shipwreckedMode() {
@@ -122,6 +130,10 @@ public final class ConfigScreen extends Screen {
         int rightWidth = Math.max(100, this.width - rightLeft - pad);
 
         Page page = this.pages[this.pageIndex];
+        if (!this.pageAllowed(this.pageIndex)) {
+            this.pageIndex = this.nextReachablePage(-1);
+            page = this.pages[this.pageIndex];
+        }
         page.init(this, pad, contentTop, leftWidth, contentHeight);
         if (this.pageIndex > 0) {
             this.previewPage.init(this, rightLeft, contentTop, rightWidth, contentHeight);
@@ -131,19 +143,50 @@ public final class ConfigScreen extends Screen {
         int bw = 50;
         int mid = this.width / 2;
         this.addRenderableWidget(new Button(mid - bw * 2 - 4, cy, bw, 20, new TextComponent("<<"), b -> {
-            if (this.pageIndex > 0) {
-                this.pageIndex--;
+            int next = this.prevReachablePage(this.pageIndex);
+            if (next != this.pageIndex) {
+                this.pageIndex = next;
                 this.init();
             }
         }));
         this.addRenderableWidget(new Button(mid - bw - 2, cy, bw, 20, CommonComponents.GUI_CANCEL, b -> this.onClose()));
         this.addRenderableWidget(new Button(mid + 2, cy, bw, 20, CommonComponents.GUI_DONE, b -> this.applyAndClose()));
         this.addRenderableWidget(new Button(mid + bw + 4, cy, bw, 20, new TextComponent(">>"), b -> {
-            if (this.pageIndex + 1 < this.pages.length) {
-                this.pageIndex++;
+            int next = this.nextReachablePage(this.pageIndex);
+            if (next != this.pageIndex) {
+                this.pageIndex = next;
                 this.init();
             }
         }));
+    }
+
+    /** Ocean Landscape page is index 2 — skip when EGF flag is off. */
+    private boolean pageAllowed(int index) {
+        if (index < 0 || index >= this.pages.length) {
+            return false;
+        }
+        if (index == 2 && !com.terraforged.mod.platform.forge.TFNoiseVariantFlags.oceanLandscapeEnabled()) {
+            return false;
+        }
+        return true;
+    }
+
+    private int nextReachablePage(int from) {
+        for (int i = from + 1; i < this.pages.length; i++) {
+            if (this.pageAllowed(i)) {
+                return i;
+            }
+        }
+        return from;
+    }
+
+    private int prevReachablePage(int from) {
+        for (int i = from - 1; i >= 0; i--) {
+            if (this.pageAllowed(i)) {
+                return i;
+            }
+        }
+        return from;
     }
 
     @Override
