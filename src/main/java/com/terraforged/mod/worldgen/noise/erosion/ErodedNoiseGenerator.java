@@ -14,7 +14,6 @@ import com.terraforged.mod.worldgen.noise.NoiseLevels;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.terrain.TerrainBlender;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
-import com.terraforged.mod.worldgen.util.ThreadPool;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
@@ -150,6 +149,8 @@ public class ErodedNoiseGenerator implements INoiseGenerator {
          for (int j = this.tileSize.chunkMin; j < this.tileSize.chunkMax; j++) {
             if (j != 0 || i != 0) {
                int k = this.tileSize.chunkIndexOfRel(j, i);
+               // Must not block a Util.backgroundExecutor worker on other pool tasks —
+               // that deadlocks world-create at 0% (setInitialSpawn / first chunks).
                float[] afloat = resource.chunkCache[k].join();
                int l = j << 4;
                int i1 = i << 4;
@@ -200,24 +201,28 @@ public class ErodedNoiseGenerator implements INoiseGenerator {
    }
 
    protected CompletableFuture<float[]> generateChunk(long key) {
-      return CompletableFuture.supplyAsync(() -> {
-         int i = PosUtil.unpackLeft(key);
-         int j = PosUtil.unpackRight(key);
-         int k = i << 4;
-         int l = j << 4;
-         float[] afloat = this.pool.take();
-         NoiseSample noisesample = this.localSample.get();
-         TerrainBlender.Blender terrainblender$blender = this.generator.getBlenderResource();
+      // Synchronous completedFuture — nested supplyAsync on the same background pool
+      // deadlocks when TerrainCache.generate already runs on that pool and joins neighbours.
+      return CompletableFuture.completedFuture(this.computeChunkHeights(key));
+   }
 
-         for (int i1 = 0; i1 < afloat.length; i1++) {
-            int j1 = i1 & 15;
-            int k1 = i1 >> 4;
-            float f = this.getNoiseCoord(k + j1);
-            float f1 = this.getNoiseCoord(l + k1);
-            afloat[i1] = this.generator.sampleTerrain(f, f1, noisesample, terrainblender$blender).heightNoise;
-         }
+   private float[] computeChunkHeights(long key) {
+      int i = PosUtil.unpackLeft(key);
+      int j = PosUtil.unpackRight(key);
+      int k = i << 4;
+      int l = j << 4;
+      float[] afloat = this.pool.take();
+      NoiseSample noisesample = this.localSample.get();
+      TerrainBlender.Blender terrainblender$blender = this.generator.getBlenderResource();
 
-         return afloat;
-      }, ThreadPool.EXECUTOR);
+      for (int i1 = 0; i1 < afloat.length; i1++) {
+         int j1 = i1 & 15;
+         int k1 = i1 >> 4;
+         float f = this.getNoiseCoord(k + j1);
+         float f1 = this.getNoiseCoord(l + k1);
+         afloat[i1] = this.generator.sampleTerrain(f, f1, noisesample, terrainblender$blender).heightNoise;
+      }
+
+      return afloat;
    }
 }

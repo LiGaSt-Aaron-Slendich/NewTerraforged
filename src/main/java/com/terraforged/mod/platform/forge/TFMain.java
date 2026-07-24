@@ -52,6 +52,7 @@ public class TFMain extends TerraForged {
       CommonAPI.HOLDER.set(new TFMain.ForgeCommonAPI());
       MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
       MinecraftForge.EVENT_BUS.register(CaveDebugSession.class);
+      MinecraftForge.EVENT_BUS.register(TFSpawnHooks.class);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onInit);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onLoadComplete);
       FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onGenerateData);
