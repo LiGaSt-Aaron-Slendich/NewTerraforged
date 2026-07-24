@@ -17,6 +17,7 @@ import com.terraforged.mod.worldgen.noise.continent.ocean.IslandTerrainLabels;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
+import com.terraforged.mod.worldgen.terrain.MountainBeltApproximator;
 import com.terraforged.mod.worldgen.terrain.MountainBeltBias;
 import com.terraforged.mod.worldgen.terrain.MountainBeltField;
 import com.terraforged.mod.worldgen.terrain.TerrainBlender;
@@ -293,7 +294,7 @@ public class NoiseGenerator implements INoiseGenerator {
       float f1 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
-      this.applyMountainBeltLand(sample, belt);
+      this.applyMountainBeltLand(x, z, sample, belt);
       restorePainted(sample, painted, paintedH);
    }
 
@@ -324,7 +325,7 @@ public class NoiseGenerator implements INoiseGenerator {
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);
          sample.terrainType = this.land.getTerrain(blender);
-         this.applyMountainBeltLand(sample, belt * f4);
+         this.applyMountainBeltLand(x, z, sample, belt * f4);
       }
       // LIA mild cliff/carve after base blend height (before rivers/erosion tile).
       CoastalLiaOverlay lia = this.continent.getCoastalLia();
@@ -360,22 +361,32 @@ public class NoiseGenerator implements INoiseGenerator {
       return MountainBeltField.strength(x * inv, z * inv, this.seed, continentScale);
    }
 
-   protected void applyMountainBeltLand(NoiseSample sample, float belt) {
-      if (belt < 0.08F || sample == null) {
+   protected void applyMountainBeltLand(float x, float z, NoiseSample sample, float belt) {
+      if (sample == null) {
          return;
       }
-      // Soft apron boost: lift existing height toward a highland target instead of a wall spike.
-      float soft = belt * belt * (3.0F - 2.0F * belt); // smoothstep-ish on [0,1]
-      float target = NoiseUtil.lerp(sample.heightNoise, 0.78F, soft * 0.55F);
-      // Never drop below current; blend up gently so foothills rewrite plains without cliffs.
-      float blended = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), soft * 0.65F);
-      sample.heightNoise = NoiseUtil.clamp(blended, 0.0F, 1.0F);
-      // Only retag crest cells; foothills keep hills/plains labels from WeightMap.
-      if (belt > 0.82F && sample.terrainType != null && sample.terrainType.isOverground()
-            && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
-            && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
-         sample.terrainType = TerrainType.MOUNTAINS;
+      if (belt >= 0.08F) {
+         // Soft apron boost: lift existing height toward a highland target instead of a wall spike.
+         float soft = belt * belt * (3.0F - 2.0F * belt); // smoothstep-ish on [0,1]
+         float target = NoiseUtil.lerp(sample.heightNoise, 0.78F, soft * 0.55F);
+         // Never drop below current; blend up gently so foothills rewrite plains without cliffs.
+         float blended = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), soft * 0.65F);
+         sample.heightNoise = NoiseUtil.clamp(blended, 0.0F, 1.0F);
+         // Only retag crest cells; foothills keep hills/plains labels from WeightMap.
+         if (belt > 0.82F && sample.terrainType != null && sample.terrainType.isOverground()
+               && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
+               && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
+            sample.terrainType = TerrainType.MOUNTAINS;
+         }
       }
+      // Multi-ridge valleys stay; only unrealistically deep notches get filled.
+      float freq = this.levels.noiseLevels.frequency;
+      float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
+      int continentScale = this.settings.world != null && this.settings.world.continent != null
+            ? this.settings.world.continent.continentScale
+            : 3000;
+      sample.heightNoise = MountainBeltApproximator.fillValleyDepth(
+            sample.heightNoise, x * inv, z * inv, this.seed, continentScale);
    }
 
    protected void applyMountainBeltUnderwater(float x, float z, NoiseSample sample) {
