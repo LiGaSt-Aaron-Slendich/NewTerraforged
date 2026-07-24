@@ -12,17 +12,17 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Directed corridor graph: each landmass may emit up to {@code partnersPerContinent}
- * outgoing corridors toward its nearest neighbours within {@code maxDistance}
+ * Directed corridor graph: each continent may emit up to {@code partnersPerContinent}
+ * outgoing corridors toward nearest neighbours within {@code maxDistance}
  * (cell-pitch ≈ × continent scale). Incoming corridors are unlimited.
  *
- * <p>Seafloor ridges exist for either direction of an edge. Coastal LIA uses
- * {@link #incomingCount(long)} / {@link #liaFactor(long)}: 0 incoming → no LIA;
- * 3+ incoming → absolute-majority ragged LIA coast.
+ * <p>Only large landmasses participate (guaranteed centres, or clustered Voronoi land
+ * components) — never island freckles. When inactive, no corridors exist.
  */
 public final class OceanCorridorGraph {
-    /** Incoming corridors at/above this → majority LIA coast. */
     public static final int LIA_MAJORITY_INCOMING = 3;
+    private static final int MIN_CONTINENT_CELLS = 3;
+    private static final int MAX_CONTINENTS = 32;
 
     private final LongSet directedEdges;
     private final List<DirectedEdge> edgeList;
@@ -59,12 +59,7 @@ public final class OceanCorridorGraph {
 
         List<LandNode> nodes = collectLandNodes(continent);
         if (nodes.size() < 2) {
-            return new OceanCorridorGraph(
-                    new LongOpenHashSet(),
-                    List.of(),
-                    new LongOpenHashSet(),
-                    new Long2IntOpenHashMap(),
-                    false);
+            return empty();
         }
 
         LongOpenHashSet landKeys = new LongOpenHashSet(nodes.size() * 2);
@@ -83,8 +78,7 @@ public final class OceanCorridorGraph {
                 if (a.key == b.key) {
                     continue;
                 }
-                float d2 = dist2(a.px, a.py, b.px, b.py);
-                if (d2 <= maxDist2) {
+                if (dist2(a.px, a.py, b.px, b.py) <= maxDist2) {
                     others.add(b);
                 }
             }
@@ -102,10 +96,19 @@ public final class OceanCorridorGraph {
         return new OceanCorridorGraph(edges, List.copyOf(edgeList), landKeys, incoming, !edges.isEmpty());
     }
 
+    private static OceanCorridorGraph empty() {
+        return new OceanCorridorGraph(
+                new LongOpenHashSet(),
+                List.of(),
+                new LongOpenHashSet(),
+                new Long2IntOpenHashMap(),
+                false);
+    }
+
     private static List<LandNode> collectLandNodes(ContinentGenerator continent) {
         GuaranteedContinentMask mask = continent.guaranteeMask;
-        List<LandNode> nodes = new ArrayList<>();
         if (mask != null && mask.active() && !mask.landCellKeys().isEmpty()) {
+            List<LandNode> nodes = new ArrayList<>();
             for (long key : mask.landCellKeys()) {
                 int cx = PosUtil.unpackLeft(key);
                 int cy = PosUtil.unpackRight(key);
@@ -114,26 +117,101 @@ public final class OceanCorridorGraph {
             }
             return nodes;
         }
+        return clusterContinentNodes(continent);
+    }
 
-        // Cap density — a full ±40 cell scan can yield thousands of nodes and freeze the
-        // preview render thread (O(n²) partner search when the tile image paints).
-        final int maxNodes = 48;
-        int halfCells = Math.max(10, Math.min(40, GuaranteedContinentMask.HALF / 4000));
-        int step = Math.max(1, (2 * halfCells + 1) / 24);
-        for (int cy = -halfCells; cy <= halfCells; cy += step) {
-            for (int cx = -halfCells; cx <= halfCells; cx += step) {
+    /**
+     * Cluster adjacent Voronoi land cells into landmasses; drop island-scale freckles.
+     * One node per landmass at the component centroid.
+     */
+    private static List<LandNode> clusterContinentNodes(ContinentGenerator continent) {
+        int halfCells = Math.max(10, Math.min(48, GuaranteedContinentMask.HALF / 4000));
+        LongOpenHashSet land = new LongOpenHashSet();
+        for (int cy = -halfCells; cy <= halfCells; cy++) {
+            for (int cx = -halfCells; cx <= halfCells; cx++) {
                 CellPoint cell = continent.getCell(cx, cy);
-                if (continent.shapeGenerator.getThresholdValue(cell) <= 0.0F) {
-                    continue;
+                if (continent.shapeGenerator.getThresholdValue(cell) > 0.0F) {
+                    land.add(PosUtil.pack(cx, cy));
                 }
-                nodes.add(new LandNode(PosUtil.pack(cx, cy), cell.px, cell.py));
             }
         }
-        if (nodes.size() <= maxNodes) {
-            return nodes;
+        if (land.isEmpty()) {
+            return List.of();
         }
-        nodes.sort(Comparator.comparingDouble(n -> n.px * n.px + n.py * n.py));
-        return new ArrayList<>(nodes.subList(0, maxNodes));
+
+        LongOpenHashSet seen = new LongOpenHashSet();
+        List<Component> components = new ArrayList<>();
+        long[] queue = new long[Math.max(1, land.size())];
+
+        for (long start : land) {
+            if (!seen.add(start)) {
+                continue;
+            }
+            int qh = 0;
+            int qt = 0;
+            queue[qt++] = start;
+            float sumX = 0.0F;
+            float sumY = 0.0F;
+            int area = 0;
+            List<Long> members = new ArrayList<>();
+
+            while (qh < qt) {
+                long key = queue[qh++];
+                int cx = PosUtil.unpackLeft(key);
+                int cy = PosUtil.unpackRight(key);
+                CellPoint cell = continent.getCell(cx, cy);
+                sumX += cell.px;
+                sumY += cell.py;
+                area++;
+                members.add(key);
+                qt = enqueue(queue, qt, seen, land, cx + 1, cy);
+                qt = enqueue(queue, qt, seen, land, cx - 1, cy);
+                qt = enqueue(queue, qt, seen, land, cx, cy + 1);
+                qt = enqueue(queue, qt, seen, land, cx, cy - 1);
+            }
+            if (area >= MIN_CONTINENT_CELLS) {
+                components.add(new Component(sumX / area, sumY / area, area, members));
+            }
+        }
+
+        components.sort(Comparator.comparingInt((Component c) -> c.area).reversed());
+        if (components.size() > MAX_CONTINENTS) {
+            components = new ArrayList<>(components.subList(0, MAX_CONTINENTS));
+        }
+
+        List<LandNode> nodes = new ArrayList<>(components.size());
+        for (Component c : components) {
+            long bestKey = c.members.get(0);
+            float bestD2 = Float.MAX_VALUE;
+            for (long key : c.members) {
+                int cx = PosUtil.unpackLeft(key);
+                int cy = PosUtil.unpackRight(key);
+                CellPoint cell = continent.getCell(cx, cy);
+                float d2 = dist2(cell.px, cell.py, c.cx, c.cy);
+                if (d2 < bestD2) {
+                    bestD2 = d2;
+                    bestKey = key;
+                }
+            }
+            nodes.add(new LandNode(bestKey, c.cx, c.cy));
+        }
+        return nodes;
+    }
+
+    private static int enqueue(
+            long[] queue,
+            int qt,
+            LongOpenHashSet seen,
+            LongOpenHashSet land,
+            int cx,
+            int cy
+    ) {
+        long key = PosUtil.pack(cx, cy);
+        if (!land.contains(key) || !seen.add(key)) {
+            return qt;
+        }
+        queue[qt] = key;
+        return qt + 1;
     }
 
     public boolean active() {
@@ -144,7 +222,6 @@ public final class OceanCorridorGraph {
         return this.active && this.landKeys.contains(cellKey);
     }
 
-    /** True if A→B exists. */
     public boolean hasDirected(long fromKey, long toKey) {
         if (!this.active || fromKey == toKey) {
             return false;
@@ -152,13 +229,10 @@ public final class OceanCorridorGraph {
         return this.directedEdges.contains(directedKey(fromKey, toKey));
     }
 
-    /**
-     * Seafloor corridor between two centres if either direction is linked
-     * (physical ridge does not care about arrow; LIA does).
-     */
+    /** Seafloor corridor if either direction is linked. Inactive graph → none. */
     public boolean allowsCorridor(long cellKeyA, long cellKeyB) {
         if (!this.active) {
-            return true;
+            return false;
         }
         if (cellKeyA == cellKeyB) {
             return false;
@@ -176,13 +250,9 @@ public final class OceanCorridorGraph {
         return this.incoming.get(cellKey);
     }
 
-    /**
-     * Coastal LIA strength for a landmass: 0 if no incoming corridors,
-     * ramps up, and reaches 1.0 (majority ragged coast) at {@link #LIA_MAJORITY_INCOMING}+.
-     */
     public float liaFactor(long cellKey) {
         if (!this.active) {
-            return 1.0F;
+            return 0.0F;
         }
         int inc = incomingCount(cellKey);
         if (inc <= 0) {
@@ -194,7 +264,7 @@ public final class OceanCorridorGraph {
         if (inc == 1) {
             return 0.38F;
         }
-        return 0.68F; // 2 incoming
+        return 0.68F;
     }
 
     public int pairCount() {
@@ -205,17 +275,15 @@ public final class OceanCorridorGraph {
         return this.landKeys;
     }
 
-    /** Directed edges with shape-space endpoints (for preview overlays). */
     public List<DirectedEdge> edges() {
         return this.edgeList;
     }
 
-    /** Directed edge key: from → to (order matters). */
     public static long directedKey(long from, long to) {
         return from * 0x9E3779B97F4A7C15L ^ (to + 0xC2B2AE3D27D4EB4FL);
     }
 
-    /** @deprecated undirected helper kept for callers; prefer {@link #directedKey}. */
+    /** @deprecated prefer {@link #directedKey}. */
     @Deprecated
     public static long pairKey(long a, long b) {
         long lo = Math.min(a, b);
@@ -229,10 +297,12 @@ public final class OceanCorridorGraph {
         return dx * dx + dy * dy;
     }
 
-    /** Shape-space directed corridor A→B. */
     public record DirectedEdge(long fromKey, long toKey, float fromX, float fromY, float toX, float toY) {
     }
 
     private record LandNode(long key, float px, float py) {
+    }
+
+    private record Component(float cx, float cy, int area, List<Long> members) {
     }
 }

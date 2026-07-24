@@ -96,8 +96,8 @@ public final class PreviewOceanLandscapePainter {
                 corridor = zone.corridor();
                 deep = Math.max(deep, zone.deep());
             } else {
-                float ridge = SeafloorLandscape.relief(worldX, worldZ, paintSeed ^ 0xC0FF, noiseScale);
-                corridor = ridge * (1.0F - cn / OceanZoneMask.SHORE_CN) * corridorStrength;
+                // No free Voronoi / relief corridors — only continent→continent graph ridges.
+                corridor = 0.0F;
             }
 
             if (corridor > 0.04F) {

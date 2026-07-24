@@ -299,12 +299,11 @@ public final class Preview extends AbstractWidget {
         try {
             PreviewCorridorDirectionOverlay.apply(
                     image,
+                    tile,
                     this.settings,
-                    this.seed,
                     this.center.x,
                     this.center.z,
                     this.getZoom(),
-                    width,
                     this.previewSettings.showCorridorDirections);
         } catch (Throwable ignored) {
         }

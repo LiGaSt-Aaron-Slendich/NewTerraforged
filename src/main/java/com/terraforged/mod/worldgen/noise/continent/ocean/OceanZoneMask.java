@@ -3,7 +3,6 @@ package com.terraforged.mod.worldgen.noise.continent.ocean;
 import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.noise.continent.ContinentGenerator;
-import com.terraforged.mod.worldgen.noise.continent.GuaranteedContinentMask;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
 import com.terraforged.noise.util.NoiseUtil;
 
@@ -92,11 +91,8 @@ public final class OceanZoneMask {
         if (graph != null && graph.active() && !graph.landKeys().isEmpty()) {
             return graphCorridor(continent, graph, x, y);
         }
-        GuaranteedContinentMask mask = continent.guaranteeMask;
-        if (mask != null && mask.active()) {
-            return guaranteedCorridor(continent, graph, mask, x, y);
-        }
-        return localLandLandEdge(continent, x, y);
+        // No free Voronoi ridges: corridors exist only for explicit continent→continent links.
+        return 0.0F;
     }
 
     /**
@@ -163,73 +159,6 @@ public final class OceanZoneMask {
             }
         }
         if (d1 >= Float.MAX_VALUE * 0.5F || !graph.allowsCorridor(k0, k1)) {
-            return 0.0F;
-        }
-        return ridgeStrength(d0, d1);
-    }
-
-    private static float guaranteedCorridor(
-            ContinentGenerator continent,
-            OceanCorridorGraph graph,
-            GuaranteedContinentMask mask,
-            float x,
-            float y
-    ) {
-        float d0 = Float.MAX_VALUE;
-        float d1 = Float.MAX_VALUE;
-        long k0 = 0L;
-        long k1 = 0L;
-        for (long key : mask.landCellKeys()) {
-            int cx = PosUtil.unpackLeft(key);
-            int cy = PosUtil.unpackRight(key);
-            CellPoint cell = continent.getCell(cx, cy);
-            float dist = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cell.px, cell.py));
-            if (dist < d0) {
-                d1 = d0;
-                k1 = k0;
-                d0 = dist;
-                k0 = key;
-            } else if (dist < d1) {
-                d1 = dist;
-                k1 = key;
-            }
-        }
-        if (d1 >= Float.MAX_VALUE * 0.5F || (graph != null && !graph.allowsCorridor(k0, k1))) {
-            return 0.0F;
-        }
-        return ridgeStrength(d0, d1);
-    }
-
-    /**
-     * Fallback when guarantee is off: 5×5 land cells around nearest cell.
-     */
-    private static float localLandLandEdge(ContinentGenerator continent, float x, float y) {
-        long nearest = continent.getNearestCell(x, y);
-        int cx = PosUtil.unpackLeft(nearest);
-        int cy = PosUtil.unpackRight(nearest);
-
-        float d0 = Float.MAX_VALUE;
-        float d1 = Float.MAX_VALUE;
-        int landCount = 0;
-
-        for (int dz = -2; dz <= 2; dz++) {
-            for (int dx = -2; dx <= 2; dx++) {
-                CellPoint cell = continent.getCell(cx + dx, cy + dz);
-                if (continent.shapeGenerator.getThresholdValue(cell) <= 0.0F) {
-                    continue;
-                }
-                landCount++;
-                float dist = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cell.px, cell.py));
-                if (dist < d0) {
-                    d1 = d0;
-                    d0 = dist;
-                } else if (dist < d1) {
-                    d1 = dist;
-                }
-            }
-        }
-
-        if (landCount < 2 || d1 >= Float.MAX_VALUE * 0.5F) {
             return 0.0F;
         }
         return ridgeStrength(d0, d1);

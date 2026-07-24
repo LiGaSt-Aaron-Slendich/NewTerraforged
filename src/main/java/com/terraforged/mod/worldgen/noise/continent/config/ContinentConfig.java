@@ -39,7 +39,7 @@ public class ContinentConfig {
       public CellSource cellSource = CellSource.PERLIN;
       /** Target continent count inside the 640k window (actual may be ±1; ignored when guarantee disabled). */
       public int guaranteedContinents = 3;
-      public boolean guaranteedContinentsEnabled = true;
+      public boolean guaranteedContinentsEnabled = false;
       public float continentsSpread = 0.5F;
       public float coastalIslandsChance = 0.45F;
       public float volcanicIslandsChance = 0.15F;

@@ -198,7 +198,7 @@ public class WorldSettings {
                 "Cut zones stay mostly ocean but keep islands / archipelago freckles (soft cut).",
                 "When OFF (or EGF off), continent count follows normal noise / skipping (no guarantee)."
         })
-        public boolean guaranteedContinentsEnabled = true;
+        public boolean guaranteedContinentsEnabled = false;
 
         @Range(min = 1.0f, max = 16.0f)
         @Comment(value = {
