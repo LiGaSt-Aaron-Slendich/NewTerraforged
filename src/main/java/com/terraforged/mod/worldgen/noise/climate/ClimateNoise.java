@@ -30,8 +30,15 @@ public class ClimateNoise {
 
    public ClimateNoise(Seed seed, Settings settings) {
       int i = settings.climate.biomeShape.biomeSize;
-      float f = settings.climate.temperature.scale;
-      float f1 = settings.climate.moisture.scale * 2.5F;
+      int continentScale = settings.world != null && settings.world.continent != null
+            ? settings.world.continent.continentScale
+            : com.terraforged.engine.settings.WorldSettings.DEFAULT_CONTINENT_SCALE;
+      // UI/settings store percent (50–300); noise needs absolute periods.
+      float f = ClimateScaleResolver.absoluteScale(
+            continentScale, ClimateScaleResolver.migratePercent(settings.climate.temperature.scale));
+      float f1 = ClimateScaleResolver.absoluteScale(
+            continentScale, ClimateScaleResolver.migratePercent(settings.climate.moisture.scale))
+            * 2.5F;
       float f2 = 1.0F / i;
       float f3 = f1 * i;
       float f4 = f * i;

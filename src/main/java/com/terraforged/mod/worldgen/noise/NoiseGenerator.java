@@ -9,6 +9,8 @@ import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.util.SpiralIterator;
 import com.terraforged.mod.data.ModTerrainTypes;
 import com.terraforged.mod.worldgen.asset.TerrainNoise;
+import com.terraforged.mod.worldgen.noise.climate.ClimateNoise;
+import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 import com.terraforged.mod.worldgen.noise.continent.ContinentNoise;
 import com.terraforged.mod.worldgen.noise.continent.CoastalLiaOverlay;
 import com.terraforged.mod.worldgen.noise.continent.ocean.IslandTerrainLabels;
@@ -30,9 +32,11 @@ public class NoiseGenerator implements INoiseGenerator {
    protected final Module ocean;
    protected final TerrainBlender land;
    protected final IContinentNoise continent;
+   protected final ClimateNoise climate;
    protected final ControlPoints controlPoints;
    protected final ThreadLocal<NoiseData> localChunk = ThreadLocal.withInitial(NoiseData::new);
    protected final ThreadLocal<NoiseSample> localSample = ThreadLocal.withInitial(NoiseSample::new);
+   protected final ThreadLocal<ClimateSample> localClimate = ThreadLocal.withInitial(ClimateSample::new);
 
    public NoiseGenerator(long seed, TerrainLevels levels, TerrainNoise[] terrainNoises) {
       this(seed, levels, terrainNoises, GeneratorSettings.DEFAULT.toEngine(seed, levels));
@@ -48,6 +52,7 @@ public class NoiseGenerator implements INoiseGenerator {
       this.ocean = createOceanTerrain(seed);
       this.land = createLandTerrain(seed, terrainNoises, settings);
       this.continent = createContinentNoise(seed, levels, settings);
+      this.climate = new ClimateNoise(this.continent.getContext());
       this.controlPoints = this.continent.getControlPoints();
    }
 
@@ -61,6 +66,7 @@ public class NoiseGenerator implements INoiseGenerator {
       this.land = other.land.withSeed(seed);
       this.ocean = createOceanTerrain(seed);
       this.continent = createContinentNoise(seed, levels, this.settings);
+      this.climate = new ClimateNoise(this.continent.getContext());
       this.controlPoints = this.continent.getControlPoints();
    }
 
@@ -279,6 +285,7 @@ public class NoiseGenerator implements INoiseGenerator {
       if (painted == TerrainType.VOLCANO_PIPE) {
          return;
       }
+      this.prepareLandClimate(x, z, blender);
       float f = sample.baseNoise;
       float f1 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
@@ -304,6 +311,7 @@ public class NoiseGenerator implements INoiseGenerator {
                   Math.min(1.0F, f2 + lift * 0.06F), lift * 0.9F);
          }
       } else if (sample.continentNoise < 0.55F) {
+         this.prepareLandClimate(x, z, blender);
          float f5 = this.levels.noiseLevels.heightMin;
          float f6 = sample.baseNoise;
          float f7 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
@@ -320,6 +328,13 @@ public class NoiseGenerator implements INoiseGenerator {
          lia.applyHeight(x * inv, z * inv, sample);
       }
       restorePainted(sample, painted, paintedH);
+   }
+
+   /** Sample climate before landform WeightMap so arid terrain cannot spawn in cold/wet zones. */
+   protected void prepareLandClimate(float x, float z, TerrainBlender.Blender blender) {
+      ClimateSample climateSample = this.localClimate.get().reset();
+      this.climate.sample(x, z, climateSample);
+      blender.prepareClimate(climateSample.temperature, climateSample.moisture, this.land.getTerrains());
    }
 
    /**

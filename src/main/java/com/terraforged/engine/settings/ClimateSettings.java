@@ -8,11 +8,15 @@ import com.terraforged.noise.Module;
 import com.terraforged.noise.Source;
 import com.terraforged.noise.util.NoiseUtil;
 
-/** NewTF override: higher max scales for temperature / moisture / biome size. */
+/**
+ * NewTF override: temperature/moisture {@code scale} is a <b>percent</b> (50–300)
+ * of a continent-linked base — not an absolute period. Larger continent scale →
+ * larger climate features at the same %. Absolute periods are resolved at noise build.
+ */
 @Serializable
 public class ClimateSettings {
-    public RangeValue temperature = new RangeValue(6, 2, 0.0f, 0.98f, 0.05f);
-    public RangeValue moisture = new RangeValue(6, 1, 0.0f, 1.0f, 0.0f);
+    public RangeValue temperature = new RangeValue(100, 2, 0.0f, 0.98f, 0.05f);
+    public RangeValue moisture = new RangeValue(100, 1, 0.0f, 1.0f, 0.0f);
     public BiomeShape biomeShape = new BiomeShape();
     public BiomeNoise biomeEdgeShape = new BiomeNoise();
 
@@ -63,9 +67,13 @@ public class ClimateSettings {
         @Rand
         @Comment(value = {"A seed offset used to randomise climate distribution"})
         public int seedOffset = 0;
-        @Range(min = 1.0f, max = 100.0f)
-        @Comment(value = {"The horizontal scale"})
-        public int scale = 7;
+        @Range(min = 50.0f, max = 300.0f)
+        @Comment(value = {
+              "Percent of continent-linked climate scale (50–300).",
+              "100% ≈ classic TerraForged at continent scale 3000;",
+              "larger continents automatically enlarge temperature/moisture features."
+        })
+        public int scale = 100;
         @Range(min = 1.0f, max = 20.0f)
         @Comment(value = {"How quickly values transition from an extremity"})
         public int falloff = 2;
@@ -84,7 +92,7 @@ public class ClimateSettings {
         }
 
         public RangeValue(int falloff, float min, float max, float bias) {
-            this(7, falloff, min, max, bias);
+            this(100, falloff, min, max, bias);
         }
 
         public RangeValue(int scale, int falloff, float min, float max, float bias) {

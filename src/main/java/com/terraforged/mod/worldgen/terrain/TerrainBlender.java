@@ -63,6 +63,10 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
       return this.localBlender.get();
    }
 
+   public WeightMap<TerrainNoise> getTerrains() {
+      return this.terrains;
+   }
+
    public Terrain getTerrain(TerrainBlender.Blender blender) {
       float f = blender.getCentreNoiseIndex();
       return this.terrains.getValue(f).terrain();
@@ -157,6 +161,16 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
       protected final int[] hashes = new int[9];
       protected final float[] distances = new float[9];
       protected final Object2FloatCache<TerrainNoise> cache = new Object2FloatCache<>(9);
+      protected float climateTemp = 0.5F;
+      protected float climateMoist = 0.5F;
+      protected WeightMap<TerrainNoise> climateTerrains;
+
+      /** Gate arid landforms (badlands) by local climate before height/type lookup. */
+      public void prepareClimate(float temperature, float moisture, WeightMap<TerrainNoise> terrains) {
+         this.climateTemp = temperature;
+         this.climateMoist = moisture;
+         this.climateTerrains = terrains;
+      }
 
       public float getCentreNoiseIndex() {
          return this.getNoiseIndex(this.closestIndex);
@@ -216,7 +230,11 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
       }
 
       private float getNoiseIndex(int index) {
-         return MathUtil.rand(this.hashes[index]);
+         float raw = MathUtil.rand(this.hashes[index]);
+         if (this.climateTerrains != null) {
+            return ClimateTerrainBias.biasNoiseIndex(raw, this.climateTemp, this.climateMoist, this.climateTerrains);
+         }
+         return raw;
       }
 
       private static float getWeight(float dist, float origin, float blendRange) {

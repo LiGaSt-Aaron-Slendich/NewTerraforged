@@ -99,8 +99,8 @@ public enum RenderMode {
         }
     },
     /**
-     * Approximate landscape elevation only (no trees/buildings). Includes seafloor /
-     * underwater relief so deep basins and submarine ridges are visible.
+     * Tangent-space style normal map for volume (flat ≈ blue 128,128,255).
+     * Neighbour heights come from the tile; used by {@link Preview} for HEIGHT mode.
      */
     HEIGHT {
         @Override
@@ -110,34 +110,38 @@ public enum RenderMode {
 
         @Override
         public int getColor(Cell cell, Levels levels, float scale, float bias) {
-            // cell.value is water-relative height in 0..1; map full column incl. below sea.
+            // Fallback without neighbours — soft elevation tint (rarely used).
             float h = NoiseUtil.clamp(cell.value, 0.0F, 1.0F);
-            float water = levels.water;
-            if (h < water) {
-                // Deep navy → cyan toward the surface.
-                float t = NoiseUtil.clamp(h / Math.max(1.0E-4F, water), 0.0F, 1.0F);
-                return lerpRgb(8, 18, 48, 40, 140, 200, t);
-            }
-            // Shore green → highland yellow → peak white.
-            float land = NoiseUtil.clamp((h - water) / Math.max(1.0E-4F, 1.0F - water), 0.0F, 1.0F);
-            land = (float) NoiseUtil.round(land * 12.0F) / 12.0F; // light banding
-            if (land < 0.35F) {
-                return lerpRgb(48, 120, 52, 160, 170, 70, land / 0.35F);
-            }
-            if (land < 0.70F) {
-                return lerpRgb(160, 170, 70, 190, 140, 70, (land - 0.35F) / 0.35F);
-            }
-            return lerpRgb(190, 140, 70, 235, 235, 230, (land - 0.70F) / 0.30F);
-        }
-
-        private static int lerpRgb(int r0, int g0, int b0, int r1, int g1, int b1, float t) {
-            t = NoiseUtil.clamp(t, 0.0F, 1.0F);
-            int r = NoiseUtil.round(r0 + (r1 - r0) * t);
-            int g = NoiseUtil.round(g0 + (g1 - g0) * t);
-            int b = NoiseUtil.round(b0 + (b1 - b0) * t);
-            return rgba(r, g, b);
+            return heightNormalFromSlope(0.0F, 0.0F, h, levels);
         }
     };
+
+    /** Sobel-ish normal from left/right/down/up neighbour heights (HEIGHT preview). */
+    public static int heightNormalColor(float left, float right, float down, float up, float center, Levels levels) {
+        float strength = 14.0F;
+        float dx = (right - left) * strength;
+        float dz = (up - down) * strength;
+        return heightNormalFromSlope(dx, dz, center, levels);
+    }
+
+    private static int heightNormalFromSlope(float dx, float dz, float height, Levels levels) {
+        float invLen = 1.0F / (float) Math.sqrt(dx * dx + dz * dz + 1.0F);
+        float nx = -dx * invLen;
+        float ny = -dz * invLen;
+        float nz = invLen;
+        int r = NoiseUtil.round((nx * 0.5F + 0.5F) * 255.0F);
+        int g = NoiseUtil.round((ny * 0.5F + 0.5F) * 255.0F);
+        int b = NoiseUtil.round((nz * 0.5F + 0.5F) * 255.0F);
+        // Slight depth darkening underwater so basins still read as volume.
+        float water = levels.water;
+        if (height < water) {
+            float t = NoiseUtil.clamp(height / Math.max(1.0E-4F, water), 0.0F, 1.0F);
+            r = NoiseUtil.round(r * (0.55F + 0.45F * t));
+            g = NoiseUtil.round(g * (0.55F + 0.45F * t));
+            b = NoiseUtil.round(Math.min(255, b * (0.75F + 0.25F * t)));
+        }
+        return rgba(r, g, b);
+    }
 
     public int getColor(Cell cell, Levels levels) {
         if (!handlesWater() && cell.value < levels.water) {

@@ -38,10 +38,10 @@ public final class GeneratorSettings {
                             Codec.INT.optionalFieldOf("biome_size", 220).forGetter(s -> s.biomeSize),
                             Codec.INT.optionalFieldOf("temperature_falloff", 2).forGetter(s -> s.temperatureFalloff),
                             Codec.FLOAT.optionalFieldOf("temperature_bias", 0.1F).forGetter(s -> s.temperatureBias),
-                            Codec.INT.optionalFieldOf("temperature_scale", 6).forGetter(s -> s.temperatureScale),
+                            Codec.INT.optionalFieldOf("temperature_scale", 100).forGetter(s -> s.temperatureScale),
                             Codec.INT.optionalFieldOf("moisture_falloff", 1).forGetter(s -> s.moistureFalloff),
                             Codec.FLOAT.optionalFieldOf("moisture_bias", -0.05F).forGetter(s -> s.moistureBias),
-                            Codec.INT.optionalFieldOf("moisture_scale", 6).forGetter(s -> s.moistureScale)
+                            Codec.INT.optionalFieldOf("moisture_scale", 100).forGetter(s -> s.moistureScale)
                     )
                     .apply(i, ClimateSlice::new)
     );
@@ -446,6 +446,12 @@ public final class GeneratorSettings {
     }
 
     public static GeneratorSettings fromEngine(Settings settings) {
+        int tempScale = com.terraforged.mod.worldgen.noise.climate.ClimateScaleResolver.migratePercent(
+                settings.climate.temperature.scale);
+        int moistScale = com.terraforged.mod.worldgen.noise.climate.ClimateScaleResolver.migratePercent(
+                settings.climate.moisture.scale);
+        settings.climate.temperature.scale = tempScale;
+        settings.climate.moisture.scale = moistScale;
         return new GeneratorSettings(
                 settings.world.continent.continentScale,
                 settings.world.controlPoints.deepOcean,
@@ -459,10 +465,10 @@ public final class GeneratorSettings {
                 settings.climate.biomeShape.biomeSize,
                 settings.climate.temperature.falloff,
                 settings.climate.temperature.bias,
-                settings.climate.temperature.scale,
+                tempScale,
                 settings.climate.moisture.falloff,
                 settings.climate.moisture.bias,
-                settings.climate.moisture.scale,
+                moistScale,
                 settings.terrain.general.terrainRegionSize,
                 settings.terrain.general.globalVerticalScale,
                 settings.terrain.general.globalHorizontalScale,
@@ -500,6 +506,10 @@ public final class GeneratorSettings {
         if (settings.terrain.volcano.weight > 1.5F) {
             settings.terrain.volcano.weight = 0.85F;
         }
+        settings.climate.temperature.scale = com.terraforged.mod.worldgen.noise.climate.ClimateScaleResolver.migratePercent(
+                settings.climate.temperature.scale);
+        settings.climate.moisture.scale = com.terraforged.mod.worldgen.noise.climate.ClimateScaleResolver.migratePercent(
+                settings.climate.moisture.scale);
         settings.world.properties.seaLevel = levels != null ? levels.seaLevel : this.seaLevel;
         settings.world.properties.worldHeight = levels != null ? levels.maxY : this.worldHeight;
     }

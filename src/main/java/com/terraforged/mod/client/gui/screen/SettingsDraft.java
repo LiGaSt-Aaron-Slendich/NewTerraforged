@@ -190,11 +190,40 @@ public final class SettingsDraft {
 
         CompoundTag climate = root.getCompound("climate");
         if (!climate.isEmpty()) {
-            putBoundMax(climate.getCompound("temperature"), "scale", 100);
-            putBoundMax(climate.getCompound("moisture"), "scale", 100);
+            CompoundTag temperature = climate.getCompound("temperature");
+            CompoundTag moisture = climate.getCompound("moisture");
+            putBoundMin(temperature, "scale", 50);
+            putBoundMax(temperature, "scale", 300);
+            putBoundMin(moisture, "scale", 50);
+            putBoundMax(moisture, "scale", 300);
+            migrateClimateScalePercent(temperature);
+            migrateClimateScalePercent(moisture);
             putBoundMax(climate.getCompound("biomeShape"), "biomeSize", 8000);
             putBoundMax(climate.getCompound("biomeShape"), "macroNoiseSize", 40);
         }
+    }
+
+    private static void migrateClimateScalePercent(CompoundTag range) {
+        if (range == null || range.isEmpty() || !range.contains("scale")) {
+            return;
+        }
+        int scale = range.getInt("scale");
+        int migrated = com.terraforged.mod.worldgen.noise.climate.ClimateScaleResolver.migratePercent(scale);
+        if (migrated != scale) {
+            range.putInt("scale", migrated);
+        }
+    }
+
+    private static void putBoundMin(CompoundTag props, String field, int min) {
+        if (props == null || props.isEmpty()) {
+            return;
+        }
+        CompoundTag meta = props.getCompound(Serializer.META_PREFIX + field);
+        if (meta.isEmpty()) {
+            return;
+        }
+        meta.putInt(Serializer.BOUND_MIN, min);
+        props.put(Serializer.META_PREFIX + field, meta);
     }
 
     private static void putBoundMax(CompoundTag props, String field, int max) {
@@ -224,6 +253,8 @@ public final class SettingsDraft {
         settings.terrain.mountains.verticalScale = 1.35F;
         settings.terrain.hills.verticalScale = 1.15F;
         settings.terrain.torridonian.verticalScale = 1.25F;
+        settings.climate.temperature.scale = 100;
+        settings.climate.moisture.scale = 100;
         return settings;
     }
 

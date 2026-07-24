@@ -206,7 +206,7 @@ public final class PreviewPage implements Page {
             case BIOME -> "Display: Biome id";
             case MACRO_NOISE -> "Display: Macro noise";
             case TERRAIN_REGION -> "Display: Terrain region";
-            case HEIGHT -> "Display: Height (land + seafloor)";
+            case HEIGHT -> "Display: Height (normal map / volume)";
         };
     }
 

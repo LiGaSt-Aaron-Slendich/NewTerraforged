@@ -278,6 +278,7 @@ public final class Preview extends AbstractWidget {
         Levels levels = new Levels(this.settings.world);
         int stroke = 2;
         int width = tile.getBlockSize().size;
+        boolean heightNormals = renderer == RenderMode.HEIGHT;
 
         tile.iterate((cell, x, z) -> {
             if (x < stroke || z < stroke || x >= width - stroke || z >= width - stroke) {
@@ -289,7 +290,16 @@ public final class Preview extends AbstractWidget {
                     cell.biome = SurfaceBiomeClimate.adjustForTerrain(
                             cell.biome, cell.terrain, cell.temperature, cell.moisture);
                 }
-                int argb = renderer.getColor(cell, levels);
+                int argb;
+                if (heightNormals) {
+                    float left = tile.getCell(Math.max(0, x - 1), z).value;
+                    float right = tile.getCell(Math.min(width - 1, x + 1), z).value;
+                    float down = tile.getCell(x, Math.max(0, z - 1)).value;
+                    float up = tile.getCell(x, Math.min(width - 1, z + 1)).value;
+                    argb = RenderMode.heightNormalColor(left, right, down, up, cell.value, levels);
+                } else {
+                    argb = renderer.getColor(cell, levels);
+                }
                 argb = applyTerrainFilter(cell, argb);
                 image.setPixelRGBA(x, z, argb);
             } catch (Throwable t) {
@@ -383,6 +393,8 @@ public final class Preview extends AbstractWidget {
         copy.world.properties.seaLevel = PREVIEW_REF_SEA;
         // Preview TileGenerator only reads continent.*; bake Islands knobs into those fields.
         com.terraforged.mod.worldgen.settings.ContinentShapeWiring.bakeIslandsIntoEngine(copy);
+        // Climate scale is stored as % of continent-linked base; engine ClimateModule needs absolute.
+        com.terraforged.mod.worldgen.noise.climate.ClimateScaleResolver.bakeAbsoluteScales(copy);
         return copy;
     }
 
