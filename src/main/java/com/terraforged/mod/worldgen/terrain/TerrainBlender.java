@@ -163,6 +163,7 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
       protected final Object2FloatCache<TerrainNoise> cache = new Object2FloatCache<>(9);
       protected float climateTemp = 0.5F;
       protected float climateMoist = 0.5F;
+      protected float mountainBelt = 0.0F;
       protected WeightMap<TerrainNoise> climateTerrains;
 
       /** Gate arid landforms (badlands) by local climate before height/type lookup. */
@@ -170,6 +171,11 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
          this.climateTemp = temperature;
          this.climateMoist = moisture;
          this.climateTerrains = terrains;
+      }
+
+      /** Pull landforms toward mountains along continent-scale spines. */
+      public void prepareMountainBelt(float belt) {
+         this.mountainBelt = NoiseUtil.clamp(belt, 0.0F, 1.0F);
       }
 
       public float getCentreNoiseIndex() {
@@ -232,7 +238,8 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
       private float getNoiseIndex(int index) {
          float raw = MathUtil.rand(this.hashes[index]);
          if (this.climateTerrains != null) {
-            return ClimateTerrainBias.biasNoiseIndex(raw, this.climateTemp, this.climateMoist, this.climateTerrains);
+            raw = ClimateTerrainBias.biasNoiseIndex(raw, this.climateTemp, this.climateMoist, this.climateTerrains);
+            raw = MountainBeltBias.biasNoiseIndex(raw, this.mountainBelt, this.climateTerrains);
          }
          return raw;
       }

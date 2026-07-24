@@ -286,6 +286,13 @@ public final class Preview extends AbstractWidget {
                         this.center.x,
                         this.center.z,
                         this.getZoom());
+                PreviewMountainBeltPainter.apply(
+                        this.tile,
+                        this.settings,
+                        this.seed,
+                        this.center.x,
+                        this.center.z,
+                        this.getZoom());
                 this.renderTile(this.tile);
             } catch (Throwable t) {
                 t.printStackTrace();

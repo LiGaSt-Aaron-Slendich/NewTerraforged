@@ -17,6 +17,8 @@ import com.terraforged.mod.worldgen.noise.continent.ocean.IslandTerrainLabels;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
+import com.terraforged.mod.worldgen.terrain.MountainBeltBias;
+import com.terraforged.mod.worldgen.terrain.MountainBeltField;
 import com.terraforged.mod.worldgen.terrain.TerrainBlender;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
 import com.terraforged.noise.Module;
@@ -269,6 +271,7 @@ public class NoiseGenerator implements INoiseGenerator {
       float f = this.ocean.getValue(x, z);
       sample.heightNoise = this.levels.noiseLevels.toDepthNoise(f);
       sample.terrainType = TerrainType.DEEP_OCEAN;
+      this.applyMountainBeltUnderwater(x, z, sample);
       // Ocean-landscape submerged ridges: lift bathymetry without flipping biomes.
       if (sample.oceanRelief > 0.0F) {
          float lift = NoiseUtil.clamp(sample.oceanRelief, 0.0F, 1.0F);
@@ -285,11 +288,12 @@ public class NoiseGenerator implements INoiseGenerator {
       if (painted == TerrainType.VOLCANO_PIPE) {
          return;
       }
-      this.prepareLandClimate(x, z, blender);
+      float belt = this.prepareLandClimateAndBelt(x, z, blender);
       float f = sample.baseNoise;
       float f1 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
+      this.applyMountainBeltLand(sample, belt);
       restorePainted(sample, painted, paintedH);
    }
 
@@ -305,13 +309,14 @@ public class NoiseGenerator implements INoiseGenerator {
          float f2 = this.levels.noiseLevels.heightMin;
          float f3 = (sample.continentNoise - 0.25F) / 0.25F;
          sample.heightNoise = NoiseUtil.lerp(f1, f2, f3);
+         this.applyMountainBeltUnderwater(x, z, sample);
          if (sample.oceanRelief > 0.0F) {
             float lift = NoiseUtil.clamp(sample.oceanRelief, 0.0F, 1.0F);
             sample.heightNoise = NoiseUtil.lerp(sample.heightNoise,
                   Math.min(1.0F, f2 + lift * 0.06F), lift * 0.9F);
          }
       } else if (sample.continentNoise < 0.55F) {
-         this.prepareLandClimate(x, z, blender);
+         float belt = this.prepareLandClimateAndBelt(x, z, blender);
          float f5 = this.levels.noiseLevels.heightMin;
          float f6 = sample.baseNoise;
          float f7 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
@@ -319,6 +324,7 @@ public class NoiseGenerator implements INoiseGenerator {
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);
          sample.terrainType = this.land.getTerrain(blender);
+         this.applyMountainBeltLand(sample, belt * f4);
       }
       // LIA mild cliff/carve after base blend height (before rivers/erosion tile).
       CoastalLiaOverlay lia = this.continent.getCoastalLia();
@@ -330,11 +336,59 @@ public class NoiseGenerator implements INoiseGenerator {
       restorePainted(sample, painted, paintedH);
    }
 
-   /** Sample climate before landform WeightMap so arid terrain cannot spawn in cold/wet zones. */
-   protected void prepareLandClimate(float x, float z, TerrainBlender.Blender blender) {
+   /** Sample climate + mountain-belt field before landform WeightMap. */
+   protected float prepareLandClimateAndBelt(float x, float z, TerrainBlender.Blender blender) {
       ClimateSample climateSample = this.localClimate.get().reset();
       this.climate.sample(x, z, climateSample);
       blender.prepareClimate(climateSample.temperature, climateSample.moisture, this.land.getTerrains());
+      float belt = this.sampleMountainBelt(x, z);
+      blender.prepareMountainBelt(belt);
+      return belt;
+   }
+
+   /** @deprecated use {@link #prepareLandClimateAndBelt} */
+   protected void prepareLandClimate(float x, float z, TerrainBlender.Blender blender) {
+      this.prepareLandClimateAndBelt(x, z, blender);
+   }
+
+   protected float sampleMountainBelt(float x, float z) {
+      float freq = this.levels.noiseLevels.frequency;
+      float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
+      int continentScale = this.settings.world != null && this.settings.world.continent != null
+            ? this.settings.world.continent.continentScale
+            : 3000;
+      return MountainBeltField.strength(x * inv, z * inv, this.seed, continentScale);
+   }
+
+   protected void applyMountainBeltLand(NoiseSample sample, float belt) {
+      if (belt < 0.05F || sample == null) {
+         return;
+      }
+      // Extra spine height on top of mountain landforms — readable in HEIGHT normals.
+      float boost = belt * belt * 0.16F;
+      sample.heightNoise = NoiseUtil.clamp(sample.heightNoise + boost * (1.0F - sample.heightNoise * 0.35F), 0.0F, 1.0F);
+      if (belt > 0.72F && sample.terrainType != null && sample.terrainType.isOverground()
+            && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
+            && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
+         sample.terrainType = TerrainType.MOUNTAINS;
+      }
+   }
+
+   protected void applyMountainBeltUnderwater(float x, float z, NoiseSample sample) {
+      float freq = this.levels.noiseLevels.frequency;
+      float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
+      int continentScale = this.settings.world != null && this.settings.world.continent != null
+            ? this.settings.world.continent.continentScale
+            : 3000;
+      float under = MountainBeltField.underwaterStrength(x * inv, z * inv, this.seed, continentScale);
+      if (under < 0.04F) {
+         return;
+      }
+      // Fade out far from shore so mid-ocean doesn't get a global tectonic grid.
+      float cn = NoiseUtil.clamp(sample.continentNoise, 0.0F, 1.0F);
+      float nearShore = NoiseUtil.clamp(1.0F - cn / 0.45F, 0.0F, 1.0F);
+      float relief = under * (0.35F + 0.65F * nearShore);
+      sample.oceanRelief = Math.max(sample.oceanRelief, relief);
    }
 
    /**
