@@ -10,7 +10,8 @@ import com.terraforged.noise.util.NoiseUtil;
 /**
  * Sample-time ocean zoning for the ocean-landscape island system.
  * Corridor = soft Voronoi edge between two linked continent centres
- * (see {@link OceanCorridorGraph}). Deep = far from shore by continentNoise.
+ * (see {@link OceanCorridorGraph}). Shelf = mild coastal band on linked land.
+ * Deep = far from shore by continentNoise.
  */
 public final class OceanZoneMask {
     /** Above this cn the new system does not paint (coast left to LIA / blend). */
@@ -36,9 +37,23 @@ public final class OceanZoneMask {
             boolean shipwrecked,
             float corridorStrength
     ) {
+        return evaluate(continent, graph, shapeX, shapeY, continentNoise, shipwrecked, corridorStrength, 0.55F);
+    }
+
+    public static Zone evaluate(
+            ContinentGenerator continent,
+            OceanCorridorGraph graph,
+            float shapeX,
+            float shapeY,
+            float continentNoise,
+            boolean shipwrecked,
+            float corridorStrength,
+            float shelfStrength
+    ) {
         float cn = NoiseUtil.clamp(continentNoise, 0.0F, 1.0F);
         float deep = deepAllow(cn);
         float strength = NoiseUtil.clamp(corridorStrength, 0.0F, 1.0F);
+        float shelf = NoiseUtil.clamp(shelfStrength, 0.0F, 1.0F);
         float corridor;
         if (shipwrecked) {
             corridor = shipwreckedBanks(shapeX, shapeY, continent.seed) * SHIP_BANK_CAP * (0.55F + 0.45F * strength);
@@ -48,7 +63,8 @@ public final class OceanZoneMask {
         } else {
             float edge = corridorEdge(continent, graph, shapeX, shapeY);
             float oceanFade = 1.0F - cn / SHORE_CN;
-            corridor = edge * oceanFade * strength;
+            float shelfBand = coastalShelf(continent, graph, shapeX, shapeY, cn, shelf);
+            corridor = NoiseUtil.clamp(edge * oceanFade * strength + shelfBand, 0.0F, 1.0F);
         }
         return new Zone(corridor, deep);
     }
@@ -62,8 +78,8 @@ public final class OceanZoneMask {
     }
 
     /**
-     * Equidistance ridge between the two nearest guaranteed land centres,
-     * only when that pair is in the corridor graph (2–3 nearest partners).
+     * Equidistance ridge between the two nearest linked land centres,
+     * only when that pair is in the corridor graph (nearest partners within max distance).
      */
     public static float corridorEdge(
             ContinentGenerator continent,
@@ -73,11 +89,83 @@ public final class OceanZoneMask {
     ) {
         float x = continent.cellShape.adjustX(shapeX);
         float y = continent.cellShape.adjustY(shapeY);
+        if (graph != null && graph.active() && !graph.landKeys().isEmpty()) {
+            return graphCorridor(continent, graph, x, y);
+        }
         GuaranteedContinentMask mask = continent.guaranteeMask;
-        if (graph != null && graph.active() && mask != null && mask.active()) {
+        if (mask != null && mask.active()) {
             return guaranteedCorridor(continent, graph, mask, x, y);
         }
         return localLandLandEdge(continent, x, y);
+    }
+
+    /**
+     * Mild shelf hugging coasts of landmasses that participate in the corridor graph
+     * (blue outline on the scheme — not a bridge across open ocean).
+     */
+    private static float coastalShelf(
+            ContinentGenerator continent,
+            OceanCorridorGraph graph,
+            float shapeX,
+            float shapeY,
+            float cn,
+            float shelfStrength
+    ) {
+        if (shelfStrength <= 0.01F || graph == null || !graph.active()) {
+            return 0.0F;
+        }
+        float x = continent.cellShape.adjustX(shapeX);
+        float y = continent.cellShape.adjustY(shapeY);
+        float nearest = Float.MAX_VALUE;
+        for (long key : graph.landKeys()) {
+            int cx = PosUtil.unpackLeft(key);
+            int cy = PosUtil.unpackRight(key);
+            CellPoint cell = continent.getCell(cx, cy);
+            float dist = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cell.px, cell.py));
+            if (dist < nearest) {
+                nearest = dist;
+            }
+        }
+        if (nearest >= Float.MAX_VALUE * 0.5F) {
+            return 0.0F;
+        }
+        // Near-shore band only (cn already < SHORE_CN). Fade with distance from land centre.
+        float near = 1.0F - NoiseUtil.clamp(nearest / 1.35F, 0.0F, 1.0F);
+        float shore = NoiseUtil.clamp(cn / SHORE_CN, 0.0F, 1.0F);
+        // Stronger near the coast edge (mid cn), weaker in deep water.
+        float ring = shore * (1.0F - shore) * 4.0F;
+        return NoiseUtil.clamp(near * ring * shelfStrength * 0.55F, 0.0F, 0.85F);
+    }
+
+    private static float graphCorridor(
+            ContinentGenerator continent,
+            OceanCorridorGraph graph,
+            float x,
+            float y
+    ) {
+        float d0 = Float.MAX_VALUE;
+        float d1 = Float.MAX_VALUE;
+        long k0 = 0L;
+        long k1 = 0L;
+        for (long key : graph.landKeys()) {
+            int cx = PosUtil.unpackLeft(key);
+            int cy = PosUtil.unpackRight(key);
+            CellPoint cell = continent.getCell(cx, cy);
+            float dist = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cell.px, cell.py));
+            if (dist < d0) {
+                d1 = d0;
+                k1 = k0;
+                d0 = dist;
+                k0 = key;
+            } else if (dist < d1) {
+                d1 = dist;
+                k1 = key;
+            }
+        }
+        if (d1 >= Float.MAX_VALUE * 0.5F || !graph.allowsPair(k0, k1)) {
+            return 0.0F;
+        }
+        return ridgeStrength(d0, d1);
     }
 
     private static float guaranteedCorridor(
@@ -106,7 +194,7 @@ public final class OceanZoneMask {
                 k1 = key;
             }
         }
-        if (d1 >= Float.MAX_VALUE * 0.5F || !graph.allowsPair(k0, k1)) {
+        if (d1 >= Float.MAX_VALUE * 0.5F || (graph != null && !graph.allowsPair(k0, k1))) {
             return 0.0F;
         }
         return ridgeStrength(d0, d1);

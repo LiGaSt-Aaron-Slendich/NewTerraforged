@@ -61,6 +61,22 @@ public class WorldSettings {
         })
         public float corridorStrength = 0.85f;
 
+        @Range(min = 2.0f, max = 24.0f)
+        @Comment(value = {
+                "Maximum distance (× Continent Scale) between landmasses that may form a corridor.",
+                "Pairs farther than this are never linked — no long deep-ocean bridges.",
+                "Default 8 ≈ eight continent scales. Requires EGF Ocean Landscape ON."
+        })
+        public float corridorMaxDistance = 8.0f;
+
+        @Range(min = 0.0f, max = 1.0f)
+        @Comment(value = {
+                "Coastal shelf strength along landmasses that participate in corridors.",
+                "0 = corridor ridge only, 1 = broader shallow shelf hugging linked coasts.",
+                "Requires EGF Ocean Landscape ON."
+        })
+        public float shelfStrength = 0.55f;
+
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
                 "Deep-ocean volcano density for Ocean Landscape.",
@@ -192,8 +208,9 @@ public class WorldSettings {
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
-                "How scattered continents are across the ocean.",
-                "0 = clustered, 1 = widely spread."
+                "Increases the distance between continents (ocean gaps grow).",
+                "0 = more clustered landmasses, 1 = widely spaced.",
+                "Does not shift the whole map in one direction."
         })
         public float continentsSpread = 0.5f;
 

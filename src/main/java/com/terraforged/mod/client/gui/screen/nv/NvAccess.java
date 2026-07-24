@@ -50,6 +50,8 @@ public final class NvAccess {
         return n.equals("noisescale")
                 || n.equals("corridorpartners")
                 || n.equals("corridorstrength")
+                || n.equals("corridormaxdistance")
+                || n.equals("shelfstrength")
                 || n.equals("volcanodensity")
                 || n.equals("oceanlandscape");
     }

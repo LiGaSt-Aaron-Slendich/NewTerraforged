@@ -20,6 +20,7 @@ import com.terraforged.engine.world.continent.MutableVeci;
 import com.terraforged.engine.world.continent.SpawnType;
 import com.terraforged.engine.world.heightmap.Levels;
 import com.terraforged.mod.util.serialization.DataUtils;
+import com.terraforged.mod.worldgen.biome.SurfaceBiomeClimate;
 import com.terraforged.noise.util.NoiseUtil;
 import java.awt.Color;
 import java.util.Objects;
@@ -284,6 +285,11 @@ public final class Preview extends AbstractWidget {
             if (x < stroke || z < stroke || x >= width - stroke || z >= width - stroke) {
                 image.setPixelRGBA(x, z, Color.BLACK.getRGB());
             } else {
+                // Match worldgen climate→terrain integrator path (BiomeSampler uses the same adjust).
+                if (cell.biome != null && cell.terrain != null) {
+                    cell.biome = SurfaceBiomeClimate.adjustForTerrain(
+                            cell.biome, cell.terrain, cell.temperature, cell.moisture);
+                }
                 int argb = renderer.getColor(cell, levels);
                 argb = applyTerrainFilter(cell, argb);
                 image.setPixelRGBA(x, z, argb);

@@ -150,7 +150,8 @@ public class ScrollPage implements Page {
         int bottom = this.top + this.height;
         this.hoveredTooltip = null;
         for (AbstractWidget widget : this.widgets) {
-            boolean inView = widget.y + widget.getHeight() > this.top && widget.y < bottom;
+            // Strict top clip so rows cannot overlap the page title ("World", …).
+            boolean inView = widget.y >= this.top && widget.y < bottom;
             widget.visible = inView;
             boolean blocked = isFeatureBlockedWidget(widget);
             // Keep inactive when scrolled away so they cannot steal Done/Cancel clicks.

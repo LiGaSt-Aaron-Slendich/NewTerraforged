@@ -65,9 +65,13 @@ public final class ConfigScreen extends Screen {
         }
         this.previewPage = new PreviewPage(this.draft);
         Runnable refresh = this.previewPage::refresh;
+        // Hide guarantee knobs from Customize (system still uses defaults / NBT under the hood).
+        // Hide nested oceanLandscape here — it has its own page when EGF is on.
         Set<String> worldSkip = this.shipwreckedMode
-                ? Set.of("continent", "worldStyle", "oceanLandscape")
-                : Set.of("worldStyle", "oceanLandscape");
+                ? Set.of("continent", "worldStyle", "oceanLandscape",
+                        "guaranteedContinentsEnabled", "guaranteedContinents")
+                : Set.of("worldStyle", "oceanLandscape",
+                        "guaranteedContinentsEnabled", "guaranteedContinents");
         java.util.ArrayList<Page> pageList = new java.util.ArrayList<>();
         pageList.add(new PresetsPage(this.draft, refresh));
         pageList.add(new SettingsSectionPage(
@@ -123,6 +127,8 @@ public final class ConfigScreen extends Screen {
         int bottomReserve = BOTTOM_BAR + BOTTOM_GAP;
         int contentTop = 28;
         int contentHeight = Math.max(80, this.height - contentTop - bottomReserve);
+        // Preview control row sits slightly above the settings column top.
+        int previewTop = Math.max(pad + 2, contentTop - 10);
 
         // Left ~38% of width, right preview gets the rest — scales with window size.
         int leftWidth = Mth.clamp(this.width * 38 / 100, 140, Math.max(140, this.width / 2 - pad * 2));
@@ -136,7 +142,7 @@ public final class ConfigScreen extends Screen {
         }
         page.init(this, pad, contentTop, leftWidth, contentHeight);
         if (this.pageIndex > 0) {
-            this.previewPage.init(this, rightLeft, contentTop, rightWidth, contentHeight);
+            this.previewPage.init(this, rightLeft, previewTop, rightWidth, contentHeight + (contentTop - previewTop));
         }
 
         int cy = this.height - BOTTOM_BAR;

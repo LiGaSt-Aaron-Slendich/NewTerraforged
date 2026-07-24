@@ -57,6 +57,10 @@ public class ContinentConfig {
       public int oceanCorridorPartners = 2;
       /** Overall corridor / bank strength 0..1. */
       public float oceanCorridorStrength = 0.85F;
+      /** Max partner distance in cell-pitch units (≈ × continentScale in world blocks). */
+      public float oceanCorridorMaxDistance = 8.0F;
+      /** Coastal shelf along linked continents 0..1. */
+      public float oceanShelfStrength = 0.55F;
       /** Deep-ocean volcano density multiplier 0..1. */
       public float oceanVolcanoDensity = 0.55F;
    }

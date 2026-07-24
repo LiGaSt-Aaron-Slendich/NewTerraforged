@@ -17,6 +17,7 @@ public final class OceanLandscapeOverlay {
     private final boolean shipwrecked;
     private final float noiseScale;
     private final float corridorStrength;
+    private final float shelfStrength;
     private final float volcanoDensity;
 
     public OceanLandscapeOverlay(ContinentConfig config, ContinentGenerator continent) {
@@ -25,8 +26,12 @@ public final class OceanLandscapeOverlay {
         this.shipwrecked = config.shape.shipwrecked;
         this.noiseScale = config.shape.oceanNoiseScale;
         this.corridorStrength = config.shape.oceanCorridorStrength;
+        this.shelfStrength = config.shape.oceanShelfStrength;
         this.volcanoDensity = config.shape.oceanVolcanoDensity;
-        this.corridorGraph = OceanCorridorGraph.build(continent, config.shape.oceanCorridorPartners);
+        this.corridorGraph = OceanCorridorGraph.build(
+                continent,
+                config.shape.oceanCorridorPartners,
+                config.shape.oceanCorridorMaxDistance);
     }
 
     public static boolean isActive() {
@@ -49,7 +54,8 @@ public final class OceanLandscapeOverlay {
                 shapeY,
                 cn,
                 this.shipwrecked,
-                this.corridorStrength);
+                this.corridorStrength,
+                this.shelfStrength);
 
         // Volcano first so pipe/crater is never overwritten by corridor island emerge.
         DeepVolcano.Result volcano = DeepVolcano.Result.NONE;

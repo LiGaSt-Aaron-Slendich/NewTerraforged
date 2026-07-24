@@ -64,7 +64,10 @@ public final class GuaranteedContinentMask {
 
         LongSet land = new LongOpenHashSet(n * 2);
         float spread = clamp01(continent.continentsSpread);
-        int minSep = Math.max(1, (int) (span / (Math.sqrt(n) * (2.2F - spread))));
+        // spread=0 → clustered (smaller minSep); spread=1 → widely spaced.
+        // Divisor goes 2.4 → 0.75 so high spread roughly triples separation vs low.
+        float sepDiv = 2.4F - spread * 1.65F;
+        int minSep = Math.max(1, (int) (span / (Math.sqrt(n) * Math.max(0.55F, sepDiv))));
 
         int attempts = 0;
         int placed = 0;

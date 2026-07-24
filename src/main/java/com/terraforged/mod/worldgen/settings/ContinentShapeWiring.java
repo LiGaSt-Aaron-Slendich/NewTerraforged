@@ -39,19 +39,26 @@ public final class ContinentShapeWiring {
     ) {
         config.shape.scale = Math.max(100, continent.continentScale);
         float spread = NoiseUtil.clamp(continent.continentsSpread, 0.0F, 1.0F);
-        float baseJitter = NoiseUtil.clamp(continent.continentJitter, 0.0F, 1.0F);
-        config.shape.jitter = NoiseUtil.clamp(NoiseUtil.lerp(baseJitter * 0.85F, Math.max(baseJitter, 0.95F), spread), 0.0F, 1.0F);
+        // Jitter is user-controlled only — do not bake spread into it (that looked like a one-way shift).
+        config.shape.jitter = NoiseUtil.clamp(continent.continentJitter, 0.0F, 1.0F);
 
         // Outside the guarantee window, keep a moderate ocean/land mix from user skipping.
+        // Spread also thins land so surviving landmasses sit farther apart when guarantee is off.
         float skip = NoiseUtil.clamp(continent.continentSkipping, 0.0F, 1.0F);
-        config.shape.threshold = NoiseUtil.lerp(0.35F, 0.72F, skip);
+        float skipWithSpread = NoiseUtil.clamp(NoiseUtil.lerp(skip, Math.min(1.0F, skip + 0.40F), spread), 0.0F, 1.0F);
+        config.shape.threshold = NoiseUtil.lerp(0.35F, 0.72F, skipWithSpread);
+        // Mild cell-pitch stretch with spread: centres move apart without directional bias.
+        if (!continent.guaranteedContinentsEnabled) {
+            float pitch = NoiseUtil.lerp(1.0F, 1.65F, spread);
+            config.shape.scale = Math.max(100, Math.round(config.shape.scale * pitch));
+        }
 
         config.shape.noiseOctaves = Math.max(1, Math.min(8, continent.continentNoiseOctaves));
         // Mild bump so outlines stay irregular even on older presets with low gain.
         config.shape.noiseGain = NoiseUtil.clamp(continent.continentNoiseGain * 1.08F + 0.02F, 0.0F, 0.55F);
         config.shape.noiseLacunarity = Math.max(1.0F, continent.continentNoiseLacunarity);
         float variance = NoiseUtil.clamp(continent.continentSizeVariance, 0.0F, 1.0F);
-        config.shape.sizeVariance = NoiseUtil.clamp(NoiseUtil.lerp(variance, Math.max(variance, 0.72F), spread), 0.0F, 1.0F);
+        config.shape.sizeVariance = variance;
         config.noise.continentNoiseFalloff = 1.0F + config.shape.sizeVariance * 0.75F;
         config.noise.baseNoiseFalloff = 1.5F + config.shape.sizeVariance * 0.5F;
 
@@ -96,6 +103,8 @@ public final class ContinentShapeWiring {
         config.shape.oceanNoiseScale = NoiseUtil.clamp(src.noiseScale, 0.25F, 3.0F);
         config.shape.oceanCorridorPartners = Math.max(1, Math.min(4, src.corridorPartners));
         config.shape.oceanCorridorStrength = NoiseUtil.clamp(src.corridorStrength, 0.0F, 1.0F);
+        config.shape.oceanCorridorMaxDistance = NoiseUtil.clamp(src.corridorMaxDistance, 2.0F, 24.0F);
+        config.shape.oceanShelfStrength = NoiseUtil.clamp(src.shelfStrength, 0.0F, 1.0F);
         config.shape.oceanVolcanoDensity = NoiseUtil.clamp(src.volcanoDensity, 0.0F, 1.0F);
     }
 
@@ -153,7 +162,8 @@ public final class ContinentShapeWiring {
     /**
      * Preview TileGenerator only reads continent.*; do not bake island chances into
      * continentSkipping — that made volcanic/archipelago knobs spawn extra continents.
-     * Only apply spread-driven jitter so island UI still feels responsive without changing N.
+     * Spread is applied by NewTF ContinentShapeWiring / GuaranteedContinentMask — do not
+     * mutate jitter here (one-way shift look).
      */
     public static void bakeIslandsIntoEngine(Settings settings) {
         if (settings == null || settings.world == null) {
@@ -161,8 +171,6 @@ public final class ContinentShapeWiring {
         }
         ContinentGuarantee.syncIslandsMirror(settings.world);
         WorldSettings.Continent c = settings.world.continent;
-        float spread = NoiseUtil.clamp(c.continentsSpread, 0.0F, 1.0F);
-        c.continentJitter = NoiseUtil.clamp(NoiseUtil.lerp(c.continentJitter * 0.85F, Math.max(c.continentJitter, 0.95F), spread), 0.0F, 1.0F);
         if (settings.world.properties != null && settings.world.properties.worldStyle == WorldSettings.WorldStyle.SHIPWRECKED) {
             c.guaranteedContinentsEnabled = false;
             // Engine preview TileGenerator still reads continentSkipping; push fully ocean.
