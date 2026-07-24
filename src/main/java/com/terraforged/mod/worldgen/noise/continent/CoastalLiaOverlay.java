@@ -7,11 +7,17 @@ import com.terraforged.noise.util.NoiseUtil;
 /**
  * Post-shape coastal "Little Ice Age" overlay: regional strength mixes African-style
  * straight shores with bay/notch warp on {@code continentNoise} and mild cliff/carve
- * height modulation. Tunables are constants for now (future EGF sliders).
+ * height modulation.
+ *
+ * <p>Experimental (EGF Untested → Coastal LIA) until explicitly released.
+ * Tunables are constants for now (future EGF sliders).
  */
 public final class CoastalLiaOverlay {
-    /** Master switch — emergency off without removing hooks. */
-    public static final boolean ENABLED = true;
+    /**
+     * Master kill-switch in code. Runtime enable still requires
+     * {@link com.terraforged.mod.platform.forge.TFNoiseVariantFlags#coastalLiaEnabled()}.
+     */
+    public static final boolean CODE_ENABLED = true;
 
     /** Large regions of quiet vs eroded coast (blocks). */
     public static final float REGION_CELL = 2800.0F;
@@ -44,13 +50,18 @@ public final class CoastalLiaOverlay {
         this.seed = seed ^ 0xC0A571A;
     }
 
+    /** True when EGF Untested → Coastal LIA is on (and code switch allows it). */
+    public static boolean isActive() {
+        return CODE_ENABLED && com.terraforged.mod.platform.forge.TFNoiseVariantFlags.coastalLiaEnabled();
+    }
+
     /**
      * Warp {@code continentNoise} near the shoreline after shape + islands.
      *
      * @param worldX worldZ block-equivalent coords (same frame as {@code IslandFeatureOverlay})
      */
     public void applyContinent(float worldX, float worldZ, NoiseSample sample) {
-        if (!ENABLED || sample == null) {
+        if (!isActive() || sample == null) {
             return;
         }
         float cn = sample.continentNoise;
@@ -78,7 +89,7 @@ public final class CoastalLiaOverlay {
      * @param worldX worldZ block-equivalent coords
      */
     public void applyHeight(float worldX, float worldZ, NoiseSample sample) {
-        if (!ENABLED || sample == null) {
+        if (!isActive() || sample == null) {
             return;
         }
         float cn = sample.continentNoise;
@@ -106,7 +117,7 @@ public final class CoastalLiaOverlay {
      * Uses the same cliff phase / region strength as height modulation.
      */
     public boolean isRockyShore(float worldX, float worldZ, float continentNoise) {
-        if (!ENABLED) {
+        if (!isActive()) {
             return false;
         }
         if (continentNoise <= 0.5F || continentNoise > 0.505F) {

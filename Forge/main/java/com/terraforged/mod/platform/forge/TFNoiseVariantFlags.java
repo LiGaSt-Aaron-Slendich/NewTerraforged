@@ -28,6 +28,8 @@ public final class TFNoiseVariantFlags {
     public boolean archipelago = false;
     public boolean scatteredArchipelago = false;
     public boolean islands = false;
+    /** Coastal Little Ice Age overlay (bays / rocky shores). Experimental until released. */
+    public boolean coastalLia = false;
 
     private TFNoiseVariantFlags() {
     }
@@ -51,6 +53,10 @@ public final class TFNoiseVariantFlags {
         return INSTANCE != null && INSTANCE.islands;
     }
 
+    public static boolean coastalLiaEnabled() {
+        return INSTANCE != null && INSTANCE.coastalLia;
+    }
+
     public static void setArchipelago(boolean value) {
         ensure();
         INSTANCE.archipelago = value;
@@ -66,6 +72,12 @@ public final class TFNoiseVariantFlags {
     public static void setIslands(boolean value) {
         ensure();
         INSTANCE.islands = value;
+        INSTANCE.writeEncrypted();
+    }
+
+    public static void setCoastalLia(boolean value) {
+        ensure();
+        INSTANCE.coastalLia = value;
         INSTANCE.writeEncrypted();
     }
 
@@ -117,6 +129,7 @@ public final class TFNoiseVariantFlags {
             this.archipelago = (flags & 1) != 0;
             this.scatteredArchipelago = (flags & 2) != 0;
             this.islands = (flags & 4) != 0;
+            this.coastalLia = (flags & 8) != 0;
             return true;
         } catch (Exception e) {
             return false;
@@ -138,6 +151,9 @@ public final class TFNoiseVariantFlags {
             }
             if (this.islands) {
                 flags |= 4;
+            }
+            if (this.coastalLia) {
+                flags |= 8;
             }
             byte[] plain = ByteBuffer.allocate(4).putInt(flags).array();
             byte[] iv = new byte[IV_LEN];
