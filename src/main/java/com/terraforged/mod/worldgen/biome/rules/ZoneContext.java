@@ -81,6 +81,10 @@ public final class ZoneContext {
             float edge = active ? VolcanoActivity.raggedRadiusScale(seed, blockX, blockZ) : 1.0F;
             return new ZoneContext(active, !active, active, !active, 0.0F, edge);
         }
+        // Ocean / shelf: volcano rings are irrelevant — never spiral-sample here.
+        if (sample != null && sample.continentNoise < 0.55F) {
+            return empty();
+        }
         if (noise == null || noise.getContinent() == null) {
             return empty();
         }
@@ -142,14 +146,16 @@ public final class ZoneContext {
      */
     private static VolcanoHit findNearestVolcano(INoiseGenerator noise, int x, int z, float maxRadius) {
         int step = 48;
-        int maxCell = Math.max(1, NoiseUtil.floor(maxRadius / step));
+        // Cap cells — uncapped r=640 spiral (~700 samples) × biome quart grid freezes world load.
+        int maxCell = Math.min(8, Math.max(1, NoiseUtil.floor(maxRadius / step)));
         SpiralIterator spiral = new SpiralIterator(NoiseUtil.floor(x / (float) step), NoiseUtil.floor(z / (float) step), 0, maxCell);
         NoiseSample sample = new NoiseSample().reset();
         float best = Float.MAX_VALUE;
         int bestWx = 0;
         int bestWz = 0;
         boolean found = false;
-        while (spiral.hasNext()) {
+        int guard = 0;
+        while (spiral.hasNext() && guard++ < 256) {
             long packed = spiral.next();
             int cx = PosUtil.unpackLeft(packed);
             int cz = PosUtil.unpackRight(packed);

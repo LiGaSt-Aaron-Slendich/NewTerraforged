@@ -51,9 +51,10 @@ public class ContinentNoise implements IContinentNoise {
       double d0 = 0.2;
       Builder builder = Source.builder().octaves(3).lacunarity(2.2).frequency(3.0).gain(0.3);
       this.warp = Domain.warp(builder.seed(context.seed.next()).perlin2(), builder.seed(context.seed.next()).perlin2(), Source.constant(d0));
-      TerraForged.LOG.info("[ContinentNoise] init {} ms (offset={}, ol={})",
+      TerraForged.LOG.info("[ContinentNoise] init {} ms (offset={},{}, ol={})",
             (System.nanoTime() - t0) / 1_000_000L,
-            this.offset,
+            this.offset.x,
+            this.offset.y,
             OceanLandscapeOverlay.isActive());
    }
 

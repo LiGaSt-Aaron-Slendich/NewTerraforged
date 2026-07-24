@@ -4,6 +4,7 @@ import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.engine.world.heightmap.ControlPoints;
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.util.ObjectPool;
+import com.terraforged.mod.util.SpiralIterator;
 import com.terraforged.mod.util.map.LongCache;
 import com.terraforged.mod.util.map.LossyCache;
 import com.terraforged.engine.settings.WorldSettings;
@@ -21,6 +22,9 @@ public class ContinentGenerator {
    public static final int CONTINENT_SAMPLE_SCALE = 400;
    protected static final int SAMPLE_SEED_OFFSET = 6569;
    protected static final int VALID_SPAWN_RADIUS = 1;
+   /** Hard cap for cheap CONTINENT_CENTER offset (never the old 100k spiral). */
+   protected static final int SPAWN_OFFSET_MAX_CELL = 48;
+   protected static final int SPAWN_OFFSET_GUARD = 512;
    protected static final int CELL_POINT_CACHE_SIZE = 2048;
    public final int seed;
    public final float jitter;
@@ -70,7 +74,6 @@ public class ContinentGenerator {
    }
 
    public Vec2f getWorldOffset() {
-      // Never spiral-search on the create-world thread — that froze loading at 0%.
       if (this.shipwrecked) {
          return Vec2f.ZERO;
       }
@@ -79,6 +82,19 @@ public class ContinentGenerator {
          long key = mask.landCellKeys().iterator().nextLong();
          CellPoint cell = this.getCell(PosUtil.unpackLeft(key), PosUtil.unpackRight(key));
          return new Vec2f(cell.px, cell.py);
+      }
+      // Cheap capped land hunt so spawn is not stuck in deep ocean at (0,0).
+      // Uncapped spiral (old 100k) froze create-world; this stays under a few hundred cells.
+      SpiralIterator spiral = new SpiralIterator(0, 0, 0, SPAWN_OFFSET_MAX_CELL);
+      int guard = 0;
+      while (spiral.hasNext() && guard++ < SPAWN_OFFSET_GUARD) {
+         long packed = spiral.next();
+         int cx = PosUtil.unpackLeft(packed);
+         int cy = PosUtil.unpackRight(packed);
+         CellPoint cell = this.getCell(cx, cy);
+         if (this.shapeGenerator.getThresholdValue(cell) > 0.0F) {
+            return new Vec2f(cell.px, cell.py);
+         }
       }
       return Vec2f.ZERO;
    }

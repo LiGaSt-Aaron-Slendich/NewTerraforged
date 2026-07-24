@@ -20,6 +20,11 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
 
    public Holder<Biome> sampleBiome(int x, int z) {
       ClimateSample climatesample = this.getSample(x, z);
+      // Ocean / beach overrides never use terrain rules — skip pick + volcano spiral.
+      // Running ZoneContext (r=640) on every ocean sample freezes setInitialSpawn at 0%.
+      if (climatesample.continentNoise <= 0.505F) {
+         return this.getBiomeOverride(null, climatesample, x, z);
+      }
       WeightMap<Holder<Biome>> weightmap = this.biomeMapManager.getBiomeMap().get(climatesample.climateType);
       Holder<Biome> fallback = this.biomeMapManager.getBiomes().getHolderOrThrow(Biomes.PLAINS);
       Holder<Biome> holder = com.terraforged.mod.worldgen.biome.util.BiomeTerrainIntegration.pick(
