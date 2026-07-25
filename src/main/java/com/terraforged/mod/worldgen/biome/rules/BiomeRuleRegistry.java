@@ -372,9 +372,7 @@ public final class BiomeRuleRegistry {
         if (rule == null || !rule.hasTerrains()) {
             return 0.0F;
         }
-        if (steepSlope && !rule.canBeOnSlope) {
-            return 0.0F;
-        }
+        // can_be_on_slope removed — slope context is unreliable with NewTF height/landforms.
 
         boolean needsActive = rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
         boolean needsDormant = rule.requiresZone(BiomeRule.ZONE_NEAR_DORMANT_VOLCANO);

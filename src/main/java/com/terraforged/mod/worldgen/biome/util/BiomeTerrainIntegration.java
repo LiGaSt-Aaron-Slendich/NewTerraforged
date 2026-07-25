@@ -47,7 +47,7 @@ public final class BiomeTerrainIntegration {
         Terrain terrainObj = sample != null ? sample.terrainType : null;
         String terrain = terrainObj != null ? terrainObj.getName() : null;
         String sub = SubterrainResolver.resolve(sample);
-        boolean steep = SubterrainResolver.isSteepSlope(sample, sub);
+        boolean steep = false; // can_be_on_slope retired
         ZoneContext zone = ZoneContext.from(sample, noiseGen, blockX, blockZ);
 
         List<Holder<Biome>> values = new ArrayList<>();

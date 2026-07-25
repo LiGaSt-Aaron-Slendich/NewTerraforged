@@ -65,9 +65,6 @@ public final class BiomeRuleIO {
         if (!obj.has("biome") || !obj.get("biome").isJsonPrimitive()) {
             missing.add("biome");
         }
-        if (!obj.has("can_be_on_slope")) {
-            missing.add("can_be_on_slope");
-        }
         if (!obj.has("terrains") || !obj.get("terrains").isJsonObject() || obj.getAsJsonObject("terrains").entrySet().isEmpty()) {
             missing.add("terrains (non-empty object)");
         }
@@ -75,7 +72,8 @@ public final class BiomeRuleIO {
             return new LoadResult(null, "missing required fields: " + String.join(", ", missing));
         }
         String biome = obj.get("biome").getAsString();
-        boolean slope = obj.get("can_be_on_slope").getAsBoolean();
+        // Legacy field kept for file compat; ignored at runtime.
+        boolean slope = !obj.has("can_be_on_slope") || obj.get("can_be_on_slope").getAsBoolean();
         List<String> tags = readStringList(obj, "climate_tags");
         Map<String, Float> terrains = readChanceMap(obj.getAsJsonObject("terrains"));
         Map<String, Float> subterrains = obj.has("subterrains") && obj.get("subterrains").isJsonObject()

@@ -485,18 +485,7 @@ public final class NvFlagPanel extends Screen {
     }
 
     private void toggleSlope() {
-        if (this.selectedRule == null) {
-            return;
-        }
-        this.mutateRule(new BiomeRule(
-                this.selectedRule.biome,
-                !this.selectedRule.canBeOnSlope,
-                this.selectedRule.climateTags,
-                this.selectedRule.terrains,
-                this.selectedRule.subterrains,
-                this.selectedRule.zoneFlags,
-                false
-        ));
+        // Retired: can_be_on_slope no longer affects matching.
     }
 
     private void addClimate(String tag) {
@@ -981,7 +970,8 @@ public final class NvFlagPanel extends Screen {
         drawString(pose, this.font, trim(name, textW), textX, hy + 6, 0xFFFFFFFF);
         String desc = this.selectedRule == null
                 ? "Pick a biome, then Edit. Hover icons for name + chance."
-                : "slope=" + this.selectedRule.canBeOnSlope;
+                : "terrains=" + this.selectedRule.terrains.size()
+                        + "  zones=" + this.selectedRule.zoneFlags.size();
         drawString(pose, this.font, trim(desc, textW), textX, hy + 22, 0xFFCCCCCC);
 
         int rowY = hy + preview + 8;
@@ -1036,16 +1026,6 @@ public final class NvFlagPanel extends Screen {
         }
 
         int y = panelY + 6;
-        // Slope checklist
-        int box = 10;
-        fill(pose, panelX + 8, y, panelX + 8 + box, y + box, 0xFF000000);
-        fill(pose, panelX + 9, y + 1, panelX + 7 + box, y + box - 1, 0xFF555555);
-        if (this.selectedRule.canBeOnSlope) {
-            fill(pose, panelX + 10, y + 2, panelX + 6 + box, y + box - 2, 0xFF88FF88);
-        }
-        drawString(pose, this.font, "Slope (can_be_on_slope)", panelX + 22, y + 1, 0xFFFFFFFF);
-        this.clickHits.add(new ClickHit(panelX + 8, y, 160, box + 2, -1, this::toggleSlope));
-        y += 18;
 
         drawString(pose, this.font, "Terrains (LMB=chance, RMB=remove):", panelX + 8, y, 0xFFFFE080);
         y += 12;

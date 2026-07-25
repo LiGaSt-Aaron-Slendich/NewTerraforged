@@ -286,6 +286,7 @@ public final class Preview extends AbstractWidget {
                         this.center.x,
                         this.center.z,
                         this.getZoom());
+                PreviewVolcanoEdgeSoftener.apply(this.tile);
                 PreviewMountainBeltPainter.apply(
                         this.tile,
                         this.settings,
@@ -429,6 +430,11 @@ public final class Preview extends AbstractWidget {
         com.terraforged.mod.worldgen.settings.ContinentShapeWiring.bakeIslandsIntoEngine(copy);
         // Climate scale is stored as % of continent-linked base; engine ClimateModule needs absolute.
         com.terraforged.mod.worldgen.noise.climate.ClimateScaleResolver.bakeAbsoluteScales(copy);
+        // Preview TileGenerator still registers engine VolcanoPopulator (hard circular cones).
+        // Worldgen WeightMap has no volcano — zero weight so preview matches land height.
+        if (copy.terrain != null && copy.terrain.volcano != null) {
+            copy.terrain.volcano.weight = 0.0F;
+        }
         return copy;
     }
 

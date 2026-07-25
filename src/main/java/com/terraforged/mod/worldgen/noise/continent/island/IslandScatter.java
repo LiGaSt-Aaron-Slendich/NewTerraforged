@@ -719,10 +719,22 @@ public final class IslandScatter {
         float dx = worldX - centerX;
         float dz = worldZ - centerZ;
         float dist = NoiseUtil.sqrt(dx * dx + dz * dz);
-        if (dist > radius) {
+        // Ragged soft skirt — hard Euclidean cutoff painted a perfect circle on maps.
+        float edgeWarp = (valueNoise2(0xC0E5EED, worldX * 0.028F, worldZ * 0.028F) - 0.5F) * 0.20F;
+        float effectiveR = radius * (1.0F + edgeWarp);
+        float soft = Math.max(18.0F, radius * 0.14F);
+        if (dist > effectiveR + soft) {
             return ClusterEval.NONE;
         }
-        float t = 1.0F - dist / radius;
+        float outerFade = 1.0F;
+        if (dist > effectiveR - soft) {
+            float t = NoiseUtil.clamp((dist - (effectiveR - soft)) / (2.0F * soft), 0.0F, 1.0F);
+            outerFade = 1.0F - t * t * (3.0F - 2.0F * t);
+        }
+        if (outerFade <= 0.02F) {
+            return ClusterEval.NONE;
+        }
+        float t = 1.0F - dist / Math.max(1.0F, effectiveR);
         // Pipe must be findable in-world: floor size scales with cone, with a solid minimum.
         float craterR = Math.max(48.0F, radius * 0.42F);
         float rimR = Math.max(craterR + 20.0F, radius * 0.58F);
@@ -732,13 +744,13 @@ public final class IslandScatter {
         if (dist <= craterR) {
             // Distinct crater floor — lower than rim so pipe isn't filled by Math.max land paints.
             float inner = dist / Math.max(1.0F, craterR);
-            return ClusterEval.volcano(0.30F + inner * 0.08F, true);
+            return ClusterEval.volcano((0.30F + inner * 0.08F) * (0.85F + 0.15F * outerFade), true);
         }
         if (dist <= rimR) {
             float rim = (dist - craterR) / Math.max(1.0E-3F, rimR - craterR);
-            return ClusterEval.volcano(0.58F + rim * 0.22F, false);
+            return ClusterEval.volcano((0.58F + rim * 0.22F) * (0.75F + 0.25F * outerFade), false);
         }
-        return ClusterEval.volcano(0.40F + t * 0.32F, false);
+        return ClusterEval.volcano((0.40F + t * 0.32F) * outerFade, false);
     }
 
     private static Landform pickMotherLandform(int seed, int cx, int cz) {

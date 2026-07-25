@@ -70,15 +70,24 @@ public final class DeepVolcano {
         float dx = worldX - centerX;
         float dz = worldZ - centerZ;
         float dist = NoiseUtil.sqrt(dx * dx + dz * dz);
-        // Mild edge warp only — does not relocate the crater centre.
-        if (seed != 0) {
-            float edgeWarp = (valueNoise2(seed ^ 0xE061, worldX * 0.035F, worldZ * 0.035F) - 0.5F) * 0.10F;
-            dist *= 1.0F + edgeWarp;
-        }
-        if (dist > radius) {
+        // Soft ragged skirt (was a hard Euclidean circle).
+        float edgeWarp = seed != 0
+                ? (valueNoise2(seed ^ 0xE061, worldX * 0.035F, worldZ * 0.035F) - 0.5F) * 0.18F
+                : (valueNoise2(0xE061, worldX * 0.035F, worldZ * 0.035F) - 0.5F) * 0.18F;
+        float effectiveR = radius * (1.0F + edgeWarp);
+        float soft = Math.max(18.0F, radius * 0.14F);
+        if (dist > effectiveR + soft) {
             return Result.NONE;
         }
-        float t = 1.0F - dist / radius;
+        float outerFade = 1.0F;
+        if (dist > effectiveR - soft) {
+            float u = NoiseUtil.clamp((dist - (effectiveR - soft)) / (2.0F * soft), 0.0F, 1.0F);
+            outerFade = 1.0F - u * u * (3.0F - 2.0F * u);
+        }
+        if (outerFade <= 0.02F) {
+            return Result.NONE;
+        }
+        float t = (1.0F - dist / Math.max(1.0F, effectiveR)) * outerFade;
         // Wider pipe so each cone has a visible vent (preview zoom often skipped the old ~22-block throat).
         float craterR = Math.max(48.0F, radius * 0.42F);
         float rimR = Math.max(craterR + 20.0F, radius * 0.58F);
@@ -92,9 +101,9 @@ public final class DeepVolcano {
         }
         if (dist <= rimR) {
             float rim = (dist - craterR) / Math.max(1.0E-3F, rimR - craterR);
-            return new Result(true, false, 0.58F + rim * 0.22F, t);
+            return new Result(true, false, (0.58F + rim * 0.22F) * (0.75F + 0.25F * outerFade), t);
         }
-        return new Result(true, false, 0.40F + t * 0.32F, t);
+        return new Result(true, false, (0.40F + (1.0F - dist / Math.max(1.0F, effectiveR)) * 0.32F) * outerFade, t);
     }
 
     private static float valueNoise2(int seed, float x, float z) {
