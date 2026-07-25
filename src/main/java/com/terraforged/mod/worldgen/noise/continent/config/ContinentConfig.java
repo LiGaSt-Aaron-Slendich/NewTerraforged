@@ -27,6 +27,13 @@ public class ContinentConfig {
       public int seed0;
       public int seed1;
       public int scale = 400;
+      /**
+       * Unpitched continent scale for {@code RiverCarver} width conversion.
+       * Must match {@code ContinentNoise} sample frame ({@code 1/settings.continentScale}).
+       * {@link #scale} may be larger when Continents Spread pitches cell gaps — do not use
+       * that pitched value for river bed/bank/valley widths or rivers shrink/vanish.
+       */
+      public int riverScale = 400;
       public float jitter = 0.75F;
       public float threshold = 0.525F;
       public float baseFalloffMin = 0.01F;

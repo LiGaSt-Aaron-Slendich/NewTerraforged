@@ -21,7 +21,10 @@ public class RiverCarver {
    private final RiverConfig lakeConfig = new RiverConfig();
 
    public RiverCarver(NoiseLevels levels, ContinentConfig config) {
-      float f = levels.frequency * (1.0F / config.shape.scale);
+      // Use unpitched riverScale so Continents Spread (pitched shape.scale) cannot shrink
+      // bed/bank/valley widths out of existence. Matches ContinentNoise sample frame.
+      int riverScale = config.shape.riverScale > 0 ? config.shape.riverScale : config.shape.scale;
+      float f = levels.frequency * (1.0F / (float) Math.max(100, riverScale));
       this.levels = levels;
       this.riverConfig.copy(config.rivers.rivers).scale(f);
       this.lakeConfig.copy(config.rivers.lakes).scale(f);

@@ -214,7 +214,13 @@ public class ShapeGenerator {
       // Prefer near-coast / shelf-inland so cores stay solid; fade toward deep inland.
       float coastal = NoiseUtil.clamp(1.0F - (cn - 0.50F) / 0.42F, 0.15F, 1.0F);
       float cut = depth * coastal * 0.55F;
-      sample.continentNoise = NoiseUtil.clamp(cn * (1.0F - cut), 0.0F, 1.0F);
+      float after = cn * (1.0F - cut);
+      // Do not drag river-capable inland below RiverCarver.getBaseModifier floor (0.55)
+      // or clipRiverNoise beach gate (0.5) — gulfs were wiping riverNoise inland.
+      if (cn >= 0.55F) {
+         after = Math.max(after, 0.55F);
+      }
+      sample.continentNoise = NoiseUtil.clamp(after, 0.0F, 1.0F);
       // Keep baseNoise coherent so heights don't float over carved seas.
       if (cut > 0.08F) {
          sample.baseNoise = NoiseUtil.lerp(sample.baseNoise, sample.continentNoise * 0.85F, cut);

@@ -135,7 +135,9 @@ public class ContinentNoise implements IContinentNoise {
 
    protected static ContinentConfig createConfig(GeneratorContext context) {
       ContinentConfig continentconfig = new ContinentConfig();
-      continentconfig.shape.scale = context.settings.world.continent.continentScale;
+      int scale = Math.max(100, context.settings.world.continent.continentScale);
+      continentconfig.shape.scale = scale;
+      continentconfig.shape.riverScale = scale;
       continentconfig.shape.seed0 = context.seed.next();
       continentconfig.shape.seed1 = context.seed.next();
       ContinentShapeWiring.apply(continentconfig, context.settings);

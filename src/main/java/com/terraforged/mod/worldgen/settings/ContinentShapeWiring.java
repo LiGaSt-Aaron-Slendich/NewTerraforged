@@ -37,23 +37,28 @@ public final class ContinentShapeWiring {
             WorldSettings.Islands islands,
             WorldSettings.OceanLandscape oceanLandscape
     ) {
-        config.shape.scale = Math.max(100, continent.continentScale);
+        int baseScale = Math.max(100, continent.continentScale);
+        // River widths are converted with riverScale — must stay equal to ContinentNoise's
+        // 1/continentScale frame (stock TF used the same value for shape.scale).
+        config.shape.riverScale = baseScale;
+        config.shape.scale = baseScale;
         float spread = NoiseUtil.clamp(continent.continentsSpread, 0.0F, 1.0F);
         // Jitter is user-controlled only — do not bake spread into it (that looked like a one-way shift).
         config.shape.jitter = NoiseUtil.clamp(continent.continentJitter, 0.0F, 1.0F);
 
-        // Spread always widens oceans / separates landmasses (works with or without Guaranteed Continents).
-        float skip = NoiseUtil.clamp(continent.continentSkipping, 0.0F, 1.0F);
-        float skipWithSpread = NoiseUtil.clamp(NoiseUtil.lerp(skip, Math.min(1.0F, skip + 0.55F), spread), 0.0F, 1.0F);
-        config.shape.threshold = NoiseUtil.lerp(0.34F, 0.84F, skipWithSpread);
+        // Stock TF kept land-cell threshold at 0.525 for drainage. Continents Spread already
+        // pitches cell gaps via shape.scale; folding skip/spread into threshold (old NewTF
+        // path → ~0.60–0.72) starved RiverGenerator of land cells. Keep stock constant.
+        config.shape.threshold = 0.525F;
         boolean egfGuarantee = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.guaranteedContinentsEnabled();
         boolean guaranteeActive = egfGuarantee && continent.guaranteedContinentsEnabled;
         // Cell-pitch stretch: higher spread → larger gaps between Voronoi land blobs.
         // Stronger when guarantee is off (guarantee uses minSep instead).
+        // Pitch only shape.scale (mask / gulf wavelength) — never riverScale.
         float pitch = guaranteeActive
                 ? NoiseUtil.lerp(1.0F, 1.25F, spread)
                 : NoiseUtil.lerp(1.0F, 2.35F, spread);
-        config.shape.scale = Math.max(100, Math.round(config.shape.scale * pitch));
+        config.shape.scale = Math.max(100, Math.round(baseScale * pitch));
 
         config.shape.noiseOctaves = Math.max(1, Math.min(8, continent.continentNoiseOctaves));
         // Stronger outline noise → gulfs / embayments instead of smooth blob coasts.
@@ -121,6 +126,7 @@ public final class ContinentShapeWiring {
         // Above any possible cell.noise so shape never forms mainland.
         config.shape.threshold = 1.01F;
         config.shape.scale = Math.min(Math.max(100, config.shape.scale), 1400);
+        config.shape.riverScale = Math.min(Math.max(100, config.shape.riverScale), 1400);
         // Ocean Landscape owns Shipwrecked islands when EGF is on.
         if (com.terraforged.mod.platform.forge.TFNoiseVariantFlags.oceanLandscapeEnabled()) {
             config.shape.archipelago = false;

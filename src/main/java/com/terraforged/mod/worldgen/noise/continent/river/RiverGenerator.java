@@ -167,10 +167,12 @@ public class RiverGenerator {
    }
 
    private void addRiverNodes(CellPoint a, CellPoint b, float ah, float bh, float ar, float br, int hash, RiverPieces pieces) {
+      // Stock TF had no density gate here. riverDensity==0 (riverCount==0) still disables;
+      // partial density thins links. Never treat default riverCount=8 as anything but full.
       if (this.riverDensity <= 0.0F) {
          return;
       }
-      if (this.riverDensity < 1.0F && MathUtil.rand(this.seed + 99173, hash) > this.riverDensity) {
+      if (this.riverDensity < 0.999F && MathUtil.rand(this.seed + 99173, hash) > this.riverDensity) {
          return;
       }
       float f = (a.px + b.px) * 0.5F;

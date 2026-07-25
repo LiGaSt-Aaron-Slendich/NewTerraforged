@@ -16,8 +16,15 @@ public final class ContinentRiverWiring {
 
     public static void apply(ContinentConfig config, RiverSettings rivers) {
         config.rivers.seed = rivers.seedOffset;
-        // Default riverCount=8 → density 1.0 (place every drainage link). 0 → none.
-        config.rivers.riverDensity = Math.max(0.0F, rivers.riverCount / 8.0F);
+        // Stock continent RiverGenerator ignored riverCount. Keep 0 = off; treat count>=8 as
+        // full density (1.0). Counts 1..7 thin links — never accidentally zero from float noise.
+        if (rivers.riverCount <= 0) {
+            config.rivers.riverDensity = 0.0F;
+        } else if (rivers.riverCount >= 8) {
+            config.rivers.riverDensity = 1.0F;
+        } else {
+            config.rivers.riverDensity = rivers.riverCount / 8.0F;
+        }
         config.rivers.lakeDensity = clamp01(rivers.lakes.chance);
 
         applyRiver(config.rivers.rivers, rivers.mainRivers);
