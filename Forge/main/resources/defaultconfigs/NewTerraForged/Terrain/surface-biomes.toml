@@ -1051,15 +1051,17 @@ weight = 1.0
 id = "biomesoplenty:highland_moor"
 weight = 1.0
 
-[[alpine]]
+# jade_cliffs: wiki ~0.7–0.8 temperate forested cliffs — not snow alpine
+[[temperate_forest]]
 id = "biomesoplenty:jade_cliffs"
 weight = 1.0
 
-[[alpine]]
+# volcanic_* : hot volcanic, not alpine climate pool
+[[savanna]]
 id = "biomesoplenty:volcanic_plains"
 weight = 0.7
 
-[[alpine]]
+[[savanna]]
 id = "biomesoplenty:volcano"
 weight = 1.0
 
@@ -1093,12 +1095,13 @@ weight = 0.7
 id = "regions_unexplored:towering_cliffs"
 weight = 1.0
 
-# terralith
-[[alpine]]
+# terralith — temps from Stardust Labs wiki
+[[temperate_forest]]
 id = "terralith:basalt_cliffs"
 weight = 1.0
 
-[[alpine]]
+# blooming_plateau: temp 0.5 / downfall 0.8 flower highland — not alpine
+[[temperate_rainforest]]
 id = "terralith:blooming_plateau"
 weight = 1.0
 
@@ -1118,7 +1121,8 @@ weight = 1.0
 id = "terralith:mountain_steppe"
 weight = 1.0
 
-[[alpine]]
+# painted_mountains: wiki temp 1.0 / arid colorful strata — mesa/desert body
+[[desert]]
 id = "terralith:painted_mountains"
 weight = 1.0
 
@@ -1130,11 +1134,11 @@ weight = 1.0
 id = "terralith:scarlet_mountains"
 weight = 1.0
 
-[[alpine]]
+[[temperate_forest]]
 id = "terralith:stony_spires"
 weight = 0.7
 
-[[alpine]]
+[[savanna]]
 id = "terralith:volcanic_crater"
 weight = 0.7
 

@@ -135,11 +135,11 @@ public final class BiomeRuleRegistry {
         int kind = 0;
         if (Files.isRegularFile(file)) {
             BiomeRuleIO.LoadResult lr = BiomeRuleIO.load(file);
-            if (lr.ok() && !isStaleAutogen(id, lr.rule())) {
+            if (lr.ok() && !isStaleAutogen(id, lr.rule(), biome)) {
                 rule = lr.rule();
                 kind = 1;
             } else {
-                String reason = lr.ok() ? "stale auto_generated rule (classification/volcano fix)" : lr.error();
+                String reason = lr.ok() ? "stale auto_generated rule (classification/climate fix)" : lr.error();
                 try {
                     BiomeRuleIO.quarantineBroken(file, reason);
                     TerraForged.LOG.warn("[BiomeRules] quarantined {} — {}", file.getFileName(), reason);
@@ -180,10 +180,13 @@ public final class BiomeRuleRegistry {
         return BiomeRuleAutogen.enrichFromName(id, base);
     }
 
-    /** Rewrite known bad templates (river/plains mixups, heights, prairie, volcano wiring). */
-    private static boolean isStaleAutogen(ResourceLocation id, BiomeRule rule) {
+    /** Rewrite known bad templates (river/plains mixups, heights, prairie, volcano wiring, climate mismatch). */
+    private static boolean isStaleAutogen(ResourceLocation id, BiomeRule rule, Biome biome) {
         if (rule == null) {
             return false;
+        }
+        if (BiomeRuleAutogen.isClimateStale(id, rule, biome)) {
+            return true;
         }
         String path = id.getPath().toLowerCase(Locale.ROOT);
         boolean volcanicName = path.contains("volcan") || path.contains("magma_wastes")
