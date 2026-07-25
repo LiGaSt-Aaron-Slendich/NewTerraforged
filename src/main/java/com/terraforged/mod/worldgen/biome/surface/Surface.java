@@ -328,17 +328,18 @@ public class Surface {
    }
 
    /**
-    * Break up monolithic cliff columns: mix gravel / cobble / andesite / diorite / granite
-    * into the solid fill using cheap per-block hash noise.
+    * Break up monolithic cliff columns: gravel + grey stone suite (andesite-heavy)
+    * via cheap per-block hash noise.
     */
    protected static BlockState cliffMix(BlockState base, int worldX, int y, int worldZ) {
       if (base == null || base.isAir() || base.getBlock() instanceof LiquidBlock) {
          return base;
       }
-      // Keep unusual solids (basalt, deepslate, terracotta…) mostly intact.
+      // Keep unusual solids (basalt, terracotta…) mostly intact.
       Block block = base.getBlock();
       boolean commonStone = block == Blocks.STONE
             || block == Blocks.COBBLESTONE
+            || block == Blocks.MOSSY_COBBLESTONE
             || block == Blocks.ANDESITE
             || block == Blocks.DIORITE
             || block == Blocks.GRANITE
@@ -351,23 +352,30 @@ public class Surface {
       h = (h ^ (h >>> 13)) * 1274126177;
       h ^= h >>> 16;
       int roll = h & 255;
-      if (roll < 28) {
+      // ~70% replaced — andesite is the main stone accent (grey palette with gravel).
+      if (roll < 22) {
          return Blocks.GRAVEL.defaultBlockState();
       }
-      if (roll < 48) {
+      if (roll < 40) {
          return Blocks.COBBLESTONE.defaultBlockState();
       }
-      if (roll < 68) {
-         return Blocks.ANDESITE.defaultBlockState();
-      }
-      if (roll < 84) {
-         return Blocks.DIORITE.defaultBlockState();
+      if (roll < 48) {
+         return Blocks.MOSSY_COBBLESTONE.defaultBlockState();
       }
       if (roll < 100) {
+         return Blocks.ANDESITE.defaultBlockState();
+      }
+      if (roll < 132) {
+         return Blocks.DIORITE.defaultBlockState();
+      }
+      if (roll < 160) {
          return Blocks.GRANITE.defaultBlockState();
       }
-      if (roll < 112) {
+      if (roll < 178) {
          return Blocks.TUFF.defaultBlockState();
+      }
+      if (roll < 190 && y < 0) {
+         return Blocks.DEEPSLATE.defaultBlockState();
       }
       return base;
    }
