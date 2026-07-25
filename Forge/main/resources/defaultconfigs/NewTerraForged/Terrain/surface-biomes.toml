@@ -15,7 +15,8 @@ auto_detect_mod_biomes = true
 # ── desert (35) ──
 
 # biomesoplenty
-[[desert]]
+# cold_desert: cold arid — not hot desert pool
+[[cold_steppe]]
 id = "biomesoplenty:cold_desert"
 weight = 1.0
 
@@ -77,7 +78,8 @@ weight = 1.0
 id = "regions_unexplored:dry_bushland"
 weight = 1.0
 
-[[desert]]
+# icy_desert: frozen arid — tundra not hot desert
+[[tundra]]
 id = "regions_unexplored:icy_desert"
 weight = 1.0
 
@@ -126,7 +128,8 @@ weight = 1.0
 id = "terralith:desert_spires"
 weight = 0.7
 
-[[desert]]
+# gravel_desert: wiki temp 0.14 — cold_steppe not hot desert
+[[cold_steppe]]
 id = "terralith:gravel_desert"
 weight = 1.0
 
@@ -142,7 +145,8 @@ weight = 1.0
 id = "terralith:savanna_badlands"
 weight = 1.0
 
-[[desert]]
+# snowy_badlands: wiki temp 0 — tundra not desert
+[[tundra]]
 id = "terralith:snowy_badlands"
 weight = 1.0
 
@@ -184,11 +188,13 @@ weight = 1.0
 id = "terralith:fractured_savanna"
 weight = 1.0
 
+# gravel_beach: coastal warm (temp 0.8) — savanna OK as warm coastal
 [[savanna]]
 id = "terralith:gravel_beach"
 weight = 1.0
 
-[[savanna]]
+# orchid_swamp: wiki 0.8/0.9 — tropical_rainforest not savanna
+[[tropical_rainforest]]
 id = "terralith:orchid_swamp"
 weight = 1.0
 
@@ -211,7 +217,8 @@ weight = 1.0
 id = "biomesoplenty:fungal_jungle"
 weight = 1.0
 
-[[tropical_rainforest]]
+# old_growth_woodland / woodland: temperate deciduous — not tropical
+[[temperate_forest]]
 id = "biomesoplenty:old_growth_woodland"
 weight = 1.0
 
@@ -227,7 +234,7 @@ weight = 1.0
 id = "biomesoplenty:tropics"
 weight = 1.0
 
-[[tropical_rainforest]]
+[[temperate_forest]]
 id = "biomesoplenty:woodland"
 weight = 1.0
 
@@ -236,7 +243,8 @@ weight = 1.0
 id = "byg:bayou"
 weight = 1.0
 
-[[tropical_rainforest]]
+# byg:temperate_rainforest was wrongly in tropical pool
+[[temperate_rainforest]]
 id = "byg:temperate_rainforest"
 weight = 1.0
 
@@ -305,7 +313,8 @@ weight = 1.0
 id = "biomesoplenty:boreal_forest"
 weight = 1.0
 
-[[taiga]]
+# cherry_blossom_grove: temperate blossom — not taiga
+[[temperate_rainforest]]
 id = "biomesoplenty:cherry_blossom_grove"
 weight = 1.0
 
@@ -396,7 +405,8 @@ id = "regions_unexplored:temperate_grove"
 weight = 1.0
 
 # terralith
-[[taiga]]
+# alpine_grove: wiki -0.2/0.8 cold wet grove — alpine not taiga
+[[alpine]]
 id = "terralith:alpine_grove"
 weight = 1.0
 
@@ -404,11 +414,13 @@ weight = 1.0
 id = "terralith:birch_taiga"
 weight = 1.0
 
-[[taiga]]
+# moonlight_grove: wiki 0.7/0.8 — temperate_rainforest not taiga
+[[temperate_rainforest]]
 id = "terralith:moonlight_grove"
 weight = 1.0
 
-[[taiga]]
+# sakura_grove: wiki 0.7 — temperate_rainforest not taiga
+[[temperate_rainforest]]
 id = "terralith:sakura_grove"
 weight = 1.0
 
@@ -596,7 +608,8 @@ weight = 1.0
 id = "terralith:alpine_highlands"
 weight = 1.0
 
-[[temperate_forest]]
+# cloud_forest: wiki 0.25/0.8 — temperate_rainforest not temperate_forest
+[[temperate_rainforest]]
 id = "terralith:cloud_forest"
 weight = 1.0
 
@@ -608,15 +621,17 @@ weight = 1.0
 id = "terralith:highlands"
 weight = 1.0
 
-[[temperate_forest]]
+# moonlight_valley / sakura_valley: wiki 0.7/0.8 — temperate_rainforest
+[[temperate_rainforest]]
 id = "terralith:moonlight_valley"
 weight = 1.0
 
-[[temperate_forest]]
+[[temperate_rainforest]]
 id = "terralith:sakura_valley"
 weight = 1.0
 
-[[temperate_forest]]
+# temperate_highlands: wiki 0.9 warm open — steppe not forest
+[[steppe]]
 id = "terralith:temperate_highlands"
 weight = 1.0
 
@@ -778,7 +793,8 @@ weight = 0.7
 id = "terralith:shield"
 weight = 1.0
 
-[[temperate_rainforest]]
+# shield_clearing: wiki 0.4 / downfall -0.5 dry — steppe not temperate_rainforest
+[[steppe]]
 id = "terralith:shield_clearing"
 weight = 1.0
 
@@ -892,7 +908,8 @@ weight = 1.0
 id = "biomesoplenty:rocky_shrubland"
 weight = 1.0
 
-[[cold_steppe]]
+# shrubland: hot dry (wiki ~1.2) — steppe not cold_steppe
+[[steppe]]
 id = "biomesoplenty:shrubland"
 weight = 1.0
 
@@ -910,7 +927,8 @@ weight = 1.0
 id = "terralith:cold_shrubland"
 weight = 1.0
 
-[[cold_steppe]]
+# hot_shrubland: wiki 0.8 — savanna/steppe not cold_steppe
+[[savanna]]
 id = "terralith:hot_shrubland"
 weight = 1.0
 
@@ -918,11 +936,13 @@ weight = 1.0
 id = "terralith:rocky_shrubland"
 weight = 1.0
 
-[[cold_steppe]]
+# shrubland: wiki 1.2 dry — steppe not cold_steppe
+[[steppe]]
 id = "terralith:shrubland"
 weight = 1.0
 
-[[cold_steppe]]
+# steppe: wiki 0.4 — steppe pool (was misplaced in cold_steppe)
+[[steppe]]
 id = "terralith:steppe"
 weight = 1.0
 
@@ -1024,7 +1044,8 @@ id = "regions_unexplored:prairie"
 weight = 1.0
 
 # terralith
-[[steppe]]
+# blooming_valley: wiki 0.7/0.8 — temperate_rainforest not steppe
+[[temperate_rainforest]]
 id = "terralith:blooming_valley"
 weight = 1.0
 
@@ -1032,7 +1053,8 @@ weight = 1.0
 id = "terralith:valley_clearing"
 weight = 1.0
 
-[[steppe]]
+# yellowstone: wiki 0.25/0.8 wet — temperate_rainforest not steppe
+[[temperate_rainforest]]
 id = "terralith:yellowstone"
 weight = 1.0
 
@@ -1142,11 +1164,13 @@ weight = 0.7
 id = "terralith:volcanic_crater"
 weight = 0.7
 
-[[alpine]]
+# volcanic_peaks: wiki 1.0 hot — savanna not alpine
+[[savanna]]
 id = "terralith:volcanic_peaks"
 weight = 0.7
 
-[[alpine]]
+# white_cliffs: wiki 0.4 temperate — temperate_forest not alpine
+[[temperate_forest]]
 id = "terralith:white_cliffs"
 weight = 1.0
 
@@ -1154,10 +1178,11 @@ weight = 1.0
 id = "terralith:windswept_spires"
 weight = 0.7
 
-[[alpine]]
+# yosemite_*: wiki 0.25–0.37 wet — temperate_rainforest not alpine
+[[temperate_rainforest]]
 id = "terralith:yosemite_cliffs"
 weight = 1.0
 
-[[alpine]]
+[[temperate_rainforest]]
 id = "terralith:yosemite_lowlands"
 weight = 1.0
