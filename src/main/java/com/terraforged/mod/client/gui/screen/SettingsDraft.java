@@ -23,7 +23,7 @@ public final class SettingsDraft {
     /** Fresh draft with factory defaults. */
     public SettingsDraft(long seed) {
         this.seed = seed == -1L ? System.currentTimeMillis() : seed;
-        this.levels = TerrainLevels.DEFAULT.get().copy();
+        this.levels = TerrainLevels.forCurrentEgf();
         this.settings = createFactorySettings(this.seed, this.levels);
         this.settingsData = DataUtils.toNBT(this.settings);
         patchWorldPropertyRanges(this.settingsData, this.levels);
@@ -155,9 +155,8 @@ public final class SettingsDraft {
     }
 
     /**
-     * Engine {@code @Range} used to cap worldHeight at 256, but NewTF overworld is
-     * height=1024 (min_y=-64) and terrain max_y defaults to 640. Widen slider metadata.
-     * Also raises continent / climate scale caps beyond stock TerraForged.
+     * World Height slider follows EGF Mega Ridges:
+     * off → stock TerraForged 256; on → up to 1024 (default floor 640).
      */
     private static void patchWorldPropertyRanges(CompoundTag root, TerrainLevels levels) {
         CompoundTag world = root.getCompound("world");
@@ -166,14 +165,22 @@ public final class SettingsDraft {
         }
         CompoundTag props = world.getCompound("properties");
         if (!props.isEmpty()) {
-            int maxY = Math.max(Math.max(levels.maxY, props.getInt("worldHeight")), 640);
-            int maxSea = Math.max(32, maxY >> 1);
-            putBoundMax(props, "worldHeight", Math.max(maxY, 1024));
+            boolean mega = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.megaRidgesEnabled();
+            int sliderMax = mega ? 1024 : 256;
+            int maxSea = Math.max(32, sliderMax >> 1);
+            putBoundMax(props, "worldHeight", sliderMax);
             putBoundMax(props, "seaLevel", maxSea);
-            // Ensure values themselves are not silently clamped by a 0–256 slider.
-            if (props.getInt("worldHeight") < 640) {
-                props.putInt("worldHeight", Math.max(levels.maxY, 640));
+            int height = props.contains("worldHeight") ? props.getInt("worldHeight") : levels.maxY;
+            if (mega) {
+                if (height < TerrainLevels.Defaults.MEGA_MAX_Y) {
+                    height = Math.max(levels.maxY, TerrainLevels.Defaults.MEGA_MAX_Y);
+                }
+                height = Math.min(sliderMax, height);
+            } else {
+                // Drop leftover 640/670 from mega experiments back to stock TF.
+                height = height > 256 ? 256 : Math.max(128, height);
             }
+            props.putInt("worldHeight", height);
             if (props.contains("seaLevel")) {
                 int sea = props.getInt("seaLevel");
                 if (sea < 32) {
@@ -244,7 +251,7 @@ public final class SettingsDraft {
         settings.world.seed = seed;
         settings.world.continent.continentScale = com.terraforged.engine.settings.WorldSettings.DEFAULT_CONTINENT_SCALE;
         settings.world.properties.seaLevel = levels.seaLevel;
-        settings.world.properties.worldHeight = Math.max(levels.maxY, 640);
+        settings.world.properties.worldHeight = levels.maxY;
         settings.filters.erosion.dropletsPerChunk = 250;
         // Stock TF default volcano weight=5 floods continents. Moderate mainland presence;
         // ocean volcanic islands come from Islands.volcanicIslandsChance.

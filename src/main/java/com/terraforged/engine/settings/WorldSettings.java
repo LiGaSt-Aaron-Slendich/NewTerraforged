@@ -155,8 +155,11 @@ public class WorldSettings {
         @Comment(value = {"Set whether spawn should be close to x=0,z=0 or the centre of the nearest continent"})
         public SpawnType spawnType = SpawnType.CONTINENT_CENTER;
         @Range(min = 128.0f, max = 1024.0f)
-        @Comment(value = {"Controls the world height (block Y ceiling for terrain). Default 640."})
-        public int worldHeight = 640;
+        @Comment(value = {
+                "Controls the world height (block Y ceiling for terrain).",
+                "Stock TerraForged default is 256. Values above 256 require EGF Mega Ridges."
+        })
+        public int worldHeight = 256;
         @Range(min = 0.0f, max = 512.0f)
         @Comment(value = {"Controls the sea level"})
         public int seaLevel = 63;
