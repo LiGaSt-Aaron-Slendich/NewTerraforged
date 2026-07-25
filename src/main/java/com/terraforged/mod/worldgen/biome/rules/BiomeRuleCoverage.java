@@ -292,7 +292,6 @@ public final class BiomeRuleCoverage {
     private static boolean allowsBadlands(BiomeType climate) {
         return climate == BiomeType.DESERT
                 || climate == BiomeType.SAVANNA
-                || climate == BiomeType.STEPPE
-                || climate == BiomeType.COLD_STEPPE;
+                || climate == BiomeType.STEPPE;
     }
 }

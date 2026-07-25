@@ -55,28 +55,28 @@ public final class MountainBeltField {
         float wz = worldZ + (valueNoise(s ^ 0x22, worldX * spineFreq * 0.16F, worldZ * spineFreq * 0.16F) - 0.5F) * warpAmt;
 
         float ridge = softRidge(s ^ 0xA0, wx * spineFreq, wz * spineFreq);
-        // Soft corridor — wide base; no hard 0→1 cliff gate.
-        float corridor = smoothstep(0.32F, 0.68F, ridge);
+        // Softer corridor — wider skirts before crest.
+        float corridor = smoothstep(0.26F, 0.62F, ridge);
         if (corridor <= 0.001F) {
             return 0.0F;
         }
 
-        float widthMul = NoiseUtil.lerp(1.05F, 1.85F, corridor);
-        float detailWl = scale * 1.10F * widthMul;
+        float widthMul = NoiseUtil.lerp(1.20F, 2.15F, corridor);
+        float detailWl = scale * 1.35F * widthMul;
         float detailFreq = 1.0F / detailWl;
         float primary = softRidge(s ^ 0xA1, wx * detailFreq, wz * detailFreq);
         // Along-spine amplitude can fall near zero — ridge ends / sinks (no sustained platform).
         float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.22F, wz * detailFreq * 0.22F);
-        float alongAmp = smoothstep(0.20F, 0.75F, along);
+        float alongAmp = smoothstep(0.15F, 0.70F, along);
 
-        float skirts = smoothstep(0.12F, 0.42F, primary);
-        float body = smoothstep(0.28F, 0.68F, primary);
-        float tipT = NoiseUtil.clamp((primary - 0.48F) / 0.52F, 0.0F, 1.0F);
-        float tip = tipT * tipT * tipT * tipT; // pointed crest, not flat top
-        float shoulder = softRidge(s ^ 0xA4, wx * detailFreq * 1.55F, wz * detailFreq * 1.55F);
-        float undulate = skirts * 0.10F * shoulder;
+        float skirts = smoothstep(0.08F, 0.45F, primary);
+        float body = smoothstep(0.22F, 0.65F, primary);
+        float tipT = NoiseUtil.clamp((primary - 0.42F) / 0.58F, 0.0F, 1.0F);
+        float tip = tipT * tipT * tipT; // softer tip than tip^4 — wider peak shoulders
+        float shoulder = softRidge(s ^ 0xA4, wx * detailFreq * 1.35F, wz * detailFreq * 1.35F);
+        float undulate = skirts * 0.14F * shoulder;
 
-        float profile = skirts * 0.18F + body * 0.32F + tip * 0.78F + undulate;
+        float profile = skirts * 0.28F + body * 0.38F + tip * 0.58F + undulate;
         return NoiseUtil.clamp(corridor * profile * alongAmp, 0.0F, 1.0F);
     }
 
@@ -106,7 +106,8 @@ public final class MountainBeltField {
     private static float softRidge(int seed, float x, float z) {
         float n = valueNoise(seed, x, z);
         float r = 1.0F - Math.abs(n * 2.0F - 1.0F);
-        return (float) Math.pow(Math.max(0.0F, r), 0.72F);
+        // Higher power → softer skirts (less wall-like flanks).
+        return (float) Math.pow(Math.max(0.0F, r), 0.85F);
     }
 
     private static float valueNoise(int seed, float x, float z) {

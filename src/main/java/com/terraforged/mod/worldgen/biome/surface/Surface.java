@@ -6,12 +6,16 @@ import com.terraforged.mod.worldgen.terrain.TerrainData;
 import com.terraforged.noise.util.NoiseUtil;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -40,9 +44,9 @@ public class Surface {
                   int fillFloor = Math.max(solidY, k - 10);
                   int wx = chunk.getPos().getMinBlockX() + j;
                   int wz = chunk.getPos().getMinBlockZ() + i;
-                  Terrain terrain = terrainData.getTerrain().get(j, i);
+                  Holder<Biome> biome = chunk.getNoiseBiome(wx >> 2, k >> 2, wz >> 2);
                   for (; k > fillFloor; k--) {
-                     chunk.setBlockState(mutableblockpos.setY(k), cliffMix(blockstate, wx, k, wz, terrain), false);
+                     chunk.setBlockState(mutableblockpos.setY(k), cliffMix(blockstate, wx, k, wz, biome), false);
                   }
                }
             }
@@ -307,14 +311,15 @@ public class Surface {
    }
 
    /**
-    * Break up monolithic cliff columns with a terrain-matched palette
-    * (grey mountains, orange badlands, dark volcanic, sandy coasts).
+    * Break up monolithic cliff columns with a <b>biome</b>-matched palette
+    * (grey mountains, orange badlands biomes, dark volcanic, sandy beaches).
+    * Terrain type alone was painting mesa terracotta into taiga mountain walls.
     */
-   protected static BlockState cliffMix(BlockState base, int worldX, int y, int worldZ, @Nullable Terrain terrain) {
+   protected static BlockState cliffMix(BlockState base, int worldX, int y, int worldZ, @Nullable Holder<Biome> biome) {
       if (base == null || base.isAir() || base.getBlock() instanceof LiquidBlock) {
          return base;
       }
-      CliffPalette palette = cliffPalette(terrain);
+      CliffPalette palette = cliffPalette(biome);
       if (!isCliffMixable(base, palette)) {
          return base;
       }
@@ -337,19 +342,26 @@ public class Surface {
       SAND
    }
 
-   private static CliffPalette cliffPalette(@Nullable Terrain terrain) {
-      if (terrain == null) {
+   private static CliffPalette cliffPalette(@Nullable Holder<Biome> biome) {
+      if (biome == null) {
          return CliffPalette.GREY;
       }
-      String name = terrain.getName();
-      String n = name == null ? "" : name.toLowerCase();
-      if (terrain.isVolcano() || n.contains("volcano")) {
-         return CliffPalette.VOLCANIC;
-      }
-      if (n.contains("badland") || n.contains("mesa")) {
+      if (biome.is(BiomeTags.IS_BADLANDS)) {
          return CliffPalette.ORANGE;
       }
-      if ("beach".equals(n) || n.contains("beach")) {
+      if (biome.is(BiomeTags.IS_BEACH) || biome.is(BiomeTags.IS_OCEAN)) {
+         return CliffPalette.SAND;
+      }
+      ResourceLocation id = biome.unwrapKey().map(k -> k.location()).orElse(null);
+      String path = id != null ? id.getPath() : "";
+      if (path.contains("volcan") || path.contains("basalt") || path.contains("ash")) {
+         return CliffPalette.VOLCANIC;
+      }
+      if (path.contains("badland") || path.contains("mesa") || path.contains("outback")
+            || path.contains("terracotta") || path.contains("canyon")) {
+         return CliffPalette.ORANGE;
+      }
+      if (path.contains("beach") || path.contains("dune") || path.contains("shore")) {
          return CliffPalette.SAND;
       }
       return CliffPalette.GREY;

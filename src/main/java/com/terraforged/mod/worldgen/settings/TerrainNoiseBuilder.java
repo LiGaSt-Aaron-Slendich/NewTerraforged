@@ -45,8 +45,9 @@ public final class TerrainNoiseBuilder {
         // Widen before LandForms — mountains/hills bake horizontalScale into Source wavelengths.
         terrain.mountains.horizontalScale = Math.max(0.25F, terrain.mountains.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
         terrain.torridonian.horizontalScale = Math.max(0.25F, terrain.torridonian.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
-        terrain.hills.horizontalScale = Math.max(0.25F, terrain.hills.horizontalScale) * 1.35F;
-        terrain.plateau.horizontalScale = Math.max(0.25F, terrain.plateau.horizontalScale) * 1.25F;
+        terrain.hills.horizontalScale = Math.max(0.25F, terrain.hills.horizontalScale) * 1.45F;
+        terrain.plateau.horizontalScale = Math.max(0.25F, terrain.plateau.horizontalScale) * 1.40F;
+        terrain.badlands.horizontalScale = Math.max(0.25F, terrain.badlands.horizontalScale) * 1.50F;
 
         Seed seed = new RandSeed(9712416L + (long) terrain.general.terrainSeedOffset, 500000);
         LandForms forms = new LandForms(terrain, new Levels(settings.world), Source.ZERO);
@@ -56,13 +57,18 @@ public final class TerrainNoiseBuilder {
         float plateauV = Math.max(0.01F, terrain.plateau.verticalScale);
         float torridonV = Math.max(0.01F, terrain.torridonian.verticalScale) * HIGHLAND_RELIEF_BOOST;
         float mountainsV = Math.max(0.01F, terrain.mountains.verticalScale) * HIGHLAND_RELIEF_BOOST;
-        // Torridonian / mountains2/3 ignore settings.horizontalScale internally — freq-widen after.
+        float badlandsV = Math.max(0.01F, terrain.badlands.verticalScale);
+        // Torridonian / mountains2/3 / badlands ignore settings.horizontalScale internally — freq-widen after.
         // Couple width to height: taller verticalScale → lower frequency (wider massifs).
         float torridonFreq = 1.0F / Math.max(0.25F, terrain.torridonian.horizontalScale);
         float mountainsH = Math.max(0.25F, terrain.mountains.horizontalScale);
         float heightWidth = Math.max(1.0F, mountainsV / (1.0F * HIGHLAND_RELIEF_BOOST));
         float mountainsFreq = 1.0F / (mountainsH * heightWidth);
         float hillsFreq = 1.0F / Math.max(0.25F, terrain.hills.horizontalScale);
+        float plateauFreq = 1.0F / Math.max(0.25F, terrain.plateau.horizontalScale);
+        float badlandsFreq = 1.0F / Math.max(0.25F, terrain.badlands.horizontalScale);
+        // Soften mesa weight further — canyon landform digs mountain trenches at region edges.
+        float badlandsW = Math.max(0.0F, terrain.badlands.weight) * 0.55F;
 
         return new TerrainNoise[]{
                 of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.steppe.weight, 1.0F, 1.0F, forms::steppe, seed),
@@ -70,8 +76,8 @@ public final class TerrainNoiseBuilder {
                 of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, hillsFreq, forms::hills1, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, hillsFreq, forms::hills2, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.dales.weight, dalesV, 1.0F, forms::dales, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.PLATEAU, terrain.plateau.weight, plateauV, 1.0F, forms::plateau, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.BADLANDS, terrain.badlands.weight, 1.0F, 1.0F, forms::badlands, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.PLATEAU, terrain.plateau.weight, plateauV, plateauFreq, forms::plateau, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.BADLANDS, badlandsW, badlandsV, badlandsFreq, forms::badlands, seed),
                 of(access, ModTerrainTypes.TORRIDONIAN, terrain.torridonian.weight, torridonV, torridonFreq, forms::torridonian, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, mountainsFreq, forms::mountains2, seed),

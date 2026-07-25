@@ -46,6 +46,8 @@ public final class SurfaceBiomeClimate {
             return SurfaceBiomeClimate.volcanicClimate(climate, temperature);
         }
         if (SurfaceBiomeClimate.isBadlandsTerrain(terrain)) {
+            // Never keep cold climates paired with mesa terrain — if bias failed, still
+            // push climate toward arid so biome rules / cliff paint stay consistent.
             return SurfaceBiomeClimate.badlandsClimate(climate, moisture);
         }
         if (terrain.isWetland() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.WETLAND)) {
@@ -68,10 +70,14 @@ public final class SurfaceBiomeClimate {
     }
 
     private static BiomeType badlandsClimate(BiomeType climate, float moisture) {
-        if (climate == BiomeType.TUNDRA || climate == BiomeType.TAIGA) {
+        // Cold/wet climates should never host mesa terrain (ClimateTerrainBias). If one
+        // slips through, do not invent DESERT here — that breaks taiga biome rules worse.
+        if (climate == BiomeType.TUNDRA || climate == BiomeType.TAIGA
+                || climate == BiomeType.ALPINE || climate == BiomeType.COLD_STEPPE
+                || climate == BiomeType.TEMPERATE_FOREST || climate == BiomeType.TEMPERATE_RAINFOREST) {
             return climate;
         }
-        return moisture < 0.55f ? BiomeType.DESERT : BiomeType.SAVANNA;
+        return moisture < 0.55F ? BiomeType.DESERT : BiomeType.SAVANNA;
     }
 
     /**

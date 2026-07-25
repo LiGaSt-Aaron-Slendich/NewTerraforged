@@ -429,11 +429,17 @@ public final class GeneratorSettings {
         // Use the 640 column — stock TF mountain modules were ~256-era amplitude.
         // Horizontal scale rises with height so peaks stay massifs, not walls.
         engine.terrain.mountains.verticalScale = 2.0F;
-        engine.terrain.mountains.horizontalScale = 1.75F;
+        engine.terrain.mountains.horizontalScale = 2.05F;
         engine.terrain.hills.verticalScale = 1.30F;
-        engine.terrain.hills.horizontalScale = 1.25F;
+        engine.terrain.hills.horizontalScale = 1.40F;
+        engine.terrain.plateau.horizontalScale = 1.55F;
+        engine.terrain.plateau.verticalScale = 1.05F;
         engine.terrain.torridonian.verticalScale = 1.75F;
-        engine.terrain.torridonian.horizontalScale = 1.55F;
+        engine.terrain.torridonian.horizontalScale = 1.70F;
+        // Mesa canyons dig trenches into mountains when they spawn in cold climates.
+        engine.terrain.badlands.weight = 0.45F;
+        engine.terrain.badlands.horizontalScale = 1.65F;
+        engine.terrain.badlands.verticalScale = 0.85F;
         return fromEngine(engine);
     }
 

@@ -540,7 +540,7 @@ public class NoiseGenerator implements INoiseGenerator {
       float horizontal = settings.terrain.general.globalHorizontalScale;
       int scale = Math.round(regionSize * horizontal);
       scale = Math.max(125, Math.min(5000, scale));
-      return new TerrainBlender(seed, scale, 0.8F, 0.72F, terrainNoises);
+      return new TerrainBlender(seed, scale, 0.8F, 0.85F, terrainNoises);
    }
 
    protected static IContinentNoise createContinentNoise(long seed, TerrainLevels levels) {

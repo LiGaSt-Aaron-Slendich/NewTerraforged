@@ -11,29 +11,48 @@ import com.terraforged.noise.util.NoiseUtil;
  * Climate → landform gate: arid landforms (badlands / mesa) only keep their WeightMap
  * slot when temperature+moisture suit them. Otherwise the noise index is remapped onto
  * hills so <em>height and terrain type</em> both change — not a paper-only biome ban.
+ *
+ * <p>Hard ban in cold/wet climates (taiga/tundra/alpine/temperate forest). Soft allow
+ * only on steppe → savanna → desert. Badlands canyons next to mountains otherwise dig
+ * trench walls along region edges.
  */
 public final class ClimateTerrainBias {
     private ClimateTerrainBias() {
     }
 
     /**
-     * 0 = forbid arid landforms (cold / temperate wet), 1 = fully allow (hot dry).
+     * 0 = forbid arid landforms, 1 = fully allow.
+     * Uses both {@link BiomeType} and raw temp/moist so edge climates cannot sneak mesa in.
      */
     public static float aridSuitability(float temperature, float moisture) {
-        BiomeType type = BiomeType.get(temperature, moisture);
+        float t = NoiseUtil.clamp(temperature, 0.0F, 1.0F);
+        float m = NoiseUtil.clamp(moisture, 0.0F, 1.0F);
+        // Cold or wet → never mesa (taiga/tundra/temperate forest).
+        if (t < 0.42F || m > 0.58F) {
+            return 0.0F;
+        }
+        BiomeType type = BiomeType.get(t, m);
         if (type == null) {
-            return 0.35F;
+            return aridFromRaw(t, m);
         }
         return switch (type) {
-            case TUNDRA, TAIGA, ALPINE, COLD_STEPPE -> 0.0F;
-            case TEMPERATE_FOREST, TEMPERATE_RAINFOREST -> 0.08F;
-            case GRASSLAND -> 0.18F;
-            case STEPPE -> 0.42F;
-            case SAVANNA -> 0.78F;
+            case TUNDRA, TAIGA, ALPINE, COLD_STEPPE, TEMPERATE_FOREST, TEMPERATE_RAINFOREST -> 0.0F;
+            case GRASSLAND -> 0.05F;
+            case STEPPE -> 0.35F;
+            case SAVANNA -> 0.80F;
             case DESERT -> 1.0F;
-            case TROPICAL_RAINFOREST -> 0.35F;
-            default -> 0.25F;
+            case TROPICAL_RAINFOREST -> 0.0F;
+            default -> aridFromRaw(t, m);
         };
+    }
+
+    private static float aridFromRaw(float t, float m) {
+        if (t < 0.50F || m > 0.50F) {
+            return 0.0F;
+        }
+        float heat = smoothstep(0.50F, 0.78F, t);
+        float dry = 1.0F - smoothstep(0.28F, 0.55F, m);
+        return heat * dry;
     }
 
     public static boolean isAridLandform(Terrain terrain) {
@@ -60,15 +79,15 @@ public final class ClimateTerrainBias {
             return n;
         }
         float suit = aridSuitability(temperature, moisture);
-        if (suit >= 0.92F) {
+        if (suit >= 0.85F) {
             return n;
         }
         float hills = hillsIndex(terrains);
-        if (suit <= 0.05F) {
+        // Hard ban below steppe — no soft residual mesa that digs mountain trenches.
+        if (suit <= 0.40F) {
             return hills;
         }
-        // Soft: pull mesa picks toward hills as climate cools / wets.
-        return NoiseUtil.lerp(hills, n, suit);
+        return NoiseUtil.lerp(hills, n, (suit - 0.40F) / 0.45F);
     }
 
     private static float hillsIndex(WeightMap<TerrainNoise> terrains) {
@@ -97,11 +116,23 @@ public final class ClimateTerrainBias {
                 if (t == TerrainType.HILLS || (name != null && name.toLowerCase().contains("hills"))) {
                     return NoiseUtil.clamp(mid, 0.0F, 0.9999F);
                 }
-                if (t == TerrainType.FLATS || (name != null && ("plains".equalsIgnoreCase(name) || "steppe".equalsIgnoreCase(name)))) {
+                if (t == TerrainType.PLATEAU || (name != null && name.toLowerCase().contains("plateau"))) {
                     best = mid;
+                }
+                if (t == TerrainType.FLATS || (name != null && ("plains".equalsIgnoreCase(name) || "steppe".equalsIgnoreCase(name)))) {
+                    if (best < 0.34F || best > 0.36F) {
+                        // keep plateau preference if already found
+                    } else {
+                        best = mid;
+                    }
                 }
             }
         }
         return NoiseUtil.clamp(best, 0.0F, 0.9999F);
+    }
+
+    private static float smoothstep(float edge0, float edge1, float x) {
+        float t = NoiseUtil.clamp((x - edge0) / Math.max(1.0E-4F, edge1 - edge0), 0.0F, 1.0F);
+        return t * t * (3.0F - 2.0F * t);
     }
 }
