@@ -54,7 +54,7 @@ public class NoiseCaveDecorator {
       int lz = worldZ & 15;
       int surface = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
       int maxY = Math.min(preferredY, surface - MIN_SURFACE_DEPTH);
-      int minY = chunk.getMinBuildHeight() + 4;
+      int minY = Math.max(chunk.getMinBuildHeight() + 4, surface - 320);
       if (maxY < minY) {
          return Integer.MIN_VALUE;
       }

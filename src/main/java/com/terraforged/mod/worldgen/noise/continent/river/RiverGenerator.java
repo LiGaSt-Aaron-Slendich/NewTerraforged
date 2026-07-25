@@ -205,7 +205,12 @@ public class RiverGenerator {
       float f2 = a.py - b.py;
       float f3 = a.px + f1 * f;
       float f4 = a.py + f2 * f;
-      pieces.addLake(new RiverNode(a.px, a.py, f3, f4, ah, ah, 1.0F, 1.0F, 0.0F));
+      // Elliptical + mild displacement — unit disks (ar=br=1, disp=0) painted perfect
+      // circular height cliffs (~17 chunks) that cut mountain-belt ridges on JourneyMap.
+      float ar = 0.52F + MathUtil.rand(this.seed + 9804, hash) * 0.40F;
+      float br = 0.52F + MathUtil.rand(this.seed + 9805, hash) * 0.40F;
+      float disp = (0.10F + MathUtil.rand(this.seed + 9806, hash) * 0.22F) * Math.max(ar, br);
+      pieces.addLake(new RiverNode(a.px, a.py, f3, f4, ah, ah, ar, br, disp));
    }
 
    private boolean connects(int ax, int ay, int bx, int by, float minValue) {

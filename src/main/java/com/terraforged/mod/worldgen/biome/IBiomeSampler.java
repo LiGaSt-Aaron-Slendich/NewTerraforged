@@ -42,23 +42,21 @@ public interface IBiomeSampler {
          float f = x * this.levels.frequency;
          float f1 = z * this.levels.frequency;
          ClimateSample climatesample = this.localSample.get().reset();
+         // Continent first — decide inland vs ocean without a full land sample.
          this.noiseGenerator.getContinent().sampleContinent(f, f1, climatesample);
-         this.noiseGenerator.getContinent().sampleRiver(f, f1, climatesample);
-         this.climateNoise.sample(f, f1, climatesample);
-         // Inland biome rules need the same landform as height (WeightMap + mountain belt).
-         // Continent alone leaves terrainType=NONE, which emptied the rule filter → plains.
          if (climatesample.continentNoise > 0.5F) {
-            var land = this.noiseGenerator.getNoiseSample(x, z);
-            climatesample.terrainType = land.terrainType;
-            climatesample.heightNoise = land.heightNoise;
-            climatesample.baseNoise = land.baseNoise;
-            climatesample.riverNoise = land.riverNoise;
-            climatesample.oceanRelief = land.oceanRelief;
-            climatesample.continentNoise = land.continentNoise;
-            climatesample.continentCentre = land.continentCentre;
+            // One full inland sample (WeightMap + belt + rivers) instead of continent+river then getNoiseSample again.
+            this.noiseGenerator.sample(x, z, climatesample);
+         } else {
+            this.noiseGenerator.getContinent().sampleRiver(f, f1, climatesample);
          }
+         this.climateNoise.sample(f, f1, climatesample);
          climatesample.climateType = SurfaceBiomeClimate.adjustForTerrain(
-               climatesample.climateType, climatesample.terrainType, climatesample.temperature, climatesample.moisture);
+               climatesample.climateType,
+               climatesample.terrainType,
+               climatesample.temperature,
+               climatesample.moisture,
+               climatesample.heightNoise);
          return climatesample;
       }
 

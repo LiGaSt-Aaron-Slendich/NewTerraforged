@@ -11,13 +11,24 @@ public final class SurfaceBiomeClimate {
     }
 
     public static BiomeType adjustForTerrain(BiomeType climate, Terrain terrain, float temperature, float moisture) {
-        if (climate == null || terrain == null) {
+        return adjustForTerrain(climate, terrain, temperature, moisture, 0.0F);
+    }
+
+    public static BiomeType adjustForTerrain(
+            BiomeType climate, Terrain terrain, float temperature, float moisture, float heightNoise
+    ) {
+        if (climate == null) {
             return climate;
         }
-        if (terrain.isSubmerged() || terrain.isDeepOcean() || terrain.isShallowOcean()) {
+        if (terrain != null && (terrain.isSubmerged() || terrain.isDeepOcean() || terrain.isShallowOcean()
+                || terrain.isCoast() || terrain.isRiver() || terrain.isLake())) {
             return climate;
         }
-        if (terrain.isCoast() || terrain.isRiver() || terrain.isLake()) {
+        // Absolute height barrier: peaks are Alpine regardless of lowland climate/landform.
+        if (HeightClimateZones.isAlpine(heightNoise)) {
+            return BiomeType.ALPINE;
+        }
+        if (terrain == null) {
             return climate;
         }
         if (terrain.isMountain() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAINS) || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAIN_CHAIN)) {

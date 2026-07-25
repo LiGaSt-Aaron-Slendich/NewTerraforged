@@ -32,6 +32,10 @@ public class TerrainCache {
    }
 
    public int getHeight(int x, int z) {
+      TerrainData ready = this.getIfReady(new ChunkPos(x >> 4, z >> 4));
+      if (ready != null) {
+         return ready.getHeight(x & 15, z & 15);
+      }
       return this.generator.getHeight(x, z);
    }
 

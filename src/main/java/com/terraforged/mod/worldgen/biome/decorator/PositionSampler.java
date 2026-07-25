@@ -3,6 +3,7 @@ package com.terraforged.mod.worldgen.biome.decorator;
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.Generator;
 import com.terraforged.mod.worldgen.asset.VegetationConfig;
+import com.terraforged.mod.worldgen.biome.HeightClimateZones;
 import com.terraforged.mod.worldgen.biome.vegetation.BiomeVegetation;
 import com.terraforged.mod.worldgen.biome.vegetation.VegetationFeatures;
 import com.terraforged.mod.worldgen.biome.viability.Viability;
@@ -151,6 +152,8 @@ public class PositionSampler {
          int k = context.chunk.getHeight(Types.OCEAN_FLOOR_WG, x, z);
          if (k <= context.generator.getSeaLevel()) {
             return offset;
+         } else if (isAboveTreeline(context, x, z, k)) {
+            return offset;
          } else {
             context.pos.set(x, k, z);
 
@@ -182,6 +185,8 @@ public class PositionSampler {
          int i = context.chunk.getHeight(Types.OCEAN_FLOOR_WG, x, z);
          if (i <= context.generator.getSeaLevel()) {
             return offset;
+         } else if (isAboveTreeline(context, x, z, i)) {
+            return offset;
          } else {
             context.pos.set(x, i, z);
             Holder<Biome> holder = context.region.getBiome(context.pos);
@@ -205,6 +210,20 @@ public class PositionSampler {
             }
          }
       }
+   }
+
+   private static boolean isAboveTreeline(SamplerContext context, int worldX, int worldZ, int surfaceY) {
+      TerrainData data = context.terrainData();
+      if (data != null) {
+         int lx = worldX & 15;
+         int lz = worldZ & 15;
+         float n = HeightClimateZones.noiseFromScaled(data.getHeight().get(lx, lz), data.getLevels().maxY);
+         return HeightClimateZones.isAboveTreeline(n);
+      }
+      int minY = context.chunk.getMinBuildHeight();
+      int span = Math.max(1, context.generator.getGenDepth());
+      float n = (surfaceY - minY) / (float) span;
+      return HeightClimateZones.isAboveTreeline(n);
    }
 
    private static int placeGrassAt(long seed, int offset, int x, int z, SamplerContext context) {

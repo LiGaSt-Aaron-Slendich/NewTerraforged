@@ -57,8 +57,11 @@ public class BiomeGenerator {
       CompletableFuture<TerrainData> completablefuture = generator.getChunkDataAsync(chunk.getPos());
       this.featureDecorator.decorate(chunk, region, structures, completablefuture, generator);
       this.noiseCaveGenerator.decorate(chunk, region, generator);
-      Surface.smoothWater(chunk, region, completablefuture.join());
-      Surface.applyPost(chunk, completablefuture.join(), generator);
+      TerrainData terraindata = completablefuture.join();
+      Surface.smoothWater(chunk, region, terraindata);
+      Surface.applyPost(chunk, terraindata, generator);
+      // After features: strip trees above treeline + stone-cap dirt on peaks.
+      Surface.applyAlpineZones(terraindata, chunk, generator);
    }
 
    protected static void buildVanillaSurface(ChunkAccess chunk, WorldGenRegion region, Generator generator) {

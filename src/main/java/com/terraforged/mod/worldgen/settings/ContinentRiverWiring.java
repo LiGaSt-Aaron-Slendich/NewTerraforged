@@ -41,7 +41,8 @@ public final class ContinentRiverWiring {
         float maxW = Math.max(minW, source.sizeMax * 0.1F);
         setRange(target.bedWidth, minW * 0.5F, maxW * 0.5F);
         setRange(target.bankWidth, minW, maxW);
-        setRange(target.valleyWidth, source.sizeMin * 0.5F, source.sizeMax * 0.9F);
+        // Keep the dry valley apron tight — wide valleys were ~perfect circles on height maps.
+        setRange(target.valleyWidth, source.sizeMin * 0.22F, source.sizeMax * 0.42F);
     }
 
     private static void setRange(com.terraforged.mod.worldgen.noise.continent.config.FloatRange range, float min, float max) {
