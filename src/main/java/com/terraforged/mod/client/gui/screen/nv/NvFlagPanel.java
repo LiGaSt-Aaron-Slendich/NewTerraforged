@@ -270,6 +270,15 @@ public final class NvFlagPanel extends Screen {
                     b.setMessage(label("Corridor Direction Overlay", next));
                 }
         )));
+        this.untestedButtons.add(this.addRenderableWidget(new Button(
+                cx - 140, 0, 280, 20,
+                label("Mega Ridges", TFNoiseVariantFlags.megaRidgesEnabled()),
+                b -> {
+                    boolean next = !TFNoiseVariantFlags.megaRidgesEnabled();
+                    TFNoiseVariantFlags.setMegaRidges(next);
+                    b.setMessage(label("Mega Ridges", next));
+                }
+        )));
         this.untestedContentHeight = this.untestedButtons.size() * 28;
         this.layoutUntestedButtons();
     }

@@ -416,8 +416,7 @@ public final class GeneratorSettings {
         engine.world.continent.continentScale = WorldSettings.DEFAULT_CONTINENT_SCALE;
         engine.filters.erosion.dropletsPerChunk = 250;
         engine.terrain.volcano.weight = 0.85F;
-        // Let mountain peaks use the full 640-block column (datapack height=1024).
-        engine.terrain.general.globalVerticalScale = 1.20F;
+        engine.terrain.general.globalVerticalScale = 1.0F;
         engine.terrain.general.fancyMountains = false;
         // Bias land toward plains / wetlands; trim rocky hill/mountain spam.
         engine.terrain.plains.weight = 3.2F;
@@ -426,20 +425,18 @@ public final class GeneratorSettings {
         engine.terrain.hills.weight = 1.6F;
         engine.terrain.torridonian.weight = 1.2F;
         engine.terrain.mountains.weight = 1.8F;
-        // Use the 640 column — stock TF mountain modules were ~256-era amplitude.
-        // Horizontal scale rises with height so peaks stay massifs, not walls.
-        engine.terrain.mountains.verticalScale = 2.0F;
-        engine.terrain.mountains.horizontalScale = 2.05F;
-        engine.terrain.hills.verticalScale = 1.30F;
-        engine.terrain.hills.horizontalScale = 1.40F;
-        engine.terrain.plateau.horizontalScale = 1.55F;
-        engine.terrain.plateau.verticalScale = 1.05F;
-        engine.terrain.torridonian.verticalScale = 1.75F;
-        engine.terrain.torridonian.horizontalScale = 1.70F;
-        // Mesa canyons dig trenches into mountains when they spawn in cold climates.
+        // Stock TF landform scales — tall 640-column boosts only when EGF Mega Ridges is on.
+        engine.terrain.mountains.verticalScale = 1.0F;
+        engine.terrain.mountains.horizontalScale = 1.0F;
+        engine.terrain.hills.verticalScale = 1.0F;
+        engine.terrain.hills.horizontalScale = 1.0F;
+        engine.terrain.plateau.horizontalScale = 1.0F;
+        engine.terrain.plateau.verticalScale = 1.0F;
+        engine.terrain.torridonian.verticalScale = 1.0F;
+        engine.terrain.torridonian.horizontalScale = 1.0F;
         engine.terrain.badlands.weight = 0.45F;
-        engine.terrain.badlands.horizontalScale = 1.65F;
-        engine.terrain.badlands.verticalScale = 0.85F;
+        engine.terrain.badlands.horizontalScale = 1.0F;
+        engine.terrain.badlands.verticalScale = 1.0F;
         return fromEngine(engine);
     }
 

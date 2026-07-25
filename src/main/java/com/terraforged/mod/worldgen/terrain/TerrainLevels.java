@@ -85,7 +85,7 @@ public class TerrainLevels {
    public static int getWaterLevel(int x, int z, int seaLevel, TerrainData terrainData) {
       float f = terrainData.getRiver().get(x, z);
       Terrain terrain = terrainData.getTerrain().get(x, z);
-      return (terrain.isRiver() || terrain.isLake()) && f == 0.0F ? terrainData.getBaseHeight(x, z) : seaLevel;
+      return (terrain.isRiver() || terrain.isLake()) && f <= 0.05F ? terrainData.getBaseHeight(x, z) : seaLevel;
    }
 
    public static class Defaults {

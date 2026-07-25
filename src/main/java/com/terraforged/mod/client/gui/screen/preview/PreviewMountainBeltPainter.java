@@ -18,6 +18,9 @@ public final class PreviewMountainBeltPainter {
         if (tile == null || settings == null || settings.world == null) {
             return;
         }
+        if (!com.terraforged.mod.platform.forge.TFNoiseVariantFlags.megaRidgesEnabled()) {
+            return;
+        }
         int continentScale = settings.world.continent != null
                 ? Math.max(400, settings.world.continent.continentScale)
                 : 3000;

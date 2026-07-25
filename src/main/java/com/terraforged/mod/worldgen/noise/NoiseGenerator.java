@@ -16,6 +16,7 @@ import com.terraforged.mod.worldgen.noise.continent.CoastalLiaOverlay;
 import com.terraforged.mod.worldgen.noise.continent.ocean.IslandTerrainLabels;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
+import com.terraforged.mod.platform.forge.TFNoiseVariantFlags;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
 import com.terraforged.mod.worldgen.terrain.MountainBeltBias;
 import com.terraforged.mod.worldgen.terrain.MountainBeltField;
@@ -27,7 +28,6 @@ import com.terraforged.noise.util.NoiseUtil;
 import java.util.function.Consumer;
 
 public class NoiseGenerator implements INoiseGenerator {
-   protected final float heightMultiplier = 1.85F;
    protected final long seed;
    protected final TerrainLevels levels;
    protected final Settings settings;
@@ -70,6 +70,11 @@ public class NoiseGenerator implements INoiseGenerator {
       this.continent = createContinentNoise(seed, levels, this.settings);
       this.climate = new ClimateNoise(this.continent.getContext());
       this.controlPoints = this.continent.getControlPoints();
+   }
+
+   /** Stock TF ~1.0; tall stretch only with EGF Mega Ridges. */
+   protected float heightMultiplier() {
+      return TFNoiseVariantFlags.megaRidgesEnabled() ? 1.85F : 1.0F;
    }
 
    public NoiseGenerator with(long seed, TerrainLevels levels) {
@@ -346,7 +351,7 @@ public class NoiseGenerator implements INoiseGenerator {
       }
       float belt = this.prepareLandClimateAndBelt(x, z, sample.continentNoise, blender);
       float f = sample.baseNoise;
-      float f1 = softCapHeight(this.land.getValue(x, z, blender) * this.heightMultiplier);
+      float f1 = softCapHeight(this.land.getValue(x, z, blender) * this.heightMultiplier());
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
       this.applyMountainBeltLand(x, z, sample, belt);
@@ -375,7 +380,7 @@ public class NoiseGenerator implements INoiseGenerator {
          float belt = this.prepareLandClimateAndBelt(x, z, sample.continentNoise, blender);
          float f5 = this.levels.noiseLevels.heightMin;
          float f6 = sample.baseNoise;
-         float f7 = softCapHeight(this.land.getValue(x, z, blender) * this.heightMultiplier);
+         float f7 = softCapHeight(this.land.getValue(x, z, blender) * this.heightMultiplier());
          float f8 = this.levels.noiseLevels.toHeightNoise(f6, f7);
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);
@@ -397,6 +402,10 @@ public class NoiseGenerator implements INoiseGenerator {
       ClimateSample climateSample = this.localClimate.get().reset();
       this.climate.sample(x, z, climateSample);
       blender.prepareClimate(climateSample.temperature, climateSample.moisture, this.land.getTerrains());
+      if (!TFNoiseVariantFlags.megaRidgesEnabled()) {
+         blender.prepareMountainBelt(0.0F, continentNoise, 0.0F);
+         return 0.0F;
+      }
       float freq = this.levels.noiseLevels.frequency;
       float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
       int continentScale = this.settings.world != null && this.settings.world.continent != null
@@ -418,7 +427,7 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected void applyMountainBeltLand(float x, float z, NoiseSample sample, float belt) {
-      if (sample == null || belt < 0.05F) {
+      if (!TFNoiseVariantFlags.megaRidgesEnabled() || sample == null || belt < 0.05F) {
          return;
       }
       // Relative relief only: when belt→0 height returns to ambient (follows base terrain).
@@ -439,6 +448,9 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected void applyMountainBeltUnderwater(float x, float z, NoiseSample sample) {
+      if (!TFNoiseVariantFlags.megaRidgesEnabled()) {
+         return;
+      }
       float freq = this.levels.noiseLevels.frequency;
       float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
       int continentScale = this.settings.world != null && this.settings.world.continent != null

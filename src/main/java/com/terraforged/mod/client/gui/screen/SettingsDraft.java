@@ -249,7 +249,7 @@ public final class SettingsDraft {
         // Stock TF default volcano weight=5 floods continents. Moderate mainland presence;
         // ocean volcanic islands come from Islands.volcanicIslandsChance.
         settings.terrain.volcano.weight = 0.85F;
-        settings.terrain.general.globalVerticalScale = 1.20F;
+        settings.terrain.general.globalVerticalScale = 1.0F;
         settings.terrain.general.fancyMountains = false;
         settings.terrain.plains.weight = 3.2F;
         settings.terrain.steppe.weight = 1.2F;
@@ -257,12 +257,13 @@ public final class SettingsDraft {
         settings.terrain.hills.weight = 1.6F;
         settings.terrain.torridonian.weight = 1.2F;
         settings.terrain.mountains.weight = 1.8F;
-        settings.terrain.mountains.verticalScale = 2.0F;
-        settings.terrain.mountains.horizontalScale = 1.75F;
-        settings.terrain.hills.verticalScale = 1.30F;
-        settings.terrain.hills.horizontalScale = 1.25F;
-        settings.terrain.torridonian.verticalScale = 1.75F;
-        settings.terrain.torridonian.horizontalScale = 1.55F;
+        // Stock TF scales — Mega Ridges EGF applies tall boosts at TerrainNoiseBuilder time.
+        settings.terrain.mountains.verticalScale = 1.0F;
+        settings.terrain.mountains.horizontalScale = 1.0F;
+        settings.terrain.hills.verticalScale = 1.0F;
+        settings.terrain.hills.horizontalScale = 1.0F;
+        settings.terrain.torridonian.verticalScale = 1.0F;
+        settings.terrain.torridonian.horizontalScale = 1.0F;
         settings.climate.temperature.scale = 100;
         settings.climate.moisture.scale = 100;
         return settings;

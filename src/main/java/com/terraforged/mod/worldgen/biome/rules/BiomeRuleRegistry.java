@@ -423,32 +423,32 @@ public final class BiomeRuleRegistry {
         boolean subActive = subterrain != null && !subterrain.isBlank() && !SubterrainResolver.NONE.equals(subterrain);
         float terrainChance = chanceOnTerrain(rule, terrainName);
         float subChance = 1.0F;
-        if (hasSubs) {
-            if (!subActive) {
-                // Peak/canyon subterrains require an active band — never on plains/hills (sub=none).
-                if (isPeakOnlySubterrains(rule) || isCanyonOnlySubterrains(rule)) {
-                    return 0.0F;
-                }
-                // Body/foothill (etc.) gates only apply on mountain cells; on plains the terrain list wins.
-                if (terrainChance <= 0.0F) {
-                    return 0.0F;
-                }
-            } else {
+
+        if (subActive) {
+            // Climate + Subterrain (and terrain when listed). Active sub must match.
+            if (hasSubs) {
                 subChance = rule.subterrainChance(subterrain);
                 if (subChance <= 0.0F) {
-                    // Active subterrain mismatch → hard exclude even if terrain matches.
                     return 0.0F;
                 }
             }
-        }
-
-        // Matching subterrain is enough to enter even when terrain does not match.
-        if (terrainChance <= 0.0F) {
-            if (hasSubs && subActive && subChance > 0.0F) {
-                terrainChance = 1.0F;
-            } else {
+            // Matching subterrain is enough even when terrain list misses this landform.
+            if (terrainChance <= 0.0F) {
+                if (hasSubs && subChance > 0.0F) {
+                    terrainChance = 1.0F;
+                } else {
+                    return 0.0F;
+                }
+            }
+        } else {
+            // Climate + Terrain only when cell has no subterrain band.
+            if (hasSubs && (isPeakOnlySubterrains(rule) || isCanyonOnlySubterrains(rule))) {
                 return 0.0F;
             }
+            if (terrainChance <= 0.0F) {
+                return 0.0F;
+            }
+            // Body/foothill lists do not soft-admit on plains (sub=none).
         }
 
         if (needsActive) {

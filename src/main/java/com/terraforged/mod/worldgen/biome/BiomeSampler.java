@@ -80,7 +80,7 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
             return this.biomeMapManager.get(Biomes.STONY_SHORE);
          }
          return this.biomeMapManager.get(Biomes.BEACH);
-      } else if ((sample.terrainType.isRiver() || sample.terrainType.isLake()) && sample.riverNoise == 0.0F) {
+      } else if ((sample.terrainType.isRiver() || sample.terrainType.isLake()) && sample.riverNoise <= 0.05F) {
          return biometype == BiomeType.TUNDRA ? this.biomeMapManager.get(Biomes.FROZEN_RIVER) : this.biomeMapManager.get(Biomes.RIVER);
       } else {
          return input;

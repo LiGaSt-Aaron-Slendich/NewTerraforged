@@ -257,7 +257,7 @@ public class Surface {
    protected static boolean isSmoothable(int x, int z, TerrainData terrainData) {
       float f = terrainData.getRiver().get(x, z);
       Terrain terrain = terrainData.getTerrain().get(x, z);
-      return (terrain.isRiver() || terrain.isLake()) && f == 0.0F;
+      return (terrain.isRiver() || terrain.isLake()) && f <= 0.05F;
    }
 
    protected static void smoothSnow(MutableBlockPos pos, BlockState state, ChunkAccess chunk, TerrainData terrain) {

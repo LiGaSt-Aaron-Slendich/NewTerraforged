@@ -5,6 +5,7 @@ import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.mod.util.map.WeightMap;
 import com.terraforged.mod.worldgen.biome.rules.BiomeRule;
 import com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry;
+import com.terraforged.mod.worldgen.biome.rules.ClimateTagMatch;
 import com.terraforged.mod.worldgen.biome.rules.SubterrainResolver;
 import com.terraforged.mod.worldgen.biome.rules.VolcanoBiomeKits;
 import com.terraforged.mod.worldgen.biome.rules.ZoneContext;
@@ -68,9 +69,11 @@ public final class BiomeTerrainIntegration {
             }
             BiomeRule rule = BiomeRuleRegistry.get(id);
             if (rule == null) {
-                values.add(holder);
-                weights.add(1.0F);
-                ids.add(id);
+                // No rule → climate pool membership only (no terrain soft-pass for unknown biomes).
+                continue;
+            }
+            // Hard climate_tags gate — pool leftovers must not paint hot biomes onto tundra.
+            if (!ClimateTagMatch.matches(sample != null ? sample.climateType : null, rule.climateTags)) {
                 continue;
             }
             float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep, zone);
@@ -199,9 +202,13 @@ public final class BiomeTerrainIntegration {
             }
             BiomeRule rule = BiomeRuleRegistry.get(id);
             if (rule == null) {
-                values.add(holder);
-                weights.add(1.0F);
-                lines.add(id + "  chance=1.0 (no rule)");
+                rejectLines.add(id + " → no rule (excluded)");
+                rejected++;
+                continue;
+            }
+            if (!ClimateTagMatch.matches(climate, rule.climateTags)) {
+                rejectLines.add(id + " → climate_tags mismatch (" + rule.climateTags + ")");
+                rejected++;
                 continue;
             }
             float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep, zone);

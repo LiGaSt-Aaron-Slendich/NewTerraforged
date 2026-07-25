@@ -46,6 +46,11 @@ public final class TFNoiseVariantFlags {
      * Access gate so non-dev players cannot casually reach the overlay.
      */
     public boolean corridorDirectionOverlay = false;
+    /**
+     * Mega ridges + tall highland relief (640-column mountain experiments).
+     * Default off → stock TerraForged mountain amplitude / no continent spine overlay.
+     */
+    public boolean megaRidges = false;
 
     private TFNoiseVariantFlags() {
     }
@@ -83,6 +88,10 @@ public final class TFNoiseVariantFlags {
 
     public static boolean corridorDirectionOverlayEnabled() {
         return INSTANCE != null && INSTANCE.corridorDirectionOverlay;
+    }
+
+    public static boolean megaRidgesEnabled() {
+        return INSTANCE != null && INSTANCE.megaRidges;
     }
 
     public static void setArchipelago(boolean value) {
@@ -124,6 +133,12 @@ public final class TFNoiseVariantFlags {
     public static void setCorridorDirectionOverlay(boolean value) {
         ensure();
         INSTANCE.corridorDirectionOverlay = value;
+        INSTANCE.writeEncrypted();
+    }
+
+    public static void setMegaRidges(boolean value) {
+        ensure();
+        INSTANCE.megaRidges = value;
         INSTANCE.writeEncrypted();
     }
 
@@ -179,6 +194,7 @@ public final class TFNoiseVariantFlags {
             this.oceanLandscape = (flags & 16) != 0;
             this.guaranteedContinents = (flags & 32) != 0;
             this.corridorDirectionOverlay = (flags & 64) != 0;
+            this.megaRidges = (flags & 128) != 0;
             return true;
         } catch (Exception e) {
             return false;
@@ -212,6 +228,9 @@ public final class TFNoiseVariantFlags {
             }
             if (this.corridorDirectionOverlay) {
                 flags |= 64;
+            }
+            if (this.megaRidges) {
+                flags |= 128;
             }
             byte[] plain = ByteBuffer.allocate(4).putInt(flags).array();
             byte[] iv = new byte[IV_LEN];

@@ -28,6 +28,7 @@ alwaysApply: true
 | `oceanLandscape` | 16 | Ocean Landscape | Directed corridor seafloor + deep volcanoes; replaces IslandFeatureOverlay when on |
 | `guaranteedContinents` | 32 | Guaranteed Continents | N±1 landmasses in 640k window; Customize knobs Feature Blocked until on |
 | `corridorDirectionOverlay` | 64 | Corridor Direction Overlay | Access gate: unlocks Corridors On/Off toggle in Customize preview (default Off) |
+| `megaRidges` | 128 | Mega Ridges | Tall highland relief + continent spine overlay; default Off = stock TF mountain heights |
 
 ## When adding a new feature
 

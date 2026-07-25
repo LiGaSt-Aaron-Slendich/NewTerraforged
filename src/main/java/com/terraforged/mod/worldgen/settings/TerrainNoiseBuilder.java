@@ -7,6 +7,7 @@ import com.terraforged.engine.world.heightmap.Levels;
 import com.terraforged.engine.world.terrain.LandForms;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.mod.data.ModTerrainTypes;
+import com.terraforged.mod.platform.forge.TFNoiseVariantFlags;
 import com.terraforged.mod.registry.ModRegistry;
 import com.terraforged.mod.registry.lazy.LazyHolder;
 import com.terraforged.mod.registry.lazy.LazyKey;
@@ -22,19 +23,14 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 
 /**
- * Builds weighted {@link TerrainNoise} from live engine {@link TerrainSettings}
- * (weights, horizontal/vertical scales, fancy mountains).
+ * Builds weighted {@link TerrainNoise} from live engine {@link TerrainSettings}.
  *
- * <p>Highland relief is raised for the 640 column <em>and</em> widened so peaks stay
- * massifs, not knife-edge walls.
+ * <p>Tall highland relief / width boosts apply only when EGF Mega Ridges is on;
+ * otherwise stock TerraForged landform amplitude is used.
  */
 public final class TerrainNoiseBuilder {
-    /** Amplitude boost for mountains / torridonian (stock TF tuned for ~256-era height). */
+    /** Amplitude boost for mountains / torridonian when Mega Ridges EGF is on. */
     private static final float HIGHLAND_RELIEF_BOOST = 1.40F;
-    /**
-     * Multiplies highland {@code horizontalScale} before LandForms so wavelengths grow with height.
-     * Vertical-only stretch → walls; keep this ≥ relief boost ratio.
-     */
     private static final float HIGHLAND_HORIZONTAL_BOOST = 1.85F;
 
     private TerrainNoiseBuilder() {
@@ -42,33 +38,71 @@ public final class TerrainNoiseBuilder {
 
     public static TerrainNoise[] build(RegistryAccess access, Settings settings) {
         TerrainSettings terrain = copyTerrain(settings.terrain);
-        // Widen before LandForms — mountains/hills bake horizontalScale into Source wavelengths.
-        terrain.mountains.horizontalScale = Math.max(0.25F, terrain.mountains.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
-        terrain.torridonian.horizontalScale = Math.max(0.25F, terrain.torridonian.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
-        terrain.hills.horizontalScale = Math.max(0.25F, terrain.hills.horizontalScale) * 1.45F;
-        terrain.plateau.horizontalScale = Math.max(0.25F, terrain.plateau.horizontalScale) * 1.40F;
-        terrain.badlands.horizontalScale = Math.max(0.25F, terrain.badlands.horizontalScale) * 1.50F;
+        boolean mega = TFNoiseVariantFlags.megaRidgesEnabled();
+
+        if (mega) {
+            // Experimental tall package (pre-EGF defaults) when knobs are still stock.
+            terrain.mountains.verticalScale = Math.max(terrain.mountains.verticalScale, 2.0F);
+            terrain.mountains.horizontalScale = Math.max(terrain.mountains.horizontalScale, 2.05F);
+            terrain.hills.verticalScale = Math.max(terrain.hills.verticalScale, 1.30F);
+            terrain.hills.horizontalScale = Math.max(terrain.hills.horizontalScale, 1.40F);
+            terrain.plateau.horizontalScale = Math.max(terrain.plateau.horizontalScale, 1.55F);
+            terrain.torridonian.verticalScale = Math.max(terrain.torridonian.verticalScale, 1.75F);
+            terrain.torridonian.horizontalScale = Math.max(terrain.torridonian.horizontalScale, 1.70F);
+            if (terrain.general.globalVerticalScale < 1.15F) {
+                terrain.general.globalVerticalScale = 1.20F;
+            }
+            terrain.mountains.horizontalScale = Math.max(0.25F, terrain.mountains.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
+            terrain.torridonian.horizontalScale = Math.max(0.25F, terrain.torridonian.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
+            terrain.hills.horizontalScale = Math.max(0.25F, terrain.hills.horizontalScale) * 1.45F;
+            terrain.plateau.horizontalScale = Math.max(0.25F, terrain.plateau.horizontalScale) * 1.40F;
+            terrain.badlands.horizontalScale = Math.max(0.25F, terrain.badlands.horizontalScale) * 1.50F;
+        }
 
         Seed seed = new RandSeed(9712416L + (long) terrain.general.terrainSeedOffset, 500000);
         LandForms forms = new LandForms(terrain, new Levels(settings.world), Source.ZERO);
 
-        float hillsV = Math.max(0.01F, terrain.hills.verticalScale);
+        float hillsV;
         float dalesV = Math.max(0.01F, terrain.dales.verticalScale);
-        float plateauV = Math.max(0.01F, terrain.plateau.verticalScale);
-        float torridonV = Math.max(0.01F, terrain.torridonian.verticalScale) * HIGHLAND_RELIEF_BOOST;
-        float mountainsV = Math.max(0.01F, terrain.mountains.verticalScale) * HIGHLAND_RELIEF_BOOST;
+        float plateauV;
+        float torridonV;
+        float mountainsV;
         float badlandsV = Math.max(0.01F, terrain.badlands.verticalScale);
-        // Torridonian / mountains2/3 / badlands ignore settings.horizontalScale internally — freq-widen after.
-        // Couple width to height: taller verticalScale → lower frequency (wider massifs).
-        float torridonFreq = 1.0F / Math.max(0.25F, terrain.torridonian.horizontalScale);
-        float mountainsH = Math.max(0.25F, terrain.mountains.horizontalScale);
-        float heightWidth = Math.max(1.0F, mountainsV / (1.0F * HIGHLAND_RELIEF_BOOST));
-        float mountainsFreq = 1.0F / (mountainsH * heightWidth);
-        float hillsFreq = 1.0F / Math.max(0.25F, terrain.hills.horizontalScale);
-        float plateauFreq = 1.0F / Math.max(0.25F, terrain.plateau.horizontalScale);
-        float badlandsFreq = 1.0F / Math.max(0.25F, terrain.badlands.horizontalScale);
-        // Soften mesa weight further — canyon landform digs mountain trenches at region edges.
-        float badlandsW = Math.max(0.0F, terrain.badlands.weight) * 0.55F;
+        float torridonFreq;
+        float mountainsFreq;
+        float hillsFreq;
+        float plateauFreq;
+        float badlandsFreq;
+        float mountainsH;
+        float heightWidth;
+
+        if (mega) {
+            hillsV = Math.max(0.01F, terrain.hills.verticalScale);
+            plateauV = Math.max(0.01F, terrain.plateau.verticalScale);
+            torridonV = Math.max(0.01F, terrain.torridonian.verticalScale) * HIGHLAND_RELIEF_BOOST;
+            mountainsV = Math.max(0.01F, terrain.mountains.verticalScale) * HIGHLAND_RELIEF_BOOST;
+            torridonFreq = 1.0F / Math.max(0.25F, terrain.torridonian.horizontalScale);
+            mountainsH = Math.max(0.25F, terrain.mountains.horizontalScale);
+            heightWidth = Math.max(1.0F, mountainsV / (1.0F * HIGHLAND_RELIEF_BOOST));
+            mountainsFreq = 1.0F / (mountainsH * heightWidth);
+            hillsFreq = 1.0F / Math.max(0.25F, terrain.hills.horizontalScale);
+            plateauFreq = 1.0F / Math.max(0.25F, terrain.plateau.horizontalScale);
+            badlandsFreq = 1.0F / Math.max(0.25F, terrain.badlands.horizontalScale);
+        } else {
+            // Stock TerraForged landform amplitude (pre mega-ridge experiments).
+            hillsV = 1.0F;
+            plateauV = 1.0F;
+            torridonV = 1.0F;
+            mountainsV = 1.0F;
+            torridonFreq = 1.0F;
+            mountainsH = 1.0F;
+            heightWidth = 1.0F;
+            mountainsFreq = 1.0F;
+            hillsFreq = 1.0F;
+            plateauFreq = 1.0F;
+            badlandsFreq = 1.0F;
+        }
+        float badlandsW = Math.max(0.0F, terrain.badlands.weight) * (mega ? 0.55F : 1.0F);
 
         return new TerrainNoise[]{
                 of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.steppe.weight, 1.0F, 1.0F, forms::steppe, seed),
