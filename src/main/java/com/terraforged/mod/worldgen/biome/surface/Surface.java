@@ -40,8 +40,9 @@ public class Surface {
                   int fillFloor = Math.max(solidY, k - 10);
                   int wx = chunk.getPos().getMinBlockX() + j;
                   int wz = chunk.getPos().getMinBlockZ() + i;
+                  Terrain terrain = terrainData.getTerrain().get(j, i);
                   for (; k > fillFloor; k--) {
-                     chunk.setBlockState(mutableblockpos.setY(k), cliffMix(blockstate, wx, k, wz), false);
+                     chunk.setBlockState(mutableblockpos.setY(k), cliffMix(blockstate, wx, k, wz, terrain), false);
                   }
                }
             }
@@ -328,54 +329,194 @@ public class Surface {
    }
 
    /**
-    * Break up monolithic cliff columns: gravel + grey stone suite (andesite-heavy)
-    * via cheap per-block hash noise.
+    * Break up monolithic cliff columns with a terrain-matched palette
+    * (grey mountains, orange badlands, dark volcanic, sandy coasts).
     */
-   protected static BlockState cliffMix(BlockState base, int worldX, int y, int worldZ) {
+   protected static BlockState cliffMix(BlockState base, int worldX, int y, int worldZ, @Nullable Terrain terrain) {
       if (base == null || base.isAir() || base.getBlock() instanceof LiquidBlock) {
          return base;
       }
-      // Keep unusual solids (basalt, terracotta…) mostly intact.
-      Block block = base.getBlock();
-      boolean commonStone = block == Blocks.STONE
-            || block == Blocks.COBBLESTONE
-            || block == Blocks.MOSSY_COBBLESTONE
-            || block == Blocks.ANDESITE
-            || block == Blocks.DIORITE
-            || block == Blocks.GRANITE
-            || block == Blocks.DEEPSLATE
-            || block == Blocks.TUFF;
-      if (!commonStone && !base.is(BlockTags.BASE_STONE_OVERWORLD)) {
+      CliffPalette palette = cliffPalette(terrain);
+      if (!isCliffMixable(base, palette)) {
          return base;
       }
       int h = worldX * 374761393 + y * 668265263 + worldZ * 1274126177;
       h = (h ^ (h >>> 13)) * 1274126177;
       h ^= h >>> 16;
       int roll = h & 255;
-      // ~70% replaced — andesite is the main stone accent (grey palette with gravel).
-      if (roll < 22) {
+      return switch (palette) {
+         case GREY -> mixGrey(base, roll, y);
+         case ORANGE -> mixOrange(base, roll);
+         case VOLCANIC -> mixVolcanic(base, roll);
+         case SAND -> mixSand(base, roll);
+      };
+   }
+
+   private enum CliffPalette {
+      GREY,
+      ORANGE,
+      VOLCANIC,
+      SAND
+   }
+
+   private static CliffPalette cliffPalette(@Nullable Terrain terrain) {
+      if (terrain == null) {
+         return CliffPalette.GREY;
+      }
+      String name = terrain.getName();
+      String n = name == null ? "" : name.toLowerCase();
+      if (terrain.isVolcano() || n.contains("volcano")) {
+         return CliffPalette.VOLCANIC;
+      }
+      if (n.contains("badland") || n.contains("mesa")) {
+         return CliffPalette.ORANGE;
+      }
+      if ("beach".equals(n) || n.contains("beach")) {
+         return CliffPalette.SAND;
+      }
+      return CliffPalette.GREY;
+   }
+
+   private static boolean isCliffMixable(BlockState base, CliffPalette palette) {
+      Block block = base.getBlock();
+      if (palette == CliffPalette.ORANGE) {
+         return block == Blocks.STONE
+               || block == Blocks.TERRACOTTA
+               || block == Blocks.ORANGE_TERRACOTTA
+               || block == Blocks.RED_TERRACOTTA
+               || block == Blocks.YELLOW_TERRACOTTA
+               || block == Blocks.BROWN_TERRACOTTA
+               || block == Blocks.WHITE_TERRACOTTA
+               || block == Blocks.LIGHT_GRAY_TERRACOTTA
+               || block == Blocks.RED_SANDSTONE
+               || block == Blocks.SMOOTH_RED_SANDSTONE
+               || block == Blocks.SANDSTONE
+               || base.is(BlockTags.BASE_STONE_OVERWORLD)
+               || base.is(BlockTags.TERRACOTTA);
+      }
+      if (palette == CliffPalette.VOLCANIC) {
+         return block == Blocks.STONE
+               || block == Blocks.BASALT
+               || block == Blocks.BLACKSTONE
+               || block == Blocks.ANDESITE
+               || block == Blocks.MAGMA_BLOCK
+               || block == Blocks.GRAVEL
+               || base.is(BlockTags.BASE_STONE_OVERWORLD);
+      }
+      if (palette == CliffPalette.SAND) {
+         return block == Blocks.STONE
+               || block == Blocks.SANDSTONE
+               || block == Blocks.SMOOTH_SANDSTONE
+               || block == Blocks.SAND
+               || block == Blocks.GRAVEL
+               || base.is(BlockTags.BASE_STONE_OVERWORLD)
+               || base.is(BlockTags.SAND);
+      }
+      // GREY — mountains / hills / torridonian / default
+      return block == Blocks.STONE
+            || block == Blocks.COBBLESTONE
+            || block == Blocks.MOSSY_COBBLESTONE
+            || block == Blocks.ANDESITE
+            || block == Blocks.TUFF
+            || block == Blocks.DEEPSLATE
+            || block == Blocks.GRAVEL
+            || base.is(BlockTags.BASE_STONE_OVERWORLD);
+   }
+
+   /** Grey mountain palette — no pink granite / white diorite. */
+   private static BlockState mixGrey(BlockState base, int roll, int y) {
+      if (roll < 24) {
          return Blocks.GRAVEL.defaultBlockState();
       }
-      if (roll < 40) {
+      if (roll < 48) {
          return Blocks.COBBLESTONE.defaultBlockState();
       }
-      if (roll < 48) {
+      if (roll < 56) {
          return Blocks.MOSSY_COBBLESTONE.defaultBlockState();
       }
-      if (roll < 100) {
+      if (roll < 120) {
          return Blocks.ANDESITE.defaultBlockState();
       }
-      if (roll < 132) {
-         return Blocks.DIORITE.defaultBlockState();
-      }
-      if (roll < 160) {
-         return Blocks.GRANITE.defaultBlockState();
-      }
-      if (roll < 178) {
+      if (roll < 150) {
          return Blocks.TUFF.defaultBlockState();
       }
-      if (roll < 190 && y < 0) {
+      if (roll < 168 && y < 0) {
          return Blocks.DEEPSLATE.defaultBlockState();
+      }
+      if (roll < 190) {
+         return Blocks.STONE.defaultBlockState();
+      }
+      return base;
+   }
+
+   /** Badlands / mesa — warm terracotta + red sandstone. */
+   private static BlockState mixOrange(BlockState base, int roll) {
+      if (roll < 18) {
+         return Blocks.RED_SAND.defaultBlockState();
+      }
+      if (roll < 40) {
+         return Blocks.RED_SANDSTONE.defaultBlockState();
+      }
+      if (roll < 56) {
+         return Blocks.SMOOTH_RED_SANDSTONE.defaultBlockState();
+      }
+      if (roll < 100) {
+         return Blocks.ORANGE_TERRACOTTA.defaultBlockState();
+      }
+      if (roll < 130) {
+         return Blocks.RED_TERRACOTTA.defaultBlockState();
+      }
+      if (roll < 155) {
+         return Blocks.YELLOW_TERRACOTTA.defaultBlockState();
+      }
+      if (roll < 175) {
+         return Blocks.BROWN_TERRACOTTA.defaultBlockState();
+      }
+      if (roll < 190) {
+         return Blocks.TERRACOTTA.defaultBlockState();
+      }
+      return base;
+   }
+
+   /** Volcano cones — dark basalt / blackstone. */
+   private static BlockState mixVolcanic(BlockState base, int roll) {
+      if (roll < 20) {
+         return Blocks.GRAVEL.defaultBlockState();
+      }
+      if (roll < 70) {
+         return Blocks.BASALT.defaultBlockState();
+      }
+      if (roll < 110) {
+         return Blocks.BLACKSTONE.defaultBlockState();
+      }
+      if (roll < 145) {
+         return Blocks.ANDESITE.defaultBlockState();
+      }
+      if (roll < 160) {
+         return Blocks.MAGMA_BLOCK.defaultBlockState();
+      }
+      if (roll < 185) {
+         return Blocks.SMOOTH_BASALT.defaultBlockState();
+      }
+      return base;
+   }
+
+   /** Beach / sandy cliffs. */
+   private static BlockState mixSand(BlockState base, int roll) {
+      if (roll < 30) {
+         return Blocks.SAND.defaultBlockState();
+      }
+      if (roll < 70) {
+         return Blocks.SANDSTONE.defaultBlockState();
+      }
+      if (roll < 100) {
+         return Blocks.SMOOTH_SANDSTONE.defaultBlockState();
+      }
+      if (roll < 130) {
+         return Blocks.GRAVEL.defaultBlockState();
+      }
+      if (roll < 160) {
+         return Blocks.STONE.defaultBlockState();
       }
       return base;
    }
