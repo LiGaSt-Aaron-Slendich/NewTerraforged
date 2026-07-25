@@ -288,4 +288,11 @@ public final class BiomeRuleCoverage {
         boolean onlyRiver = keys.size() == 1 && keys.contains("river");
         return onlyVolcano || onlyBeach || onlyRiver;
     }
+
+    private static boolean allowsBadlands(BiomeType climate) {
+        return climate == BiomeType.DESERT
+                || climate == BiomeType.SAVANNA
+                || climate == BiomeType.STEPPE
+                || climate == BiomeType.COLD_STEPPE;
+    }
 }
