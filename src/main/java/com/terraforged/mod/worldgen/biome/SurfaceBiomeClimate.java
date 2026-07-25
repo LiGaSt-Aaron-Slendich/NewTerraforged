@@ -24,15 +24,23 @@ public final class SurfaceBiomeClimate {
                 || terrain.isCoast() || terrain.isRiver() || terrain.isLake())) {
             return climate;
         }
-        // Absolute height barrier: peaks are Alpine regardless of lowland climate/landform.
+        boolean mountain = terrain != null && (terrain.isMountain()
+                || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAINS)
+                || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAIN_CHAIN));
+        // Tundra climate zone: whole mountain stays tundra (body + peaks).
+        if (climate == BiomeType.TUNDRA && mountain) {
+            return BiomeType.TUNDRA;
+        }
+        // Only true peaks force Alpine — mountain body keeps regional climate.
         if (HeightClimateZones.isAlpine(heightNoise)) {
             return BiomeType.ALPINE;
         }
         if (terrain == null) {
             return climate;
         }
-        if (terrain.isMountain() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAINS) || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAIN_CHAIN)) {
-            return SurfaceBiomeClimate.alpineForMountains(climate, temperature, moisture);
+        if (mountain) {
+            // Soft highland nudge for mid-mountain — never blanket Alpine.
+            return SurfaceBiomeClimate.highlandClimate(climate, temperature, moisture);
         }
         if (terrain.isVolcano() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.VOLCANO)) {
             return SurfaceBiomeClimate.volcanicClimate(climate, temperature);
@@ -50,19 +58,6 @@ public final class SurfaceBiomeClimate {
             return SurfaceBiomeClimate.lowlandClimate(climate, moisture);
         }
         return climate;
-    }
-
-    private static BiomeType alpineForMountains(BiomeType climate, float temperature, float moisture) {
-        if (climate == BiomeType.DESERT && temperature > 0.62f && moisture < 0.38f) {
-            return climate;
-        }
-        if (climate == BiomeType.TROPICAL_RAINFOREST) {
-            return BiomeType.TEMPERATE_RAINFOREST;
-        }
-        if (climate == BiomeType.SAVANNA && temperature > 0.72f && moisture < 0.45f) {
-            return BiomeType.STEPPE;
-        }
-        return BiomeType.ALPINE;
     }
 
     private static BiomeType volcanicClimate(BiomeType climate, float temperature) {

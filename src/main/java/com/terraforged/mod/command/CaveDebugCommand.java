@@ -78,6 +78,7 @@ public final class CaveDebugCommand {
                                     .then(Commands.literal("global").executes(ctx -> CaveDebugCommand.execute(ctx, Mode.GLOBAL)))
                             )
                     )
+                    .then(TerrainDebugCommand.branch())
             );
     }
 

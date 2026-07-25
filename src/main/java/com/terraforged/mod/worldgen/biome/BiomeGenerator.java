@@ -47,6 +47,8 @@ public class BiomeGenerator {
 
    public void carve(long seed, ChunkAccess chunk, WorldGenRegion region, BiomeManager biomes, Carving step, Generator generator) {
       this.noiseCaveGenerator.carve(chunk, generator);
+      // Cliff fill densifies steep columns before carve — clear thin mouth pillars.
+      com.terraforged.mod.worldgen.biome.surface.CaveMouthPillarCleanup.apply(chunk, generator);
    }
 
    public com.terraforged.mod.worldgen.cave.CarverChunk peekCaveCarver(net.minecraft.world.level.ChunkPos pos) {

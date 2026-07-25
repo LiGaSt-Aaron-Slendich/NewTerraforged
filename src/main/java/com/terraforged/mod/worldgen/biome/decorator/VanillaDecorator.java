@@ -52,6 +52,61 @@ public class VanillaDecorator {
       }
    }
 
+   /**
+    * TOP_LAYER_MODIFICATION (freeze_top_layer) for every unique biome present in this chunk's
+    * surface-ish sections — matches vanilla multi-biome decoration for snow.
+    */
+   public static void decorateTopLayerAllBiomes(
+      long seed,
+      BlockPos origin,
+      Holder<Biome> primary,
+      ChunkAccess chunk,
+      WorldGenLevel level,
+      Generator generator,
+      WorldgenRandom random,
+      StructureFeatureManager structureManager,
+      FeatureDecorator decorator
+   ) {
+      int stage = Decoration.TOP_LAYER_MODIFICATION.ordinal();
+      List<Holder<ConfiguredStructureFeature<?, ?>>> structures = decorator.getStageStructures(stage);
+      // Structures once from primary.
+      placeStructures(seed, stage, chunk, level, generator, random, structureManager, structures);
+
+      java.util.LinkedHashSet<Biome> biomes = new java.util.LinkedHashSet<>();
+      if (primary != null && primary.isBound()) {
+         biomes.add(primary.value());
+      }
+      // Sample a coarse surface grid so mixed snowy/non-snowy chunks all freeze.
+      ChunkPos pos = chunk.getPos();
+      int minX = pos.getMinBlockX();
+      int minZ = pos.getMinBlockZ();
+      for (int lz = 0; lz < 16; lz += 4) {
+         for (int lx = 0; lx < 16; lx += 4) {
+            int y = chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, lx, lz);
+            if (y < level.getMinBuildHeight() + 1) {
+               y = generator.getSeaLevel();
+            }
+            Holder<Biome> h = level.getBiome(new BlockPos(minX + lx, y, minZ + lz));
+            if (h != null && h.isBound()) {
+               biomes.add(h.value());
+            }
+         }
+      }
+
+      int offset = structures != null ? structures.size() : 0;
+      int biomeIndex = 0;
+      for (Biome biome : biomes) {
+         HolderSet<PlacedFeature> features = decorator.getStageFeatures(stage, biome);
+         if (features == null) {
+            continue;
+         }
+         // Distinct feature seed per biome so freeze isn't identical / skipped.
+         random.setFeatureSeed(seed ^ (biomeIndex * 341873128712L), offset, stage);
+         placeFeatures(seed ^ (biomeIndex * 132897987541L), offset, stage, origin, level, generator, random, features);
+         biomeIndex++;
+      }
+   }
+
    private static void placeStructures(
       long seed,
       int stage,

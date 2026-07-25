@@ -14,7 +14,11 @@ public final class CaveDebugScreen extends Screen {
     private int scroll;
 
     public CaveDebugScreen(List<String> lines) {
-        super((Component)new TextComponent("NewTerraForged Cave Debug"));
+        this(lines, "NewTerraForged Cave Debug");
+    }
+
+    public CaveDebugScreen(List<String> lines, String title) {
+        super((Component)new TextComponent(title));
         this.lines = lines;
     }
 

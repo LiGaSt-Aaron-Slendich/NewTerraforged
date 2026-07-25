@@ -5,6 +5,7 @@ import com.terraforged.engine.world.terrain.ITerrain;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.engine.world.terrain.TerrainType;
 import com.terraforged.mod.data.ModTerrainTypes;
+import com.terraforged.mod.worldgen.biome.HeightClimateZones;
 import com.terraforged.mod.worldgen.noise.climate.ClimateSample;
 
 /** Derives active subterrain (+ steep slope flag) from the climate/terrain sample. */
@@ -59,10 +60,10 @@ public final class SubterrainResolver {
                 return "bare_dolomites";
             }
             float h = sample.heightNoise;
-            if (h >= 0.78F) {
+            if (h >= HeightClimateZones.PEAK_MIN) {
                 return sample.moisture < 0.3F ? "bare_mountain_peak" : "mountain_peak";
             }
-            if (h <= 0.48F) {
+            if (h <= HeightClimateZones.FOOTHILL_MAX) {
                 return "mountain_foothill";
             }
             return sample.moisture < 0.28F ? "bare_mountain" : "mountain_body";

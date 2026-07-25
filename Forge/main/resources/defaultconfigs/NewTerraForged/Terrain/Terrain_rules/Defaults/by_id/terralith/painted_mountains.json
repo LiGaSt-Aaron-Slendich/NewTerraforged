@@ -17,10 +17,9 @@
     "island_mountains": 0.6
   },
   "subterrains": {
-    "mountain_peak": 0.7,
-    "bare_mountain_peak": 0.5,
-    "mountain_body": 0.5,
-    "mountain_foothill": 0.4
+    "mountain_body": 0.7,
+    "mountain_foothill": 0.5,
+    "bare_mountain": 0.45
   },
   "zone_flags": {},
   "auto_generated": false

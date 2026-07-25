@@ -145,9 +145,9 @@ public final class ZoneContext {
      * Coarse spiral search for painted volcano / pipe cells. Step 48 keeps biome sampling affordable.
      */
     private static VolcanoHit findNearestVolcano(INoiseGenerator noise, int x, int z, float maxRadius) {
-        int step = 48;
+        int step = 64;
         // Cap cells — uncapped r=640 spiral (~700 samples) × biome quart grid freezes world load.
-        int maxCell = Math.min(8, Math.max(1, NoiseUtil.floor(maxRadius / step)));
+        int maxCell = Math.min(4, Math.max(1, NoiseUtil.floor(maxRadius / step)));
         SpiralIterator spiral = new SpiralIterator(NoiseUtil.floor(x / (float) step), NoiseUtil.floor(z / (float) step), 0, maxCell);
         NoiseSample sample = new NoiseSample().reset();
         float best = Float.MAX_VALUE;

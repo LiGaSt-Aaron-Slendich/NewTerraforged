@@ -35,14 +35,17 @@ public class Surface {
             if (k >= generator.getSeaLevel() && !(f1 < 0.6F)) {
                BlockState blockstate = findSolid(mutableblockpos.set(j, k, i), chunk);
                if (blockstate != null) {
-                  for (int l = mutableblockpos.getY(); k > l; k--) {
+                  // Cap fill depth so cave mouths aren't densified into 1×1 pillars.
+                  int solidY = mutableblockpos.getY();
+                  int fillFloor = Math.max(solidY, k - 10);
+                  for (; k > fillFloor; k--) {
                      chunk.setBlockState(mutableblockpos.setY(k), blockstate, false);
                   }
                }
             }
          }
       }
-      applyAlpineZones(terrainData, chunk, generator);
+      // Alpine stone-cap / treeline strip runs after features (BiomeGenerator.decorate).
    }
 
    /**

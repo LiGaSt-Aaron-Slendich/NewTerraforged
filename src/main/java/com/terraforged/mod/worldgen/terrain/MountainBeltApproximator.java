@@ -21,20 +21,19 @@ public final class MountainBeltApproximator {
                                         float continentNoise) {
         int scale = Math.max(400, continentScale);
         float center = MountainBeltField.strength(worldX, worldZ, seed, scale, continentNoise);
+        // Sparse field: most land is zero — skip neighbor probes.
+        if (center < 0.20F) {
+            return height;
+        }
         float spacing = Math.max(28.0F, scale * 0.014F);
 
+        // 4-neighbor envelope (was 8) — enough for notch detect, half the samples.
         float localMax = center;
         localMax = Math.max(localMax, MountainBeltField.strength(worldX + spacing, worldZ, seed, scale, continentNoise));
         localMax = Math.max(localMax, MountainBeltField.strength(worldX - spacing, worldZ, seed, scale, continentNoise));
         localMax = Math.max(localMax, MountainBeltField.strength(worldX, worldZ + spacing, seed, scale, continentNoise));
         localMax = Math.max(localMax, MountainBeltField.strength(worldX, worldZ - spacing, seed, scale, continentNoise));
-        float d = spacing * 0.72F;
-        localMax = Math.max(localMax, MountainBeltField.strength(worldX + d, worldZ + d, seed, scale, continentNoise));
-        localMax = Math.max(localMax, MountainBeltField.strength(worldX - d, worldZ + d, seed, scale, continentNoise));
-        localMax = Math.max(localMax, MountainBeltField.strength(worldX + d, worldZ - d, seed, scale, continentNoise));
-        localMax = Math.max(localMax, MountainBeltField.strength(worldX - d, worldZ - d, seed, scale, continentNoise));
 
-        // Active mega-ridge corridor only (sparse field — higher bar than old softRidge).
         if (localMax < 0.42F) {
             return height;
         }

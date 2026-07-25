@@ -435,6 +435,13 @@ public final class BiomeRuleAutogen {
         if (tokensContain(tokens, Set.of("peak", "peaks", "summit"))) {
             return Form.PEAK;
         }
+        // "crag_gardens" etc. — gardens/soft tokens must not become alpine mountains.
+        if (tokensContain(tokens, Set.of("garden", "gardens", "jungle", "rainforest"))) {
+            if (tokensContain(tokens, FORM_HILLS) || tokensContain(tokens, FORM_PLATEAU)) {
+                return tokensContain(tokens, FORM_PLATEAU) ? Form.PLATEAU : Form.HILLS;
+            }
+            return Form.HILLS;
+        }
         if (tokensContain(tokens, FORM_MOUNTAIN)) {
             return Form.MOUNTAIN;
         }

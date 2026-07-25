@@ -11,7 +11,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureFeatureManager;
 import net.minecraft.world.level.WorldGenLevel;
@@ -49,7 +48,7 @@ public class FeatureDecorator {
    }
 
    public void decorate(ChunkAccess chunk, WorldGenLevel level, StructureFeatureManager structures, CompletableFuture<TerrainData> terrain, Generator generator) {
-      BlockPos blockpos = getOrigin(level, chunk);
+      BlockPos blockpos = getOrigin(level, chunk, generator);
       Holder<Biome> holder = level.getBiome(blockpos);
       WorldgenRandom worldgenrandom = getRandom();
       long i = worldgenrandom.setDecorationSeed(level.getSeed(), blockpos.getX(), blockpos.getZ());
@@ -81,8 +80,14 @@ public class FeatureDecorator {
       WorldgenRandom random,
       StructureFeatureManager structureManager
    ) {
+      // Structures / non-top stages from the surface-origin biome.
       VanillaDecorator.decorate(
-         seed, VegetationFeatures.STAGE + 1, MAX_DECORATION_STAGE, origin, biome, chunk, level, generator, random, structureManager, this
+         seed, VegetationFeatures.STAGE + 1, MAX_DECORATION_STAGE - 1, origin, biome, chunk, level, generator, random, structureManager, this
+      );
+      // freeze_top_layer must run for every surface biome in the chunk — single deep-cave
+      // origin biome previously skipped snow for whole 16×16 rectangles.
+      VanillaDecorator.decorateTopLayerAllBiomes(
+         seed, origin, biome, chunk, level, generator, random, structureManager, this
       );
    }
 
@@ -99,10 +104,15 @@ public class FeatureDecorator {
       PositionSampler.placeVegetation(seed, origin, biome, chunk, level, generator, random, terrain, this);
    }
 
-   private static BlockPos getOrigin(WorldGenLevel level, ChunkAccess chunk) {
+   private static BlockPos getOrigin(WorldGenLevel level, ChunkAccess chunk, Generator generator) {
       ChunkPos chunkpos = chunk.getPos();
-      SectionPos sectionpos = SectionPos.of(chunkpos, level.getMinSection());
-      return sectionpos.origin();
+      int x = chunkpos.getMinBlockX() + 8;
+      int z = chunkpos.getMinBlockZ() + 8;
+      int y = chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, 8, 8);
+      if (y < level.getMinBuildHeight() + 1) {
+         y = generator.getSeaLevel();
+      }
+      return new BlockPos(x, y, z);
    }
 
    private static WorldgenRandom getRandom() {

@@ -18,6 +18,10 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
       this.biomeMapManager = biomeMapManager;
    }
 
+   public BiomeMapManager getBiomeMapManager() {
+      return this.biomeMapManager;
+   }
+
    public Holder<Biome> sampleBiome(int x, int z) {
       ClimateSample climatesample = this.getSample(x, z);
       // Ocean / beach overrides never use terrain rules — skip pick + volcano spiral.

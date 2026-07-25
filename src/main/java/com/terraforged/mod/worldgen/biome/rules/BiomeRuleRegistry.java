@@ -454,6 +454,49 @@ public final class BiomeRuleRegistry {
         return terrainChance * subChance;
     }
 
+    /** Human-readable reject reason when {@link #matchChance} would be ≤0; null if accepted. */
+    public static String rejectReason(
+            BiomeRule rule, String terrainName, String subterrain, ZoneContext zone
+    ) {
+        if (rule == null) {
+            return "no rule (pass)";
+        }
+        if (!rule.hasTerrains()) {
+            return "rule has no terrains";
+        }
+        boolean needsActive = rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO);
+        boolean needsDormant = rule.requiresZone(BiomeRule.ZONE_NEAR_DORMANT_VOLCANO);
+        if (needsActive && (zone == null || !zone.nearAnyVolcano())) {
+            return "needs near_active_volcano zone";
+        }
+        if (needsDormant && (zone == null || !(zone.nearDormantVolcano || zone.onDormantVolcano))) {
+            return "needs near_dormant_volcano zone";
+        }
+        if (zone != null && zone.onActiveVolcano && !isActiveVolcanoBiome(rule)) {
+            return "blocked on active volcano (not volcanic biome)";
+        }
+        if (zone != null && zone.nearActiveVolcano && !zone.onActiveVolcano && !needsActive) {
+            return "blocked in active volcano ring";
+        }
+        boolean hasSubs = !rule.subterrains.isEmpty();
+        boolean subActive = subterrain != null && !subterrain.isBlank() && !SubterrainResolver.NONE.equals(subterrain);
+        if (hasSubs) {
+            if (!subActive) {
+                return "rule requires subterrains but cell sub=none";
+            }
+            if (rule.subterrainChance(subterrain) <= 0.0F) {
+                return "subterrain mismatch (need one of " + rule.subterrains.keySet() + ", have " + subterrain + ")";
+            }
+        }
+        float terrainChance = chanceOnTerrain(rule, terrainName);
+        if (terrainChance <= 0.0F) {
+            if (!(hasSubs && subActive && rule.subterrainChance(subterrain) > 0.0F)) {
+                return "terrain mismatch (have " + terrainName + ")";
+            }
+        }
+        return null;
+    }
+
     /** Cone / crater / volcanic-climate / near_active — allowed on an active volcano cell. */
     private static boolean isActiveVolcanoBiome(BiomeRule rule) {
         if (rule.requiresZone(BiomeRule.ZONE_NEAR_ACTIVE_VOLCANO)) {
