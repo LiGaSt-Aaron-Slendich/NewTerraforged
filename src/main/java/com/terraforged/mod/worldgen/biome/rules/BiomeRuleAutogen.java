@@ -125,6 +125,10 @@ public final class BiomeRuleAutogen {
                 terrains.put("hills_2", 1.0F);
                 terrains.put("torridonian", 0.75F);
                 terrains.put("island_hills", 0.6F);
+                terrains.put("plains", 0.40F);
+                terrains.put("mountains_1", 0.45F);
+                terrains.put("mountains_2", 0.45F);
+                terrains.put("mountains_3", 0.35F);
                 if (tokensContain(parsed.all(), Set.of("highland", "highlands"))
                         || params.category == BiomeCategory.MOUNTAIN && params.isWarmWet()) {
                     terrains.put("plateau", 0.9F);
@@ -160,6 +164,12 @@ public final class BiomeRuleAutogen {
                 terrains.put("steppe", 0.5F);
                 terrains.put("dales", 0.6F);
                 terrains.put("torridonian", 0.35F);
+                terrains.put("hills_1", 0.45F);
+                terrains.put("hills_2", 0.45F);
+                // Soft foothill presence so climate pools (e.g. TEMPERATE_FOREST) paint mountains.
+                terrains.put("mountains_1", 0.30F);
+                terrains.put("mountains_2", 0.30F);
+                terrains.put("mountains_3", 0.25F);
                 terrains.put("island_flats", 0.5F);
             }
         }
@@ -232,8 +242,15 @@ public final class BiomeRuleAutogen {
         boolean mountainTerrain = rule.terrains.containsKey("mountains_1")
                 || rule.terrains.containsKey("mountains_2")
                 || rule.terrains.containsKey("mountains_3");
-        // Warm wet / jungle-like biomes must not sit in alpine mountain rules.
-        if ((alpine || mountainTerrain) && (params.isWarmWet() || params.isJungleLike())) {
+        // Warm wet / jungle-like biomes must not sit in alpine-tagged mountain rules.
+        if (alpine && (params.isWarmWet() || params.isJungleLike())) {
+            return true;
+        }
+        // Pure mountain-only auto rules on warm/jungle biomes (no soft foothill plains/hills).
+        if (mountainTerrain && (params.isWarmWet() || params.isJungleLike())
+                && !rule.terrains.containsKey("plains")
+                && !rule.terrains.containsKey("hills_1")
+                && !rule.terrains.containsKey("hills_2")) {
             return true;
         }
         if (alpine && params.temp >= 0.75F && params.precipitation == Precipitation.RAIN) {
