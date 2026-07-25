@@ -61,7 +61,8 @@ public class NoiseCaveCarver {
                int sampleY = (j3 + i3) >> 1;
                Holder<Biome> holder = ChunkBiomePaint.sanitize(carver.getBiome(k1, l1, sampleY, config, generator), biomes);
                if (carve) {
-                  carve(chunk, holder, i1, j1, j3, i3, i2, mutableblockpos, biomes);
+                  int paintSkip = megaGiga ? 6 : 8;
+                  carve(chunk, holder, i1, j1, j3, i3, i2, paintSkip, mutableblockpos, biomes);
                }
             }
          }
@@ -69,17 +70,22 @@ public class NoiseCaveCarver {
    }
 
    private static void carve(
-      ChunkAccess chunk, Holder<Biome> biome, int dx, int dz, int bottom, int top, int surface, MutableBlockPos pos, Registry<Biome> biomes
+      ChunkAccess chunk, Holder<Biome> biome, int dx, int dz, int bottom, int top, int surface,
+      int surfaceBiomeSkip, MutableBlockPos pos, Registry<Biome> biomes
    ) {
       BlockState blockstate = Blocks.AIR.defaultBlockState();
       int i = dx >> 2;
       int j = dz >> 2;
+      int paintCeiling = surface - Math.max(3, surfaceBiomeSkip);
 
       for (int l = bottom; l <= top; l++) {
          pos.set(dx, l, dz);
          if (chunk.getBlockState(pos).getFluidState().isEmpty()) {
             chunk.setBlockState(pos, blockstate, false);
-            // Paint every carved quart in the column (floor + edges + body), not only deep quarts.
+            // Keep overworld quarts in the surface crust at cave mouths — paint only deeper.
+            if (l >= paintCeiling) {
+               continue;
+            }
             int i1 = (l & 15) >> 2;
             int j1 = chunk.getSectionIndex(l);
             if (j1 >= 0 && j1 < chunk.getSectionsCount()) {

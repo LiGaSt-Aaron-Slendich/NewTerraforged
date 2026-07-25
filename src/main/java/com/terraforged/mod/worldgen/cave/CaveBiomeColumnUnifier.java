@@ -54,9 +54,15 @@ public final class CaveBiomeColumnUnifier {
                 if (biome == null) {
                     continue;
                 }
+                int surfaceY = columns.surfaceY(lx, lz);
+                int paintCeiling = surfaceY - 6;
                 for (int y = floorY; y <= ceilY; ++y) {
                     pos.set(lx, y, lz);
                     if (!chunk.getBlockState(pos).isAir()) {
+                        continue;
+                    }
+                    // Don't overwrite surface quarts at mega/giga mouths.
+                    if (y >= paintCeiling) {
                         continue;
                     }
                     CaveBiomeColumnUnifier.setBiomeQuart(chunk, lx, y, lz, biome, generator);
