@@ -3,6 +3,7 @@ package com.terraforged.mod.worldgen.biome.util;
 import com.terraforged.engine.world.biome.type.BiomeType;
 import com.terraforged.engine.world.terrain.Terrain;
 import com.terraforged.mod.util.map.WeightMap;
+import com.terraforged.mod.worldgen.biome.rules.BiomeRule;
 import com.terraforged.mod.worldgen.biome.rules.BiomeRuleRegistry;
 import com.terraforged.mod.worldgen.biome.rules.SubterrainResolver;
 import com.terraforged.mod.worldgen.biome.rules.VolcanoBiomeKits;
@@ -17,9 +18,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 /**
- * Terrain integrator: climate WeightMap is authoritative; terrain rules prefer matches
- * but soft-family / climate-fill keep at least {@link ClimateTerrainCandidates#MIN_CANDIDATES}
- * options whenever the climate pool is large enough.
+ * Terrain integrator: builds a <b>candidate pool</b> from climate weights ∩ biome JSON rules
+ * (biomes that cannot spawn on this terrain/subterrain never enter the pick set).
  */
 public final class BiomeTerrainIntegration {
     private BiomeTerrainIntegration() {
@@ -48,30 +48,53 @@ public final class BiomeTerrainIntegration {
         Terrain terrainObj = sample != null ? sample.terrainType : null;
         String terrain = terrainObj != null ? terrainObj.getName() : null;
         String sub = SubterrainResolver.resolve(sample);
+        boolean steep = false; // can_be_on_slope retired
         ZoneContext zone = ZoneContext.from(sample, noiseGen, blockX, blockZ);
 
-        ClimateTerrainCandidates.Result built = ClimateTerrainCandidates.collect(
-                java.util.Arrays.asList(climatePool.getValues()),
-                terrain,
-                sub,
-                zone,
-                zone.onDormantVolcano
-        );
-
-        List<ClimateTerrainCandidates.Entry> entries = built.accepted();
-        if (entries.isEmpty()) {
-            // Last resort: climate distribution (never hard-plains when the pool has biomes).
-            Holder<Biome> climatePick = climatePool.getValue(noise);
-            return climatePick != null ? climatePick : fallback;
+        List<Holder<Biome>> values = new ArrayList<>();
+        List<Float> weights = new ArrayList<>();
+        List<ResourceLocation> ids = new ArrayList<>();
+        for (Holder<Biome> holder : climatePool.getValues()) {
+            if (holder == null) {
+                continue;
+            }
+            ResourceLocation id = biomeId(holder);
+            if (id == null) {
+                continue;
+            }
+            // Cave biomes never paint the surface, even if still listed in a climate WeightMap.
+            if (com.terraforged.mod.worldgen.cave.CaveBiomeIds.isUndergroundBiome(id)) {
+                continue;
+            }
+            BiomeRule rule = BiomeRuleRegistry.get(id);
+            if (rule == null) {
+                values.add(holder);
+                weights.add(1.0F);
+                ids.add(id);
+                continue;
+            }
+            float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep, zone);
+            // Dormant cones: allow normal land biomes (hills/mountains/plains), not only volcanic kits.
+            if (chance <= 0.0F && zone.onDormantVolcano) {
+                chance = dormantConeChance(rule, sub, steep, zone);
+            }
+            if (chance <= 0.0F) {
+                continue;
+            }
+            values.add(holder);
+            weights.add(chance);
+            ids.add(id);
         }
 
-        List<Holder<Biome>> values = new ArrayList<>(entries.size());
-        List<Float> weights = new ArrayList<>(entries.size());
-        List<ResourceLocation> ids = new ArrayList<>(entries.size());
-        for (ClimateTerrainCandidates.Entry e : entries) {
-            values.add(e.holder());
-            weights.add(e.weight());
-            ids.add(e.id());
+        if (values.isEmpty()) {
+            // If landform was never resolved (none/blank), keep climate distribution instead of
+            // hard plains. Concrete terrains with zero matches still use the plains fallback
+            // so rule exclusions (e.g. highlands on badlands) stay authoritative.
+            if (terrain == null || terrain.isBlank() || "none".equalsIgnoreCase(terrain)) {
+                Holder<Biome> climatePick = climatePool.getValue(noise);
+                return climatePick != null ? climatePick : fallback;
+            }
+            return fallback;
         }
 
         // Keep mod volcano kits together on *active* cones only.
@@ -89,15 +112,16 @@ public final class BiomeTerrainIntegration {
                         if (role == need) {
                             w *= 4.0F;
                         } else if (role != VolcanoBiomeKits.Role.OTHER) {
-                            w *= 0.2F;
+                            w *= 0.2F; // wrong half of the preferred kit
                         }
                     } else if (VolcanoBiomeKits.isKitNamespace(id.getNamespace()) && role != VolcanoBiomeKits.Role.OTHER) {
-                        w *= 0.12F;
+                        w *= 0.12F; // other mods' volcanic kits
                     }
                     weights.set(i, w);
                 }
             }
         } else if (zone.onDormantVolcano) {
+            // Soft-prefer land biomes over volcanic kits on dormant cones.
             for (int i = 0; i < values.size(); i++) {
                 VolcanoBiomeKits.Role role = VolcanoBiomeKits.role(ids.get(i));
                 if (role != VolcanoBiomeKits.Role.OTHER) {
@@ -133,6 +157,7 @@ public final class BiomeTerrainIntegration {
         Terrain terrainObj = sample != null ? sample.terrainType : null;
         String terrain = terrainObj != null ? terrainObj.getName() : "null";
         String sub = SubterrainResolver.resolve(sample);
+        boolean steep = false;
         ZoneContext zone = ZoneContext.from(sample, noiseGen, blockX, blockZ);
         BiomeType climate = sample != null ? sample.climateType : null;
         lines.add("terrain=" + terrain + "  subterrain=" + sub);
@@ -154,23 +179,50 @@ public final class BiomeTerrainIntegration {
             return lines;
         }
 
-        ClimateTerrainCandidates.Result built = ClimateTerrainCandidates.collect(
-                java.util.Arrays.asList(climatePool.getValues()),
-                terrain,
-                sub,
-                zone,
-                zone.onDormantVolcano
-        );
-
-        lines.add("--- Candidates (min=" + ClimateTerrainCandidates.MIN_CANDIDATES
-                + ", have=" + built.accepted().size() + ") ---");
-        for (ClimateTerrainCandidates.Entry e : built.accepted()) {
-            lines.add(String.format(java.util.Locale.ROOT, "%s  chance=%.3f  [%s]",
-                    e.id(), e.weight(), e.tier()));
+        lines.add("--- Candidates (chance>0) ---");
+        List<Holder<Biome>> values = new ArrayList<>();
+        List<Float> weights = new ArrayList<>();
+        int rejected = 0;
+        List<String> rejectLines = new ArrayList<>();
+        for (Holder<Biome> holder : climatePool.getValues()) {
+            if (holder == null) {
+                continue;
+            }
+            ResourceLocation id = biomeId(holder);
+            if (id == null) {
+                continue;
+            }
+            if (com.terraforged.mod.worldgen.cave.CaveBiomeIds.isUndergroundBiome(id)) {
+                rejectLines.add(id + " → underground biome");
+                rejected++;
+                continue;
+            }
+            BiomeRule rule = BiomeRuleRegistry.get(id);
+            if (rule == null) {
+                values.add(holder);
+                weights.add(1.0F);
+                lines.add(id + "  chance=1.0 (no rule)");
+                continue;
+            }
+            float chance = BiomeRuleRegistry.matchChance(rule, terrain, sub, steep, zone);
+            if (chance <= 0.0F && zone.onDormantVolcano) {
+                chance = dormantConeChance(rule, sub, steep, zone);
+            }
+            if (chance <= 0.0F) {
+                String why = BiomeRuleRegistry.rejectReason(rule, terrain, sub, zone);
+                if (why != null && why.startsWith("subterrain")) {
+                    rejectLines.add(id + " → TERRAIN_OK but " + why);
+                } else {
+                    rejectLines.add(id + " → " + (why != null ? why : "chance=0"));
+                }
+                rejected++;
+                continue;
+            }
+            values.add(holder);
+            weights.add(chance);
+            lines.add(String.format(java.util.Locale.ROOT, "%s  chance=%.3f", id, chance));
         }
-
-        lines.add("--- Rejected from climate pool (strict pass, " + built.rejected().size() + ") ---");
-        List<String> rejectLines = new ArrayList<>(built.rejected());
+        lines.add("--- Rejected from climate pool (" + rejected + ") ---");
         rejectLines.sort((a, b) -> {
             boolean aOk = a.contains("TERRAIN_OK");
             boolean bOk = b.contains("TERRAIN_OK");
@@ -187,15 +239,14 @@ public final class BiomeTerrainIntegration {
                 break;
             }
         }
-
-        if (built.accepted().isEmpty()) {
+        if (values.isEmpty()) {
             lines.add("picked: FALLBACK (" + biomeId(fallback) + ")");
         } else {
             @SuppressWarnings("unchecked")
-            Holder<Biome>[] arr = built.accepted().stream().map(ClimateTerrainCandidates.Entry::holder).toArray(Holder[]::new);
-            float[] w = new float[built.accepted().size()];
+            Holder<Biome>[] arr = values.toArray(Holder[]::new);
+            float[] w = new float[weights.size()];
             for (int i = 0; i < w.length; i++) {
-                w[i] = built.accepted().get(i).weight();
+                w[i] = weights.get(i);
             }
             WeightMap<Holder<Biome>> candidates = new WeightMap<>(arr, w);
             Holder<Biome> picked = candidates.getValue(noise);
@@ -203,6 +254,16 @@ public final class BiomeTerrainIntegration {
                     + String.format(java.util.Locale.ROOT, "  (biomeNoise=%.4f)", noise));
         }
         return lines;
+    }
+
+    /** Try common land terrains so non-volcanic biomes can sit on dormant volcano cells. */
+    private static float dormantConeChance(BiomeRule rule, String sub, boolean steep, ZoneContext zone) {
+        String[] alts = {"hills_1", "hills_2", "mountains_1", "mountains_2", "plateau", "plains", "steppe"};
+        float best = 0.0F;
+        for (String alt : alts) {
+            best = Math.max(best, BiomeRuleRegistry.matchChance(rule, alt, sub, steep, zone));
+        }
+        return best;
     }
 
     /** @deprecated Use {@link #pick}; kept for any leftover call sites. */

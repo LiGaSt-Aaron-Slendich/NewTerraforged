@@ -129,6 +129,9 @@ public final class BiomeRuleAutogen {
                 terrains.put("mountains_1", 0.45F);
                 terrains.put("mountains_2", 0.45F);
                 terrains.put("mountains_3", 0.35F);
+                subterrains.put("mountain_foothill", 0.55F);
+                subterrains.put("mountain_body", 0.50F);
+                subterrains.put("bare_mountain", 0.35F);
                 if (tokensContain(parsed.all(), Set.of("highland", "highlands"))
                         || params.category == BiomeCategory.MOUNTAIN && params.isWarmWet()) {
                     terrains.put("plateau", 0.9F);
@@ -146,8 +149,9 @@ public final class BiomeRuleAutogen {
                 terrains.put("torridonian", 0.5F);
                 terrains.put("island_mountains", 0.6F);
                 if (form == Form.PEAK) {
-                    subterrains.put("mountain_peak", 0.7F);
-                    subterrains.put("bare_mountain_peak", 0.5F);
+                    // Peak biomes only on summit band — keeps forests off 7km-style crests.
+                    subterrains.put("mountain_peak", 1.0F);
+                    subterrains.put("bare_mountain_peak", 0.75F);
                 } else {
                     subterrains.put("mountain_body", 0.6F);
                     subterrains.put("mountain_foothill", 0.5F);
@@ -166,10 +170,13 @@ public final class BiomeRuleAutogen {
                 terrains.put("torridonian", 0.35F);
                 terrains.put("hills_1", 0.45F);
                 terrains.put("hills_2", 0.45F);
-                // Soft foothill presence so climate pools (e.g. TEMPERATE_FOREST) paint mountains.
+                // Foothill/body only — never peak (peak subterrains block summit forests).
                 terrains.put("mountains_1", 0.30F);
                 terrains.put("mountains_2", 0.30F);
                 terrains.put("mountains_3", 0.25F);
+                subterrains.put("mountain_foothill", 0.55F);
+                subterrains.put("mountain_body", 0.50F);
+                subterrains.put("bare_mountain", 0.35F);
                 terrains.put("island_flats", 0.5F);
             }
         }
@@ -226,7 +233,81 @@ public final class BiomeRuleAutogen {
             terrains.put("hills_1", 0.5F);
         }
 
+        // Land climates need foothill/mountain/dale slots so climate pools aren't empty on those terrains.
+        ensureCommonLandTerrains(form, terrains, subterrains, params);
+
+        // Alpine / peak biomes: summit band only — forests never use this path.
+        if (form == Form.PEAK || climateTags.contains("alpine")) {
+            applyPeakOnlySubterrains(terrains, subterrains);
+        }
+
         return new BiomeRule(id.toString(), canSlope, distinct(climateTags), terrains, subterrains, zoneFlags, true);
+    }
+
+    /** Peak-only height gate for alpine / summit biomes. */
+    private static void applyPeakOnlySubterrains(Map<String, Float> terrains, Map<String, Float> subterrains) {
+        if (!hasMountainTerrain(terrains)) {
+            terrains.put("mountains_1", 1.0F);
+            terrains.put("mountains_2", 1.0F);
+            terrains.put("mountains_3", 0.9F);
+            terrains.putIfAbsent("island_mountains", 0.6F);
+        }
+        subterrains.keySet().removeIf(k -> k.contains("mountain") && !k.contains("peak"));
+        subterrains.put("mountain_peak", 1.0F);
+        subterrains.putIfAbsent("bare_mountain_peak", 0.75F);
+    }
+
+    private static boolean hasMountainTerrain(Map<String, Float> terrains) {
+        for (String k : terrains.keySet()) {
+            if (k.startsWith("mountains") || "dolomites".equals(k) || "island_mountains".equals(k)
+                    || "torridonian".equals(k)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Expand non-specialized forms so temperate/cold/etc. climate pools keep ≥3 candidates
+     * on hills, torridonian, mountains, dales, …
+     */
+    private static void ensureCommonLandTerrains(
+            Form form, Map<String, Float> terrains, Map<String, Float> subterrains, BiomeParams params
+    ) {
+        if (form == Form.BEACH || form == Form.RIVER || form == Form.VOLCANO || form == Form.CRATER
+                || form == Form.BADLANDS || form == Form.PEAK) {
+            return;
+        }
+        terrains.putIfAbsent("plains", 0.45F);
+        terrains.putIfAbsent("steppe", 0.35F);
+        terrains.putIfAbsent("dales", 0.40F);
+        terrains.putIfAbsent("hills_1", 0.50F);
+        terrains.putIfAbsent("hills_2", 0.50F);
+        terrains.putIfAbsent("plateau", 0.35F);
+        // Warm jungle-like biomes stay off alpine mountain slots (stripped earlier for a reason).
+        boolean allowHigh = !(params != null && (params.isJungleLike() || params.isWarmWet() && params.temp >= 0.85F));
+        if (allowHigh) {
+            terrains.putIfAbsent("torridonian", 0.40F);
+            terrains.putIfAbsent("mountains_1", 0.35F);
+            terrains.putIfAbsent("mountains_2", 0.35F);
+            terrains.putIfAbsent("mountains_3", 0.30F);
+            // Forests/hills on mountains: body + foothill only — never summit.
+            if (form != Form.MOUNTAIN) {
+                subterrains.putIfAbsent("mountain_foothill", 0.55F);
+                subterrains.putIfAbsent("mountain_body", 0.50F);
+                subterrains.putIfAbsent("bare_mountain", 0.35F);
+                subterrains.remove("mountain_peak");
+                subterrains.remove("bare_mountain_peak");
+            }
+            if (form == Form.MOUNTAIN || form == Form.HILLS || form == Form.PLATEAU) {
+                terrains.putIfAbsent("mountains_ridge_1", 0.30F);
+                terrains.putIfAbsent("mountains_ridge_2", 0.30F);
+                terrains.putIfAbsent("dolomites", 0.25F);
+            }
+        }
+        if (form == Form.STEPPE || form == Form.FLAT) {
+            terrains.putIfAbsent("badlands", 0.20F);
+        }
     }
 
     /**
@@ -261,6 +342,33 @@ public final class BiomeRuleAutogen {
                 && !rule.climateTags.contains("snowy")
                 && !rule.climateTags.contains("cold")
                 && !rule.climateTags.contains("tundra")) {
+            return true;
+        }
+        // Alpine / peak biomes must gate on summit subterrains.
+        if ((alpine || params.isColdAlpine())
+                && mountainTerrain
+                && !rule.subterrains.containsKey("mountain_peak")
+                && !rule.subterrains.containsKey("bare_mountain_peak")) {
+            return true;
+        }
+        // Land forests on mountains must use body/foothill — not unrestricted peaks.
+        if (mountainTerrain && !alpine && !params.isColdAlpine()
+                && rule.terrains.containsKey("plains")
+                && (rule.subterrains.isEmpty()
+                || (rule.subterrains.containsKey("mountain_peak")
+                && !rule.subterrains.containsKey("mountain_body")
+                && !rule.subterrains.containsKey("mountain_foothill")))) {
+            return true;
+        }
+        // Land auto rules missing mountain foothill slots → climate pools starve on mountains.
+        if (!params.isJungleLike() && !(params.isWarmWet() && params.temp >= 0.85F)
+                && !rule.terrains.containsKey("beach")
+                && !rule.terrains.containsKey("volcano")
+                && !rule.terrains.containsKey("volcano_pipe")
+                && !rule.terrains.containsKey("river")
+                && rule.terrains.containsKey("plains")
+                && !rule.terrains.containsKey("mountains_1")
+                && !rule.terrains.containsKey("torridonian")) {
             return true;
         }
         return false;

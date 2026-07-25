@@ -2,7 +2,14 @@ package com.terraforged.mod.worldgen.biome;
 
 /**
  * Height bands for surface climate / vegetation / stone caps (normalized heightNoise 0..1).
- * Mountain subterrains: foothill ≤0.48, body mid, peak ≥0.78.
+ * Block Y ≈ heightNoise × worldHeight (default worldHeight=640 → Y below).
+ *
+ * <p>Mountain subterrains ({@link com.terraforged.mod.worldgen.biome.rules.SubterrainResolver}):
+ * <ul>
+ *   <li>foothill — heightNoise ≤ {@link #FOOTHILL_MAX} (0.48 → ~Y 307 @ 640)</li>
+ *   <li>body — between foothill and peak</li>
+ *   <li>peak — heightNoise ≥ {@link #PEAK_MIN} (0.78 → ~Y 499 @ 640)</li>
+ * </ul>
  * Alpine climate is only forced on the peak band (unless the cell is already Tundra).
  */
 public final class HeightClimateZones {

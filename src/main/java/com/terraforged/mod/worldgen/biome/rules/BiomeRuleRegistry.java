@@ -76,9 +76,10 @@ public final class BiomeRuleRegistry {
         }
         synced = !RULES.isEmpty();
         VolcanoBiomeKits.rebuild(RULES);
+        int covered = BiomeRuleCoverage.ensureMinCandidates(RULES);
         TerraForged.LOG.info(
-                "[BiomeRules] game-launch sync: {} rules (loaded {}, created {}, repaired {}, skipped {}) → {}",
-                RULES.size(), loaded, created, repaired, skipped, root);
+                "[BiomeRules] game-launch sync: {} rules (loaded {}, created {}, repaired {}, skipped {}, coveragePatches {}) → {}",
+                RULES.size(), loaded, created, repaired, skipped, covered, root);
     }
 
     public static synchronized void sync(Registry<Biome> biomes) {
@@ -121,9 +122,10 @@ public final class BiomeRuleRegistry {
         }
         synced = true;
         VolcanoBiomeKits.rebuild(RULES);
+        int covered = BiomeRuleCoverage.ensureMinCandidates(RULES);
         TerraForged.LOG.info(
-                "[BiomeRules] world sync: {} rules total (pass loaded {}, created {}, repaired {})",
-                RULES.size(), loaded, created, repaired);
+                "[BiomeRules] world sync: {} rules total (pass loaded {}, created {}, repaired {}, coveragePatches {})",
+                RULES.size(), loaded, created, repaired, covered);
     }
 
     /**
@@ -419,23 +421,30 @@ public final class BiomeRuleRegistry {
 
         boolean hasSubs = !rule.subterrains.isEmpty();
         boolean subActive = subterrain != null && !subterrain.isBlank() && !SubterrainResolver.NONE.equals(subterrain);
+        float terrainChance = chanceOnTerrain(rule, terrainName);
         float subChance = 1.0F;
         if (hasSubs) {
             if (!subActive) {
-                // Rule declares subterrains — inactive/none is a hard mismatch.
-                return 0.0F;
-            }
-            subChance = rule.subterrainChance(subterrain);
-            if (subChance <= 0.0F) {
-                // Active subterrain mismatch → hard exclude even if terrain matches.
-                return 0.0F;
+                // Peak/canyon subterrains require an active band — never on plains/hills (sub=none).
+                if (isPeakOnlySubterrains(rule) || isCanyonOnlySubterrains(rule)) {
+                    return 0.0F;
+                }
+                // Body/foothill (etc.) gates only apply on mountain cells; on plains the terrain list wins.
+                if (terrainChance <= 0.0F) {
+                    return 0.0F;
+                }
+            } else {
+                subChance = rule.subterrainChance(subterrain);
+                if (subChance <= 0.0F) {
+                    // Active subterrain mismatch → hard exclude even if terrain matches.
+                    return 0.0F;
+                }
             }
         }
 
-        float terrainChance = chanceOnTerrain(rule, terrainName);
         // Matching subterrain is enough to enter even when terrain does not match.
         if (terrainChance <= 0.0F) {
-            if (hasSubs && subChance > 0.0F) {
+            if (hasSubs && subActive && subChance > 0.0F) {
                 terrainChance = 1.0F;
             } else {
                 return 0.0F;
@@ -483,15 +492,19 @@ public final class BiomeRuleRegistry {
         }
         boolean hasSubs = !rule.subterrains.isEmpty();
         boolean subActive = subterrain != null && !subterrain.isBlank() && !SubterrainResolver.NONE.equals(subterrain);
+        float terrainChance = chanceOnTerrain(rule, terrainName);
         if (hasSubs) {
             if (!subActive) {
-                return "rule requires subterrains but cell sub=none";
-            }
-            if (rule.subterrainChance(subterrain) <= 0.0F) {
+                if (isPeakOnlySubterrains(rule) || isCanyonOnlySubterrains(rule)) {
+                    return "peak/canyon sub required (cell sub=none)";
+                }
+                if (terrainChance <= 0.0F) {
+                    return "terrain mismatch (have " + terrainName + ")";
+                }
+            } else if (rule.subterrainChance(subterrain) <= 0.0F) {
                 return "subterrain mismatch (need one of " + rule.subterrains.keySet() + ", have " + subterrain + ")";
             }
         }
-        float terrainChance = chanceOnTerrain(rule, terrainName);
         if (terrainChance <= 0.0F) {
             if (!(hasSubs && subActive && rule.subterrainChance(subterrain) > 0.0F)) {
                 return "terrain mismatch (have " + terrainName + ")";
@@ -511,6 +524,30 @@ public final class BiomeRuleRegistry {
         return rule.terrains.containsKey("volcano")
                 || rule.terrains.containsKey("volcano_pipe")
                 || rule.terrains.containsKey("island_volcano");
+    }
+
+    static boolean isPeakOnlySubterrains(BiomeRule rule) {
+        if (rule == null || rule.subterrains.isEmpty()) {
+            return false;
+        }
+        for (String k : rule.subterrains.keySet()) {
+            if (!"mountain_peak".equals(k) && !"bare_mountain_peak".equals(k)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static boolean isCanyonOnlySubterrains(BiomeRule rule) {
+        if (rule == null || rule.subterrains.isEmpty()) {
+            return false;
+        }
+        for (String k : rule.subterrains.keySet()) {
+            if (!"canyon".equals(k) && !"desert_canyon".equals(k)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static float chanceOnTerrain(BiomeRule rule, String terrainName) {
