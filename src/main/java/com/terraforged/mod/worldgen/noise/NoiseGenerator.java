@@ -417,21 +417,21 @@ public class NoiseGenerator implements INoiseGenerator {
          return;
       }
       // Sparse mega-spines only — WeightMap / terrain-region scale owns the rest of the land.
-      if (belt >= 0.28F) {
+      if (belt >= 0.22F) {
          float soft = belt * belt * (3.0F - 2.0F * belt);
          // Pull mega-spines toward the upper column so crests clear ~Y 500+ on maxY 640.
-         float target = NoiseUtil.lerp(0.58F, 0.94F, soft);
-         float pull = soft * 0.48F;
+         float target = NoiseUtil.lerp(0.55F, 0.94F, soft);
+         float pull = soft * 0.52F;
          sample.heightNoise = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), pull);
          // Crest-only mountain paint — foothills stay WeightMap hills/torridonian.
-         if (belt > 0.62F && sample.heightNoise > 0.55F
+         if (belt > 0.55F && sample.heightNoise > 0.52F
                && sample.terrainType != null && sample.terrainType.isOverground()
                && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
                && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
             sample.terrainType = TerrainType.MOUNTAINS;
          }
       }
-      if (belt < 0.40F) {
+      if (belt < 0.32F) {
          return;
       }
       float freq = this.levels.noiseLevels.frequency;
@@ -450,14 +450,22 @@ public class NoiseGenerator implements INoiseGenerator {
             ? this.settings.world.continent.continentScale
             : 3000;
       float under = MountainBeltField.underwaterStrength(x * inv, z * inv, this.seed, continentScale);
-      if (under < 0.04F) {
+      if (under < 0.03F) {
          return;
       }
-      // Fade out far from shore so mid-ocean doesn't get a global tectonic grid.
+      // Same spine as land: strong on shelf / near-shore, fades only in deep mid-ocean.
       float cn = NoiseUtil.clamp(sample.continentNoise, 0.0F, 1.0F);
-      float nearShore = NoiseUtil.clamp(1.0F - cn / 0.45F, 0.0F, 1.0F);
-      float relief = under * (0.35F + 0.65F * nearShore);
+      float oceanGate = 1.0F - smoothstepLocal(0.48F, 0.68F, cn);
+      float relief = under * oceanGate;
+      if (relief < 0.02F) {
+         return;
+      }
       sample.oceanRelief = Math.max(sample.oceanRelief, relief);
+   }
+
+   private static float smoothstepLocal(float edge0, float edge1, float x) {
+      float t = NoiseUtil.clamp((x - edge0) / Math.max(1.0E-4F, edge1 - edge0), 0.0F, 1.0F);
+      return t * t * (3.0F - 2.0F * t);
    }
 
    /**

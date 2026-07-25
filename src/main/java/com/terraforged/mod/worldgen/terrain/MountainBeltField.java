@@ -4,92 +4,82 @@ import com.terraforged.mod.util.MathUtil;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Sparse mega-ridge spines (not a continent-wide ridged overlay).
- * A few corridors activate along a narrow coastal fringe <em>or</em> as inland
- * continental spines — coasts are no longer a continuous mountain wall.
+ * One mega-ridge spine per continent-scale cell: a single curved crest that
+ * crosses land and continues offshore as an underwater ridge.
+ *
+ * <p>The spine field itself is continentNoise-agnostic; land vs ocean only
+ * chooses whether height or bathymetry is lifted from the same corridor.
  */
 public final class MountainBeltField {
     private MountainBeltField() {
     }
 
     public static float strength(float worldX, float worldZ, long seed, int continentScale) {
-        return strength(worldX, worldZ, seed, continentScale, 0.65F);
+        return strength(worldX, worldZ, seed, continentScale, 0.72F);
     }
 
     /**
-     * @param continentNoise 0..1 land mask (beach ~0.5, inland ~1). Used for coastal vs inland placement.
+     * Land mega-ridge strength (0..1). Active from coast through inland core.
+     *
+     * @param continentNoise 0..1 land mask (beach ~0.5, inland ~1)
      */
     public static float strength(float worldX, float worldZ, long seed, int continentScale, float continentNoise) {
+        float spine = spineStrength(worldX, worldZ, seed, continentScale);
+        if (spine <= 0.001F) {
+            return 0.0F;
+        }
+        // Land side of the same spine (shelf → inland). Soft fade — not a thin coastal ring.
+        float land = NoiseUtil.clamp(continentNoise, 0.0F, 1.0F);
+        float landMask = smoothstep(0.42F, 0.58F, land);
+        return NoiseUtil.clamp(spine * landMask, 0.0F, 1.0F);
+    }
+
+    /**
+     * Same spine as {@link #strength}, gated to ocean / shelf so the ridge continues underwater.
+     */
+    public static float underwaterStrength(float worldX, float worldZ, long seed, int continentScale) {
+        float spine = spineStrength(worldX, worldZ, seed, continentScale);
+        if (spine <= 0.001F) {
+            return 0.0F;
+        }
+        // Callers pass world coords; CN is sampled separately in NoiseGenerator for fade.
+        // Here we return full spine — ocean fade is applied by the caller with real CN.
+        return spine * 0.72F;
+    }
+
+    /**
+     * Shared tectonic spine (~one corridor per continentScale).
+     * Wavelength ≈ continent size so a typical landmass crosses a single crest.
+     */
+    public static float spineStrength(float worldX, float worldZ, long seed, int continentScale) {
         int scale = Math.max(400, continentScale);
         int s = (int) seed ^ 0xB3175EED;
 
-        // Very long wavelength selector → only a handful of mega spines per continent.
-        float selWl = scale * 1.55F;
-        float selFreq = 1.0F / selWl;
-        float warpAmt = scale * 0.22F;
-        float wx = worldX + (valueNoise(s ^ 0x11, worldX * selFreq * 0.25F, worldZ * selFreq * 0.25F) - 0.5F) * warpAmt;
-        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * selFreq * 0.25F, worldZ * selFreq * 0.25F) - 0.5F) * warpAmt;
+        // One ridge family at continent pitch — not a dense grid of mega spines.
+        float spineWl = scale * 1.05F;
+        float spineFreq = 1.0F / spineWl;
+        float warpAmt = scale * 0.38F;
+        float wx = worldX + (valueNoise(s ^ 0x11, worldX * spineFreq * 0.22F, worldZ * spineFreq * 0.22F) - 0.5F) * warpAmt;
+        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * spineFreq * 0.22F, worldZ * spineFreq * 0.22F) - 0.5F) * warpAmt;
 
-        float selector = softRidge(s ^ 0xA0, wx * selFreq, wz * selFreq);
-        // Strict peak gate — vast majority of land stays under WeightMap control.
-        float mega = smoothstep(0.76F, 0.92F, selector);
+        float ridge = softRidge(s ^ 0xA0, wx * spineFreq, wz * spineFreq);
+        // Visible crest gate (was 0.76–0.92 → ridges effectively vanished).
+        float mega = smoothstep(0.52F, 0.78F, ridge);
         if (mega <= 0.001F) {
             return 0.0F;
         }
 
-        float place = placementPreference(continentNoise, s, wx, wz, selFreq);
-        mega *= place;
-        if (mega <= 0.001F) {
-            return 0.0F;
-        }
-
-        // Detail along the selected spine — wider than a knife ridge so height lifts don't wall.
-        float detailWl = scale * 0.82F;
+        // Width / foothills along the spine (broad massif, not a knife wall).
+        float detailWl = scale * 0.78F;
         float detailFreq = 1.0F / detailWl;
         float primary = softRidge(s ^ 0xA1, wx * detailFreq, wz * detailFreq);
-        float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.35F, wz * detailFreq * 0.35F);
+        float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.32F, wz * detailFreq * 0.32F);
 
-        float foothills = smoothstep(0.35F, 0.62F, primary);
-        float crest = smoothstep(0.55F, 0.88F, primary);
-        float belt = foothills * 0.55F + crest * 0.55F;
-        float profile = 0.78F + 0.22F * along;
+        float foothills = smoothstep(0.28F, 0.58F, primary);
+        float crest = smoothstep(0.48F, 0.85F, primary);
+        float belt = foothills * 0.50F + crest * 0.60F;
+        float profile = 0.80F + 0.20F * along;
         return NoiseUtil.clamp(mega * belt * profile, 0.0F, 1.0F);
-    }
-
-    /** Stronger offshore continuation so underwater spines can tip into islands more often. */
-    public static float underwaterStrength(float worldX, float worldZ, long seed, int continentScale) {
-        // Ocean CN is low — pass a near-shore proxy so spines can continue briefly offshore.
-        return strength(worldX, worldZ, seed, continentScale, 0.48F) * 0.55F;
-    }
-
-    /**
-     * Coastal fringe OR sparse inland continental spines (whichever is stronger).
-     * Coastal band is intentionally narrow so entire shorelines aren't mountain walls.
-     */
-    private static float placementPreference(float cn, int s, float wx, float wz, float selFreq) {
-        float coastal = coastalBand(cn);
-        // Separate long-wave gate for inland spines — independent of coastal corridors.
-        float inlandSel = softRidge(s ^ 0xB0, wx * selFreq * 0.72F, wz * selFreq * 0.72F);
-        float inlandGate = smoothstep(0.80F, 0.94F, inlandSel);
-        float inland = inlandBand(cn) * inlandGate;
-        return NoiseUtil.clamp(Math.max(coastal, inland), 0.0F, 1.0F);
-    }
-
-    /** Narrow coastal fringe (CN ~0.45–0.68) — fades before deep near-inland. */
-    private static float coastalBand(float cn) {
-        float c = NoiseUtil.clamp(cn, 0.0F, 1.0F);
-        if (c < 0.38F) {
-            return 0.0F;
-        }
-        float rise = smoothstep(0.42F, 0.52F, c);
-        float hold = 1.0F - smoothstep(0.58F, 0.72F, c);
-        return NoiseUtil.clamp(rise * hold, 0.0F, 1.0F);
-    }
-
-    /** Deep inland / continental core (CN ≳ 0.72). */
-    private static float inlandBand(float cn) {
-        float c = NoiseUtil.clamp(cn, 0.0F, 1.0F);
-        return smoothstep(0.70F, 0.88F, c);
     }
 
     private static float softRidge(int seed, float x, float z) {
