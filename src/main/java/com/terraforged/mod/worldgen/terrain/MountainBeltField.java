@@ -43,8 +43,8 @@ public final class MountainBeltField {
             return 0.0F;
         }
 
-        // Detail along the selected spine (narrower than the old everywhere-ridge field).
-        float detailWl = scale * 0.55F;
+        // Detail along the selected spine — wider than a knife ridge so height lifts don't wall.
+        float detailWl = scale * 0.82F;
         float detailFreq = 1.0F / detailWl;
         float primary = softRidge(s ^ 0xA1, wx * detailFreq, wz * detailFreq);
         float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.35F, wz * detailFreq * 0.35F);

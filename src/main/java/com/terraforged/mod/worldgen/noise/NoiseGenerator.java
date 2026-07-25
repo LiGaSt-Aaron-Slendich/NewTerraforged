@@ -28,7 +28,7 @@ import com.terraforged.noise.util.NoiseUtil;
 import java.util.function.Consumer;
 
 public class NoiseGenerator implements INoiseGenerator {
-   protected final float heightMultiplier = 1.55F;
+   protected final float heightMultiplier = 1.85F;
    protected final long seed;
    protected final TerrainLevels levels;
    protected final Settings settings;
@@ -419,8 +419,9 @@ public class NoiseGenerator implements INoiseGenerator {
       // Sparse mega-spines only — WeightMap / terrain-region scale owns the rest of the land.
       if (belt >= 0.28F) {
          float soft = belt * belt * (3.0F - 2.0F * belt);
-         float target = NoiseUtil.lerp(0.50F, 0.84F, soft);
-         float pull = soft * 0.42F;
+         // Pull mega-spines toward the upper column so crests clear ~Y 500+ on maxY 640.
+         float target = NoiseUtil.lerp(0.58F, 0.94F, soft);
+         float pull = soft * 0.48F;
          sample.heightNoise = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), pull);
          // Crest-only mountain paint — foothills stay WeightMap hills/torridonian.
          if (belt > 0.62F && sample.heightNoise > 0.55F

@@ -417,7 +417,7 @@ public final class GeneratorSettings {
         engine.filters.erosion.dropletsPerChunk = 250;
         engine.terrain.volcano.weight = 0.85F;
         // Let mountain peaks use the full 640-block column (datapack height=1024).
-        engine.terrain.general.globalVerticalScale = 1.12F;
+        engine.terrain.general.globalVerticalScale = 1.20F;
         engine.terrain.general.fancyMountains = false;
         // Bias land toward plains / wetlands; trim rocky hill/mountain spam.
         engine.terrain.plains.weight = 3.2F;
@@ -426,9 +426,14 @@ public final class GeneratorSettings {
         engine.terrain.hills.weight = 1.6F;
         engine.terrain.torridonian.weight = 1.2F;
         engine.terrain.mountains.weight = 1.8F;
-        engine.terrain.mountains.verticalScale = 1.35F;
-        engine.terrain.hills.verticalScale = 1.15F;
-        engine.terrain.torridonian.verticalScale = 1.25F;
+        // Use the 640 column — stock TF mountain modules were ~256-era amplitude.
+        // Horizontal scale rises with height so peaks stay massifs, not walls.
+        engine.terrain.mountains.verticalScale = 2.0F;
+        engine.terrain.mountains.horizontalScale = 1.75F;
+        engine.terrain.hills.verticalScale = 1.30F;
+        engine.terrain.hills.horizontalScale = 1.25F;
+        engine.terrain.torridonian.verticalScale = 1.75F;
+        engine.terrain.torridonian.horizontalScale = 1.55F;
         return fromEngine(engine);
     }
 

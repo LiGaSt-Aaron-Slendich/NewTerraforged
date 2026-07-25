@@ -24,39 +24,82 @@ import net.minecraft.core.RegistryAccess;
 /**
  * Builds weighted {@link TerrainNoise} from live engine {@link TerrainSettings}
  * (weights, horizontal/vertical scales, fancy mountains).
+ *
+ * <p>Highland relief is raised for the 640 column <em>and</em> widened so peaks stay
+ * massifs, not knife-edge walls.
  */
 public final class TerrainNoiseBuilder {
+    /** Amplitude boost for mountains / torridonian (stock TF tuned for ~256-era height). */
+    private static final float HIGHLAND_RELIEF_BOOST = 1.40F;
+    /**
+     * Multiplies highland {@code horizontalScale} before LandForms so wavelengths grow with height.
+     * Vertical-only stretch → walls; keep this ≥ relief boost ratio.
+     */
+    private static final float HIGHLAND_HORIZONTAL_BOOST = 1.85F;
+
     private TerrainNoiseBuilder() {
     }
 
     public static TerrainNoise[] build(RegistryAccess access, Settings settings) {
         TerrainSettings terrain = copyTerrain(settings.terrain);
+        // Widen before LandForms — mountains/hills bake horizontalScale into Source wavelengths.
+        terrain.mountains.horizontalScale = Math.max(0.25F, terrain.mountains.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
+        terrain.torridonian.horizontalScale = Math.max(0.25F, terrain.torridonian.horizontalScale) * HIGHLAND_HORIZONTAL_BOOST;
+        terrain.hills.horizontalScale = Math.max(0.25F, terrain.hills.horizontalScale) * 1.35F;
+        terrain.plateau.horizontalScale = Math.max(0.25F, terrain.plateau.horizontalScale) * 1.25F;
+
         Seed seed = new RandSeed(9712416L + (long) terrain.general.terrainSeedOffset, 500000);
         LandForms forms = new LandForms(terrain, new Levels(settings.world), Source.ZERO);
 
+        float hillsV = Math.max(0.01F, terrain.hills.verticalScale);
+        float dalesV = Math.max(0.01F, terrain.dales.verticalScale);
+        float plateauV = Math.max(0.01F, terrain.plateau.verticalScale);
+        float torridonV = Math.max(0.01F, terrain.torridonian.verticalScale) * HIGHLAND_RELIEF_BOOST;
+        float mountainsV = Math.max(0.01F, terrain.mountains.verticalScale) * HIGHLAND_RELIEF_BOOST;
+        // Torridonian ignores settings.horizontalScale internally — freq-widen after.
+        float torridonFreq = 1.0F / Math.max(0.25F, terrain.torridonian.horizontalScale);
+
         return new TerrainNoise[]{
-                of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.steppe.weight, forms::steppe, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.plains.weight, forms::plains, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, forms::hills1, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, forms::hills2, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.dales.weight, forms::dales, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.PLATEAU, terrain.plateau.weight, forms::plateau, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.BADLANDS, terrain.badlands.weight, forms::badlands, seed),
-                of(access, ModTerrainTypes.TORRIDONIAN, terrain.torridonian.weight, forms::torridonian, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, forms::mountains, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, forms::mountains2, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, forms::mountains3, seed),
-                dolomite(access, seed, terrain.mountains.weight),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, forms::mountains2, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, forms::mountains3, seed)
+                of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.steppe.weight, 1.0F, 1.0F, forms::steppe, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.plains.weight, 1.0F, 1.0F, forms::plains, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, 1.0F, forms::hills1, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, 1.0F, forms::hills2, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.dales.weight, dalesV, 1.0F, forms::dales, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.PLATEAU, terrain.plateau.weight, plateauV, 1.0F, forms::plateau, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.BADLANDS, terrain.badlands.weight, 1.0F, 1.0F, forms::badlands, seed),
+                of(access, ModTerrainTypes.TORRIDONIAN, terrain.torridonian.weight, torridonV, torridonFreq, forms::torridonian, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains2, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains3, seed),
+                dolomite(access, seed, terrain.mountains.weight, mountainsV, terrain.mountains.horizontalScale),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains2, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains3, seed)
         };
     }
 
-    private static TerrainNoise of(RegistryAccess access, Terrain type, float weight, Function<Seed, Module> factory, Seed seed) {
-        return new TerrainNoise(typeHolder(access, type), Math.max(0.0F, weight), factory.apply(seed));
+    private static TerrainNoise of(
+            RegistryAccess access,
+            Terrain type,
+            float weight,
+            float verticalScale,
+            float freqScale,
+            Function<Seed, Module> factory,
+            Seed seed
+    ) {
+        Module module = factory.apply(seed);
+        if (freqScale > 0.0F && (freqScale < 0.999F || freqScale > 1.001F)) {
+            module = module.freq(freqScale, freqScale);
+        }
+        if (verticalScale > 1.001F || verticalScale < 0.999F) {
+            module = module.scale(verticalScale);
+        }
+        return new TerrainNoise(typeHolder(access, type), Math.max(0.0F, weight), module);
     }
 
-    private static TerrainNoise dolomite(RegistryAccess access, Seed seed, float weight) {
+    private static TerrainNoise dolomite(
+            RegistryAccess access, Seed seed, float weight, float verticalScale, float horizontalScale
+    ) {
+        float freq = 1.0F / Math.max(0.25F, horizontalScale);
         Module detail = Source.simplex(seed.next(), 80, 4).scale(0.1);
         Module shape = Source.simplex(seed.next(), 475, 4).clamp(0.3, 1.0).map(0.0, 1.0).warp(seed.next(), 10, 2, 8.0);
         Module base = shape.pow(2.2).scale(0.65).add(detail);
@@ -68,7 +111,9 @@ public final class TerrainNoiseBuilder {
                 .map(0.0, 1.0)
                 .warp(Domain.warp(Source.SIMPLEX, seed.next(), 40, 5, 30.0))
                 .alpha(0.875);
-        Module module = shape.mult(ridge).max(base).warp(seed.next(), 800, 3, 300.0).scale(0.75);
+        Module module = shape.mult(ridge).max(base).warp(seed.next(), 800, 3, 300.0)
+                .freq(freq, freq)
+                .scale(0.75 * verticalScale);
         return new TerrainNoise(typeHolder(access, ModTerrainTypes.DOLOMITES), Math.max(0.0F, weight), module);
     }
 

@@ -25,7 +25,7 @@ public final class MountainBeltApproximator {
         if (center < 0.28F) {
             return height;
         }
-        float spacing = Math.max(32.0F, scale * 0.016F);
+        float spacing = Math.max(48.0F, scale * 0.022F);
 
         // 2-axis envelope — enough for notch detect, cheaper chunk gen.
         float localMax = center;
@@ -43,7 +43,7 @@ public final class MountainBeltApproximator {
 
         float excess = NoiseUtil.clamp((fieldDrop - NATURAL_FIELD_DROP) / 0.38F, 0.0F, 1.0F);
         float softPeak = localMax * localMax * (3.0F - 2.0F * localMax);
-        float impliedPeak = NoiseUtil.lerp(0.48F, 0.80F, softPeak * 0.72F);
+        float impliedPeak = NoiseUtil.lerp(0.58F, 0.92F, softPeak * 0.80F);
         float floor = impliedPeak - MAX_VALLEY_DEPTH;
 
         if (height >= floor) {
