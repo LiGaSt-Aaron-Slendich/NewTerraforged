@@ -45,7 +45,7 @@ public final class ContinentShapeWiring {
         // Spread always widens oceans / separates landmasses (works with or without Guaranteed Continents).
         float skip = NoiseUtil.clamp(continent.continentSkipping, 0.0F, 1.0F);
         float skipWithSpread = NoiseUtil.clamp(NoiseUtil.lerp(skip, Math.min(1.0F, skip + 0.55F), spread), 0.0F, 1.0F);
-        config.shape.threshold = NoiseUtil.lerp(0.30F, 0.82F, skipWithSpread);
+        config.shape.threshold = NoiseUtil.lerp(0.34F, 0.84F, skipWithSpread);
         boolean egfGuarantee = com.terraforged.mod.platform.forge.TFNoiseVariantFlags.guaranteedContinentsEnabled();
         boolean guaranteeActive = egfGuarantee && continent.guaranteedContinentsEnabled;
         // Cell-pitch stretch: higher spread → larger gaps between Voronoi land blobs.
@@ -56,13 +56,15 @@ public final class ContinentShapeWiring {
         config.shape.scale = Math.max(100, Math.round(config.shape.scale * pitch));
 
         config.shape.noiseOctaves = Math.max(1, Math.min(8, continent.continentNoiseOctaves));
-        // Mild bump so outlines stay irregular even on older presets with low gain.
-        config.shape.noiseGain = NoiseUtil.clamp(continent.continentNoiseGain * 1.08F + 0.02F, 0.0F, 0.55F);
-        config.shape.noiseLacunarity = Math.max(1.0F, continent.continentNoiseLacunarity);
+        // Stronger outline noise → gulfs / embayments instead of smooth blob coasts.
+        config.shape.noiseGain = NoiseUtil.clamp(continent.continentNoiseGain * 1.18F + 0.04F, 0.0F, 0.58F);
+        config.shape.noiseLacunarity = Math.max(1.0F, continent.continentNoiseLacunarity * 1.06F);
         float variance = NoiseUtil.clamp(continent.continentSizeVariance, 0.0F, 1.0F);
-        config.shape.sizeVariance = variance;
-        config.noise.continentNoiseFalloff = 1.0F + config.shape.sizeVariance * 0.75F;
-        config.noise.baseNoiseFalloff = 1.5F + config.shape.sizeVariance * 0.5F;
+        // Floor a little size variance so landmasses aren't uniformly dense blobs.
+        config.shape.sizeVariance = Math.max(0.18F, variance);
+        // Narrower falloff = sharper neighbor mixing → more inland seas / Mediterranean gulfs.
+        config.noise.continentNoiseFalloff = 0.78F + config.shape.sizeVariance * 0.85F;
+        config.noise.baseNoiseFalloff = 1.35F + config.shape.sizeVariance * 0.55F;
 
         config.shape.guaranteedContinents = Math.max(1, Math.min(16, continent.guaranteedContinents));
         // EGF master switch + Customize toggle must both be on.

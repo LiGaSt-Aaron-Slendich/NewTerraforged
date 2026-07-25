@@ -15,6 +15,7 @@ public class ShapeGenerator {
    private static final int RADIUS = 2;
    private final float baseFalloff;
    private final float continentFalloff;
+   private final float continentScale;
    public final float threshold;
    public final float baseFalloffMin;
    public final float baseFalloffMax;
@@ -27,6 +28,7 @@ public class ShapeGenerator {
       this.continent = continent;
       this.baseFalloff = config.noise.baseNoiseFalloff;
       this.continentFalloff = config.noise.continentNoiseFalloff;
+      this.continentScale = Math.max(100.0F, config.shape.scale);
       this.falloffPoints = ContinentPoints.getFalloff(controlPoints);
       this.threshold = config.shape.threshold;
       this.baseFalloffMin = config.shape.threshold + config.shape.baseFalloffMin;
@@ -117,7 +119,7 @@ public class ShapeGenerator {
          }
       }
 
-      return this.sampleEdges(l1, f, f1, ashapegenerator$celllocal, sample);
+      return this.sampleEdges(l1, f, f1, ashapegenerator$celllocal, sample, x, y);
    }
 
    private float getEdge(float min0, float min1, float falloff, long[] data) {
@@ -160,7 +162,8 @@ public class ShapeGenerator {
       return dist * ragged;
    }
 
-   private NoiseSample sampleEdges(int index, float min0, float min1, ShapeGenerator.CellLocal[] buffer, NoiseSample sample) {
+   private NoiseSample sampleEdges(int index, float min0, float min1, ShapeGenerator.CellLocal[] buffer,
+                                   NoiseSample sample, float x, float y) {
       float f = (min0 + min1) * 0.5F;
       float f1 = f * this.baseFalloff;
       float f2 = f * this.continentFalloff;
@@ -183,7 +186,39 @@ public class ShapeGenerator {
 
       sample.baseNoise = this.getBaseNoise(f3 / f5);
       sample.continentNoise = this.getFalloff(f4 / f6);
+      this.applyGulfCarve(x, y, sample);
       return sample;
+   }
+
+   /**
+    * Sparse long-wavelength notches that dig Mediterranean-style gulfs / inland seas
+    * into otherwise dense landmasses (does not touch deep ocean or continent cores).
+    */
+   private void applyGulfCarve(float x, float y, NoiseSample sample) {
+      float cn = sample.continentNoise;
+      if (cn < 0.42F || cn > 0.92F) {
+         return;
+      }
+      int seed = this.continent.seed ^ 0x6F1F5EA;
+      float scale = Math.max(200.0F, this.continentScale * 0.85F);
+      float freq = 1.0F / scale;
+      float n = IslandScatter.valueNoise2(seed, x * freq, y * freq);
+      // Strict peak gate — only occasional gulfs, not a continent-wide sponge.
+      float gate = NoiseUtil.clamp((n - 0.72F) / 0.22F, 0.0F, 1.0F);
+      if (gate <= 0.0F) {
+         return;
+      }
+      gate = gate * gate * (3.0F - 2.0F * gate);
+      float detail = IslandScatter.valueNoise2(seed ^ 0x55, x * freq * 2.4F, y * freq * 2.4F);
+      float depth = gate * (0.55F + 0.45F * detail);
+      // Prefer near-coast / shelf-inland so cores stay solid; fade toward deep inland.
+      float coastal = NoiseUtil.clamp(1.0F - (cn - 0.50F) / 0.42F, 0.15F, 1.0F);
+      float cut = depth * coastal * 0.55F;
+      sample.continentNoise = NoiseUtil.clamp(cn * (1.0F - cut), 0.0F, 1.0F);
+      // Keep baseNoise coherent so heights don't float over carved seas.
+      if (cut > 0.08F) {
+         sample.baseNoise = NoiseUtil.lerp(sample.baseNoise, sample.continentNoise * 0.85F, cut);
+      }
    }
 
    private static float getWeight(float dist, float origin, float blendRange) {

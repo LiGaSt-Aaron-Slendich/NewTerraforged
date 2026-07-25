@@ -9,8 +9,7 @@ import com.terraforged.mod.worldgen.terrain.MountainBeltField;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Preview height lift for wide mountain belts (soft foothills + crest).
- * Matches {@code NoiseGenerator} belt semantics for HEIGHT normals.
+ * Preview height lift for sparse coastal mega-ridge spines (matches NoiseGenerator).
  */
 public final class PreviewMountainBeltPainter {
     private PreviewMountainBeltPainter() {
@@ -32,28 +31,29 @@ public final class PreviewMountainBeltPainter {
         tile.iterate((cell, lx, lz) -> {
             int worldX = centerX + (lx - half) * zoom;
             int worldZ = centerZ + (lz - half) * zoom;
-            float belt = MountainBeltField.strength(worldX, worldZ, beltSeed, continentScale);
+            float cn = NoiseUtil.clamp(cell.continentEdge, 0.0F, 1.0F);
+            float belt = MountainBeltField.strength(worldX, worldZ, beltSeed, continentScale, cn);
             if (cell.value >= water - 0.002F) {
-                if (belt >= 0.08F) {
+                if (belt >= 0.28F) {
                     float soft = belt * belt * (3.0F - 2.0F * belt);
-                    float target = NoiseUtil.lerp(cell.value, water + 0.22F, soft * 0.55F);
+                    float target = NoiseUtil.lerp(water + 0.08F, water + 0.28F, soft);
                     cell.value = NoiseUtil.clamp(
-                            NoiseUtil.lerp(cell.value, Math.max(cell.value, target), soft * 0.65F),
+                            NoiseUtil.lerp(cell.value, Math.max(cell.value, target), soft * 0.42F),
                             0.0F,
                             1.0F);
-                    if (belt > 0.82F && cell.terrain != null && cell.terrain.isOverground()
+                    if (belt > 0.52F && cell.terrain != null && cell.terrain.isOverground()
                             && !cell.terrain.isRiver() && !cell.terrain.isLake()) {
                         cell.terrain = TerrainType.MOUNTAINS;
                     }
                 }
-                // Valley fill even when local belt is low (deep notches between ridges).
-                cell.value = MountainBeltApproximator.fillValleyDepth(
-                        cell.value, worldX, worldZ, beltSeed, continentScale);
-            } else if (belt >= 0.08F) {
+                if (belt >= 0.40F) {
+                    cell.value = MountainBeltApproximator.fillValleyDepth(
+                            cell.value, worldX, worldZ, beltSeed, continentScale, cn);
+                }
+            } else if (belt >= 0.35F) {
                 float under = MountainBeltField.underwaterStrength(worldX, worldZ, beltSeed, continentScale);
-                float cn = NoiseUtil.clamp(cell.continentEdge, 0.0F, 1.0F);
                 float nearShore = NoiseUtil.clamp(1.0F - cn / 0.45F, 0.0F, 1.0F);
-                float lift = under * (0.35F + 0.65F * nearShore) * 0.045F;
+                float lift = under * (0.35F + 0.65F * nearShore) * 0.04F;
                 cell.value = Math.min(water - 0.004F, cell.value + lift);
             }
         });

@@ -55,9 +55,18 @@ public class BiomeSampler extends IBiomeSampler.Sampler implements IBiomeSampler
             default -> this.biomeMapManager.get(Biomes.OCEAN);
          };
       } else if (sample.continentNoise <= 0.505F) {
-         // Tundra stays snowy beach; elsewhere LIA rocky segments → stony shore.
+         // Flat ocean exits → beach; mountain / high coasts → stony (steep) shore.
          if (biometype == BiomeType.TUNDRA) {
             return this.biomeMapManager.get(Biomes.SNOWY_BEACH);
+         }
+         boolean steep = sample.heightNoise > 0.52F
+               || (sample.terrainType != null && (
+                     sample.terrainType == com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS
+                           || sample.terrainType == com.terraforged.engine.world.terrain.TerrainType.MOUNTAIN_CHAIN
+                           || (sample.terrainType.getName() != null
+                           && sample.terrainType.getName().toLowerCase().contains("mountain"))));
+         if (steep) {
+            return this.biomeMapManager.get(Biomes.STONY_SHORE);
          }
          var lia = this.noiseGenerator.getContinent().getCoastalLia();
          if (lia != null && lia.isRockyShore((float) x, (float) z, sample.continentNoise)) {

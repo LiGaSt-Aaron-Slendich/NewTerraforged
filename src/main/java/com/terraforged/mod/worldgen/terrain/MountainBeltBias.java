@@ -15,20 +15,20 @@ public final class MountainBeltBias {
     }
 
     public static float biasNoiseIndex(float noise, float belt, WeightMap<TerrainNoise> terrains) {
-        if (terrains == null || terrains.isEmpty() || belt < 0.10F) {
+        if (terrains == null || terrains.isEmpty() || belt < 0.28F) {
             return noise;
         }
         float n = NoiseUtil.clamp(noise, 0.0F, 0.9999F);
         float hills = hillsIndex(terrains);
         float mountains = mountainsIndex(terrains);
-        // Mid belt prefers hills; only the crest leans hard into mountains.
-        float crest = NoiseUtil.clamp((belt - 0.45F) / 0.50F, 0.0F, 1.0F);
+        // Mid belt prefers hills; only the crest leans into mountains.
+        float crest = NoiseUtil.clamp((belt - 0.50F) / 0.45F, 0.0F, 1.0F);
         crest = crest * crest * (3.0F - 2.0F * crest);
         float target = NoiseUtil.lerp(hills, mountains, crest);
-        float pull = NoiseUtil.clamp((belt - 0.10F) / 0.70F, 0.0F, 1.0F);
+        float pull = NoiseUtil.clamp((belt - 0.28F) / 0.55F, 0.0F, 1.0F);
         pull = pull * pull * (3.0F - 2.0F * pull);
-        // Soft rewrite — keep some of the underlying landform so ridges don't ignore terrain.
-        return NoiseUtil.lerp(n, target, pull * 0.72F);
+        // Mild rewrite — WeightMap still owns most landforms / region scale.
+        return NoiseUtil.lerp(n, target, pull * 0.48F);
     }
 
     public static boolean isMountainLandform(Terrain terrain) {

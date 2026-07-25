@@ -34,12 +34,16 @@ public final class SubterrainResolver {
         if (t == ModTerrainTypes.LAGUNA) {
             return "ocean_beach";
         }
-        // Coastal fringe (same band as BiomeSampler beach override).
+        // Coastal fringe: mountain / high coasts → steep shore; only flat exits keep beach.
         if (sample.continentNoise > 0.5F && sample.continentNoise <= 0.505F) {
-            if (sample.heightNoise > 0.55F) {
+            if (isMountainCoast(sample, t)) {
                 return "steep_shore";
             }
             return "ocean_beach";
+        }
+        // Near-coast mountain landforms (mega-ridge meets sea) also get steep shore.
+        if (sample.continentNoise > 0.505F && sample.continentNoise < 0.58F && isMountainCoast(sample, t)) {
+            return "steep_shore";
         }
         if (matchesKind(t, TerrainType.BADLANDS) || "badlands".equalsIgnoreCase(t.getName())) {
             if (sample.climateType == BiomeType.DESERT || sample.climateType == BiomeType.SAVANNA) {
@@ -91,6 +95,17 @@ public final class SubterrainResolver {
             return sample.heightNoise >= 0.62F;
         }
         return false;
+    }
+
+    private static boolean isMountainCoast(ClimateSample sample, Terrain t) {
+        if (sample.heightNoise > 0.52F) {
+            return true;
+        }
+        return matchesKind(t, TerrainType.MOUNTAINS)
+                || matchesKind(t, TerrainType.MOUNTAIN_CHAIN)
+                || t == ModTerrainTypes.DOLOMITES
+                || t == ModTerrainTypes.ISLAND_MOUNTAINS
+                || (t.getName() != null && t.getName().toLowerCase().contains("mountain"));
     }
 
     private static boolean matchesKind(Terrain terrain, Terrain kind) {

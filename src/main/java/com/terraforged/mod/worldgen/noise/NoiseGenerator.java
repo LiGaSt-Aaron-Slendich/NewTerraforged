@@ -345,7 +345,7 @@ public class NoiseGenerator implements INoiseGenerator {
       if (painted == TerrainType.VOLCANO_PIPE) {
          return;
       }
-      float belt = this.prepareLandClimateAndBelt(x, z, blender);
+      float belt = this.prepareLandClimateAndBelt(x, z, sample.continentNoise, blender);
       float f = sample.baseNoise;
       float f1 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
@@ -373,7 +373,7 @@ public class NoiseGenerator implements INoiseGenerator {
                   Math.min(1.0F, f2 + lift * 0.06F), lift * 0.9F);
          }
       } else if (sample.continentNoise < 0.55F) {
-         float belt = this.prepareLandClimateAndBelt(x, z, blender);
+         float belt = this.prepareLandClimateAndBelt(x, z, sample.continentNoise, blender);
          float f5 = this.levels.noiseLevels.heightMin;
          float f6 = sample.baseNoise;
          float f7 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
@@ -394,55 +394,51 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    /** Sample climate + mountain-belt field before landform WeightMap. */
-   protected float prepareLandClimateAndBelt(float x, float z, TerrainBlender.Blender blender) {
+   protected float prepareLandClimateAndBelt(float x, float z, float continentNoise, TerrainBlender.Blender blender) {
       ClimateSample climateSample = this.localClimate.get().reset();
       this.climate.sample(x, z, climateSample);
       blender.prepareClimate(climateSample.temperature, climateSample.moisture, this.land.getTerrains());
-      float belt = this.sampleMountainBelt(x, z);
+      float belt = this.sampleMountainBelt(x, z, continentNoise);
       blender.prepareMountainBelt(belt);
       return belt;
    }
 
-   /** @deprecated use {@link #prepareLandClimateAndBelt} */
-   protected void prepareLandClimate(float x, float z, TerrainBlender.Blender blender) {
-      this.prepareLandClimateAndBelt(x, z, blender);
-   }
-
-   protected float sampleMountainBelt(float x, float z) {
+   protected float sampleMountainBelt(float x, float z, float continentNoise) {
       float freq = this.levels.noiseLevels.frequency;
       float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
       int continentScale = this.settings.world != null && this.settings.world.continent != null
             ? this.settings.world.continent.continentScale
             : 3000;
-      return MountainBeltField.strength(x * inv, z * inv, this.seed, continentScale);
+      return MountainBeltField.strength(x * inv, z * inv, this.seed, continentScale, continentNoise);
    }
 
    protected void applyMountainBeltLand(float x, float z, NoiseSample sample, float belt) {
       if (sample == null) {
          return;
       }
-      if (belt >= 0.08F) {
-         // Soft apron boost: lift existing height toward a highland target instead of a wall spike.
-         float soft = belt * belt * (3.0F - 2.0F * belt); // smoothstep-ish on [0,1]
-         float target = NoiseUtil.lerp(sample.heightNoise, 0.78F, soft * 0.55F);
-         // Never drop below current; blend up gently so foothills rewrite plains without cliffs.
-         float blended = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), soft * 0.65F);
-         sample.heightNoise = NoiseUtil.clamp(blended, 0.0F, 1.0F);
-         // Only retag crest cells; foothills keep hills/plains labels from WeightMap.
-         if (belt > 0.82F && sample.terrainType != null && sample.terrainType.isOverground()
+      // Sparse mega-spines only — WeightMap / terrain-region scale owns the rest of the land.
+      if (belt >= 0.28F) {
+         float soft = belt * belt * (3.0F - 2.0F * belt);
+         float target = NoiseUtil.lerp(0.50F, 0.84F, soft);
+         float pull = soft * 0.42F;
+         sample.heightNoise = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), pull);
+         if (belt > 0.52F && sample.heightNoise > 0.52F
+               && sample.terrainType != null && sample.terrainType.isOverground()
                && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
                && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
             sample.terrainType = TerrainType.MOUNTAINS;
          }
       }
-      // Multi-ridge valleys stay; only unrealistically deep notches get filled.
+      if (belt < 0.40F) {
+         return;
+      }
       float freq = this.levels.noiseLevels.frequency;
       float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
       int continentScale = this.settings.world != null && this.settings.world.continent != null
             ? this.settings.world.continent.continentScale
             : 3000;
       sample.heightNoise = MountainBeltApproximator.fillValleyDepth(
-            sample.heightNoise, x * inv, z * inv, this.seed, continentScale);
+            sample.heightNoise, x * inv, z * inv, this.seed, continentScale, sample.continentNoise);
    }
 
    protected void applyMountainBeltUnderwater(float x, float z, NoiseSample sample) {
