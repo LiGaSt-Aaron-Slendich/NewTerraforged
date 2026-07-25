@@ -5,11 +5,10 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Sparse highland relief: <b>one</b> continent-scale spine (continues offshore)
- * plus a <b>few</b> isolated peak massifs.
+ * plus a <b>few</b> elongated peak massifs (ridge noise — no circular cells).
  *
- * <p>Cross-section is a wide-base peaked ridge (not a mesa / wall): foothill skirts
- * flare out, crest is a tip. Width grows with crest strength so taller segments
- * stay massifs rather than vertical stretch.
+ * <p>Field value is a peaked slope profile that fades to zero at the skirts so
+ * height boosts can follow base terrain instead of holding a constant platform.
  */
 public final class MountainBeltField {
     private MountainBeltField() {
@@ -19,10 +18,6 @@ public final class MountainBeltField {
         return strength(worldX, worldZ, seed, continentScale, 0.75F);
     }
 
-    /**
-     * Land highland strength (0..1). Suppressed on the beach fringe so coasts stay
-     * plains / hills / beach unless they sit on the actual spine crest.
-     */
     public static float strength(float worldX, float worldZ, long seed, int continentScale, float continentNoise) {
         float highland = highlandField(worldX, worldZ, seed, continentScale);
         if (highland <= 0.001F) {
@@ -35,109 +30,83 @@ public final class MountainBeltField {
         return NoiseUtil.clamp(highland * mask, 0.0F, 1.0F);
     }
 
-    /** Same highland field for bathymetry (caller applies ocean CN fade). */
     public static float underwaterStrength(float worldX, float worldZ, long seed, int continentScale) {
         return highlandField(worldX, worldZ, seed, continentScale) * 0.70F;
     }
 
-    /** Shared field: peaked spine ∪ sparse peak nodes. */
     public static float highlandField(float worldX, float worldZ, long seed, int continentScale) {
         int scale = Math.max(400, continentScale);
         int s = (int) seed ^ 0xB3175EED;
 
         float spine = peakedSpine(worldX, worldZ, s, scale);
-        float peaks = sparsePeaks(worldX, worldZ, s, scale);
+        float peaks = elongatedPeaks(worldX, worldZ, s, scale);
         return NoiseUtil.clamp(Math.max(spine, peaks), 0.0F, 1.0F);
     }
 
     /**
-     * Continent-scale ridge with soft skirts and a pointed crest.
-     * Field value ≈ slope profile (low foothills → high tip), not a flat mesa mask.
+     * Continent-scale ridge: wide skirts, pointed crest, fades along-spine
+     * so the ridge can sink with surrounding terrain instead of a pedestal.
      */
     private static float peakedSpine(float worldX, float worldZ, int s, int scale) {
-        float spineWl = scale * 1.15F;
+        float spineWl = scale * 1.25F;
         float spineFreq = 1.0F / spineWl;
-        float warpAmt = scale * 0.38F;
-        float wx = worldX + (valueNoise(s ^ 0x11, worldX * spineFreq * 0.18F, worldZ * spineFreq * 0.18F) - 0.5F) * warpAmt;
-        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * spineFreq * 0.18F, worldZ * spineFreq * 0.18F) - 0.5F) * warpAmt;
+        float warpAmt = scale * 0.45F;
+        float wx = worldX + (valueNoise(s ^ 0x11, worldX * spineFreq * 0.16F, worldZ * spineFreq * 0.16F) - 0.5F) * warpAmt;
+        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * spineFreq * 0.16F, worldZ * spineFreq * 0.16F) - 0.5F) * warpAmt;
 
         float ridge = softRidge(s ^ 0xA0, wx * spineFreq, wz * spineFreq);
-        // Soft corridor gate — skirts start early so the ridge has a wide base.
-        float corridor = smoothstep(0.38F, 0.72F, ridge);
+        // Soft corridor — wide base; no hard 0→1 cliff gate.
+        float corridor = smoothstep(0.32F, 0.68F, ridge);
         if (corridor <= 0.001F) {
             return 0.0F;
         }
 
-        // Wider cross-section when the corridor is strong (taller → wider).
-        float widthMul = NoiseUtil.lerp(0.95F, 1.70F, corridor);
-        float detailWl = scale * 0.95F * widthMul;
+        float widthMul = NoiseUtil.lerp(1.05F, 1.85F, corridor);
+        float detailWl = scale * 1.10F * widthMul;
         float detailFreq = 1.0F / detailWl;
         float primary = softRidge(s ^ 0xA1, wx * detailFreq, wz * detailFreq);
-        float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.28F, wz * detailFreq * 0.28F);
+        // Along-spine amplitude can fall near zero — ridge ends / sinks (no sustained platform).
+        float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.22F, wz * detailFreq * 0.22F);
+        float alongAmp = smoothstep(0.20F, 0.75F, along);
 
-        // Peaked profile from softRidge: skirts / body / tip (not foothills*0.4+crest*0.7 mesa).
-        float skirts = smoothstep(0.18F, 0.48F, primary);
-        float body = smoothstep(0.35F, 0.72F, primary);
-        float tipT = NoiseUtil.clamp((primary - 0.52F) / 0.48F, 0.0F, 1.0F);
-        float tip = tipT * tipT * tipT; // sharp crest, soft flanks
-        // Secondary shoulder undulation (user sketch: irregular slopes).
-        float shoulder = softRidge(s ^ 0xA4, wx * detailFreq * 1.7F, wz * detailFreq * 1.7F);
-        float undulate = skirts * 0.12F * shoulder;
+        float skirts = smoothstep(0.12F, 0.42F, primary);
+        float body = smoothstep(0.28F, 0.68F, primary);
+        float tipT = NoiseUtil.clamp((primary - 0.48F) / 0.52F, 0.0F, 1.0F);
+        float tip = tipT * tipT * tipT * tipT; // pointed crest, not flat top
+        float shoulder = softRidge(s ^ 0xA4, wx * detailFreq * 1.55F, wz * detailFreq * 1.55F);
+        float undulate = skirts * 0.10F * shoulder;
 
-        float profile = skirts * 0.22F + body * 0.38F + tip * 0.72F + undulate;
-        float crestVary = 0.78F + 0.22F * along; // tip height varies along-spine — not a flat platform
-        return NoiseUtil.clamp(corridor * profile * crestVary, 0.0F, 1.0F);
+        float profile = skirts * 0.18F + body * 0.32F + tip * 0.78F + undulate;
+        return NoiseUtil.clamp(corridor * profile * alongAmp, 0.0F, 1.0F);
     }
 
     /**
-     * A handful of large isolated peaks per continent — wide base, peaked tip.
+     * Rare elongated massifs (ridge noise) — intentionally not cellular circles.
      */
-    private static float sparsePeaks(float worldX, float worldZ, int s, int scale) {
-        float cellWl = scale * 0.52F;
-        float freq = 1.0F / cellWl;
-        float gx = worldX * freq;
-        float gz = worldZ * freq;
-        int ix = NoiseUtil.floor(gx);
-        int iz = NoiseUtil.floor(gz);
-        float best = 1.0F;
-        float bestSeed = 0.0F;
-        for (int dz = -1; dz <= 1; dz++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                int cx = ix + dx;
-                int cz = iz + dz;
-                float jx = hash01(s ^ 0xD1, cx, cz);
-                float jz = hash01(s ^ 0xD2, cx, cz);
-                float gate = hash01(s ^ 0xD3, cx, cz);
-                if (gate < 0.72F) {
-                    continue;
-                }
-                float px = cx + jx;
-                float pz = cz + jz;
-                float d = NoiseUtil.sqrt((gx - px) * (gx - px) + (gz - pz) * (gz - pz));
-                if (d < best) {
-                    best = d;
-                    bestSeed = gate;
-                }
-            }
-        }
-        // Wide foothill radius; power curve → pointed tip, not a plateau disk.
-        float radius = 0.46F;
-        float core = 1.0F - NoiseUtil.clamp(best / radius, 0.0F, 1.0F);
-        if (core <= 0.0F) {
+    private static float elongatedPeaks(float worldX, float worldZ, int s, int scale) {
+        float wl = scale * 0.85F;
+        float freq = 1.0F / wl;
+        float warpAmt = scale * 0.30F;
+        float wx = worldX + (valueNoise(s ^ 0xE1, worldX * freq * 0.15F, worldZ * freq * 0.15F) - 0.5F) * warpAmt;
+        float wz = worldZ + (valueNoise(s ^ 0xE2, worldX * freq * 0.15F, worldZ * freq * 0.15F) - 0.5F) * warpAmt;
+
+        float ridge = softRidge(s ^ 0xE0, wx * freq, wz * freq);
+        // Rare tips only.
+        float gate = smoothstep(0.66F, 0.88F, ridge);
+        if (gate <= 0.001F) {
             return 0.0F;
         }
-        float peaked = core * core * core; // tip
-        float skirts = core * core * 0.45F; // wide base
-        float shape = NoiseUtil.clamp(skirts + peaked, 0.0F, 1.0F);
-        float power = 0.70F + 0.30F * bestSeed;
-        return NoiseUtil.clamp(shape * power, 0.0F, 1.0F);
+        float tipT = NoiseUtil.clamp((ridge - 0.58F) / 0.42F, 0.0F, 1.0F);
+        float tip = tipT * tipT * tipT;
+        float cross = softRidge(s ^ 0xE3, wx * freq * 2.1F, wz * freq * 2.1F);
+        float length = smoothstep(0.30F, 0.70F, cross);
+        return NoiseUtil.clamp(gate * tip * (0.55F + 0.45F * length), 0.0F, 1.0F);
     }
 
     private static float softRidge(int seed, float x, float z) {
         float n = valueNoise(seed, x, z);
         float r = 1.0F - Math.abs(n * 2.0F - 1.0F);
-        // Milder than sqrt — softer skirts (sqrt was still wall-like on flanks).
-        return (float) Math.pow(Math.max(0.0F, r), 0.65F);
+        return (float) Math.pow(Math.max(0.0F, r), 0.72F);
     }
 
     private static float valueNoise(int seed, float x, float z) {

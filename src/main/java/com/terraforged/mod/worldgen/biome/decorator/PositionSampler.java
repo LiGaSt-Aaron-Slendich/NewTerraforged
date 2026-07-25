@@ -90,6 +90,9 @@ public class PositionSampler {
       BlockPos origin = chunk.getPos().getWorldPosition().offset(8, 0, 8);
       int y = chunk.getHeight(Types.WORLD_SURFACE_WG, origin.getX(), origin.getZ());
       BlockPos at = new BlockPos(origin.getX(), y, origin.getZ());
+      if (isAboveTreeline(samplercontext, at.getX(), at.getZ(), y)) {
+         return;
+      }
       for (int i = 0; i < samplercontext.biomeList.size(); i++) {
          Holder<Biome> holder = samplercontext.biomeList.get(i);
          BiomeVegetation biomevegetation = decorator.getVegetationManager().getVegetation(holder);

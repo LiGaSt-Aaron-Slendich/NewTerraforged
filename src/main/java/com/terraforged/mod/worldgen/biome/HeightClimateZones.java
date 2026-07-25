@@ -15,8 +15,8 @@ package com.terraforged.mod.worldgen.biome;
 public final class HeightClimateZones {
     /** Peak band — Alpine climate + peak subterrains. */
     public static final float ALPINE_HEIGHT = 0.78F;
-    /** Trees stop a bit below peaks (body upper / peak lower). */
-    public static final float TREELINE_HEIGHT = 0.70F;
+    /** Trees skip placement near peak band (body upper). Was 0.70 — too low on maxY 640. */
+    public static final float TREELINE_HEIGHT = 0.82F;
     /** Top ~13% of the height range: dirt/grass stripped to stone. */
     public static final float STONE_CAP_HEIGHT = 0.87F;
     /** Below this on mountain landforms → foothill subterrain. */

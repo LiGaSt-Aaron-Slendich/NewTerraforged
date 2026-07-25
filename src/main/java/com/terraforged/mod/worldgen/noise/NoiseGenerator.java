@@ -17,7 +17,6 @@ import com.terraforged.mod.worldgen.noise.continent.ocean.IslandTerrainLabels;
 import com.terraforged.mod.worldgen.noise.erosion.ErodedNoiseGenerator;
 import com.terraforged.mod.worldgen.noise.erosion.NoiseTileSize;
 import com.terraforged.mod.worldgen.settings.GeneratorSettings;
-import com.terraforged.mod.worldgen.terrain.MountainBeltApproximator;
 import com.terraforged.mod.worldgen.terrain.MountainBeltBias;
 import com.terraforged.mod.worldgen.terrain.MountainBeltField;
 import com.terraforged.mod.worldgen.terrain.TerrainBlender;
@@ -419,36 +418,24 @@ public class NoiseGenerator implements INoiseGenerator {
    }
 
    protected void applyMountainBeltLand(float x, float z, NoiseSample sample, float belt) {
-      if (sample == null) {
+      if (sample == null || belt < 0.05F) {
          return;
       }
-      // Peaked boost: foothills rise gently, crest tips tall — never a constant-height platform.
-      if (belt >= 0.12F) {
-         float peak = belt * belt; // field already peaked; square emphasises tip
-         float boost = peak * 0.30F;
-         float pull = NoiseUtil.clamp(peak * 0.38F, 0.0F, 0.42F);
-         float ambient = sample.heightNoise;
-         float target = Math.min(0.92F, ambient + boost);
-         sample.heightNoise = NoiseUtil.lerp(ambient, Math.max(ambient, target), pull);
-         float cn = sample.continentNoise;
-         if (belt > 0.72F && cn >= 0.58F && sample.heightNoise > 0.58F
-               && sample.terrainType != null && sample.terrainType.isOverground()
-               && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
-               && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
-            sample.terrainType = TerrainType.MOUNTAINS;
-         }
+      // Relative relief only: when belt→0 height returns to ambient (follows base terrain).
+      // Never Math.max toward a constant high target — that builds "гора на платформі".
+      float ambient = sample.heightNoise;
+      float tip = belt * belt * belt;
+      float skirts = belt * 0.05F;
+      float boost = skirts + tip * 0.26F;
+      sample.heightNoise = NoiseUtil.clamp(ambient + boost, 0.0F, 0.95F);
+      float cn = sample.continentNoise;
+      if (belt > 0.75F && cn >= 0.58F && sample.heightNoise > 0.55F
+            && sample.terrainType != null && sample.terrainType.isOverground()
+            && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
+            && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
+         sample.terrainType = TerrainType.MOUNTAINS;
       }
-      // Soft notch fill only — never flatten crest into a mesa.
-      if (belt < 0.50F) {
-         return;
-      }
-      float freq = this.levels.noiseLevels.frequency;
-      float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
-      int continentScale = this.settings.world != null && this.settings.world.continent != null
-            ? this.settings.world.continent.continentScale
-            : 3000;
-      sample.heightNoise = MountainBeltApproximator.fillValleyDepth(
-            sample.heightNoise, x * inv, z * inv, this.seed, continentScale, sample.continentNoise);
+      // Valley-fill removed — it floored notches into mesa platforms.
    }
 
    protected void applyMountainBeltUnderwater(float x, float z, NoiseSample sample) {
@@ -478,14 +465,14 @@ public class NoiseGenerator implements INoiseGenerator {
 
    /**
     * Soft asymptote instead of hard {@code min(1)} so WeightMap peaks taper to a tip
-    * instead of clipping into a flat platform (screen-6 style cutoffs).
+    * instead of clipping into a flat platform.
     */
    private static float softCapHeight(float v) {
-      if (v <= 0.88F) {
+      if (v <= 0.78F) {
          return NoiseUtil.clamp(v, 0.0F, 1.0F);
       }
-      float over = v - 0.88F;
-      return NoiseUtil.clamp(0.88F + over / (1.0F + over * 2.8F), 0.0F, 0.98F);
+      float over = v - 0.78F;
+      return NoiseUtil.clamp(0.78F + over / (1.0F + over * 3.2F), 0.0F, 0.94F);
    }
 
    /**
@@ -553,7 +540,7 @@ public class NoiseGenerator implements INoiseGenerator {
       float horizontal = settings.terrain.general.globalHorizontalScale;
       int scale = Math.round(regionSize * horizontal);
       scale = Math.max(125, Math.min(5000, scale));
-      return new TerrainBlender(seed, scale, 0.8F, 0.4F, terrainNoises);
+      return new TerrainBlender(seed, scale, 0.8F, 0.72F, terrainNoises);
    }
 
    protected static IContinentNoise createContinentNoise(long seed, TerrainLevels levels) {

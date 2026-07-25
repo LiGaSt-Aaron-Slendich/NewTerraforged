@@ -52,8 +52,9 @@ public class Surface {
    }
 
    /**
-    * High peaks: strip trees leftovers already handled in decor; stone-cap removes dirt/grass
-    * in the top ~13% of world height. Treeline vegetation skip is in PositionSampler.
+    * High peaks: stone-cap removes dirt/grass in the top ~13% of world height.
+    * Treeline vegetation skip is in PositionSampler only — do <b>not</b> strip
+    * logs/leaves here (that left Dynamic Trees canopies floating without trunks).
     */
    public static void applyAlpineZones(TerrainData terrainData, ChunkAccess chunk, ChunkGenerator generator) {
       if (terrainData == null || chunk == null) {
@@ -64,41 +65,18 @@ public class Surface {
       for (int lz = 0; lz < 16; lz++) {
          for (int lx = 0; lx < 16; lx++) {
             float heightNoise = HeightClimateZones.noiseFromScaled(terrainData.getHeight().get(lx, lz), maxY);
-            if (!HeightClimateZones.isStoneCap(heightNoise) && !HeightClimateZones.isAboveTreeline(heightNoise)) {
+            if (!HeightClimateZones.isStoneCap(heightNoise)) {
                continue;
             }
-            int surface = chunk.getHeight(Types.MOTION_BLOCKING_NO_LEAVES, lx, lz);
             int floor = chunk.getHeight(Types.OCEAN_FLOOR_WG, lx, lz);
-            if (HeightClimateZones.isAboveTreeline(heightNoise)) {
-               stripVegetationColumn(chunk, pos, lx, lz, floor, surface);
-            }
-            if (HeightClimateZones.isStoneCap(heightNoise) && floor >= generator.getSeaLevel()) {
+            if (floor >= generator.getSeaLevel()) {
                stripDirtToStone(chunk, pos, lx, lz, floor);
             }
          }
       }
    }
 
-   private static void stripVegetationColumn(ChunkAccess chunk, MutableBlockPos pos, int lx, int lz, int floor, int surface) {
-      int top = Math.max(surface, floor + 1);
-      int bottom = Math.max(chunk.getMinBuildHeight(), floor);
-      for (int y = top; y >= bottom; y--) {
-         BlockState state = chunk.getBlockState(pos.set(lx, y, lz));
-         if (state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES) || state.is(Blocks.VINE)
-               || state.is(Blocks.BAMBOO) || state.is(Blocks.BAMBOO_SAPLING)
-               || state.is(Blocks.SWEET_BERRY_BUSH) || state.is(Blocks.CACTUS)
-               || state.is(Blocks.SUGAR_CANE) || state.is(Blocks.DEAD_BUSH)
-               || state.is(Blocks.FERN) || state.is(Blocks.LARGE_FERN)
-               || state.is(Blocks.GRASS) || state.is(Blocks.TALL_GRASS)
-               || state.is(Blocks.DANDELION) || state.is(Blocks.POPPY)
-               || state.is(Blocks.AZALEA) || state.is(Blocks.FLOWERING_AZALEA)
-               || state.is(Blocks.OAK_SAPLING) || state.is(Blocks.BIRCH_SAPLING)
-               || state.is(Blocks.SPRUCE_SAPLING) || state.is(Blocks.JUNGLE_SAPLING)
-               || state.is(Blocks.ACACIA_SAPLING) || state.is(Blocks.DARK_OAK_SAPLING)) {
-            chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
-         }
-      }
-   }
+   // Vegetation strip removed — see applyAlpineZones javadoc.
 
    private static void stripDirtToStone(ChunkAccess chunk, MutableBlockPos pos, int lx, int lz, int floorY) {
       BlockState stone = findLocalStone(chunk, pos, lx, lz, floorY);

@@ -62,7 +62,7 @@ public class BiomeGenerator {
       TerrainData terraindata = completablefuture.join();
       Surface.smoothWater(chunk, region, terraindata);
       Surface.applyPost(chunk, terraindata, generator);
-      // After features: strip trees above treeline + stone-cap dirt on peaks.
+      // After features: stone-cap dirt on peaks (treeline skip is in PositionSampler only).
       Surface.applyAlpineZones(terraindata, chunk, generator);
    }
 
