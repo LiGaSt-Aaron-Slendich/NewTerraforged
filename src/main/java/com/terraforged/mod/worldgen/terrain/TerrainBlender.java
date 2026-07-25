@@ -67,6 +67,11 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
       return this.terrains;
    }
 
+   /** Region cell size in noise-space units (≈ blocks after / frequency). */
+   public int getRegionScale() {
+      return this.scale;
+   }
+
    public Terrain getTerrain(TerrainBlender.Blender blender) {
       float f = blender.getCentreNoiseIndex();
       return this.terrains.getValue(f).terrain();

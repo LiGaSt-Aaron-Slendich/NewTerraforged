@@ -5,8 +5,10 @@ import com.terraforged.engine.world.heightmap.ControlPoints;
 import com.terraforged.mod.worldgen.noise.NoiseSample;
 import com.terraforged.mod.worldgen.noise.continent.ContinentGenerator;
 import com.terraforged.mod.worldgen.noise.continent.ContinentPoints;
+import com.terraforged.mod.worldgen.noise.continent.GuaranteedContinentMask;
 import com.terraforged.mod.worldgen.noise.continent.cell.CellPoint;
 import com.terraforged.mod.worldgen.noise.continent.config.ContinentConfig;
+import com.terraforged.mod.worldgen.noise.continent.island.IslandScatter;
 import com.terraforged.noise.util.NoiseUtil;
 
 public class ShapeGenerator {
@@ -64,7 +66,7 @@ public class ShapeGenerator {
          for (int j2 = l; j2 <= j1; i2++) {
             CellPoint cellpoint = this.continent.getCell(j2, l1);
             float f2 = this.getThresholdValue(cellpoint);
-            float f3 = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cellpoint.px, cellpoint.py));
+            float f3 = this.distanceToCell(x, y, cellpoint, j2, l1);
             along[i2] = PosUtil.packf(f2, f3);
             if (f3 < f) {
                f1 = f;
@@ -100,7 +102,7 @@ public class ShapeGenerator {
          for (int k2 = l; k2 <= j1; j2++) {
             CellPoint cellpoint = this.continent.getCell(k2, i2);
             ShapeGenerator.CellLocal shapegenerator$celllocal = ashapegenerator$celllocal[j2];
-            float f2 = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cellpoint.px, cellpoint.py));
+            float f2 = this.distanceToCell(x, y, cellpoint, k2, i2);
             shapegenerator$celllocal.cell = cellpoint;
             shapegenerator$celllocal.context = f2;
             if (f2 < f) {
@@ -133,6 +135,29 @@ public class ShapeGenerator {
       }
 
       return NoiseUtil.clamp(f2 / f3, 0.0F, 1.0F);
+   }
+
+   /**
+    * Soft-cut Guaranteed-Continents freckles use Euclidean CN falloff → perfect circles on
+    * JourneyMap height (thin beach cliff at CN≈0.5). Rag the distance for those cells only.
+    */
+   private float distanceToCell(float x, float y, CellPoint cell, int cellX, int cellY) {
+      float dist = NoiseUtil.sqrt(NoiseUtil.dist2(x, y, cell.px, cell.py));
+      GuaranteedContinentMask mask = this.continent.guaranteeMask;
+      if (mask == null || !mask.active() || !mask.inWindow(cellX, cellY)) {
+         return dist;
+      }
+      if (mask.isGuaranteedLand(cellX, cellY) || cell.noise <= 0.05F) {
+         return dist;
+      }
+      float dx = x - cell.px;
+      float dy = y - cell.py;
+      float ang = (float) Math.atan2(dy, dx);
+      float n = IslandScatter.valueNoise2(this.continent.seed ^ 0x51ED, x * 2.8F, y * 2.8F);
+      float ragged = 1.0F
+            + 0.28F * NoiseUtil.sin(ang * 3.0F + n * NoiseUtil.PI2)
+            + 0.14F * (n - 0.5F);
+      return dist * ragged;
    }
 
    private NoiseSample sampleEdges(int index, float min0, float min1, ShapeGenerator.CellLocal[] buffer, NoiseSample sample) {

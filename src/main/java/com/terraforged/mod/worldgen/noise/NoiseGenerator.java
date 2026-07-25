@@ -115,30 +115,86 @@ public class NoiseGenerator implements INoiseGenerator {
       }
       float f = this.getNoiseCoord(x);
       float f1 = this.getNoiseCoord(z);
-      SpiralIterator.PositionFinder spiraliterator$positionfinder = this.land.findNearest(f, f1, minRadius, maxRadius, terrain);
+      // Command radius is in blocks; TerrainBlender spiral is in region cells.
+      int regionScale = Math.max(64, this.land.getRegionScale());
+      int minCell = Math.max(0, minRadius / regionScale);
+      int maxCell = Math.max(minCell + 1, (maxRadius + regionScale - 1) / regionScale);
+      SpiralIterator.PositionFinder spiraliterator$positionfinder =
+            this.land.findNearest(f, f1, minCell, maxCell, terrain);
       if (spiraliterator$positionfinder == null) {
          return 0L;
       }
-      NoiseSample noisesample = this.localSample.get().reset();
+      float freq = this.levels.noiseLevels.frequency;
+      float invFreq = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
+      float dryFloor = this.levels.noiseLevels.heightMin + 0.02F;
 
       while (spiraliterator$positionfinder.hasNext()) {
          long i = spiraliterator$positionfinder.next();
-         if (i != 0L) {
-            float f2 = PosUtil.unpackLeftf(i) / this.levels.noiseLevels.frequency;
-            float f3 = PosUtil.unpackRightf(i) / this.levels.noiseLevels.frequency;
-            this.continent.sampleContinent(f2, f3, noisesample);
-            if (!(noisesample.continentNoise < 0.5F)) {
-               this.continent.sampleRiver(f2, f3, noisesample);
-               if (terrain.isRiver() || !(noisesample.riverNoise < 0.75F)) {
-                  int j = NoiseUtil.floor(f2);
-                  int k = NoiseUtil.floor(f3);
-                  return PosUtil.pack(j, k);
-               }
-            }
+         if (i == 0L) {
+            continue;
          }
+         // findNearest returns noise-space coords (same frame as getValue / sampleContinent).
+         float nx = PosUtil.unpackLeftf(i);
+         float nz = PosUtil.unpackRightf(i);
+         int blockX = NoiseUtil.floor(nx * invFreq);
+         int blockZ = NoiseUtil.floor(nz * invFreq);
+
+         NoiseSample full = this.localSample.get().reset();
+         this.sample(blockX, blockZ, full);
+         // Must be dry inland — not beach/coast blend, not flooded soft-cut freckles.
+         if (full.continentNoise < 0.55F) {
+            continue;
+         }
+         if (full.heightNoise < dryFloor) {
+            continue;
+         }
+         if (!terrain.isRiver() && !terrain.isLake()
+               && full.terrainType != null
+               && (full.terrainType.isRiver() || full.terrainType.isLake())
+               && full.riverNoise < 0.75F) {
+            continue;
+         }
+         if (!matchesLocateTerrain(full.terrainType, terrain)) {
+            continue;
+         }
+         return PosUtil.pack(blockX, blockZ);
       }
 
       return 0L;
+   }
+
+   /** WeightMap parent types (flats/hills/mountains) match concrete painted names. */
+   private static boolean matchesLocateTerrain(Terrain got, Terrain want) {
+      if (got == null || want == null) {
+         return false;
+      }
+      if (got == want) {
+         return true;
+      }
+      String a = got.getName();
+      String b = want.getName();
+      if (a != null && a.equalsIgnoreCase(b)) {
+         return true;
+      }
+      if (want.isFlat() && got.isFlat()) {
+         return true;
+      }
+      if (want.isMountain() && got.isMountain()) {
+         return true;
+      }
+      // Hills family (no isHills() on engine Terrain).
+      if (isHillsName(b) && isHillsName(a)) {
+         return true;
+      }
+      return false;
+   }
+
+   private static boolean isHillsName(String name) {
+      if (name == null || name.isBlank()) {
+         return false;
+      }
+      String n = name.toLowerCase();
+      return n.equals("hills") || n.startsWith("hills_") || n.equals("dales") || n.equals("island_hills");
    }
 
    /**
