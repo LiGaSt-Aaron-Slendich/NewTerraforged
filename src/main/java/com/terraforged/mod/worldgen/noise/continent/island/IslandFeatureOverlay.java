@@ -28,7 +28,9 @@ public final class IslandFeatureOverlay {
 
     public IslandFeatureOverlay(ContinentConfig config) {
         this.seed = config.shape.seed0 ^ 0x51ED;
-        this.continentScale = Math.max(100, config.shape.scale);
+        // Shore proximity must use the same unpitched scale as ContinentNoise.frequency.
+        this.continentScale = Math.max(100,
+              config.shape.riverScale > 0 ? config.shape.riverScale : config.shape.scale);
         this.coastalChance = NoiseUtil.clamp(config.shape.coastalIslandsChance, 0.0F, 1.0F);
         this.volcanicChance = NoiseUtil.clamp(config.shape.volcanicIslandsChance, 0.0F, 1.0F);
         this.archipelago = config.shape.archipelago;
