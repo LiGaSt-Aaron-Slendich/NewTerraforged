@@ -33,7 +33,13 @@ public class VegetationFeatures {
       PlacementModifierType.NOISE_THRESHOLD_COUNT
    );
    private static final Set<PlacementModifierType<?>> TREE_EXCLUSIONS = ImmutableSet.<PlacementModifierType<?>>builder().addAll(EXCLUSIONS).add(PlacementModifierType.IN_SQUARE).build();
-   protected static final String[] TREE_KEYWORDS = new String[]{"tree", "spruce", "oak", "birch", "pine", "dark_forest_vegetation"};
+   protected static final String[] TREE_KEYWORDS = new String[]{
+         "tree", "spruce", "oak", "birch", "pine", "jungle", "redwood", "palm", "willow", "maple",
+         "cypress", "mahogany", "jacaranda", "mangrove", "azalea", "dark_forest_vegetation",
+         "forest_vegetation", "mega_jungle", "fancy_oak", "super_birch",
+         // BOP fungal jungle toadstools / huge mushrooms / fungi — were falling into placeOther only
+         "mushroom", "toadstool", "fungus", "glowshroom", "shroom", "huge_", "giant_mushroom"
+   };
    protected static final String[] GRASS_KEYWORDS = new String[]{"grass"};
    private final PlacedFeature[] trees;
    private final PlacedFeature[] grass;

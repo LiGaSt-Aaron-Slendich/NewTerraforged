@@ -347,7 +347,7 @@ public class NoiseGenerator implements INoiseGenerator {
       }
       float belt = this.prepareLandClimateAndBelt(x, z, sample.continentNoise, blender);
       float f = sample.baseNoise;
-      float f1 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
+      float f1 = softCapHeight(this.land.getValue(x, z, blender) * this.heightMultiplier);
       sample.heightNoise = this.levels.noiseLevels.toHeightNoise(f, f1);
       sample.terrainType = this.land.getTerrain(blender);
       this.applyMountainBeltLand(x, z, sample, belt);
@@ -376,7 +376,7 @@ public class NoiseGenerator implements INoiseGenerator {
          float belt = this.prepareLandClimateAndBelt(x, z, sample.continentNoise, blender);
          float f5 = this.levels.noiseLevels.heightMin;
          float f6 = sample.baseNoise;
-         float f7 = Math.min(1.0F, this.land.getValue(x, z, blender) * this.heightMultiplier);
+         float f7 = softCapHeight(this.land.getValue(x, z, blender) * this.heightMultiplier);
          float f8 = this.levels.noiseLevels.toHeightNoise(f6, f7);
          float f4 = (sample.continentNoise - 0.5F) / 0.050000012F;
          sample.heightNoise = NoiseUtil.lerp(f5, f8, f4);
@@ -422,22 +422,24 @@ public class NoiseGenerator implements INoiseGenerator {
       if (sample == null) {
          return;
       }
-      // Sparse highland only — one spine + few peaks; coasts stay WeightMap.
-      if (belt >= 0.35F) {
-         float soft = belt * belt * (3.0F - 2.0F * belt);
-         float target = NoiseUtil.lerp(0.55F, 0.94F, soft);
-         float pull = soft * 0.52F;
-         sample.heightNoise = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), pull);
-         // Paint MOUNTAINS only on strong crest / peak cores, inland of beach.
+      // Peaked boost: foothills rise gently, crest tips tall — never a constant-height platform.
+      if (belt >= 0.12F) {
+         float peak = belt * belt; // field already peaked; square emphasises tip
+         float boost = peak * 0.30F;
+         float pull = NoiseUtil.clamp(peak * 0.38F, 0.0F, 0.42F);
+         float ambient = sample.heightNoise;
+         float target = Math.min(0.92F, ambient + boost);
+         sample.heightNoise = NoiseUtil.lerp(ambient, Math.max(ambient, target), pull);
          float cn = sample.continentNoise;
-         if (belt > 0.68F && cn >= 0.58F && sample.heightNoise > 0.55F
+         if (belt > 0.72F && cn >= 0.58F && sample.heightNoise > 0.58F
                && sample.terrainType != null && sample.terrainType.isOverground()
                && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
                && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
             sample.terrainType = TerrainType.MOUNTAINS;
          }
       }
-      if (belt < 0.45F) {
+      // Soft notch fill only — never flatten crest into a mesa.
+      if (belt < 0.50F) {
          return;
       }
       float freq = this.levels.noiseLevels.frequency;
@@ -472,6 +474,18 @@ public class NoiseGenerator implements INoiseGenerator {
    private static float smoothstepLocal(float edge0, float edge1, float x) {
       float t = NoiseUtil.clamp((x - edge0) / Math.max(1.0E-4F, edge1 - edge0), 0.0F, 1.0F);
       return t * t * (3.0F - 2.0F * t);
+   }
+
+   /**
+    * Soft asymptote instead of hard {@code min(1)} so WeightMap peaks taper to a tip
+    * instead of clipping into a flat platform (screen-6 style cutoffs).
+    */
+   private static float softCapHeight(float v) {
+      if (v <= 0.88F) {
+         return NoiseUtil.clamp(v, 0.0F, 1.0F);
+      }
+      float over = v - 0.88F;
+      return NoiseUtil.clamp(0.88F + over / (1.0F + over * 2.8F), 0.0F, 0.98F);
    }
 
    /**

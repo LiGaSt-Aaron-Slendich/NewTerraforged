@@ -56,24 +56,29 @@ public final class TerrainNoiseBuilder {
         float plateauV = Math.max(0.01F, terrain.plateau.verticalScale);
         float torridonV = Math.max(0.01F, terrain.torridonian.verticalScale) * HIGHLAND_RELIEF_BOOST;
         float mountainsV = Math.max(0.01F, terrain.mountains.verticalScale) * HIGHLAND_RELIEF_BOOST;
-        // Torridonian ignores settings.horizontalScale internally — freq-widen after.
+        // Torridonian / mountains2/3 ignore settings.horizontalScale internally — freq-widen after.
+        // Couple width to height: taller verticalScale → lower frequency (wider massifs).
         float torridonFreq = 1.0F / Math.max(0.25F, terrain.torridonian.horizontalScale);
+        float mountainsH = Math.max(0.25F, terrain.mountains.horizontalScale);
+        float heightWidth = Math.max(1.0F, mountainsV / (1.0F * HIGHLAND_RELIEF_BOOST));
+        float mountainsFreq = 1.0F / (mountainsH * heightWidth);
+        float hillsFreq = 1.0F / Math.max(0.25F, terrain.hills.horizontalScale);
 
         return new TerrainNoise[]{
                 of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.steppe.weight, 1.0F, 1.0F, forms::steppe, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.FLATS, terrain.plains.weight, 1.0F, 1.0F, forms::plains, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, 1.0F, forms::hills1, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, 1.0F, forms::hills2, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, hillsFreq, forms::hills1, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.hills.weight, hillsV, hillsFreq, forms::hills2, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.HILLS, terrain.dales.weight, dalesV, 1.0F, forms::dales, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.PLATEAU, terrain.plateau.weight, plateauV, 1.0F, forms::plateau, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.BADLANDS, terrain.badlands.weight, 1.0F, 1.0F, forms::badlands, seed),
                 of(access, ModTerrainTypes.TORRIDONIAN, terrain.torridonian.weight, torridonV, torridonFreq, forms::torridonian, seed),
                 of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains2, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains3, seed),
-                dolomite(access, seed, terrain.mountains.weight, mountainsV, terrain.mountains.horizontalScale),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains2, seed),
-                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, 1.0F, forms::mountains3, seed)
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, mountainsFreq, forms::mountains2, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, mountainsFreq, forms::mountains3, seed),
+                dolomite(access, seed, terrain.mountains.weight, mountainsV, mountainsH * heightWidth),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, mountainsFreq, forms::mountains2, seed),
+                of(access, com.terraforged.engine.world.terrain.TerrainType.MOUNTAINS, terrain.mountains.weight, mountainsV, mountainsFreq, forms::mountains3, seed)
         };
     }
 

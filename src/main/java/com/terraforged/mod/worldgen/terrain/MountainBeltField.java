@@ -4,9 +4,12 @@ import com.terraforged.mod.util.MathUtil;
 import com.terraforged.noise.util.NoiseUtil;
 
 /**
- * Sparse highland relief: <b>one</b> narrow mega-ridge spine per continent-scale
- * cell (continues offshore) plus a <b>few</b> isolated peak massifs — not a
- * continuous mountain wall along the coast.
+ * Sparse highland relief: <b>one</b> continent-scale spine (continues offshore)
+ * plus a <b>few</b> isolated peak massifs.
+ *
+ * <p>Cross-section is a wide-base peaked ridge (not a mesa / wall): foothill skirts
+ * flare out, crest is a tip. Width grows with crest strength so taller segments
+ * stay massifs rather than vertical stretch.
  */
 public final class MountainBeltField {
     private MountainBeltField() {
@@ -26,7 +29,6 @@ public final class MountainBeltField {
             return 0.0F;
         }
         float cn = NoiseUtil.clamp(continentNoise, 0.0F, 1.0F);
-        // Beach ~0.50 — keep foothills inland. Strong crest may meet the shore as a crossing.
         float landMask = smoothstep(0.58F, 0.72F, cn);
         float shorePass = smoothstep(0.48F, 0.56F, cn) * smoothstep(0.65F, 0.88F, highland);
         float mask = Math.max(landMask, shorePass * 0.90F);
@@ -38,53 +40,61 @@ public final class MountainBeltField {
         return highlandField(worldX, worldZ, seed, continentScale) * 0.70F;
     }
 
-    /**
-     * Shared field: narrow continent-scale spine ∪ sparse peak nodes.
-     */
+    /** Shared field: peaked spine ∪ sparse peak nodes. */
     public static float highlandField(float worldX, float worldZ, long seed, int continentScale) {
         int scale = Math.max(400, continentScale);
         int s = (int) seed ^ 0xB3175EED;
 
-        float spine = narrowSpine(worldX, worldZ, s, scale);
+        float spine = peakedSpine(worldX, worldZ, s, scale);
         float peaks = sparsePeaks(worldX, worldZ, s, scale);
         return NoiseUtil.clamp(Math.max(spine, peaks), 0.0F, 1.0F);
     }
 
-    /** One thin crest line per ~continentScale — continuous, not a wide belt. */
-    private static float narrowSpine(float worldX, float worldZ, int s, int scale) {
+    /**
+     * Continent-scale ridge with soft skirts and a pointed crest.
+     * Field value ≈ slope profile (low foothills → high tip), not a flat mesa mask.
+     */
+    private static float peakedSpine(float worldX, float worldZ, int s, int scale) {
         float spineWl = scale * 1.15F;
         float spineFreq = 1.0F / spineWl;
-        float warpAmt = scale * 0.32F;
-        float wx = worldX + (valueNoise(s ^ 0x11, worldX * spineFreq * 0.20F, worldZ * spineFreq * 0.20F) - 0.5F) * warpAmt;
-        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * spineFreq * 0.20F, worldZ * spineFreq * 0.20F) - 0.5F) * warpAmt;
+        float warpAmt = scale * 0.38F;
+        float wx = worldX + (valueNoise(s ^ 0x11, worldX * spineFreq * 0.18F, worldZ * spineFreq * 0.18F) - 0.5F) * warpAmt;
+        float wz = worldZ + (valueNoise(s ^ 0x22, worldX * spineFreq * 0.18F, worldZ * spineFreq * 0.18F) - 0.5F) * warpAmt;
 
         float ridge = softRidge(s ^ 0xA0, wx * spineFreq, wz * spineFreq);
-        // Strict crest — wide gates were painting whole coasts as mountains.
-        float mega = smoothstep(0.70F, 0.88F, ridge);
-        if (mega <= 0.001F) {
+        // Soft corridor gate — skirts start early so the ridge has a wide base.
+        float corridor = smoothstep(0.38F, 0.72F, ridge);
+        if (corridor <= 0.001F) {
             return 0.0F;
         }
 
-        // Narrow cross-section (foothills hug the crest only).
-        float detailWl = scale * 0.55F;
+        // Wider cross-section when the corridor is strong (taller → wider).
+        float widthMul = NoiseUtil.lerp(0.95F, 1.70F, corridor);
+        float detailWl = scale * 0.95F * widthMul;
         float detailFreq = 1.0F / detailWl;
         float primary = softRidge(s ^ 0xA1, wx * detailFreq, wz * detailFreq);
-        float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.30F, wz * detailFreq * 0.30F);
+        float along = valueNoise(s ^ 0xA3, wx * detailFreq * 0.28F, wz * detailFreq * 0.28F);
 
-        float foothills = smoothstep(0.48F, 0.72F, primary);
-        float crest = smoothstep(0.62F, 0.90F, primary);
-        float belt = foothills * 0.40F + crest * 0.70F;
-        float profile = 0.82F + 0.18F * along;
-        return NoiseUtil.clamp(mega * belt * profile, 0.0F, 1.0F);
+        // Peaked profile from softRidge: skirts / body / tip (not foothills*0.4+crest*0.7 mesa).
+        float skirts = smoothstep(0.18F, 0.48F, primary);
+        float body = smoothstep(0.35F, 0.72F, primary);
+        float tipT = NoiseUtil.clamp((primary - 0.52F) / 0.48F, 0.0F, 1.0F);
+        float tip = tipT * tipT * tipT; // sharp crest, soft flanks
+        // Secondary shoulder undulation (user sketch: irregular slopes).
+        float shoulder = softRidge(s ^ 0xA4, wx * detailFreq * 1.7F, wz * detailFreq * 1.7F);
+        float undulate = skirts * 0.12F * shoulder;
+
+        float profile = skirts * 0.22F + body * 0.38F + tip * 0.72F + undulate;
+        float crestVary = 0.78F + 0.22F * along; // tip height varies along-spine — not a flat platform
+        return NoiseUtil.clamp(corridor * profile * crestVary, 0.0F, 1.0F);
     }
 
     /**
-     * A handful of large isolated peaks per continent (cell noise at ~0.45× continentScale).
+     * A handful of large isolated peaks per continent — wide base, peaked tip.
      */
     private static float sparsePeaks(float worldX, float worldZ, int s, int scale) {
-        float cellWl = scale * 0.48F;
+        float cellWl = scale * 0.52F;
         float freq = 1.0F / cellWl;
-        // Worley-ish: distance to nearest cell center.
         float gx = worldX * freq;
         float gz = worldZ * freq;
         int ix = NoiseUtil.floor(gx);
@@ -97,7 +107,6 @@ public final class MountainBeltField {
                 int cz = iz + dz;
                 float jx = hash01(s ^ 0xD1, cx, cz);
                 float jz = hash01(s ^ 0xD2, cx, cz);
-                // Only ~1 in 4 cells hosts a peak.
                 float gate = hash01(s ^ 0xD3, cx, cz);
                 if (gate < 0.72F) {
                     continue;
@@ -111,20 +120,24 @@ public final class MountainBeltField {
                 }
             }
         }
-        // Peak radius ~0.22 cells → large but local massifs.
-        float core = 1.0F - NoiseUtil.clamp(best / 0.28F, 0.0F, 1.0F);
+        // Wide foothill radius; power curve → pointed tip, not a plateau disk.
+        float radius = 0.46F;
+        float core = 1.0F - NoiseUtil.clamp(best / radius, 0.0F, 1.0F);
         if (core <= 0.0F) {
             return 0.0F;
         }
-        core = core * core * (3.0F - 2.0F * core);
-        float power = 0.75F + 0.25F * bestSeed;
-        return NoiseUtil.clamp(core * power, 0.0F, 1.0F);
+        float peaked = core * core * core; // tip
+        float skirts = core * core * 0.45F; // wide base
+        float shape = NoiseUtil.clamp(skirts + peaked, 0.0F, 1.0F);
+        float power = 0.70F + 0.30F * bestSeed;
+        return NoiseUtil.clamp(shape * power, 0.0F, 1.0F);
     }
 
     private static float softRidge(int seed, float x, float z) {
         float n = valueNoise(seed, x, z);
         float r = 1.0F - Math.abs(n * 2.0F - 1.0F);
-        return (float) Math.sqrt(Math.max(0.0F, r));
+        // Milder than sqrt — softer skirts (sqrt was still wall-like on flanks).
+        return (float) Math.pow(Math.max(0.0F, r), 0.65F);
     }
 
     private static float valueNoise(int seed, float x, float z) {

@@ -34,23 +34,25 @@ public final class PreviewMountainBeltPainter {
             float cn = NoiseUtil.clamp(cell.continentEdge, 0.0F, 1.0F);
             float belt = MountainBeltField.strength(worldX, worldZ, beltSeed, continentScale, cn);
             if (cell.value >= water - 0.002F) {
-                if (belt >= 0.28F) {
-                    float soft = belt * belt * (3.0F - 2.0F * belt);
-                    float target = NoiseUtil.lerp(water + 0.08F, water + 0.28F, soft);
+                if (belt >= 0.12F) {
+                    float peak = belt * belt;
+                    float boost = peak * 0.12F;
+                    float pull = NoiseUtil.clamp(peak * 0.38F, 0.0F, 0.42F);
+                    float target = Math.min(water + 0.32F, cell.value + boost);
                     cell.value = NoiseUtil.clamp(
-                            NoiseUtil.lerp(cell.value, Math.max(cell.value, target), soft * 0.42F),
+                            NoiseUtil.lerp(cell.value, Math.max(cell.value, target), pull),
                             0.0F,
                             1.0F);
-                    if (belt > 0.52F && cell.terrain != null && cell.terrain.isOverground()
+                    if (belt > 0.72F && cell.terrain != null && cell.terrain.isOverground()
                             && !cell.terrain.isRiver() && !cell.terrain.isLake()) {
                         cell.terrain = TerrainType.MOUNTAINS;
                     }
                 }
-                if (belt >= 0.40F) {
+                if (belt >= 0.50F) {
                     cell.value = MountainBeltApproximator.fillValleyDepth(
                             cell.value, worldX, worldZ, beltSeed, continentScale, cn);
                 }
-            } else if (belt >= 0.35F) {
+            } else if (belt >= 0.20F) {
                 float under = MountainBeltField.underwaterStrength(worldX, worldZ, beltSeed, continentScale);
                 float nearShore = NoiseUtil.clamp(1.0F - cn / 0.45F, 0.0F, 1.0F);
                 float lift = under * (0.35F + 0.65F * nearShore) * 0.04F;

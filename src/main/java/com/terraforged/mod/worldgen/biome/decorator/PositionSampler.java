@@ -37,7 +37,7 @@ public class PositionSampler {
       FeatureDecorator decorator
    ) {
       int i = placeTreesAndGrass(seed, chunk, level, terrain, generator, random, decorator);
-      placeOther(seed, i, origin, biome, level, generator, random, decorator);
+      placeOther(seed, i, chunk, level, generator, random, decorator);
    }
 
    public static int placeTreesAndGrass(
@@ -79,14 +79,26 @@ public class PositionSampler {
       return i;
    }
 
+   /**
+    * Place non-tree/grass vegetal features for every unique biome in the chunk
+    * (not only the chunk-center origin — fungal jungle toadstools were missing at edges).
+    */
    public static void placeOther(
-      long seed, int offset, BlockPos origin, Holder<Biome> biome, WorldGenLevel level, Generator generator, WorldgenRandom random, FeatureDecorator decorator
+      long seed, int offset, ChunkAccess chunk, WorldGenLevel level, Generator generator, WorldgenRandom random, FeatureDecorator decorator
    ) {
-      BiomeVegetation biomevegetation = decorator.getVegetationManager().getVegetation(biome);
-      if (biomevegetation.features != VegetationFeatures.NONE) {
+      SamplerContext samplercontext = SamplerContext.current();
+      BlockPos origin = chunk.getPos().getWorldPosition().offset(8, 0, 8);
+      int y = chunk.getHeight(Types.WORLD_SURFACE_WG, origin.getX(), origin.getZ());
+      BlockPos at = new BlockPos(origin.getX(), y, origin.getZ());
+      for (int i = 0; i < samplercontext.biomeList.size(); i++) {
+         Holder<Biome> holder = samplercontext.biomeList.get(i);
+         BiomeVegetation biomevegetation = decorator.getVegetationManager().getVegetation(holder);
+         if (biomevegetation.features == VegetationFeatures.NONE) {
+            continue;
+         }
          for (PlacedFeature placedfeature : biomevegetation.features.other()) {
             random.setFeatureSeed(seed, offset, VegetationFeatures.STAGE);
-            if (placedfeature.placeWithBiomeCheck(level, generator, random, origin)) {
+            if (placedfeature.placeWithBiomeCheck(level, generator, random, at)) {
                offset++;
             }
          }

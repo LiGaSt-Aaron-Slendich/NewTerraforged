@@ -58,4 +58,9 @@ public class SamplerContext {
    public static SamplerContext get() {
       return LOCAL_CONTEXT.get().reset();
    }
+
+   /** Same thread-local instance without clearing biomeList / maps. */
+   public static SamplerContext current() {
+      return LOCAL_CONTEXT.get();
+   }
 }
