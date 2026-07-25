@@ -169,6 +169,8 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
       protected float climateTemp = 0.5F;
       protected float climateMoist = 0.5F;
       protected float mountainBelt = 0.0F;
+      protected float highlandField = 0.0F;
+      protected float continentNoise = 0.75F;
       protected WeightMap<TerrainNoise> climateTerrains;
 
       /** Gate arid landforms (badlands) by local climate before height/type lookup. */
@@ -178,9 +180,14 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
          this.climateTerrains = terrains;
       }
 
-      /** Pull landforms toward mountains along continent-scale spines. */
-      public void prepareMountainBelt(float belt) {
+      /**
+       * @param belt land highland (coast-masked)
+       * @param highland raw spine∪peaks (for coastal demote exemption on crest crossings)
+       */
+      public void prepareMountainBelt(float belt, float continentNoise, float highland) {
          this.mountainBelt = NoiseUtil.clamp(belt, 0.0F, 1.0F);
+         this.continentNoise = NoiseUtil.clamp(continentNoise, 0.0F, 1.0F);
+         this.highlandField = NoiseUtil.clamp(highland, 0.0F, 1.0F);
       }
 
       public float getCentreNoiseIndex() {
@@ -245,6 +252,7 @@ public class TerrainBlender implements Module, Seedable<TerrainBlender> {
          if (this.climateTerrains != null) {
             raw = ClimateTerrainBias.biasNoiseIndex(raw, this.climateTemp, this.climateMoist, this.climateTerrains);
             raw = MountainBeltBias.biasNoiseIndex(raw, this.mountainBelt, this.climateTerrains);
+            raw = MountainBeltBias.coastalDemote(raw, this.continentNoise, this.highlandField, this.climateTerrains);
          }
          return raw;
       }

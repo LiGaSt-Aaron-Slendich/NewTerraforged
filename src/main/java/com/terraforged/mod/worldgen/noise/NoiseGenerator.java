@@ -398,8 +398,14 @@ public class NoiseGenerator implements INoiseGenerator {
       ClimateSample climateSample = this.localClimate.get().reset();
       this.climate.sample(x, z, climateSample);
       blender.prepareClimate(climateSample.temperature, climateSample.moisture, this.land.getTerrains());
-      float belt = this.sampleMountainBelt(x, z, continentNoise);
-      blender.prepareMountainBelt(belt);
+      float freq = this.levels.noiseLevels.frequency;
+      float inv = freq > 1.0E-6F ? 1.0F / freq : 1.0F;
+      int continentScale = this.settings.world != null && this.settings.world.continent != null
+            ? this.settings.world.continent.continentScale
+            : 3000;
+      float highland = MountainBeltField.highlandField(x * inv, z * inv, this.seed, continentScale);
+      float belt = MountainBeltField.strength(x * inv, z * inv, this.seed, continentScale, continentNoise);
+      blender.prepareMountainBelt(belt, continentNoise, highland);
       return belt;
    }
 
@@ -416,22 +422,22 @@ public class NoiseGenerator implements INoiseGenerator {
       if (sample == null) {
          return;
       }
-      // Sparse mega-spines only — WeightMap / terrain-region scale owns the rest of the land.
-      if (belt >= 0.22F) {
+      // Sparse highland only — one spine + few peaks; coasts stay WeightMap.
+      if (belt >= 0.35F) {
          float soft = belt * belt * (3.0F - 2.0F * belt);
-         // Pull mega-spines toward the upper column so crests clear ~Y 500+ on maxY 640.
          float target = NoiseUtil.lerp(0.55F, 0.94F, soft);
          float pull = soft * 0.52F;
          sample.heightNoise = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), pull);
-         // Crest-only mountain paint — foothills stay WeightMap hills/torridonian.
-         if (belt > 0.55F && sample.heightNoise > 0.52F
+         // Paint MOUNTAINS only on strong crest / peak cores, inland of beach.
+         float cn = sample.continentNoise;
+         if (belt > 0.68F && cn >= 0.58F && sample.heightNoise > 0.55F
                && sample.terrainType != null && sample.terrainType.isOverground()
                && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
                && !MountainBeltBias.isMountainLandform(sample.terrainType)) {
             sample.terrainType = TerrainType.MOUNTAINS;
          }
       }
-      if (belt < 0.32F) {
+      if (belt < 0.45F) {
          return;
       }
       float freq = this.levels.noiseLevels.frequency;
