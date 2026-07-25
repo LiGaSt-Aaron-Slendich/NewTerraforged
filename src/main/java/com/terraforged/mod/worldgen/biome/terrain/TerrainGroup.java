@@ -22,6 +22,7 @@ public final class TerrainGroup {
             Map.entry("dolomites", Set.of("dolomites")),
             Map.entry("steppe", Set.of("steppe")),
             Map.entry("dales", Set.of("dales")),
+            // Torridonian is a rocky hills/mountain landform — keep a self id for UI; aliases expand matching.
             Map.entry("torridonian", Set.of("torridonian")),
             // Island sub-terrains (painted by IslandFeatureOverlay for integrator filtering).
             Map.entry("island", Set.of("island_hills", "island_plateau", "island_mountains", "island_flats")),
@@ -93,6 +94,27 @@ public final class TerrainGroup {
             Set<String> mountains = GROUPS.get("mountains");
             if (mountains != null) {
                 out.addAll(mountains);
+            }
+        }
+        // Engine WeightMap paints "torridonian"; most climate-pool rules list hills/plains/mountains
+        // slots only — without aliases temperate forest (etc.) falls through to plains.
+        if ("torridonian".equals(key)) {
+            out.add("hills");
+            out.add("hills_1");
+            out.add("hills_2");
+            out.add("plateau");
+            out.add("mountains");
+            Set<String> hills = GROUPS.get("hills");
+            if (hills != null) {
+                out.addAll(hills);
+            }
+            Set<String> mountains = GROUPS.get("mountains");
+            if (mountains != null) {
+                out.addAll(mountains);
+            }
+            Set<String> plains = GROUPS.get("plains");
+            if (plains != null) {
+                out.addAll(plains);
             }
         }
         return Collections.unmodifiableSet(out);

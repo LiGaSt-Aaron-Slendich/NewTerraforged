@@ -123,6 +123,7 @@ public final class BiomeRuleAutogen {
             case HILLS -> {
                 terrains.put("hills_1", 1.0F);
                 terrains.put("hills_2", 1.0F);
+                terrains.put("torridonian", 0.75F);
                 terrains.put("island_hills", 0.6F);
                 if (tokensContain(parsed.all(), Set.of("highland", "highlands"))
                         || params.category == BiomeCategory.MOUNTAIN && params.isWarmWet()) {
@@ -158,6 +159,7 @@ public final class BiomeRuleAutogen {
                 terrains.put("plains", 1.0F);
                 terrains.put("steppe", 0.5F);
                 terrains.put("dales", 0.6F);
+                terrains.put("torridonian", 0.35F);
                 terrains.put("island_flats", 0.5F);
             }
         }

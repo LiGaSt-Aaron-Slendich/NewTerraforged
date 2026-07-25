@@ -43,7 +43,7 @@ public class WorldSettings {
                 "Overall size of underwater landscape features (corridor banks / seafloor hills).",
                 "Higher = larger, smoother forms. Requires EGF Untested → Ocean Landscape ON."
         })
-        public float landscapeScale = 1.5f;
+        public float landscapeScale = 2.2f;
 
         @Range(min = 0.25f, max = 3.0f)
         @Comment(value = {
@@ -58,14 +58,14 @@ public class WorldSettings {
                 "this many nearest continents (2–3 recommended). Incoming corridors are unlimited.",
                 "Requires EGF Untested → Ocean Landscape ON."
         })
-        public int corridorPartners = 2;
+        public int corridorPartners = 3;
 
         @Range(min = 0.0f, max = 1.0f)
         @Comment(value = {
                 "Strength of inter-continent seafloor corridors / banks.",
                 "0 = almost none, 1 = strong. Requires EGF Ocean Landscape ON."
         })
-        public float corridorStrength = 0.92f;
+        public float corridorStrength = 1.0f;
 
         @Range(min = 2.0f, max = 24.0f)
         @Comment(value = {

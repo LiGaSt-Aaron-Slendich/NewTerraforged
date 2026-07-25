@@ -38,8 +38,10 @@ public class Surface {
                   // Cap fill depth so cave mouths aren't densified into 1×1 pillars.
                   int solidY = mutableblockpos.getY();
                   int fillFloor = Math.max(solidY, k - 10);
+                  int wx = chunk.getPos().getMinBlockX() + j;
+                  int wz = chunk.getPos().getMinBlockZ() + i;
                   for (; k > fillFloor; k--) {
-                     chunk.setBlockState(mutableblockpos.setY(k), blockstate, false);
+                     chunk.setBlockState(mutableblockpos.setY(k), cliffMix(blockstate, wx, k, wz), false);
                   }
                }
             }
@@ -323,5 +325,50 @@ public class Surface {
 
          return null;
       }
+   }
+
+   /**
+    * Break up monolithic cliff columns: mix gravel / cobble / andesite / diorite / granite
+    * into the solid fill using cheap per-block hash noise.
+    */
+   protected static BlockState cliffMix(BlockState base, int worldX, int y, int worldZ) {
+      if (base == null || base.isAir() || base.getBlock() instanceof LiquidBlock) {
+         return base;
+      }
+      // Keep unusual solids (basalt, deepslate, terracotta…) mostly intact.
+      Block block = base.getBlock();
+      boolean commonStone = block == Blocks.STONE
+            || block == Blocks.COBBLESTONE
+            || block == Blocks.ANDESITE
+            || block == Blocks.DIORITE
+            || block == Blocks.GRANITE
+            || block == Blocks.DEEPSLATE
+            || block == Blocks.TUFF;
+      if (!commonStone && !base.is(BlockTags.BASE_STONE_OVERWORLD)) {
+         return base;
+      }
+      int h = worldX * 374761393 + y * 668265263 + worldZ * 1274126177;
+      h = (h ^ (h >>> 13)) * 1274126177;
+      h ^= h >>> 16;
+      int roll = h & 255;
+      if (roll < 28) {
+         return Blocks.GRAVEL.defaultBlockState();
+      }
+      if (roll < 48) {
+         return Blocks.COBBLESTONE.defaultBlockState();
+      }
+      if (roll < 68) {
+         return Blocks.ANDESITE.defaultBlockState();
+      }
+      if (roll < 84) {
+         return Blocks.DIORITE.defaultBlockState();
+      }
+      if (roll < 100) {
+         return Blocks.GRANITE.defaultBlockState();
+      }
+      if (roll < 112) {
+         return Blocks.TUFF.defaultBlockState();
+      }
+      return base;
    }
 }

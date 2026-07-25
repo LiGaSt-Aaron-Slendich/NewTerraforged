@@ -422,7 +422,8 @@ public class NoiseGenerator implements INoiseGenerator {
          float target = NoiseUtil.lerp(0.50F, 0.84F, soft);
          float pull = soft * 0.42F;
          sample.heightNoise = NoiseUtil.lerp(sample.heightNoise, Math.max(sample.heightNoise, target), pull);
-         if (belt > 0.52F && sample.heightNoise > 0.52F
+         // Crest-only mountain paint — foothills stay WeightMap hills/torridonian.
+         if (belt > 0.62F && sample.heightNoise > 0.55F
                && sample.terrainType != null && sample.terrainType.isOverground()
                && !sample.terrainType.isRiver() && !sample.terrainType.isLake()
                && !MountainBeltBias.isMountainLandform(sample.terrainType)) {

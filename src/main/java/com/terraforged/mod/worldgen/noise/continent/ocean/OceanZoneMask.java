@@ -166,7 +166,8 @@ public final class OceanZoneMask {
 
     private static float ridgeStrength(float d0, float d1) {
         float avg = 0.5F * (d0 + d1);
-        float width = Math.max(0.04F, avg * 0.28F);
+        // Wider corridors → longer/taller banks that tip into islands more often.
+        float width = Math.max(0.055F, avg * 0.42F);
         float edge = 1.0F - NoiseUtil.clamp(Math.abs(d0 - d1) / width, 0.0F, 1.0F);
         float away = NoiseUtil.clamp(d0 / Math.max(0.08F, avg * 0.9F), 0.0F, 1.0F);
         return NoiseUtil.clamp(edge * away, 0.0F, 1.0F);

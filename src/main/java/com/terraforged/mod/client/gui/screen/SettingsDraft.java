@@ -245,11 +245,18 @@ public final class SettingsDraft {
         settings.world.continent.continentScale = com.terraforged.engine.settings.WorldSettings.DEFAULT_CONTINENT_SCALE;
         settings.world.properties.seaLevel = levels.seaLevel;
         settings.world.properties.worldHeight = Math.max(levels.maxY, 640);
-        settings.filters.erosion.dropletsPerChunk = 350;
+        settings.filters.erosion.dropletsPerChunk = 250;
         // Stock TF default volcano weight=5 floods continents. Moderate mainland presence;
         // ocean volcanic islands come from Islands.volcanicIslandsChance.
         settings.terrain.volcano.weight = 0.85F;
         settings.terrain.general.globalVerticalScale = 1.12F;
+        settings.terrain.general.fancyMountains = false;
+        settings.terrain.plains.weight = 3.2F;
+        settings.terrain.steppe.weight = 1.2F;
+        settings.terrain.dales.weight = 2.6F;
+        settings.terrain.hills.weight = 1.6F;
+        settings.terrain.torridonian.weight = 1.2F;
+        settings.terrain.mountains.weight = 1.8F;
         settings.terrain.mountains.verticalScale = 1.35F;
         settings.terrain.hills.verticalScale = 1.15F;
         settings.terrain.torridonian.verticalScale = 1.25F;

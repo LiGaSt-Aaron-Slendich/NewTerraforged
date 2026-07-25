@@ -52,13 +52,13 @@ public class ContinentConfig {
 
       // --- Ocean Landscape (EGF) tunables ---
       /** Underwater feature size; higher = larger / smoother banks. */
-      public float oceanLandscapeScale = 1.5F;
+      public float oceanLandscapeScale = 2.2F;
       /** Seafloor detail / grain. Lower = smoother. */
       public float oceanNoiseScale = 0.45F;
       /** Each continent links to this many nearest neighbours for seafloor corridors. */
-      public int oceanCorridorPartners = 2;
+      public int oceanCorridorPartners = 3;
       /** Overall corridor / bank strength 0..1. */
-      public float oceanCorridorStrength = 0.92F;
+      public float oceanCorridorStrength = 1.0F;
       /** Max partner distance in cell-pitch units (≈ × continentScale in world blocks). */
       public float oceanCorridorMaxDistance = 8.0F;
       /** Coastal shelf along linked continents 0..1. */

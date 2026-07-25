@@ -9,9 +9,9 @@ import com.terraforged.noise.util.NoiseUtil;
  */
 public final class SeafloorLandscape {
     /** Relief above this (after corridor mask) emerges as island tips. */
-    public static final float EMERGE_THRESHOLD = 0.52F;
+    public static final float EMERGE_THRESHOLD = 0.40F;
     /** Shipwrecked needs a bit more relief before dry land (density control). */
-    public static final float SHIP_EMERGE_THRESHOLD = 0.62F;
+    public static final float SHIP_EMERGE_THRESHOLD = 0.52F;
 
     public enum Form {
         FLATS,
@@ -44,8 +44,8 @@ public final class SeafloorLandscape {
         float macroW = Math.max(0.08F, 1.0F - hillW - detailW);
         float peak = NoiseUtil.clamp(hills * hillW + macro * macroW + detail * detailW, 0.0F, 1.0F);
         // Larger landscape → slightly easier emergence (broader banks).
-        float floor = NoiseUtil.lerp(0.28F, 0.16F, tSize);
-        return NoiseUtil.clamp((peak - floor) / Math.max(0.35F, 1.0F - floor), 0.0F, 1.0F);
+        float floor = NoiseUtil.lerp(0.22F, 0.12F, tSize);
+        return NoiseUtil.clamp((peak - floor) / Math.max(0.30F, 1.0F - floor), 0.0F, 1.0F);
     }
 
     /** @deprecated prefer {@link #relief(float, float, int, float, float)} */

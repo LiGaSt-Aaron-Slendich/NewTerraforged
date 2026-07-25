@@ -5,8 +5,8 @@ import com.terraforged.noise.util.NoiseUtil;
 
 /**
  * Sparse mega-ridge spines (not a continent-wide ridged overlay).
- * Only a few corridors activate; they prefer the coastal fringe so WeightMap
- * landforms still respond to terrain region scale inland.
+ * A few corridors activate along a narrow coastal fringe <em>or</em> as inland
+ * continental spines — coasts are no longer a continuous mountain wall.
  */
 public final class MountainBeltField {
     private MountainBeltField() {
@@ -17,7 +17,7 @@ public final class MountainBeltField {
     }
 
     /**
-     * @param continentNoise 0..1 land mask (beach ~0.5, inland ~1). Used to prefer coasts.
+     * @param continentNoise 0..1 land mask (beach ~0.5, inland ~1). Used for coastal vs inland placement.
      */
     public static float strength(float worldX, float worldZ, long seed, int continentScale, float continentNoise) {
         int scale = Math.max(400, continentScale);
@@ -32,14 +32,13 @@ public final class MountainBeltField {
 
         float selector = softRidge(s ^ 0xA0, wx * selFreq, wz * selFreq);
         // Strict peak gate — vast majority of land stays under WeightMap control.
-        float mega = smoothstep(0.74F, 0.90F, selector);
+        float mega = smoothstep(0.76F, 0.92F, selector);
         if (mega <= 0.001F) {
             return 0.0F;
         }
 
-        // Prefer coasts / near-coast shelves; fade deep inland (WeightMap mountains live there).
-        float coastal = coastalPreference(continentNoise);
-        mega *= coastal;
+        float place = placementPreference(continentNoise, s, wx, wz, selFreq);
+        mega *= place;
         if (mega <= 0.001F) {
             return 0.0F;
         }
@@ -57,25 +56,40 @@ public final class MountainBeltField {
         return NoiseUtil.clamp(mega * belt * profile, 0.0F, 1.0F);
     }
 
-    /** Weaker offshore continuation of the same sparse spines. */
+    /** Stronger offshore continuation so underwater spines can tip into islands more often. */
     public static float underwaterStrength(float worldX, float worldZ, long seed, int continentScale) {
         // Ocean CN is low — pass a near-shore proxy so spines can continue briefly offshore.
-        return strength(worldX, worldZ, seed, continentScale, 0.42F) * 0.35F;
+        return strength(worldX, worldZ, seed, continentScale, 0.48F) * 0.55F;
     }
 
     /**
-     * Peaks in the coastal band (CN ~0.5–0.72), soft inland fade.
-     * Deep ocean / deep inland → near zero mega-belt.
+     * Coastal fringe OR sparse inland continental spines (whichever is stronger).
+     * Coastal band is intentionally narrow so entire shorelines aren't mountain walls.
      */
-    private static float coastalPreference(float cn) {
+    private static float placementPreference(float cn, int s, float wx, float wz, float selFreq) {
+        float coastal = coastalBand(cn);
+        // Separate long-wave gate for inland spines — independent of coastal corridors.
+        float inlandSel = softRidge(s ^ 0xB0, wx * selFreq * 0.72F, wz * selFreq * 0.72F);
+        float inlandGate = smoothstep(0.80F, 0.94F, inlandSel);
+        float inland = inlandBand(cn) * inlandGate;
+        return NoiseUtil.clamp(Math.max(coastal, inland), 0.0F, 1.0F);
+    }
+
+    /** Narrow coastal fringe (CN ~0.45–0.68) — fades before deep near-inland. */
+    private static float coastalBand(float cn) {
         float c = NoiseUtil.clamp(cn, 0.0F, 1.0F);
-        if (c < 0.35F) {
+        if (c < 0.38F) {
             return 0.0F;
         }
-        // Rise from shelf into coast, hold through near-inland, fade toward core.
-        float rise = smoothstep(0.38F, 0.52F, c);
-        float hold = 1.0F - smoothstep(0.78F, 0.96F, c);
+        float rise = smoothstep(0.42F, 0.52F, c);
+        float hold = 1.0F - smoothstep(0.58F, 0.72F, c);
         return NoiseUtil.clamp(rise * hold, 0.0F, 1.0F);
+    }
+
+    /** Deep inland / continental core (CN ≳ 0.72). */
+    private static float inlandBand(float cn) {
+        float c = NoiseUtil.clamp(cn, 0.0F, 1.0F);
+        return smoothstep(0.70F, 0.88F, c);
     }
 
     private static float softRidge(int seed, float x, float z) {

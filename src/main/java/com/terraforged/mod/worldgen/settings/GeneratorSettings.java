@@ -414,10 +414,18 @@ public final class GeneratorSettings {
         engine.world.properties.worldHeight = levels.maxY;
         // Keep classic TF continent feel: large landmasses, not island soup.
         engine.world.continent.continentScale = WorldSettings.DEFAULT_CONTINENT_SCALE;
-        engine.filters.erosion.dropletsPerChunk = 350;
+        engine.filters.erosion.dropletsPerChunk = 250;
         engine.terrain.volcano.weight = 0.85F;
         // Let mountain peaks use the full 640-block column (datapack height=1024).
         engine.terrain.general.globalVerticalScale = 1.12F;
+        engine.terrain.general.fancyMountains = false;
+        // Bias land toward plains / wetlands; trim rocky hill/mountain spam.
+        engine.terrain.plains.weight = 3.2F;
+        engine.terrain.steppe.weight = 1.2F;
+        engine.terrain.dales.weight = 2.6F;
+        engine.terrain.hills.weight = 1.6F;
+        engine.terrain.torridonian.weight = 1.2F;
+        engine.terrain.mountains.weight = 1.8F;
         engine.terrain.mountains.verticalScale = 1.35F;
         engine.terrain.hills.verticalScale = 1.15F;
         engine.terrain.torridonian.verticalScale = 1.25F;
