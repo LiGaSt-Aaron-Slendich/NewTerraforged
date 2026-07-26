@@ -24,6 +24,7 @@ public class Common extends Init {
    @Override
    protected void doInit() {
       com.terraforged.mod.compat.WwooCompat.init();
+      com.terraforged.mod.compat.TectonicCompat.init();
       TerraForged.LOG.info("Registering world-gen core codecs");
       Registry.register(Registry.BIOME_SOURCE, TerraForged.location("climate"), Source.CODEC);
       // MapCodecCodec for product id — must be Generator.CODEC so dispatch flattens fields (no "value" wrapper).
