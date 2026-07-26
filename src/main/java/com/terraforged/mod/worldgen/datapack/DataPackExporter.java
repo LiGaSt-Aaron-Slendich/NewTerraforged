@@ -55,7 +55,8 @@ public class DataPackExporter {
 
          List<String> list = new ArrayList<>(config.getEnabled());
          list.add("file/TerraForged.zip");
-         List<String> list1 = new ArrayList<>(config.getDisabled());
+         list = new ArrayList<>(com.terraforged.mod.compat.TectonicCompat.filterSelectedPackIds(list));
+         List<String> list1 = new ArrayList<>(com.terraforged.mod.compat.TectonicCompat.withDisabledTerrainPacks(config.getEnabled(), config.getDisabled()));
          list1.remove("file/TerraForged.zip");
          return new DataPackConfig(list, list1);
       }
