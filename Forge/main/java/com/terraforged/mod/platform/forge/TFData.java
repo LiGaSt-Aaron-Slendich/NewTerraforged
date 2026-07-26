@@ -32,7 +32,7 @@ import com.terraforged.mod.lifecycle.DataGenSetup;
 import com.terraforged.mod.lifecycle.Stage;
 import net.minecraft.core.Registry;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.forge.event.lifecycle.GatherDataEvent;
+import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.registries.DeferredRegister;
 
 public class TFData extends Stage {

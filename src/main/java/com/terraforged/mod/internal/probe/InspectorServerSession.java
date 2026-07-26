@@ -56,7 +56,7 @@ public final class InspectorServerSession {
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getPlayer() instanceof ServerPlayer player) {
+        if (event.getEntity() instanceof ServerPlayer player) {
             InspectorServerSession.stop(player);
         }
     }

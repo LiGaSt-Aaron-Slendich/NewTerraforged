@@ -95,12 +95,21 @@ public class NoiseCaveGenerator {
 
    public void decorate(ChunkAccess chunk, WorldGenLevel region, Generator generator) {
       CarverChunk carverchunk = this.getPostCarveChunk(chunk, generator);
+      WorldGenLevel guarded = com.terraforged.mod.worldgen.util.ChunkScopedWorldGenLevel.wrapWithUndergroundGuard(region, chunk, carverchunk);
 
-      for (NoiseCave noisecave : this.caves) {
-         if (!isCaveEnabled(noisecave)) {
-            continue;
+      if (CaveDecorationSettings.usePerBiomeDecorators() || CaveDecorationSettings.useOfficialTfDecorator()) {
+         TerraForgedOfficialCaveDecorator.decorateVolume(chunk, carverchunk, guarded, generator);
+      } else if (CaveDecorationSettings.useLegacyDecorators()) {
+         CaveBiomeVolumeDecorator.decorateChunk(chunk, carverchunk, guarded, generator);
+      } else if (CaveDecorationSettings.useVanillaPass()) {
+         CaveBiomeVanillaPass.decorateChunk(chunk, carverchunk, guarded, generator);
+      } else {
+         for (NoiseCave noisecave : this.caves) {
+            if (!isCaveEnabled(noisecave)) {
+               continue;
+            }
+            NoiseCaveDecorator.decorate(chunk, carverchunk, guarded, generator, noisecave);
          }
-         NoiseCaveDecorator.decorate(chunk, carverchunk, region, generator, noisecave);
       }
 
       this.pool.restore(carverchunk);

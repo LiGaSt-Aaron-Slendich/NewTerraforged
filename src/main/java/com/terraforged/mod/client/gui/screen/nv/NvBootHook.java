@@ -29,7 +29,7 @@ public final class NvBootHook {
     }
 
     @SubscribeEvent
-    public static void onKey(InputEvent.KeyInputEvent event) {
+    public static void onKey(InputEvent.Key event) {
         if (event.getAction() != GLFW.GLFW_PRESS) {
             return;
         }

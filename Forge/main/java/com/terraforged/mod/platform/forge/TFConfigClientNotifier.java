@@ -14,7 +14,7 @@ public final class TFConfigClientNotifier {
     }
 
     @SubscribeEvent
-    static void onClientLogin(ClientPlayerNetworkEvent.LoggedInEvent event) {
+    static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
         try {
             for (String message : TFConfigWarnings.drain()) {
                 event.getPlayer().displayClientMessage(Component.literal(message).withStyle(ChatFormatting.RED), false);
