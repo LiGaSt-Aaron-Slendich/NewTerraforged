@@ -32,8 +32,13 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 }
 
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 jar {
     finalizedBy("reobfJar")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest { attributes(["MixinConfigs": "terraforged.mixins.json"]) }
 }
 
@@ -86,75 +91,4 @@ minecraft {
     }
 }
 
-// excludeNewTfCaveExtras: NewTF-only cave modules deferred until 1.19 API port completes
-sourceSets.main.java {
-    exclude 'com/terraforged/mod/worldgen/cave/CarverColumnCache.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeAutoRegistry.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeCategory.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeClimateAffinity.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeColumnUnifier.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeCuratedDefaults.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeEntry.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeFeaturePresets.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeRegistry.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeRegistryLoader.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeRule.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeRuleIO.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeRuleRegistry.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeStatDefaults.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeStats.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBiomeVerticalFit.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveBreach*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveCartography*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveClimate*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveColumn*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveCond*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveDebug*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveDecor*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveDensity*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveEntrance*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveFeature*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveGenerator*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveLayout*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveLocator.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveMassif*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveMega*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveModifiers.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveNoise.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveOcean*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveOpen*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CavePatch*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CavePlacement*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveRegion*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveRelief*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveRiver*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveSite*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveStat*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveSubtype.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveSystem*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveTemperature*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/CaveUnderground*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/MegaCave*.java'
-    exclude 'com/terraforged/mod/worldgen/cave/MegaGiga*.java'
-    // Customize UI deferred
-    exclude 'com/terraforged/mod/client/gui/**'
-    exclude 'com/terraforged/mod/client/screen/**'
-    // 1.18 chunk delegates
-    exclude 'com/terraforged/mod/worldgen/util/delegate/**'
-    exclude 'com/terraforged/mod/worldgen/util/ChunkScopedWorldGenLevel.java'
-    exclude 'com/terraforged/mod/worldgen/util/ChunkBiomePaint.java'
-    exclude 'com/terraforged/mod/internal/probe/TfOverlaySampler.java'
-    exclude 'com/terraforged/mod/internal/probe/ProbeInspectorBootstrap.java'
-    exclude 'com/terraforged/mod/worldgen/biome/rules/ZoneContext.java'
-    exclude 'com/terraforged/mod/worldgen/biome/util/BiomeUtil.java'
-    exclude 'com/terraforged/mod/worldgen/biome/util/SurfaceBiomeConfigLoader.java'
-    // EGF overlays deferred until rewired into stock ContinentNoise
-    exclude 'com/terraforged/mod/worldgen/noise/continent/CoastalLiaOverlay.java'
-    exclude 'com/terraforged/mod/worldgen/noise/continent/GuaranteedContinentMask.java'
-    exclude 'com/terraforged/mod/worldgen/noise/continent/island/**'
-    exclude 'com/terraforged/mod/worldgen/noise/continent/ocean/**'
-    exclude 'com/terraforged/mod/worldgen/settings/ContinentShapeWiring.java'
-    exclude 'com/terraforged/mod/worldgen/settings/ContinentRiverWiring.java'
-    exclude 'com/terraforged/mod/worldgen/settings/GeneratorSettings.java'
-    exclude 'com/terraforged/mod/worldgen/settings/TerrainNoiseBuilder.java'
-}
+// Full NewTF overlay included — fix API mismatches instead of excluding systems.

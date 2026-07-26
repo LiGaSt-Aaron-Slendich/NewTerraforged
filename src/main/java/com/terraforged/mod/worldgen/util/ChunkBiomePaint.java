@@ -38,6 +38,6 @@ public final class ChunkBiomePaint {
 
     public static void set(LevelChunkSection section, int quartX, int quartY, int quartZ, @Nullable Holder<Biome> biome, Registry<Biome> biomes) {
         Holder<Biome> safe = sanitize(biome, biomes);
-        section.getBiomes().getAndSetUnchecked(quartX, quartY, quartZ, safe);
+        ((net.minecraft.world.level.chunk.PalettedContainer)(Object)(section).getBiomes()).getAndSetUnchecked(quartX, quartY, quartZ, safe);
     }
 }

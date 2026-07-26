@@ -1,115 +1,115 @@
-/*
- * MIT License
- *
- * Copyright (c) 2021 TerraForged
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 package com.terraforged.mod.worldgen.cave;
 
 import com.terraforged.mod.util.MathUtil;
 import com.terraforged.mod.worldgen.Generator;
+import com.terraforged.mod.worldgen.Seeds;
 import com.terraforged.mod.worldgen.asset.NoiseCave;
+import com.terraforged.mod.worldgen.util.ChunkBiomePaint;
 import com.terraforged.noise.util.NoiseUtil;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.PalettedContainer;
-import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.levelgen.Heightmap.Types;
 
 public class NoiseCaveCarver {
-    private static final int CHUNK_AREA = 16 * 16;
+   private static final int CHUNK_AREA = 256;
 
-    public static void carve(int seed,
-                             ChunkAccess chunk,
-                             CarverChunk carver,
-                             Generator generator,
-                             NoiseCave config,
-                             boolean carve) {
-        var pos = new BlockPos.MutableBlockPos();
+   public static void carve(ChunkAccess chunk, CarverChunk carver, Generator generator, NoiseCave config, boolean carve) {
+      MutableBlockPos mutableblockpos = new MutableBlockPos();
+      int i = generator.getMinY();
+      int j = chunk.getPos().getMinBlockX();
+      int k = chunk.getPos().getMinBlockZ();
+      int seed = Seeds.get(generator.getSeed());
+      CaveType configType = config.getType();
+      boolean megaGiga = configType != null && configType.isMegaOrGiga();
 
-        int minY = generator.getMinY();
-        int startX = chunk.getPos().getMinBlockX();
-        int startZ = chunk.getPos().getMinBlockZ();
+      if (!carver.isColumnCacheReady()) {
+         carver.prepareColumnCache(seed, chunk, generator);
+      }
+      CarverColumnCache columns = carver.columnCache();
+      Registry<Biome> biomes = generator.getBiomeSource().getRegistry();
 
-        for (int i = 0; i < CHUNK_AREA; i++) {
-            int dx = i & 15;
-            int dz = i >> 4;
-            int x = startX + dx;
-            int z = startZ + dz;
+      for (int l = 0; l < 256; l++) {
+         int i1 = l & 15;
+         int j1 = l >> 4;
+         int k1 = j + i1;
+         int l1 = k + j1;
 
-            int surface = getSurface(seed, x, z, chunk, generator, carver);
-            int y = config.getHeight(seed, x, z);
+         if (megaGiga && !columns.matches(configType, i1, j1)) {
+            continue;
+         }
+         if (megaGiga && columns.oceanBlocked(i1, j1)) {
+            continue;
+         }
 
-            float value = carver.modifier.getValue(seed, x, z);
-            int cavern = config.getCavernSize(seed, x, z, value);
-            if (cavern == 0) continue;
-
-            int floor = config.getFloorDepth(seed, x, z, cavern);
-            int top = MathUtil.clamp(y + cavern, minY, surface);
-            int bottom = MathUtil.clamp(y - floor, minY, surface);
-
-            if (top - bottom < 2) continue;
-
-            var biome = carver.getBiome(x, z, config, generator);
-
-            if (carve) {
-                carve(chunk, biome, dx, dz, bottom, top, surface, pos);
+         int i2 = getSurface(k1, l1, chunk, generator, carver, columns, i1, j1);
+         float f = megaGiga
+            ? CaveNoise.sampleMerged(carver.modifier, seed, k1, l1)
+            : carver.modifier.getValue(k1, l1);
+         int j2 = config.getHeight(k1, l1);
+         int k2 = config.getCavernSize(k1, l1, f);
+         if (k2 != 0) {
+            int l2 = config.getFloorDepth(k1, l1, k2);
+            int i3 = MathUtil.clamp(j2 + k2, i, i2);
+            int j3 = MathUtil.clamp(j2 - l2, i, i2);
+            if (i3 - j3 >= 2) {
+               int sampleY = (j3 + i3) >> 1;
+               Holder<Biome> holder = ChunkBiomePaint.sanitize(carver.getBiome(k1, l1, sampleY, config, generator), biomes);
+               if (carve) {
+                  int paintSkip = megaGiga ? 6 : 8;
+                  carve(chunk, holder, i1, j1, j3, i3, i2, paintSkip, mutableblockpos, biomes);
+               }
             }
-        }
-    }
+         }
+      }
+   }
 
-    private static void carve(ChunkAccess chunk, Holder<Biome> biome, int dx, int dz, int bottom, int top, int surface, BlockPos.MutableBlockPos pos) {
-        var air = Blocks.AIR.defaultBlockState();
+   private static void carve(
+      ChunkAccess chunk, Holder<Biome> biome, int dx, int dz, int bottom, int top, int surface,
+      int surfaceBiomeSkip, MutableBlockPos pos, Registry<Biome> biomes
+   ) {
+      BlockState blockstate = Blocks.AIR.defaultBlockState();
+      int i = dx >> 2;
+      int j = dz >> 2;
+      int paintCeiling = surface - Math.max(3, surfaceBiomeSkip);
 
-        int biomeX = dx >> 2;
-        int biomeZ = dz >> 2;
-        int maxBiomeY = (surface - 16) >> 2;
+      for (int l = bottom; l <= top; l++) {
+         pos.set(dx, l, dz);
+         if (chunk.getBlockState(pos).getFluidState().isEmpty()) {
+            chunk.setBlockState(pos, blockstate, false);
+            // Keep overworld quarts in the surface crust at cave mouths — paint only deeper.
+            if (l >= paintCeiling) {
+               continue;
+            }
+            int i1 = (l & 15) >> 2;
+            int j1 = chunk.getSectionIndex(l);
+            if (j1 >= 0 && j1 < chunk.getSectionsCount()) {
+               LevelChunkSection levelchunksection = chunk.getSection(j1);
+               ChunkBiomePaint.set(levelchunksection, i, i1, j, biome, biomes);
+            }
+         }
+      }
+   }
 
-        for (int cy = bottom; cy <= top; cy++) {
-            pos.set(dx, cy, dz);
+   private static int getSurface(
+      int x, int z, ChunkAccess chunk, Generator generator, CarverChunk carverChunk, CarverColumnCache columns, int dx, int dz
+   ) {
+      float f = carverChunk.getCarvingMask(x, z);
+      int i;
+      if (carverChunk.isColumnCacheReady()) {
+         i = columns.surfaceY(dx, dz) - 1;
+      } else {
+         i = chunk.getHeight(Types.OCEAN_FLOOR_WG, x, z) - 1;
+      }
+      if (i > generator.getSeaLevel() || i < generator.getSeaLevel() - 16) {
+         i += 9;
+      }
 
-            if (!chunk.getBlockState(pos).getFluidState().isEmpty()) continue;
-
-            chunk.setBlockState(pos, air, false);
-
-            if ((cy >> 2) >= maxBiomeY) continue;
-
-            int biomeY = (cy & 15) >> 2;
-            int sectionIndex = chunk.getSectionIndex(cy);
-            var section = chunk.getSection(sectionIndex);
-
-            // TODO:
-            var container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
-            container.set(biomeX, biomeY, biomeZ, biome);
-        }
-    }
-
-    private static int getSurface(int seed, int x, int z, ChunkAccess chunk, Generator generator, CarverChunk carverChunk) {
-        float mask = carverChunk.getCarvingMask(seed, x, z);
-        int surface = chunk.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
-        if (surface > generator.getSeaLevel() || surface < generator.getSeaLevel() - 16) {
-            surface += 9;
-        }
-        return surface - NoiseUtil.floor(16 * mask);
-    }
+      return i - NoiseUtil.floor(16.0F * f);
+   }
 }

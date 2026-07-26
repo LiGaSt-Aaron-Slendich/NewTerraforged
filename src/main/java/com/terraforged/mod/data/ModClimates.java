@@ -71,7 +71,7 @@ public interface ModClimates {
         }
 
         static float getWeight(ResourceKey<Biome> key, Holder<Biome> biome) {
-//            if (BiomeCategory.NONE /* was getBiomeCategory(biome) */ == Biome.BiomeCategory.MUSHROOM) return RARE;
+//            if (BiomeCategory.NONE /* was getBiomeCategory(biome) */ == BiomeCategory.MUSHROOM) return RARE;
             if (key == Biomes.ICE_SPIKES) return RARE;
             return NORMAL;
         }

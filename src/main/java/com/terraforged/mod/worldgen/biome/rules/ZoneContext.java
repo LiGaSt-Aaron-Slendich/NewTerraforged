@@ -169,7 +169,7 @@ public final class ZoneContext {
             }
             float nx = noise.getNoiseCoord(wx);
             float nz = noise.getNoiseCoord(wz);
-            noise.getContinent().sampleContinent(nx, nz, sample);
+            noise.getContinent().sampleContinent(VolcanoActivity.resolveSeed(noise), nx, nz, sample);
             if (isVolcanoTerrain(sample.terrainType)) {
                 best = dist;
                 bestWx = wx;

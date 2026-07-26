@@ -253,7 +253,7 @@ public final class ConfigScreen extends Screen {
     @Nullable
     private static WorldGenSettings safeCurrentSettings(CreateWorldScreen screen) {
         try {
-            return screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+            return screen.worldGenSettingsComponent.createFinalSettings(screen.hardCore).worldGenSettings();
         } catch (Throwable ignored) {
             return null;
         }
@@ -263,7 +263,7 @@ public final class ConfigScreen extends Screen {
         EditBox box = findSeedBox(screen);
         if (box == null || box.getValue().isEmpty()) {
             try {
-                WorldGenSettings settings = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+                WorldGenSettings settings = screen.worldGenSettingsComponent.createFinalSettings(screen.hardCore).worldGenSettings();
                 return settings.seed();
             } catch (Throwable ignored) {
                 return -1;

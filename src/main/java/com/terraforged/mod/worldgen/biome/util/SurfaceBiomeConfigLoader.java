@@ -13,6 +13,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import com.terraforged.mod.compat.legacy.BiomeCategory;
 import net.minecraft.world.level.biome.Biome;
 
 public final class SurfaceBiomeConfigLoader {
@@ -46,8 +47,8 @@ public final class SurfaceBiomeConfigLoader {
                 if (!biomes.containsKey(loc)) continue;
                 Holder holder = biomes.getHolderOrThrow(ResourceKey.create(Registry.BIOME_REGISTRY, (ResourceLocation)loc));
                 // Surface climate lists must never pull Nether/End biomes (dimension category).
-                Biome.BiomeCategory category = Biome.getBiomeCategory(holder);
-                if (category == Biome.BiomeCategory.NETHER || category == Biome.BiomeCategory.THEEND) {
+                BiomeCategory category = BiomeCategory.NONE;
+                if (category == BiomeCategory.NETHER || category == BiomeCategory.THEEND) {
                     continue;
                 }
                 explicit.computeIfAbsent(type, t -> new Object2FloatLinkedOpenHashMap()).put(holder, parsed.weight());

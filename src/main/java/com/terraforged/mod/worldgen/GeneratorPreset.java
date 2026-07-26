@@ -30,6 +30,7 @@ import com.terraforged.mod.worldgen.biome.BiomeGenerator;
 import com.terraforged.mod.worldgen.biome.Source;
 import com.terraforged.mod.worldgen.noise.NoiseGenerator;
 import com.terraforged.mod.worldgen.terrain.TerrainLevels;
+import com.terraforged.mod.worldgen.settings.GeneratorSettings;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerLevel;
@@ -43,6 +44,19 @@ import net.minecraft.world.level.levelgen.WorldGenSettings;
 public class GeneratorPreset {
     public static final net.minecraft.resources.ResourceLocation PRESET_NAME = new net.minecraft.resources.ResourceLocation("newterraforged", "newterraforged");
     public static final String TRANSLATION_KEY = com.terraforged.mod.util.TranslationUtil.key("generator", PRESET_NAME);
+
+    /** Customize UI entry: seed/settings retained for NewTF drafts; stock 1.19 generator is seedless at codec level. */
+    public static Generator build(long seed, TerrainLevels levels, GeneratorSettings generatorSettings, RegistryAccess registries) {
+        // Prefer stock 1.19 seedless build; seed applied via biomeSource.withSeed at world load.
+        var gen = build(levels, registries);
+        gen.getBiomeSource().withSeed(seed);
+        return gen;
+    }
+
+    public static Generator build(long seed, TerrainLevels levels, RegistryAccess registries) {
+        return build(seed, levels, GeneratorSettings.DEFAULT, registries);
+    }
+
     public static Generator build(TerrainLevels levels, RegistryAccess registries) {
         var terrain = TerraForged.TERRAINS.entries(registries, TerrainNoise[]::new);
 

@@ -831,6 +831,6 @@ public final class CaveEntranceCarver {
         LevelChunkSection section = chunk.getSection(sectionIndex);
         // Prefer key rebind via ChunkBiomePaint when registry is available through biome itself —
         // entrance paint already receives sanitized Holders from CarverChunk.getBiome.
-        section.getBiomes().getAndSetUnchecked(dx >> 2, (cy & 0xF) >> 2, dz >> 2, biome);
+        ((net.minecraft.world.level.chunk.PalettedContainer)(Object)(section).getBiomes()).getAndSetUnchecked(dx >> 2, (cy & 0xF) >> 2, dz >> 2, biome);
     }
 }

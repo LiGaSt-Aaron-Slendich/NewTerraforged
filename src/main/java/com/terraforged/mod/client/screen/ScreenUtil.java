@@ -23,6 +23,20 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 public class ScreenUtil {
+
+   private static void updateWorldGenSettings(net.minecraft.client.gui.screens.worldselection.WorldGenSettingsComponent component,
+                                              WorldGenSettings settings) {
+      try {
+         var ctx = component.settings().withSettings(settings);
+         var m = component.getClass().getDeclaredMethod("updateSettings",
+                 net.minecraft.client.gui.screens.worldselection.WorldCreationContext.class);
+         m.setAccessible(true);
+         m.invoke(component, ctx);
+      } catch (ReflectiveOperationException e) {
+         throw new RuntimeException(e);
+      }
+   }
+
    private static final Predicate<String> TF_PRESET = s ->
            s.equals(GeneratorPreset.TRANSLATION_KEY) || s.equals(ShipwreckedPreset.TRANSLATION_KEY);
    private static final Predicate<String> TF_PRESET_VISIBLE = s -> {
@@ -64,7 +78,7 @@ public class ScreenUtil {
          return;
       }
 
-      WorldGenSettings before = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+      WorldGenSettings before = screen.worldGenSettingsComponent.createFinalSettings(screen.hardCore).worldGenSettings();
       boolean keepCustomTf = GeneratorPreset.isTerraForgedWorld(before) || AppliedCustomizeState.present();
       // Applied NewTF generator must stay NewTF in the UI — never demote to forge "default".
       // Prefer visible NewTF presets only (Shipwrecked may be EGF-gated).
@@ -83,7 +97,7 @@ public class ScreenUtil {
       if (keepCustomTf) {
          // onPress may have replaced the chunk generator with factory defaults — put Customize back.
          if (GeneratorPreset.isTerraForgedWorld(before)) {
-            screen.worldGenSettingsComponent.updateSettings(before);
+            updateWorldGenSettings(screen.worldGenSettingsComponent, before);
          } else if (AppliedCustomizeState.present()) {
             reapplyStored(screen);
          }
@@ -99,21 +113,20 @@ public class ScreenUtil {
       long seed = AppliedCustomizeState.seed();
       if (seed == -1L) {
          try {
-            seed = screen.worldGenSettingsComponent.makeSettings(screen.hardCore).seed();
+            seed = screen.worldGenSettingsComponent.createFinalSettings(screen.hardCore).worldGenSettings().seed();
          } catch (Throwable ignored) {
             seed = 0L;
          }
       }
       RegistryAccess access = screen.worldGenSettingsComponent.registryHolder();
-      WorldGenSettings current = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+      WorldGenSettings current = screen.worldGenSettingsComponent.createFinalSettings(screen.hardCore).worldGenSettings();
       Generator generator = GeneratorPreset.build(seed, levels, gs, access);
       Registry<LevelStem> dimensions = WorldGenSettings.withOverworld(
               access.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY),
               current.dimensions(),
               generator
       );
-      screen.worldGenSettingsComponent.updateSettings(
-              new WorldGenSettings(seed, current.generateFeatures(), current.generateBonusChest(), dimensions)
+      updateWorldGenSettings(screen.worldGenSettingsComponent, new WorldGenSettings(seed, current.generateStructures(), current.generateBonusChest(), dimensions)
       );
    }
 
@@ -141,7 +154,7 @@ public class ScreenUtil {
       if (cyclebutton == null) {
          return;
       }
-      WorldGenSettings before = screen.worldGenSettingsComponent.makeSettings(screen.hardCore);
+      WorldGenSettings before = screen.worldGenSettingsComponent.createFinalSettings(screen.hardCore).worldGenSettings();
       Object start = cyclebutton.getValue();
       do {
          cyclebutton.onPress();
@@ -161,7 +174,7 @@ public class ScreenUtil {
       }
       if (GeneratorPreset.isTerraForgedWorld(before) && !isShipwreckedWorldType(screen)) {
          // Keep customized settings if they were already NewTF (non-shipwrecked path).
-         screen.worldGenSettingsComponent.updateSettings(before);
+         updateWorldGenSettings(screen.worldGenSettingsComponent, before);
       }
    }
 
@@ -182,14 +195,28 @@ public class ScreenUtil {
 
    private static boolean isPresetSelected(CycleButton<?> button, Predicate<String> predicate) {
       Object value = button.getValue();
-      if (!(value instanceof WorldPreset worldpreset)) {
-         return false;
+      if (value instanceof net.minecraft.core.Holder<?> holder) {
+         Object v = holder.value();
+         if (v instanceof WorldPreset worldpreset) {
+            return matchesPreset(holder, worldpreset, predicate);
+         }
       }
-      return matchesPreset(worldpreset, predicate);
+      if (value instanceof WorldPreset worldpreset) {
+         return matchesPreset(null, worldpreset, predicate);
+      }
+      return false;
    }
 
-   private static boolean matchesPreset(WorldPreset worldpreset, Predicate<String> predicate) {
-      return walkTranslationKeys(worldpreset.description(), predicate);
+   private static boolean matchesPreset(net.minecraft.core.Holder<?> holder, WorldPreset worldpreset, Predicate<String> predicate) {
+      if (holder != null && holder.unwrapKey().isPresent()) {
+         var key = holder.unwrapKey().get().location();
+         String id = net.minecraft.Util.makeDescriptionId("generator", key);
+         if (predicate.test(id) || predicate.test("generator." + key.getPath())) {
+            return true;
+         }
+      }
+      // Fallback: no description() on 1.19 WorldPreset
+      return false;
    }
 
    private static boolean walkTranslationKeys(Component component, Predicate<String> predicate) {

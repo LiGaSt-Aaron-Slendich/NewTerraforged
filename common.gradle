@@ -51,3 +51,5 @@ classes {
 jar {
     archivesBaseName = "${archives_base_name}-${minecraft_version}"
 }
+
+tasks.withType(Copy).configureEach { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }

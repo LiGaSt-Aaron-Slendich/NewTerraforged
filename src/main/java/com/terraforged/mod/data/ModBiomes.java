@@ -49,7 +49,7 @@ public interface ModBiomes {
         }));
 
         TerraForged.register(BIOMES, "oak_forest", ModBiome.create(Biomes.PLAINS, builder -> {
-//        builder.biomeCategory(Biome.BiomeCategory.FOREST);
+//        builder.biomeCategory(BiomeCategory.FOREST);
         }));
     }
 }

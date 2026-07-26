@@ -47,13 +47,21 @@ public class BiomeGenerator {
     public BiomeGenerator(RegistryAccess access) {
         this.surfaceDecorator = new SurfaceDecorator();
         this.featureDecorator = new FeatureDecorator(access);
-        this.noiseCaveGenerator = new NoiseCaveGenerator(access);
+        this.noiseCaveGenerator = new NoiseCaveGenerator(0L, access);
     }
 
     public BiomeGenerator(BiomeGenerator other) {
         this.surfaceDecorator = other.surfaceDecorator;
         this.featureDecorator = other.featureDecorator;
-        this.noiseCaveGenerator = new NoiseCaveGenerator(other.noiseCaveGenerator);
+        this.noiseCaveGenerator = new NoiseCaveGenerator(0L, other.noiseCaveGenerator);
+    }
+
+    public com.terraforged.mod.worldgen.cave.CarverChunk peekCaveCarver(net.minecraft.world.level.ChunkPos pos) {
+        return noiseCaveGenerator.peekCarver(pos);
+    }
+
+    public com.terraforged.mod.worldgen.cave.CaveEntranceClaims getCaveEntranceClaims() {
+        return noiseCaveGenerator.getCaveEntranceClaims();
     }
 
     public void surface(ChunkAccess chunk, WorldGenRegion region, RandomState state, Generator generator) {

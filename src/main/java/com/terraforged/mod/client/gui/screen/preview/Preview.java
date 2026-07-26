@@ -469,7 +469,7 @@ public final class Preview extends AbstractWidget {
     }
 
     private float getLegendScale() {
-        int index = Minecraft.getInstance().options.guiScale - 1;
+        int index = Minecraft.getInstance().options.guiScale().get() - 1;
         if (index < 0 || index >= LEGEND_SCALES.length) {
             index = LEGEND_SCALES.length - 1;
         }

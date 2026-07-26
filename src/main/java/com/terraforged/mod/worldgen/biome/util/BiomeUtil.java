@@ -110,6 +110,19 @@ public class BiomeUtil {
         return temperate;
     }
 
+    public static boolean isOverworldSurfaceBiome(Holder<Biome> biome) {
+        if (biome == null) {
+            return false;
+        }
+        if (biome.is(BiomeTags.IS_NETHER) || biome.is(BiomeTags.IS_END)) {
+            return false;
+        }
+        return biome.unwrapKey().map(k -> {
+            String path = k.location().getPath();
+            return !(path.contains("cave") || path.contains("deep_dark") || path.contains("dripstone") || path.contains("lush_caves"));
+        }).orElse(true);
+    }
+
     private static Set<Holder<Biome>> getVanillaOverworldBiomes(Registry<Biome> biomes) {
         return MultiNoiseBiomeSource.Preset.OVERWORLD.possibleBiomes()
                 .map(biomes::getOrCreateHolderOrThrow)

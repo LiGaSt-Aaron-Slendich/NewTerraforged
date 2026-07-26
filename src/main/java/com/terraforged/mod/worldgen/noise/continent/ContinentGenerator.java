@@ -24,6 +24,9 @@
 
 package com.terraforged.mod.worldgen.noise.continent;
 
+import com.terraforged.mod.worldgen.noise.continent.GuaranteedContinentMask;
+
+
 import com.terraforged.engine.util.pos.PosUtil;
 import com.terraforged.engine.world.heightmap.ControlPoints;
 import com.terraforged.mod.util.MathUtil;
@@ -42,6 +45,9 @@ import com.terraforged.noise.util.NoiseUtil;
 import com.terraforged.noise.util.Vec2f;
 
 public class ContinentGenerator {
+    /** Optional EGF guarantee mask; null when Guaranteed Continents off. */
+    public GuaranteedContinentMask guaranteeMask;
+
     public static final int CONTINENT_SAMPLE_SCALE = 400;
 
     protected static final int SAMPLE_SEED_OFFSET = 6569;
@@ -84,6 +90,10 @@ public class ContinentGenerator {
             this.offset = offset = computeWorldOffset(seed);
         }
         return offset;
+    }
+
+    public CellPoint getCell(int cx, int cy) {
+        return getCell(0, cx, cy);
     }
 
     public CellPoint getCell(int seed, int cx, int cy) {

@@ -80,6 +80,10 @@ public class TerrainCache {
         return generator.getHeight(seed, x, z);
     }
 
+    public NoiseSample getSample(int x, int z) {
+        return getSample(0, x, z);
+    }
+
     public NoiseSample getSample(int seed, int x, int z) {
         return generator.noiseGenerator.getNoiseSample(seed, x, z);
     }

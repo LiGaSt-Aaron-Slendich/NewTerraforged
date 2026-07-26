@@ -203,7 +203,7 @@ public final class BiomePreviewIcons {
             return true;
         }
         try {
-            return rm.hasResource(loc);
+            return rm.getResource(loc).isPresent();
         } catch (Exception e) {
             return false;
         }

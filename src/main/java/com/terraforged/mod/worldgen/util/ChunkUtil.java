@@ -195,4 +195,7 @@ public class ChunkUtil {
     public static FriendlyByteBuf getFullSection() {
         return new FriendlyByteBuf(FULL_SECTION.get().copy());
     }
+
+    public static void refreshHeightmaps(net.minecraft.world.level.chunk.ChunkAccess chunk) {
+    }
 }

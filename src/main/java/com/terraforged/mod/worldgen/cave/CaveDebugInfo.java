@@ -118,7 +118,7 @@ public final class CaveDebugInfo {
         CaveSystemConfig systemCfg = TFCaveSystemConfig.INSTANCE != null
             ? TFCaveSystemConfig.INSTANCE.toSystemConfig()
             : CaveSystemConfig.DEFAULT;
-        ClimateSample climate = source.getBiomeSampler().getSample(x, z);
+        ClimateSample climate = source.getBiomeSampler().getSample(0, x, z);
         float oceanWeight = Math.max(0.0F, 1.0F - climate.continentNoise);
         float riverWeight = Math.max(0.0F, 1.0F - climate.riverNoise);
         CaveStatInitializer.CaveStatSnapshot snapshot =

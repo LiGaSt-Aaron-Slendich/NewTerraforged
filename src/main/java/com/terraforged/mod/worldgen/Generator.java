@@ -24,6 +24,8 @@
 
 package com.terraforged.mod.worldgen;
 
+import com.terraforged.mod.worldgen.noise.NoiseSample;
+
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.terraforged.mod.data.codec.WorldGenCodec;
@@ -257,7 +259,66 @@ public class Generator extends ChunkGenerator implements IGenerator {
         lines.add("River Proximity: " + (1 - sample.riverNoise));
     }
 
+
+    /** Convenience for NewTF cave probes (uses seed 0 sample). Prefer RandomState overload in worldgen. */
+    public int getBaseHeight(int x, int z, net.minecraft.world.level.levelgen.Heightmap.Types types, LevelHeightAccessor level) {
+        var sample = terrainCache.getSample(Seeds.get(getSeed()), x, z);
+        float scaledBase = levels.getScaledBaseLevel(sample.baseNoise);
+        float scaledHeight = levels.getScaledHeight(sample.heightNoise);
+        int base = levels.getHeight(scaledBase);
+        int height = levels.getHeight(scaledHeight);
+        return switch (types) {
+            case WORLD_SURFACE, WORLD_SURFACE_WG, MOTION_BLOCKING, MOTION_BLOCKING_NO_LEAVES -> Math.max(base, height) + 1;
+            case OCEAN_FLOOR, OCEAN_FLOOR_WG -> height + 1;
+        };
+    }
+
     public static boolean isTerraForged(ChunkGenerator generator) {
         return generator instanceof Generator || true; // TODO: remove || true
+    }
+
+    // ---- NewTF API surface (ported helpers for cave/EGF overlays) ----
+
+    public long getSeed() {
+        return biomeSource.getWorldSeed();
+    }
+
+    public TerrainLevels getTerrainLevels() {
+        return levels;
+    }
+
+    public com.terraforged.mod.worldgen.settings.GeneratorSettings getGeneratorSettings() {
+        return com.terraforged.mod.worldgen.settings.GeneratorSettings.DEFAULT;
+    }
+
+    public TerrainData getChunkData(ChunkPos pos) {
+        return getChunkData(Seeds.get(getSeed()), pos);
+    }
+
+    public CompletableFuture<TerrainData> getChunkDataAsync(ChunkPos pos) {
+        return getChunkDataAsync(Seeds.get(getSeed()), pos);
+    }
+
+    public NoiseSample getTerrainSample(int x, int z) {
+        return terrainCache.getSample(Seeds.get(getSeed()), x, z);
+    }
+
+    public int getOceanFloorHeight(int x, int z) {
+        var sample = getTerrainSample(x, z);
+        float scaledHeight = levels.getScaledHeight(sample.heightNoise);
+        return levels.getHeight(scaledHeight) + 1;
+    }
+
+    @javax.annotation.Nullable
+    public com.terraforged.mod.worldgen.cave.CarverChunk peekCaveCarver(net.minecraft.world.level.ChunkPos pos) {
+        return biomeGenerator.peekCaveCarver(pos);
+    }
+
+    public com.terraforged.mod.worldgen.cave.CaveEntranceClaims getCaveEntranceClaims() {
+        return biomeGenerator.getCaveEntranceClaims();
+    }
+
+    public com.terraforged.mod.worldgen.cave.CaveBiomeRegistry getCaveBiomeRegistry() {
+        return biomeSource.getCaveBiomeRegistry();
     }
 }

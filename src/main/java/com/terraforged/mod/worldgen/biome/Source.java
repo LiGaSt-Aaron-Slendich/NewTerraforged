@@ -30,6 +30,13 @@ import com.terraforged.mod.util.storage.LongCache;
 import com.terraforged.mod.util.storage.LossyCache;
 import com.terraforged.mod.worldgen.biome.util.BiomeMapManager;
 import com.terraforged.mod.worldgen.cave.CaveType;
+import java.util.Optional;
+import com.terraforged.mod.worldgen.Generator;
+import com.terraforged.mod.worldgen.cave.CaveSystemConfig;
+import com.terraforged.mod.worldgen.cave.CaveBiomeRegistryLoader;
+import com.terraforged.mod.worldgen.cave.CaveBiomeRegistry;
+import com.terraforged.mod.platform.forge.TFCaveSystemConfig;
+import com.terraforged.mod.platform.forge.TFCaveBiomeConfig;
 import com.terraforged.mod.worldgen.noise.INoiseGenerator;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import net.minecraft.core.Holder;
@@ -60,7 +67,15 @@ public class Source extends BiomeSource {
         this.biomeMapManager = new BiomeMapManager(access);
         this.possibleBiomes = new ObjectLinkedOpenHashSet<>(biomeMapManager.getOverworldBiomes());
         this.biomeSampler = new BiomeSampler(noise, biomeMapManager);
-        this.caveBiomeSampler = new CaveBiomeSampler(800, biomeMapManager);
+        CaveBiomeRegistry registry = null;
+        if (TFCaveBiomeConfig.INSTANCE != null) {
+            registry = CaveBiomeRegistryLoader.build(biomeMapManager.getBiomes(), TFCaveBiomeConfig.INSTANCE);
+        }
+        CaveSystemConfig systemConfig = TFCaveSystemConfig.INSTANCE != null
+                ? TFCaveSystemConfig.INSTANCE.toSystemConfig()
+                : CaveSystemConfig.DEFAULT;
+        this.caveBiomeSampler = new CaveBiomeSampler(0L, 800, biomeMapManager, registry, systemConfig);
+        this.caveBiomeSampler.setNoiseGenerator(noise);
     }
 
     public void withSeed(long seed) {
@@ -104,6 +119,26 @@ public class Source extends BiomeSource {
 
     public Holder<Biome> getUnderGroundBiome(int seed, int x, int z, CaveType type) {
         return caveBiomeSampler.getUnderGroundBiome(this.seed + seed, x, z, type);
+    }
+
+    public long getWorldSeed() {
+        return seed;
+    }
+
+    public CaveBiomeRegistry getCaveBiomeRegistry() {
+        return caveBiomeSampler.getRegistry();
+    }
+
+    public Holder<Biome> getUnderGroundBiome(int seed, int x, int z, CaveType type,
+            Holder<Biome> surfaceBiome, int blockY, int surfaceY,
+            int caveCenterX, int caveCenterZ, int caveRadius) {
+        return caveBiomeSampler.getUnderGroundBiome(
+                this.seed + seed, x, z, type, surfaceBiome, blockY, surfaceY, caveCenterX, caveCenterZ, caveRadius);
+    }
+
+    public Optional<Holder<Biome>> getCoastalEntranceBiome(int seed, int x, int z, Generator generator,
+            Holder<Biome> surfaceBiome, int blockY, int surfaceY) {
+        return caveBiomeSampler.getCoastalEntranceBiome(this.seed + seed, x, z, generator, surfaceBiome, blockY, surfaceY);
     }
 
     public Registry<Biome> getRegistry() {
