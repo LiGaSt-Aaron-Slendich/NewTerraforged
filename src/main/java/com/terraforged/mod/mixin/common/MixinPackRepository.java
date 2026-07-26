@@ -24,6 +24,7 @@
 
 package com.terraforged.mod.mixin.common;
 
+import com.terraforged.mod.compat.TectonicCompat;
 import com.terraforged.mod.hooks.DatapackHook;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
@@ -31,6 +32,8 @@ import net.minecraft.server.packs.repository.RepositorySource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+
+import java.util.Collection;
 
 @Mixin(PackRepository.class)
 public class MixinPackRepository {
@@ -41,5 +44,15 @@ public class MixinPackRepository {
     )
     private static RepositorySource[] modifySources(RepositorySource[] sources) {
         return DatapackHook.injectRepositorySource(sources);
+    }
+
+    /** Drop Tectonic generative packs whenever selection is applied (create-world + reload). */
+    @ModifyVariable(
+            method = "setSelected(Ljava/util/Collection;)V",
+            at = @At("HEAD"),
+            argsOnly = true
+    )
+    private Collection<String> newtf$filterTectonicPacks(Collection<String> selected) {
+        return TectonicCompat.filterSelectedPackIds(selected);
     }
 }

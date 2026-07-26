@@ -46,7 +46,13 @@ public class CommonSetup extends Stage {
     protected void doInit() {
         TerraForged.LOG.info("Registering world-gen core codecs");
         Registry.register(Registry.BIOME_SOURCE, TerraForged.location("climate"), Source.CODEC);
-        Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("generator"), Generator.CODEC);
+        // Product + legacy codec ids (1.18 registers both; dimension JSON may use either).
+        Registry.register(Registry.CHUNK_GENERATOR, new net.minecraft.resources.ResourceLocation("newterraforged", "generator"), Generator.CODEC);
+        Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("generator"),
+                com.mojang.serialization.Codec.of(Generator.CODEC, Generator.CODEC));
+
+        com.terraforged.mod.compat.WwooCompat.init();
+        com.terraforged.mod.compat.TectonicCompat.init();
 
 //        Registry.register(Registry.CHUNK_GENERATOR, TerraForged.location("profiler"), GeneratorProfiler.CODEC);
 

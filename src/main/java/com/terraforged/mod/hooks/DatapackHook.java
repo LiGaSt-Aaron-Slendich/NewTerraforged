@@ -75,16 +75,9 @@ public class DatapackHook {
         }
 
         var selected = repository.getSelectedIds();
-        if (!selected.contains(PACK_FILE_ID)) {
-            // Make mutable & add the TF datapack id
-            selected = new ArrayList<>(selected);
-            selected.add(PACK_FILE_ID);
-
-            // Update the repository with new selection
-            repository.setSelected(selected);
-
-            TerraForged.LOG.info("Selected datapack {}", PACK_FILE_ID);
-        }
+        // Make mutable, ensure TF pack, drop Tectonic generative packs
+        selected = new ArrayList<>(com.terraforged.mod.worldgen.datapack.DataPackExporter.filterEnabledPackIds(new ArrayList<>(selected)));
+        repository.setSelected(selected);
     }
 
     public static void selectPreset(Object object) {

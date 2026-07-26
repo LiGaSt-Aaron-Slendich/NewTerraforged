@@ -26,6 +26,7 @@ package com.terraforged.mod.worldgen.datapack;
 
 import com.terraforged.mod.CommonAPI;
 import com.terraforged.mod.TerraForged;
+import com.terraforged.mod.compat.TectonicCompat;
 import com.terraforged.mod.util.FileUtil;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -33,6 +34,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DataPackExporter {
     public static final String PACK_NAME = TerraForged.TITLE + "-" + TerraForged.DATAPACK_VERSION;
@@ -74,5 +77,21 @@ public class DataPackExporter {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    /** Build enabled/disabled lists for create-world: ensure TF pack on, Tectonic terrain packs off. */
+    public static List<String> filterEnabledPackIds(List<String> enabled) {
+        List<String> list = new ArrayList<>(enabled);
+        String packId = "file/" + PACK_FILE_NAME;
+        if (!list.contains(packId)) {
+            list.add(packId);
+        }
+        return new ArrayList<>(TectonicCompat.filterSelectedPackIds(list));
+    }
+
+    public static List<String> filterDisabledPackIds(List<String> enabled, List<String> disabled) {
+        List<String> list = new ArrayList<>(TectonicCompat.withDisabledTerrainPacks(enabled, disabled));
+        list.remove("file/" + PACK_FILE_NAME);
+        return list;
     }
 }

@@ -38,7 +38,6 @@ import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.LevelStem;
-import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 
 public class GeneratorPreset {
@@ -77,8 +76,7 @@ public class GeneratorPreset {
     public static VanillaGen getVanillaGen(BiomeSource biomes, RegistryAccess access) {
         var structures = access.ownedRegistryOrThrow(Registry.STRUCTURE_SET_REGISTRY);
         var parameters = access.registryOrThrow(Registry.NOISE_REGISTRY);
-        var settings = access.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY)
-                .getHolderOrThrow(NoiseGeneratorSettings.OVERWORLD);
+        var settings = com.terraforged.mod.compat.WwooCompat.resolveOverworldNoiseSettings(access);
         return new VanillaGen(biomes, settings, parameters, structures);
     }
 

@@ -65,7 +65,9 @@ public interface WorldGenCodec<V> extends Codec<V> {
 
         @Override
         public <T> RecordBuilder<T> encode(RegistryAccess input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
-            return new RecordBuilder.MapBuilder<>(ops);
+            // Keep seed/levels already written into prefix. A fresh MapBuilder dropped them and
+            // made CreateWorldScreen WorldGenSettings round-trip encode to null → datapack validation fail.
+            return prefix;
         }
     };
 }

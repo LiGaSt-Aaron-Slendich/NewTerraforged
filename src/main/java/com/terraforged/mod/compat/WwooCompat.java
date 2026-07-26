@@ -61,6 +61,7 @@ public final class WwooCompat {
     /** Call when NewTF/TF generator is known active (world load / preset). */
     public static void onGeneratorActive() {
         init();
+        TectonicCompat.onGeneratorActive();
         if (wwooLoaded) {
             warnConflict("generator active");
             if (!gateLogged) {
@@ -81,14 +82,20 @@ public final class WwooCompat {
         return isWwooLoaded();
     }
 
+    /** True when any known Overworld terrain-overhaul datapack mod should be pinned off TF gen. */
+    public static boolean shouldPinBuiltinNoiseSettings() {
+        return shouldSuppressWwooInjection() || TectonicCompat.shouldSuppressTerrainInjection();
+    }
+
     /**
      * Noise settings for {@link com.terraforged.mod.worldgen.VanillaGen}.
-     * When WWOO is loaded, use builtin vanilla overworld instead of the datapack-polluted registry entry.
+     * When WWOO/Tectonic is loaded, use builtin vanilla overworld instead of the datapack-polluted registry entry.
      */
     public static Holder<NoiseGeneratorSettings> resolveOverworldNoiseSettings(RegistryAccess access) {
         init();
+        TectonicCompat.init();
         Registry<NoiseGeneratorSettings> dynamic = access.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY);
-        if (!shouldSuppressWwooInjection()) {
+        if (!shouldPinBuiltinNoiseSettings()) {
             return dynamic.getHolderOrThrow(NoiseGeneratorSettings.OVERWORLD);
         }
         Holder<NoiseGeneratorSettings> builtin = BuiltinRegistries.NOISE_GENERATOR_SETTINGS.getHolder(NoiseGeneratorSettings.OVERWORLD).orElse(null);
