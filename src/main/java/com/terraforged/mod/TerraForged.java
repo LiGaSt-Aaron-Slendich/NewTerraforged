@@ -40,7 +40,8 @@ import java.util.function.Supplier;
 public abstract class TerraForged implements CommonAPI {
 	public static final String MODID = "newterraforged";
 	public static final String TITLE = "NewTerraforged";
-	public static final String DATAPACK_VERSION = "v0.2";
+	// Bump when default datapack contents change — extract only creates missing files.
+	public static final String DATAPACK_VERSION = "v0.3";
 	public static final Logger LOG = LogManager.getLogger(TITLE);
 
 	public static final ResourceLocation WORLD_PRESET = location("normal");
