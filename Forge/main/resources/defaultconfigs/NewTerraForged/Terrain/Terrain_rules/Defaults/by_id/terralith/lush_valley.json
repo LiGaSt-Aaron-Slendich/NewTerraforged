@@ -1,0 +1,16 @@
+{
+  "biome": "terralith:lush_valley",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "temperate",
+    "wet"
+  ],
+  "terrains": {
+    "plains": 1.0,
+    "dales": 0.95,
+    "island_flats": 0.45
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

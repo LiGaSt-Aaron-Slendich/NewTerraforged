@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:cherry_grove",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "dales": 0.7,
+    "plains": 0.5,
+    "island_hills": 0.45
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

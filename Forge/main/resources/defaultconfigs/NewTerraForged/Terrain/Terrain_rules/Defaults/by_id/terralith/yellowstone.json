@@ -1,0 +1,20 @@
+{
+  "biome": "terralith:yellowstone",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "wet",
+    "volcanic"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "hills_2": 0.7,
+    "dales": 0.65,
+    "plateau": 0.55,
+    "island_hills": 0.4,
+    "island_plateau": 0.35
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

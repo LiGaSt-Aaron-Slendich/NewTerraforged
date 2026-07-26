@@ -1,0 +1,17 @@
+{
+  "biome": "terralith:birch_taiga",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "cold",
+    "temperate"
+  ],
+  "terrains": {
+    "dales": 1.0,
+    "hills_1": 0.75,
+    "plains": 0.45,
+    "island_hills": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:savanna_plateau",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "hot"
+  ],
+  "terrains": {
+    "plateau": 1.0,
+    "steppe": 0.7,
+    "hills_1": 0.45,
+    "island_plateau": 0.5
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

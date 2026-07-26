@@ -1,0 +1,126 @@
+{
+  "_comment": "canonical_name -> synonym biome path tokens / full paths. Used when BiomeRuleDefaults.ENABLED=true. Form tokens beat climate adjectives.",
+  "plains": [
+    "plains",
+    "plain",
+    "meadow",
+    "grassland",
+    "field",
+    "fields",
+    "land",
+    "lands",
+    "grove",
+    "clearing"
+  ],
+  "forest": [
+    "forest",
+    "woods",
+    "woodland",
+    "woodlands",
+    "orchard"
+  ],
+  "steppe": [
+    "steppe",
+    "prairie",
+    "prairies",
+    "savanna",
+    "savannah",
+    "veld",
+    "pampa",
+    "pampas"
+  ],
+  "hills": [
+    "hill",
+    "hills",
+    "height",
+    "heights",
+    "upland",
+    "uplands",
+    "foothill",
+    "foothills",
+    "highland",
+    "highlands"
+  ],
+  "mountains": [
+    "mountain",
+    "mountains",
+    "peaks",
+    "peak",
+    "alps",
+    "sierra",
+    "crag"
+  ],
+  "plateau": [
+    "plateau",
+    "tableland"
+  ],
+  "volcano": [
+    "volcano",
+    "volcanic_peaks"
+  ],
+  "volcanic_crater": [
+    "volcanic_crater",
+    "crater",
+    "caldera",
+    "vent",
+    "fumarole"
+  ],
+  "desert": [
+    "desert",
+    "dunes",
+    "dryland",
+    "outback",
+    "arid",
+    "wasteland"
+  ],
+  "swamp": [
+    "swamp",
+    "marsh",
+    "bog",
+    "fen",
+    "bayou",
+    "mangrove",
+    "wetland"
+  ],
+  "badlands": [
+    "badlands",
+    "mesa",
+    "canyon",
+    "bryce"
+  ],
+  "beach": [
+    "beach",
+    "shore",
+    "coast",
+    "dune_beach",
+    "barrera"
+  ],
+  "river": [
+    "river",
+    "rivers",
+    "stream",
+    "creek",
+    "brook"
+  ],
+  "jungle": [
+    "jungle",
+    "rainforest",
+    "tropical_jungle",
+    "bamboo",
+    "tropics"
+  ],
+  "taiga": [
+    "taiga",
+    "boreal",
+    "coniferous",
+    "pine_forest",
+    "spruce"
+  ],
+  "tundra": [
+    "tundra",
+    "frozen",
+    "snowy_plains",
+    "snowfield",
+    "permafrost"
+  ]
+}

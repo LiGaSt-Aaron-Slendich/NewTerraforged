@@ -1,0 +1,19 @@
+{
+  "biome": "terralith:alpine_highlands",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "cold",
+    "temperate",
+    "alpine"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "hills_2": 0.9,
+    "plateau": 0.85,
+    "island_hills": 0.5,
+    "island_plateau": 0.45
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

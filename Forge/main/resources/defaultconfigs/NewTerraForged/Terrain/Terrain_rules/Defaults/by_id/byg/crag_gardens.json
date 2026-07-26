@@ -1,0 +1,19 @@
+{
+  "biome": "byg:crag_gardens",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "hot",
+    "wet",
+    "temperate"
+  ],
+  "terrains": {
+    "hills_1": 0.9,
+    "hills_2": 0.9,
+    "plateau": 0.7,
+    "dales": 0.5,
+    "plains": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

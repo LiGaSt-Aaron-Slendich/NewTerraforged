@@ -1,0 +1,42 @@
+<!--
+  ~ Copyright (c) 2023 dzikoysk
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Reposilite Description -->
+    <title>Forge Maven</title>
+    <meta name="description" content="Maven Repository for Minecraft Forge.  You should be on:">
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Forge Maven">
+    <meta name="twitter:description" content="Maven Repository for Minecraft Forge.  You should be on:">
+    <!-- OpenGraph -->
+    <meta property="og:title" content="Forge Maven">
+    <meta property="og:site_name" content="Forge Maven">
+    <meta property="og:type" content="website">
+    <meta property="og:description" content="Maven Repository for Minecraft Forge.  You should be on:">
+    <script type="module" crossorigin src="/./assets/index-DxyB2dgL.js"></script>
+    <link rel="stylesheet" crossorigin href="/./assets/index-BscWGMzJ.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"5879ad2cb04d486fb3eef456add78f9d","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

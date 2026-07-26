@@ -1,0 +1,109 @@
+{
+  "type": "giga",
+  "max_y": 56,
+  "min_y": -40,
+  "seed": 91234,
+  "size": 56,
+  "elevation": {
+    "type": "Map",
+    "max": {
+      "type": "Const",
+      "value": 0.6
+    },
+    "min": {
+      "type": "Const",
+      "value": 0.2
+    },
+    "source": {
+      "interpolation": "CURVE3",
+      "type": "Simplex",
+      "frequency": 0.003,
+      "gain": 0.5,
+      "lacunarity": 2,
+      "octaves": 2,
+      "seed": 91230
+    }
+  },
+  "floor": {
+    "type": "Map",
+    "max": {
+      "type": "Const",
+      "value": 1
+    },
+    "min": {
+      "type": "Const",
+      "value": 0
+    },
+    "source": {
+      "type": "Clamp",
+      "max": {
+        "type": "Const",
+        "value": 0.35
+      },
+      "min": {
+        "type": "Const",
+        "value": 0
+      },
+      "source": {
+        "interpolation": "CURVE3",
+        "type": "Simplex",
+        "frequency": 0.014,
+        "gain": 0.5,
+        "lacunarity": 2,
+        "octaves": 2,
+        "seed": 91234
+      }
+    }
+  },
+  "shape": {
+    "type": "Map",
+    "max": {
+      "type": "Const",
+      "value": 1
+    },
+    "min": {
+      "type": "Const",
+      "value": 0
+    },
+    "source": {
+      "type": "Clamp",
+      "max": {
+        "type": "Const",
+        "value": 1
+      },
+      "min": {
+        "type": "Const",
+        "value": 0.7
+      },
+      "source": {
+        "type": "Invert",
+        "source": {
+          "type": "Scale",
+          "scale": {
+            "type": "Const",
+            "value": 2
+          },
+          "source": {
+            "type": "Abs",
+            "source": {
+              "type": "Bias",
+              "bias": {
+                "type": "Const",
+                "value": -0.5
+              },
+              "source": {
+                "interpolation": "CURVE3",
+                "type": "Simplex",
+                "frequency": 0.0025,
+                "gain": 0.5,
+                "lacunarity": 2,
+                "octaves": 3,
+                "seed": 91231
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

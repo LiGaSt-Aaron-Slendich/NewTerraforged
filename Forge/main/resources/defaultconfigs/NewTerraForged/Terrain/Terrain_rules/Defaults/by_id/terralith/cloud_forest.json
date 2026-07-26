@@ -1,0 +1,18 @@
+{
+  "biome": "terralith:cloud_forest",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "cold",
+    "wet",
+    "temperate"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "hills_2": 0.8,
+    "dales": 0.55,
+    "island_hills": 0.45
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

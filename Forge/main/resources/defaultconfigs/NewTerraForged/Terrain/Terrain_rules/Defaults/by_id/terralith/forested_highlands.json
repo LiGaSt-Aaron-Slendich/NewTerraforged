@@ -1,0 +1,18 @@
+{
+  "biome": "terralith:forested_highlands",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "cold"
+  ],
+  "terrains": {
+    "hills_1": 1.0,
+    "hills_2": 0.85,
+    "plateau": 0.8,
+    "island_hills": 0.5,
+    "island_plateau": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

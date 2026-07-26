@@ -1,0 +1,41 @@
+{
+  "biome": "terralith:cave/crystal_caves",
+  "generation_type": "special",
+  "placement_type": "island_patch",
+  "climates": [
+    "normal"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.42,
+  "vegetation_density": 0.35,
+  "weight": 0.85,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 35,
+  "delta_temp": 20,
+  "cond_humidity": 40,
+  "delta_humidity": 15,
+  "cond_fertility": 35,
+  "delta_fertility": 20,
+  "stats": {
+    "conditions": {
+      "moisture": -10.0,
+      "temperature": -10.0,
+      "fertility": -2
+    },
+    "global": {
+      "moisture": 0.0,
+      "temperature": -1,
+      "fertility": -3
+    },
+    "local": {
+      "moisture": 0.0,
+      "temperature": 0.0,
+      "fertility": -1,
+      "falloff_per_hop": 1.2
+    }
+  },
+  "island_max_radius": 2.8,
+  "curated_revision": 1
+}

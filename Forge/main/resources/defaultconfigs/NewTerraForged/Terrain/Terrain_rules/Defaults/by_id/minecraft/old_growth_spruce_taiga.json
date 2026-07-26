@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:old_growth_spruce_taiga",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "cold"
+  ],
+  "terrains": {
+    "dales": 1.0,
+    "hills_1": 0.7,
+    "plains": 0.35,
+    "island_hills": 0.35
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

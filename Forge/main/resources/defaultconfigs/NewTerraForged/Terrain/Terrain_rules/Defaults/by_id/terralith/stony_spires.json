@@ -1,0 +1,21 @@
+{
+  "biome": "terralith:stony_spires",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "alpine"
+  ],
+  "terrains": {
+    "mountains_1": 1.0,
+    "mountains_2": 0.85,
+    "mountains_ridge_1": 0.75,
+    "dolomites": 0.65,
+    "island_mountains": 0.5
+  },
+  "subterrains": {
+    "bare_mountain": 0.65,
+    "mountain_body": 0.45
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

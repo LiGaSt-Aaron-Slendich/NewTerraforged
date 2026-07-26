@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:mushroom_fields",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "temperate",
+    "wet"
+  ],
+  "terrains": {
+    "plains": 1.0,
+    "island_flats": 0.85,
+    "dales": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

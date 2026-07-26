@@ -1,0 +1,40 @@
+{
+  "biome": "byg:subzero_hypogeal",
+  "generation_type": "special",
+  "placement_type": "full_region",
+  "climates": [
+    "frost"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.02,
+  "vegetation_density": 0.05,
+  "weight": 0.6,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": -45,
+  "delta_temp": 15,
+  "cond_humidity": 25,
+  "delta_humidity": 15,
+  "cond_fertility": 8,
+  "delta_fertility": 15,
+  "stats": {
+    "conditions": {
+      "moisture": -10.0,
+      "temperature": -3,
+      "fertility": -10.0
+    },
+    "global": {
+      "moisture": 2,
+      "temperature": -5,
+      "fertility": -2
+    },
+    "local": {
+      "moisture": 1,
+      "temperature": -3,
+      "fertility": 0.0,
+      "falloff_per_hop": 1.0
+    }
+  },
+  "curated_revision": 1
+}

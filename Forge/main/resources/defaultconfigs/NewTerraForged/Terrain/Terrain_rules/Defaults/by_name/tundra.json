@@ -1,0 +1,14 @@
+{
+  "biome": "template:tundra",
+  "can_be_on_slope": false,
+  "climate_tags": ["cold", "snowy"],
+  "terrains": {
+    "plains": 1.0,
+    "steppe": 0.7,
+    "dales": 0.45,
+    "island_flats": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,19 @@
+{
+  "biome": "terralith:desert_spires",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "hot",
+    "desert"
+  ],
+  "terrains": {
+    "steppe": 1.0,
+    "plains": 0.55,
+    "badlands": 0.45,
+    "island_flats": 0.35
+  },
+  "subterrains": {
+    "desert_canyon": 0.35
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

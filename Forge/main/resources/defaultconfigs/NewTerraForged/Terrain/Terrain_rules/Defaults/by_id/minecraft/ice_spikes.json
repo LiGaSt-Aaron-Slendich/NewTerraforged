@@ -1,0 +1,16 @@
+{
+  "biome": "minecraft:ice_spikes",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "snowy",
+    "cold"
+  ],
+  "terrains": {
+    "plains": 1.0,
+    "dales": 0.4,
+    "island_flats": 0.35
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

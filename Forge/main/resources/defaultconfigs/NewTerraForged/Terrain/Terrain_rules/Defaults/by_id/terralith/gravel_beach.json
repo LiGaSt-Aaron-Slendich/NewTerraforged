@@ -1,0 +1,16 @@
+{
+  "biome": "terralith:gravel_beach",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "temperate"
+  ],
+  "terrains": {
+    "beach": 1.0
+  },
+  "subterrains": {
+    "ocean_beach": 0.7,
+    "sea_beach": 0.4
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,15 @@
+{
+  "biome": "terralith:caldera",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "volcanic",
+    "temperate",
+    "wet"
+  ],
+  "terrains": {
+    "volcano_pipe": 1.0
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

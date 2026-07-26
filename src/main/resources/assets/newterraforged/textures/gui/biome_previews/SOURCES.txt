@@ -1,0 +1,17 @@
+﻿Biome preview sources (compressed to 144x144 palette PNG; originals not shipped)
+
+Compression pipeline (tools/recompress_biome_previews.py):
+  FASTOCTREE 128-color palette + PNG optimize + oxipng lossless
+
+Shipped packs:
+  BYG / Oh The Biomes You'll Go (~76)
+  Regions Unexplored (~71)
+  Biomes O' Plenty (~153 incl. 1.18 id aliases) — Fandom wiki pageimages
+  Wythers / WWOO / WWEE (~188 under wythers/) — name-matched + heuristics
+    Namespace aliases: wythers, wwoo, expanded_ecosphere, wwee
+  Vanilla-ish fallbacks in biome_previews/*.png
+
+Fetcher tools:
+  tools/fetch_biome_previews.py
+  tools/fetch_bop_wythers_previews.py
+  tools/recompress_biome_previews.py

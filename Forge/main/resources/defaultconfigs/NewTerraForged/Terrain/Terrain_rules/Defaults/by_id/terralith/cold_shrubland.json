@@ -1,0 +1,15 @@
+{
+  "biome": "terralith:cold_shrubland",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "cold"
+  ],
+  "terrains": {
+    "steppe": 1.0,
+    "plains": 0.7,
+    "island_flats": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

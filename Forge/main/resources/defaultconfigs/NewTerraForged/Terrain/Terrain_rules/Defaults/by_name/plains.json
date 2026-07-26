@@ -1,0 +1,13 @@
+{
+  "biome": "template:plains",
+  "can_be_on_slope": false,
+  "climate_tags": ["temperate"],
+  "terrains": {
+    "plains": 1.0,
+    "dales": 0.6,
+    "island_flats": 0.5
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

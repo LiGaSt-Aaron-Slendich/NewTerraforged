@@ -1,0 +1,13 @@
+{
+  "biome": "template:hills",
+  "can_be_on_slope": true,
+  "climate_tags": ["temperate"],
+  "terrains": {
+    "hills_1": 1.0,
+    "hills_2": 1.0,
+    "island_hills": 0.6
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

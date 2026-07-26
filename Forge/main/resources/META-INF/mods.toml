@@ -1,0 +1,48 @@
+modLoader="javafml"
+loaderVersion="[41,)"
+license="MIT"
+
+[[mods]]
+modId="newterraforged"
+displayName="NewTerraforged"
+version="0.4.4-alpha-1"
+authors="LiGaSt-Aaron-Slendich"
+credits="Fork of TerraForged (original terrain generator by dags & Won-Ton). Cave systems, regional stats, and mod integration by LiGaSt-Aaron-Slendich."
+logoFile="newterraforged.png"
+displayURL="https://github.com/LiGaSt-Aaron-Slendich/NewTerraforged"
+description="NewTerraforged — custom terrain generator with mega/giga cave biomes, regional stats, and mod cave decoration."
+
+[[mods]]
+modId="terraforged"
+displayName="terraforged (legacy mod id)"
+version="0.3.0"
+authors="LiGaSt-Aaron-Slendich"
+description="Legacy Forge mod id only — not a separate mod. Required by some add-ons (e.g. Dynamic Trees compat). Real mod is newterraforged."
+
+[[dependencies.newterraforged]]
+    modId="forge"
+    mandatory=true
+    versionRange="[41,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.newterraforged]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.19,1.20)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.newterraforged]]
+    modId="terrablender"
+    mandatory=false
+    versionRange="[1.2.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.newterraforged]]
+    modId="terralith"
+    mandatory=false
+    versionRange="[2.0.0,)"
+    ordering="NONE"
+    side="BOTH"

@@ -1,0 +1,12 @@
+{
+  "biome": "template:plateau",
+  "can_be_on_slope": true,
+  "climate_tags": ["temperate"],
+  "terrains": {
+    "plateau": 1.0,
+    "island_plateau": 0.5
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

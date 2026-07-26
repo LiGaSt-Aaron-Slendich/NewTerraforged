@@ -1,0 +1,16 @@
+{
+  "biome": "terralith:volcanic_peaks",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "volcanic",
+    "hot",
+    "alpine"
+  ],
+  "terrains": {
+    "volcano": 1.0,
+    "island_volcano": 1.0
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

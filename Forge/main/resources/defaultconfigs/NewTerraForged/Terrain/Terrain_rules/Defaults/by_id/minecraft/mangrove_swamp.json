@@ -1,0 +1,17 @@
+{
+  "biome": "minecraft:mangrove_swamp",
+  "can_be_on_slope": false,
+  "climate_tags": [
+    "hot",
+    "wet",
+    "jungle"
+  ],
+  "terrains": {
+    "dales": 1.0,
+    "plains": 0.45,
+    "island_flats": 0.4
+  },
+  "subterrains": {},
+  "zone_flags": {},
+  "auto_generated": false
+}

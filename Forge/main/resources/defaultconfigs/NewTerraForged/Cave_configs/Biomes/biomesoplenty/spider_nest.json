@@ -1,0 +1,42 @@
+{
+  "biome": "biomesoplenty:spider_nest",
+  "generation_type": "primary",
+  "placement_type": "full_region",
+  "climates": [
+    "normal",
+    "dry",
+    "wet"
+  ],
+  "systems": [],
+  "dimension": "overworld",
+  "temperature": 0.55,
+  "vegetation_density": 0.45,
+  "weight": 0.85,
+  "stat_generator": false,
+  "auto_generated": false,
+  "cond_temp": 50,
+  "delta_temp": 25,
+  "cond_humidity": 45,
+  "delta_humidity": 25,
+  "cond_fertility": 80,
+  "delta_fertility": 30,
+  "stats": {
+    "conditions": {
+      "moisture": 0.0,
+      "temperature": -1.0,
+      "fertility": 0.0
+    },
+    "global": {
+      "moisture": 1.0,
+      "temperature": 0.0,
+      "fertility": 1.0
+    },
+    "local": {
+      "moisture": 1.0,
+      "temperature": 0.0,
+      "fertility": 1.0,
+      "falloff_per_hop": 0.9
+    }
+  },
+  "curated_revision": 1
+}

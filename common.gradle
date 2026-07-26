@@ -1,0 +1,53 @@
+project.ext.minecraft_version = "1.19"
+project.ext.mod_version = "0.4.4"
+project.ext.mod_classifier = "-alpha-1"
+project.ext.mod_group = "com.newterraforged"
+project.ext.archives_base_name = "NewTerraForged"
+
+group = mod_group
+version = mod_version + mod_classifier
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+sourceSets {
+    main.resources { srcDirs += "/generated/resources" }
+}
+
+configurations {
+    library
+    implementation.extendsFrom library
+}
+
+repositories {
+    maven { url "https://io.terraforged.com/maven/" }
+    flatDir { dirs "lib" }
+}
+
+dependencies {
+    // Prefer local Engine jar (cereal/engine/noise) — official maven may be offline.
+    // Built from NewTerraforged/libs/Terraforged.jar packages.
+    library files("lib/Engine-0.3.0.jar")
+}
+
+task libraries(type: Copy) {
+    from {
+        configurations.library.collect { dep ->
+            dep.isDirectory() ? dep : zipTree(dep).matching {
+                // Source shims replace these for 0.3.x seed API + getOrCreate.
+                exclude "com/terraforged/noise/Noise.class"
+                exclude "com/terraforged/noise/domain/Domain.class"
+                exclude "com/terraforged/engine/world/terrain/TerrainType.class"
+            }
+        }
+    }
+    into("build/classes/java/main")
+    duplicatesStrategy = "EXCLUDE"
+}
+
+classes {
+    dependsOn(libraries)
+}
+
+jar {
+    archivesBaseName = "${archives_base_name}-${minecraft_version}"
+}

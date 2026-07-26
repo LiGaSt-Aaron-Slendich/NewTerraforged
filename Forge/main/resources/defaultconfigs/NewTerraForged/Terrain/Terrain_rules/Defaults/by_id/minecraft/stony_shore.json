@@ -1,0 +1,18 @@
+{
+  "biome": "minecraft:stony_shore",
+  "can_be_on_slope": true,
+  "climate_tags": [
+    "temperate",
+    "cold"
+  ],
+  "terrains": {
+    "beach": 1.0,
+    "hills_1": 0.35
+  },
+  "subterrains": {
+    "ocean_beach": 0.6,
+    "sea_beach": 0.5
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}

@@ -1,0 +1,38 @@
+# NewTerraForged — cave generation (mega / giga / synapse)
+# Path: config/NewTerraForged/Cave_configs/caves.toml
+# region_count_min/max = PRIMARY regions per mega/giga (one biome each)
+# island_max_per_region = max island_patch biomes inside one PRIMARY region
+# Restart the game after editing.
+
+[mega]
+region_count_min = 5
+region_count_max = 8
+transition_per_region = 2
+scale = 1.0
+
+[giga]
+region_count_min = 5
+region_count_max = 8
+transition_per_region = 3
+scale = 2.0
+
+[normal]
+max_biomes_per_system = 2
+transition_max_width_blocks = 40
+island_max_radius_chunks = 3
+island_max_per_region = 4
+# false = mega/giga only (no synapse column caves)
+enable_synapse_caves = true
+
+# Cave density budget per chunk (synapse / global only outside mega+giga voronoi zones).
+# Mega and giga always carve at full strength and consume this budget first.
+# Roof buffer: blocks of stone between cave ceiling and surface (original TF-style height cap).
+# Mega/giga use surface_roof_buffer_mega_giga; synapse/global use surface_roof_buffer_synapse.
+# xy_limit / yz_limit: positive integer cap, or false for built-in defaults (96 columns / 8192 blocks).
+
+[caves]
+xy_limit = false
+yz_limit = false
+cave_percent = 100
+surface_roof_buffer_mega_giga = 26
+surface_roof_buffer_synapse = 22

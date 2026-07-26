@@ -1,0 +1,165 @@
+package com.terraforged.mod.worldgen.biome;
+
+import com.terraforged.engine.world.biome.type.BiomeType;
+import com.terraforged.engine.world.terrain.ITerrain;
+import com.terraforged.engine.world.terrain.Terrain;
+import com.terraforged.engine.world.terrain.TerrainCategory;
+import com.terraforged.engine.world.terrain.TerrainType;
+
+public final class SurfaceBiomeClimate {
+    private SurfaceBiomeClimate() {
+    }
+
+    public static BiomeType adjustForTerrain(BiomeType climate, Terrain terrain, float temperature, float moisture) {
+        return adjustForTerrain(climate, terrain, temperature, moisture, 0.0F);
+    }
+
+    public static BiomeType adjustForTerrain(
+            BiomeType climate, Terrain terrain, float temperature, float moisture, float heightNoise
+    ) {
+        if (climate == null) {
+            return climate;
+        }
+        if (terrain != null && (terrain.isSubmerged() || terrain.isDeepOcean() || terrain.isShallowOcean()
+                || terrain.isCoast() || terrain.isRiver() || terrain.isLake())) {
+            return climate;
+        }
+        boolean mountain = terrain != null && (terrain.isMountain()
+                || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAINS)
+                || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.MOUNTAIN_CHAIN));
+        // Tundra climate zone: whole mountain stays tundra (body + peaks).
+        if (climate == BiomeType.TUNDRA && mountain) {
+            return BiomeType.TUNDRA;
+        }
+        // Only true peaks force Alpine — mountain body keeps regional climate.
+        if (HeightClimateZones.isAlpine(heightNoise)) {
+            return BiomeType.ALPINE;
+        }
+        if (terrain == null) {
+            return climate;
+        }
+        if (mountain) {
+            // Soft highland nudge for mid-mountain — never blanket Alpine.
+            return SurfaceBiomeClimate.highlandClimate(climate, temperature, moisture);
+        }
+        if (terrain.isVolcano() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.VOLCANO)) {
+            return SurfaceBiomeClimate.volcanicClimate(climate, temperature);
+        }
+        if (SurfaceBiomeClimate.isBadlandsTerrain(terrain)) {
+            // Never keep cold climates paired with mesa terrain — if bias failed, still
+            // push climate toward arid so biome rules / cliff paint stay consistent.
+            return SurfaceBiomeClimate.badlandsClimate(climate, moisture);
+        }
+        if (terrain.isWetland() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.WETLAND)) {
+            return SurfaceBiomeClimate.wetterClimate(climate, temperature);
+        }
+        if (SurfaceBiomeClimate.matchesKind(terrain, TerrainType.PLATEAU) || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.HILLS)) {
+            return SurfaceBiomeClimate.highlandClimate(climate, temperature, moisture);
+        }
+        if (terrain.isFlat() || SurfaceBiomeClimate.matchesKind(terrain, TerrainType.FLATS) || terrain.getCategory() == TerrainCategory.FLATLAND) {
+            return SurfaceBiomeClimate.lowlandClimate(climate, moisture);
+        }
+        return climate;
+    }
+
+    private static BiomeType volcanicClimate(BiomeType climate, float temperature) {
+        if (climate == BiomeType.TUNDRA || climate == BiomeType.TAIGA) {
+            return climate;
+        }
+        return temperature > 0.58f ? BiomeType.SAVANNA : BiomeType.GRASSLAND;
+    }
+
+    private static BiomeType badlandsClimate(BiomeType climate, float moisture) {
+        // Cold/wet climates should never host mesa terrain (ClimateTerrainBias). If one
+        // slips through, do not invent DESERT here — that breaks taiga biome rules worse.
+        if (climate == BiomeType.TUNDRA || climate == BiomeType.TAIGA
+                || climate == BiomeType.ALPINE || climate == BiomeType.COLD_STEPPE
+                || climate == BiomeType.TEMPERATE_FOREST || climate == BiomeType.TEMPERATE_RAINFOREST) {
+            return climate;
+        }
+        return moisture < 0.55F ? BiomeType.DESERT : BiomeType.SAVANNA;
+    }
+
+    /**
+     * Same recognition as {@link com.terraforged.mod.worldgen.biome.rules.SubterrainResolver}:
+     * kind chain <em>or</em> terrain name. Without the name check, mesa-like cells whose
+     * Terrain wrapper does not delegate to {@link TerrainType#BADLANDS} keep raw temperate
+     * climate while terrain rules still see {@code "badlands"} — climate∩terrain mismatch.
+     */
+    private static boolean isBadlandsTerrain(Terrain terrain) {
+        if (terrain == null) {
+            return false;
+        }
+        if (SurfaceBiomeClimate.matchesKind(terrain, TerrainType.BADLANDS)) {
+            return true;
+        }
+        String name = terrain.getName();
+        return name != null && "badlands".equalsIgnoreCase(name);
+    }
+
+    private static BiomeType wetterClimate(BiomeType climate, float temperature) {
+        return switch (climate) {
+            case DESERT, STEPPE, COLD_STEPPE, SAVANNA -> {
+                if (temperature > 0.65f) {
+                    yield BiomeType.TROPICAL_RAINFOREST;
+                }
+                yield BiomeType.TEMPERATE_RAINFOREST;
+            }
+            case GRASSLAND -> {
+                if (temperature > 0.65f) {
+                    yield BiomeType.TROPICAL_RAINFOREST;
+                }
+                yield BiomeType.TEMPERATE_FOREST;
+            }
+            case TEMPERATE_FOREST -> BiomeType.TEMPERATE_RAINFOREST;
+            default -> climate;
+        };
+    }
+
+    private static BiomeType highlandClimate(BiomeType climate, float temperature, float moisture) {
+        if (temperature < 0.38f) {
+            return BiomeType.ALPINE;
+        }
+        if (moisture < 0.38f) {
+            return temperature < 0.55f ? BiomeType.COLD_STEPPE : BiomeType.STEPPE;
+        }
+        if (climate == BiomeType.GRASSLAND || climate == BiomeType.STEPPE || climate == BiomeType.COLD_STEPPE) {
+            return BiomeType.TEMPERATE_FOREST;
+        }
+        return climate;
+    }
+
+    private static BiomeType lowlandClimate(BiomeType climate, float moisture) {
+        return switch (climate) {
+            case STEPPE, COLD_STEPPE -> {
+                if (moisture > 0.45f) {
+                    yield BiomeType.GRASSLAND;
+                }
+                yield climate;
+            }
+            case TEMPERATE_RAINFOREST -> {
+                if (moisture < 0.42f) {
+                    yield BiomeType.TEMPERATE_FOREST;
+                }
+                yield climate;
+            }
+            default -> climate;
+        };
+    }
+
+    private static boolean matchesKind(Terrain terrain, Terrain kind) {
+        Terrain current = terrain;
+        while (current != null) {
+            Terrain next;
+            if (current == kind) {
+                return true;
+            }
+            ITerrain delegate = current.getDelegate();
+            if (!(delegate instanceof Terrain) || (next = (Terrain)delegate) == current) {
+                return false;
+            }
+            current = next;
+        }
+        return false;
+    }
+}

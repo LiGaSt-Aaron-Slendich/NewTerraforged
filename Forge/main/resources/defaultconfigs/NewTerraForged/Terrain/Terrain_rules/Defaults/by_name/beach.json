@@ -1,0 +1,14 @@
+{
+  "biome": "template:beach",
+  "can_be_on_slope": false,
+  "climate_tags": [],
+  "terrains": {
+    "beach": 1.0
+  },
+  "subterrains": {
+    "ocean_beach": 0.7,
+    "sea_beach": 0.3
+  },
+  "zone_flags": {},
+  "auto_generated": false
+}
